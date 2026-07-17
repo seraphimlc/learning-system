@@ -245,6 +245,7 @@ def configured_route_statuses() -> dict[str, dict[str, Any]]:
         "question_designer": question_designer_route(),
         "question_reviewer": question_reviewer_route(),
         "question_node_set_review": question_node_set_review_route(),
+        "question_node_global_verifier": question_node_global_verifier_route(),
         "question_node_global_finalizer": question_node_global_finalizer_route(),
         "answer_photo_vision": answer_photo_vision_route(),
     }
@@ -372,8 +373,18 @@ def question_node_global_finalizer_route() -> ModelRoute:
         "question_reviewer_agent",
         task="node_global_finalizer",
         default_model=DEFAULT_QUESTION_NODE_SET_REVIEW_MODEL,
-        model_envs=("AI_QUESTION_NODE_SET_REVIEW_MODEL",),
-        timeout_envs=("AI_QUESTION_NODE_SET_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
+        model_envs=("AI_QUESTION_NODE_GLOBAL_FINALIZER_MODEL", "AI_QUESTION_NODE_SET_REVIEW_MODEL"),
+        timeout_envs=("AI_QUESTION_NODE_GLOBAL_FINALIZER_TIMEOUT_SECONDS", "AI_QUESTION_NODE_SET_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
+    )
+
+
+def question_node_global_verifier_route() -> ModelRoute:
+    return resolve_route(
+        "question_reviewer_agent",
+        task="node_global_verifier",
+        default_model=DEFAULT_QUESTION_NODE_SET_REVIEW_MODEL,
+        model_envs=("AI_QUESTION_NODE_GLOBAL_VERIFIER_MODEL", "AI_QUESTION_NODE_SET_REVIEW_MODEL"),
+        timeout_envs=("AI_QUESTION_NODE_GLOBAL_VERIFIER_TIMEOUT_SECONDS", "AI_QUESTION_NODE_SET_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
     )
 
 

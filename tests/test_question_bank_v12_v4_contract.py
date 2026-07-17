@@ -209,6 +209,10 @@ def _item(
         "semantic_evidence": _semantic_evidence(item),
         "confidence": 0.95,
     }
+    review["child_surface_sha256"] = question_bank.canonical_child_surface_projection(item)[
+        "projection_sha256"
+    ]
+    review["item_review_request_sha256"] = question_bank.v12_item_review_request_sha256(item)
     review["semantic_evidence_sha256"] = question_bank.v12_item_review_semantic_evidence_sha256(item, review)
     item["review_artifact"] = review
     return item
@@ -299,6 +303,12 @@ def _local_shard_output(
                 "slot": slot,
                 "item_id": _item_by_slot(node_entry, slot)["id"],
                 "candidate_sha256": question_bank.v12_external_candidate_sha256(_item_by_slot(node_entry, slot)),
+                "child_surface_sha256": question_bank.v12_item_review_subject_binding(
+                    _item_by_slot(node_entry, slot)
+                )["child_surface_sha256"],
+                "item_review_request_sha256": question_bank.v12_item_review_subject_binding(
+                    _item_by_slot(node_entry, slot)
+                )["item_review_request_sha256"],
                 "item_review_semantic_evidence_sha256": _item_by_slot(node_entry, slot)["review_artifact"]["semantic_evidence_sha256"],
                 "verdict": "needs_repair" if slot in rejected else "approved",
                 "slot_fit": _scored(),
@@ -452,13 +462,17 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
             "V12_NODE_SET_REVIEWER_RESPONSE_SCHEMA_VERSION",
             "V12_ITEM_REVIEW_SEMANTIC_EVIDENCE_VERSION",
             "V12_NODE_SET_REVIEW_SEMANTIC_EVIDENCE_VERSION",
-            "V12_RUNNER_RECEIPT_SCHEMA_VERSION",
             "V12_COMPLETED_NODE_RECEIPT_SCHEMA_VERSION",
             "V12_ACTIVE_QUALITY_CONTRACT_VERSION",
         )
         for name in identity_names:
             with self.subTest(identity=name):
                 self.assertTrue(str(getattr(question_bank, name, "")).endswith(".v4"), name)
+
+        self.assertEqual(
+            "2026-07-17.math-qb-v12.runner-receipt.v5",
+            question_bank.V12_RUNNER_RECEIPT_SCHEMA_VERSION,
+        )
 
         v6_identity_names = (
             "V12_GLOBAL_FINALIZER_CONTRACT_VERSION",
@@ -469,13 +483,15 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
         for name in v6_identity_names:
             with self.subTest(identity=name):
                 self.assertTrue(str(getattr(question_bank, name, "")).endswith(".v6"), name)
-        self.assertTrue(question_bank.V12_SEMANTIC_EVIDENCE_COMMITMENT_VERSION.endswith(".v5"))
+        self.assertTrue(question_bank.V12_SEMANTIC_EVIDENCE_COMMITMENT_VERSION.endswith(".v6"))
         self.assertTrue(
             question_bank.V12_GLOBAL_FINALIZER_SEMANTIC_EVIDENCE_VERSION.endswith(".v4")
         )
         self.assertTrue(
-            question_bank.V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION.endswith(".v1")
+            question_bank.V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION.endswith(".v2")
         )
+        self.assertTrue(question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION.endswith(".v1"))
+        self.assertTrue(question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID.endswith(".v1"))
 
         v4_path_names = (
             "DESIGNER_CONTRACT_PATH",
@@ -496,6 +512,12 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                 path = getattr(module, name, None)
                 self.assertIsInstance(path, Path, f"missing v5 builder path {name}")
                 self.assertIn(".v6.", path.name)
+                self.assertTrue(path.is_file(), path)
+        for name in ("GLOBAL_VERIFIER_CONTRACT_PATH", "GLOBAL_VERIFIER_PROMPT_PATH"):
+            with self.subTest(path=name):
+                path = getattr(module, name, None)
+                self.assertIsInstance(path, Path, f"missing v1 verifier path {name}")
+                self.assertIn(".v1.", path.name)
                 self.assertTrue(path.is_file(), path)
 
     def test_child_visible_prompt_and_review_only_payloads_are_strictly_partitioned(self):
@@ -892,11 +914,13 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                 output=raw_output,
             )
 
-    def test_one_global_finalizer_call_receives_twenty_prompt_only_compact_cards(self):
+    def test_blind_global_verifier_and_finalizer_receive_twenty_prompt_only_compact_cards(self):
         module = _load_builder()
         run_review = _require_callable(self, module, "_node_set_semantic_repair_instructions")
         signature = inspect.signature(run_review)
         for parameter in (
+            "global_verifier_contract",
+            "global_verifier_prompt_template",
             "global_finalizer_contract",
             "global_finalizer_prompt_template",
         ):
@@ -905,6 +929,7 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
         global_contract_path = getattr(module, "GLOBAL_FINALIZER_CONTRACT_PATH", None)
         self.assertIsInstance(global_contract_path, Path)
         global_contract = json.loads(global_contract_path.read_text(encoding="utf-8"))
+        verifier_contract = module._load_global_verifier_contract()
         global_schema = global_contract["response_schema"]
         self.assertFalse(global_schema["additionalProperties"])
         self.assertEqual(
@@ -941,7 +966,7 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                     entry["item_review_semantic_evidence_sha256"] = (
                         "wrong-runtime-model-review-echo"
                     )
-            elif task == "node_global_finalizer":
+            elif task in {"node_global_verifier", "node_global_finalizer"}:
                 value = module._global_model_judgment_from_output(
                     _global_output(node_entry, _constituent_reviews(node_entry))
                 )
@@ -953,7 +978,7 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                     trusted_context=kwargs["trusted_context"],
                     untrusted_payload=kwargs["untrusted_payload"],
                 )
-                if task == "node_global_finalizer"
+                if task in {"node_global_verifier", "node_global_finalizer"}
                 else f"rendered:{task}"
             )
             return model_router.StructuredJSONResult(
@@ -984,10 +1009,26 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
             timeout_seconds=1.0,
             model_params={},
         )
+        verifier_route = model_router.ModelRoute(
+            agent_key=question_bank.QUESTION_REVIEWER_AGENT_KEY,
+            task="node_global_verifier",
+            provider="test",
+            model="test",
+            model_alias="test",
+            base_url="",
+            api_key="",
+            timeout_seconds=1.0,
+            model_params={},
+        )
         with mock.patch.object(module, "_call_v12_batch_agent", side_effect=fake_call), mock.patch.object(
             module.model_router,
             "question_node_set_review_route",
             return_value=local_route,
+        ), mock.patch.object(
+            module.model_router,
+            "question_node_global_verifier_route",
+            return_value=verifier_route,
+            create=True,
         ), mock.patch.object(
             module.model_router,
             "question_node_global_finalizer_route",
@@ -1001,6 +1042,8 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                 graph_version=CURRENT_GRAPH_VERSION,
                 contract=local_contract,
                 prompt_template=module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+                global_verifier_contract=verifier_contract,
+                global_verifier_prompt_template=module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8"),
                 global_finalizer_contract=global_contract,
                 global_finalizer_prompt_template=module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8"),
                 accepted_core_summaries=[],
@@ -1022,8 +1065,15 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                     entry["item_review_semantic_evidence_sha256"],
                 )
 
+        verifier_calls = [call for call in calls if call["route"].task == "node_global_verifier"]
         global_calls = [call for call in calls if call["route"].task == "node_global_finalizer"]
+        self.assertEqual(1, len(verifier_calls))
         self.assertEqual(1, len(global_calls))
+        self.assertNotIn("independent_global_verifier", global_calls[0]["trusted_context"])
+        self.assertEqual(
+            verifier_calls[0]["untrusted_payload"],
+            global_calls[0]["untrusted_payload"],
+        )
         payload = global_calls[0]["untrusted_payload"]
         cards = payload["item_cards"]
         self.assertEqual(list(range(1, 21)), [int(card["slot"]) for card in cards])

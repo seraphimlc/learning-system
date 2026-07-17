@@ -32,7 +32,7 @@ def _directive(slot: int) -> dict:
 
 
 class QuestionBankV12GlobalNormalizationTest(unittest.TestCase):
-    def test_runtime_filters_only_extra_model_repair_slots_when_canonical_set_is_covered(self):
+    def test_runtime_does_not_filter_extra_model_repair_slots(self):
         module = _load_builder()
         judgment = {"repair_plan": [_directive(2), _directive(16)]}
         reduced = {
@@ -48,9 +48,8 @@ class QuestionBankV12GlobalNormalizationTest(unittest.TestCase):
             reduced,
         )
 
-        self.assertEqual([16], [item["slot"] for item in normalized["repair_plan"]])
-        self.assertEqual([2], audit["removed_slots"])
-        self.assertEqual([16], audit["canonical_slots"])
+        self.assertEqual([2, 16], [item["slot"] for item in normalized["repair_plan"]])
+        self.assertIsNone(audit)
 
     def test_runtime_does_not_normalize_without_canonical_minimum_mismatch(self):
         module = _load_builder()
@@ -68,7 +67,7 @@ class QuestionBankV12GlobalNormalizationTest(unittest.TestCase):
         self.assertEqual(judgment, normalized)
         self.assertIsNone(audit)
 
-    def test_runtime_synthesizes_missing_duplicate_directives_for_canonical_slots(self):
+    def test_runtime_does_not_synthesize_missing_duplicate_directives(self):
         module = _load_builder()
         node_entry = {
             "items": [
@@ -106,11 +105,8 @@ class QuestionBankV12GlobalNormalizationTest(unittest.TestCase):
             node_entry=node_entry,
         )
 
-        self.assertEqual([2, 3, 20], [item["slot"] for item in normalized["repair_plan"]])
-        synthesized = [item for item in normalized["repair_plan"] if item["slot"] in {2, 3}]
-        self.assertTrue(all(item["repair_scope"] == "global_duplicate" for item in synthesized))
-        self.assertTrue(all(item["exact_target_delta"]["dimension"] == "mathematical_core" for item in synthesized))
-        self.assertEqual([2, 3], audit["synthesized_slots"])
+        self.assertEqual([20], [item["slot"] for item in normalized["repair_plan"]])
+        self.assertIsNone(audit)
 
 
 if __name__ == "__main__":

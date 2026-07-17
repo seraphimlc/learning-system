@@ -38,7 +38,7 @@
         reconstructed += segment.source;
         html.push(
           `<span class="math-power" role="img" aria-label="${escapeAttr(segment.accessible_label)}" data-linear-source="${escapeAttr(segment.source)}">`
-          + `<span aria-hidden="true">${escapeHtml(segment.base)}<sup>${escapeHtml(segment.exponent)}</sup></span>`
+          + `<span aria-hidden="true">${escapeHtml(segment.base)}<span class="math-power-caret">^</span><sup>${escapeHtml(segment.exponent)}</sup></span>`
           + "</span>"
         );
         continue;
@@ -75,6 +75,55 @@
     }
     return true;
   }
+
+  function containingMathPower(node) {
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    return element?.closest?.(".math-power") || null;
+  }
+
+  function rangeContainsMathPower(range) {
+    return [...document.querySelectorAll(".math-power")].some((element) => {
+      try {
+        return range.intersectsNode(element);
+      } catch (_error) {
+        return false;
+      }
+    });
+  }
+
+  function serializeMathSelection(selection) {
+    const parts = [];
+    let containsMathPower = false;
+    for (let index = 0; index < selection.rangeCount; index += 1) {
+      const sourceRange = selection.getRangeAt(index);
+      if (!rangeContainsMathPower(sourceRange)) {
+        parts.push(sourceRange.toString());
+        continue;
+      }
+      containsMathPower = true;
+      const range = sourceRange.cloneRange();
+      const startPower = containingMathPower(range.startContainer);
+      const endPower = containingMathPower(range.endContainer);
+      if (startPower) range.setStartBefore(startPower);
+      if (endPower) range.setEndAfter(endPower);
+      const container = document.createElement("div");
+      container.append(range.cloneContents());
+      for (const power of container.querySelectorAll(".math-power")) {
+        power.replaceWith(document.createTextNode(power.dataset.linearSource || power.textContent || ""));
+      }
+      parts.push(container.textContent || "");
+    }
+    return containsMathPower ? parts.join("") : null;
+  }
+
+  document.addEventListener("copy", (event) => {
+    const selection = global.getSelection?.();
+    if (!selection || selection.isCollapsed || !event.clipboardData) return;
+    const serialized = serializeMathSelection(selection);
+    if (serialized === null) return;
+    event.clipboardData.setData("text/plain", serialized);
+    event.preventDefault();
+  });
 
   global.ChildPromptRenderer = Object.freeze({
     PROMPT_FORMAT,

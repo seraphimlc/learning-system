@@ -229,9 +229,16 @@ V12_NODE_SET_GLOBAL_FINALIZER_CONTRACT_VERSION = "2026-07-17.math-qb-v12.node-se
 V12_NODE_SET_GLOBAL_FINALIZER_PROMPT_VERSION_ID = "2026-07-17.math-qb-v12.node-set-global-finalizer.prompt.v6"
 V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION = "2026-07-17.math-qb-v12.node-set-global-model-judgment.schema.v6"
 V12_NODE_SET_GLOBAL_FINALIZER_MODEL_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-model-judgment.v6"
-V12_NODE_SET_GLOBAL_FINALIZER_PROMPT_TEMPLATE_SHA256 = "22cb1b06bdf8fd46a5becb67e1d0272c2f64ae2a3433a0f903ed28402592fb8b"
+V12_NODE_SET_GLOBAL_FINALIZER_PROMPT_TEMPLATE_SHA256 = "99bc460a9de41096afef67b262a26d4a5a639969570da877df243233326fb672"
 V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_SHA256 = "1a3a971c176f8fe1f359008a2cf4cfa20ae74375fe36063e06902978fdd66428"
-V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION = "2026-07-15.math-qb-v12.node-set-global-finalizer-request.v1"
+V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION = "2026-07-17.math-qb-v12.node-set-global-finalizer-request.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier.v1"
+V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID = "2026-07-17.math-qb-v12.node-set-global-verifier.prompt.v1"
+V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION = V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION
+V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-evidence.v1"
+V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256 = "75fb59780b2f5af4137bc3dd67d32d90323b160e21e7072c139b7bd6d16f4e83"
+V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256 = V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_SHA256
+V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-request.v1"
 V12_NODE_SET_GLOBAL_FINALIZER_MODEL_FIELDS = frozenset({
     "schema_version",
     "node_id",
@@ -317,11 +324,11 @@ V12_NODE_SET_REVIEW_SEMANTIC_EVIDENCE_VERSION = V12_NODE_SET_FOCAL_REVIEW_SEMANT
 V12_GLOBAL_FINALIZER_SEMANTIC_EVIDENCE_VERSION = V12_NODE_SET_GLOBAL_REVIEW_SEMANTIC_EVIDENCE_VERSION
 V12_NODE_SET_AGGREGATE_SEMANTIC_EVIDENCE_VERSION = "2026-07-12.math-qb-v12.node-set-aggregate-evidence.v4"
 V12_LEGACY_SEMANTIC_EVIDENCE_COMMITMENT_VERSION = "2026-07-12.math-qb-v12.semantic-evidence-commitment.v4"
-V12_SEMANTIC_EVIDENCE_COMMITMENT_VERSION = "2026-07-15.math-qb-v12.semantic-evidence-commitment.v5"
-V12_RUNNER_RECEIPT_SCHEMA_VERSION = "2026-07-12.math-qb-v12.runner-receipt.v4"
+V12_SEMANTIC_EVIDENCE_COMMITMENT_VERSION = "2026-07-17.math-qb-v12.semantic-evidence-commitment.v6"
+V12_RUNNER_RECEIPT_SCHEMA_VERSION = "2026-07-17.math-qb-v12.runner-receipt.v5"
 V12_COMPLETED_NODE_RECEIPT_SCHEMA_VERSION = "2026-07-12.math-qb-v12.completed-node-receipt.v4"
 V12_ACTIVE_QUALITY_CONTRACT_VERSION = "2026-07-12.math-qb-v12.active-quality.v4"
-V12_STRUCTURED_QUALITY_BASIS = "v12_v4_structured_reviewer_and_global_finalizer_evidence"
+V12_STRUCTURED_QUALITY_BASIS = "v12_v6_bound_independent_verifier_and_global_finalizer_evidence"
 V12_CROSS_NODE_SUMMARY_CONTEXT_SCHEMA_VERSION = "2026-07-16.math-qb-v12.cross-node-summary-context.v1"
 V12_CROSS_NODE_SUMMARY_SELECTOR_POLICY_VERSION = "2026-07-16.math-qb-v12.cross-node-summary-selector.v1"
 V12_CROSS_NODE_SUMMARY_MAX_SELECTED = 80
@@ -712,6 +719,66 @@ def v12_bind_global_model_judgment(
     return bound
 
 
+def v12_global_model_judgment_binding_errors(
+    node_entry: dict[str, Any],
+    model_judgment: Any,
+) -> list[str]:
+    if not isinstance(model_judgment, dict):
+        return ["model_judgment_binding:not_object"]
+    item_by_slot = _v12_item_by_slot(node_entry)
+    subject_by_slot = {
+        slot: v12_item_review_subject_binding(item)
+        for slot, item in item_by_slot.items()
+    }
+    errors: list[str] = []
+    classifications = model_judgment.get("item_classifications")
+    if not isinstance(classifications, list):
+        return ["model_judgment_binding.item_classifications:not_array"]
+    binding_fields = (
+        "node_id",
+        "slot",
+        "item_id",
+        "candidate_sha256",
+        "child_surface_sha256",
+        "item_review_request_sha256",
+        "item_review_semantic_evidence_sha256",
+    )
+    for index, classification in enumerate(classifications):
+        if not isinstance(classification, dict):
+            continue
+        slot = classification.get("slot")
+        subject = subject_by_slot.get(slot) if isinstance(slot, int) else None
+        if not subject:
+            errors.append(f"model_judgment_binding.item_classifications[{index}].slot:unknown")
+            continue
+        for field in binding_fields:
+            if classification.get(field) != subject.get(field):
+                errors.append(
+                    f"model_judgment_binding.item_classifications[{index}].{field}:mismatch"
+                )
+    for key in ("homogeneous_clusters", "repetitive_instruction_clusters", "duplicate_groups"):
+        groups = model_judgment.get(key)
+        if not isinstance(groups, list):
+            continue
+        for index, group in enumerate(groups):
+            if not isinstance(group, dict):
+                continue
+            slots = _v12_canonical_slot_list(group.get("slots"))
+            if len(slots) != len(group.get("slots") or []) or any(
+                slot not in subject_by_slot for slot in slots
+            ):
+                errors.append(f"model_judgment_binding.{key}[{index}].slots:mismatch")
+                continue
+            expected_subjects = sorted(
+                subject_by_slot[slot]["subject_sha256"] for slot in slots
+            )
+            if group.get("subject_sha256s") != expected_subjects:
+                errors.append(
+                    f"model_judgment_binding.{key}[{index}].subject_sha256s:mismatch"
+                )
+    return sorted(set(errors))
+
+
 def v12_expand_global_model_judgment(
     node_entry: dict[str, Any],
     constituent_reviews: list[dict[str, Any]],
@@ -875,6 +942,19 @@ def v12_bounded_teaching_quality_gate(
         if classification.get("ownership_mode") == "prerequisite_only" and slot != 13:
             gate_errors.append(f"prerequisite_only_forbidden:{slot}")
             rejected_slots.add(slot)
+        if classification.get("ownership_mode") == "prerequisite_only":
+            if classification.get("current_node_indispensable") != "no":
+                gate_errors.append(f"prerequisite_only_indispensable_mismatch:{slot}")
+                rejected_slots.add(slot)
+        elif classification.get("current_node_indispensable") != "yes":
+            gate_errors.append(f"current_node_indispensable_required:{slot}")
+            rejected_slots.add(slot)
+        if (
+            classification.get("ownership_mode") == "controlled_stretch"
+            and slot not in CONTROLLED_ADVANCED_CHALLENGE_SLOTS
+        ):
+            gate_errors.append(f"controlled_stretch_slot_forbidden:{slot}")
+            rejected_slots.add(slot)
         if classification.get("difficulty_verdict") in {"L4", "stretch"} and not set(
             classification.get("difficulty_features") or []
         ).intersection(V12_DIFFICULTY_FEATURES):
@@ -887,6 +967,14 @@ def v12_bounded_teaching_quality_gate(
     }
     if len(evidence_families) < V12_MIN_PRIMARY_EVIDENCE_MOVE_FAMILIES:
         gate_errors.append("primary_evidence_move_family_minimum")
+    controlled_stretch_slots = [
+        slot
+        for slot, classification in by_slot.items()
+        if classification.get("ownership_mode") == "controlled_stretch"
+    ]
+    if len(controlled_stretch_slots) > V12_MAX_CONTROLLED_STRETCH_PER_NODE:
+        gate_errors.append("controlled_stretch_classification_maximum")
+        rejected_slots.update(controlled_stretch_slots[V12_MAX_CONTROLLED_STRETCH_PER_NODE:])
     homogeneous_clusters = _v12_union_overlapping_slot_groups(
         model_judgment.get("homogeneous_clusters") or []
     )
@@ -1180,12 +1268,14 @@ def v12_item_review_binding_errors(item: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     stored_surface = str(review.get("child_surface_sha256") or "")
     stored_request = str(review.get("item_review_request_sha256") or "")
-    if stored_surface and stored_surface != projection["projection_sha256"]:
+    if not stored_surface:
+        errors.append("review.child_surface_sha256:missing")
+    elif stored_surface != projection["projection_sha256"]:
         errors.append("review.child_surface_sha256:mismatch")
-    if stored_request and stored_request != expected_request:
+    if not stored_request:
+        errors.append("review.item_review_request_sha256:missing")
+    elif stored_request != expected_request:
         errors.append("review.item_review_request_sha256:mismatch")
-    if projection.get("source_changed") and (not stored_surface or not stored_request):
-        errors.append("review.legacy_binding:normalized_surface_requires_fresh_review")
     return errors
 
 
@@ -2202,6 +2292,11 @@ def v12_node_set_focal_review_output_errors(
             errors_by_slot.setdefault(slot, []).append("focal_slot_review:item_id_mismatch")
         if entry.get("candidate_sha256") != v12_external_candidate_sha256(item):
             errors_by_slot.setdefault(slot, []).append("focal_slot_review:candidate_sha256_mismatch")
+        subject = v12_item_review_subject_binding(item)
+        if entry.get("child_surface_sha256") != subject["child_surface_sha256"]:
+            errors_by_slot.setdefault(slot, []).append("focal_slot_review:child_surface_sha256_mismatch")
+        if entry.get("item_review_request_sha256") != subject["item_review_request_sha256"]:
+            errors_by_slot.setdefault(slot, []).append("focal_slot_review:item_review_request_sha256_mismatch")
         if entry.get("item_review_semantic_evidence_sha256") != item_review.get("semantic_evidence_sha256"):
             errors_by_slot.setdefault(slot, []).append("focal_slot_review:item_review_semantic_evidence_sha256_mismatch")
         for key in ("slot_fit", "mathematical_correctness", "context_semantics", "prompt_answer_alignment"):
@@ -2298,6 +2393,8 @@ def v12_node_set_constituent_semantic_evidence_payload(
             "slot": entry.get("slot"),
             "item_id": entry.get("item_id"),
             "candidate_sha256": entry.get("candidate_sha256"),
+            "child_surface_sha256": entry.get("child_surface_sha256"),
+            "item_review_request_sha256": entry.get("item_review_request_sha256"),
             "item_review_semantic_evidence_sha256": entry.get("item_review_semantic_evidence_sha256"),
             "focal_review_sha256": v12_node_set_focal_slot_review_sha256(node_entry, entry),
         }
@@ -2346,8 +2443,10 @@ def v12_node_set_review_semantic_evidence_sha256(
     node_entry: dict[str, Any],
     constituent_reviews: list[dict[str, Any]],
     global_review_artifact: dict[str, Any] | None = None,
+    global_verifier_artifact: dict[str, Any] | None = None,
 ) -> str:
     global_review_artifact = global_review_artifact if isinstance(global_review_artifact, dict) else {}
+    global_verifier_artifact = global_verifier_artifact if isinstance(global_verifier_artifact, dict) else {}
     global_output = (
         global_review_artifact.get("global_review_output")
         if isinstance(global_review_artifact.get("global_review_output"), dict)
@@ -2368,6 +2467,11 @@ def v12_node_set_review_semantic_evidence_sha256(
             if isinstance(review, dict)
         ],
         "coverage": v12_node_set_semantic_evidence_coverage(node_entry, constituent_reviews),
+        "global_verifier": {
+            "semantic_evidence_version": global_verifier_artifact.get("semantic_evidence_version") or "",
+            "semantic_evidence_sha256": global_verifier_artifact.get("semantic_evidence_sha256") or "",
+            "model_judgment_output_sha256": global_verifier_artifact.get("model_judgment_output_sha256") or "",
+        },
         "global_finalizer": {
             "semantic_evidence_version": global_review_artifact.get("semantic_evidence_version") or "",
             "review_output_sha256": global_review_artifact.get("global_review_output_sha256") or "",
@@ -2548,6 +2652,171 @@ def v12_reduce_node_set_v4(
     }
 
 
+def _v12_union_dict_entries(*collections: Any) -> list[dict[str, Any]]:
+    by_digest: dict[str, dict[str, Any]] = {}
+    for collection in collections:
+        for entry in collection if isinstance(collection, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            by_digest.setdefault(_v12_digest_json(entry), copy.deepcopy(entry))
+    return [by_digest[key] for key in sorted(by_digest)]
+
+
+def v12_union_independent_global_reviews(
+    node_entry: dict[str, Any],
+    constituent_reviews: list[dict[str, Any]],
+    verifier_output: dict[str, Any],
+    finalizer_output: dict[str, Any],
+) -> dict[str, Any]:
+    verifier = v12_reduce_node_set_v4(node_entry, constituent_reviews, verifier_output)
+    finalizer = v12_reduce_node_set_v4(node_entry, constituent_reviews, finalizer_output)
+    errors = [
+        *(f"global_verifier:{detail}" for detail in verifier.get("errors") or []),
+        *(f"global_finalizer:{detail}" for detail in finalizer.get("errors") or []),
+    ]
+    if errors:
+        return {"errors": sorted(set(errors))}
+    verifier_teaching = verifier.get("teaching_quality_gate") if isinstance(
+        verifier.get("teaching_quality_gate"), dict
+    ) else {}
+    finalizer_teaching = finalizer.get("teaching_quality_gate") if isinstance(
+        finalizer.get("teaching_quality_gate"), dict
+    ) else {}
+    repair_instructions = _v12_union_dict_entries(
+        verifier.get("repair_instructions"),
+        finalizer.get("repair_instructions"),
+    )
+    repair_instructions.sort(
+        key=lambda entry: (int(entry.get("slot") or 0), _v12_digest_json(entry))
+    )
+    rejected_slots = sorted({
+        *[int(slot) for slot in (verifier.get("rejected_slots") or [])],
+        *[int(slot) for slot in (finalizer.get("rejected_slots") or [])],
+    })
+    teaching_quality_gate = {
+        "gate_errors": sorted({
+            *(verifier_teaching.get("gate_errors") or []),
+            *(finalizer_teaching.get("gate_errors") or []),
+        }),
+        "rejected_slots": sorted({
+            *[int(slot) for slot in (verifier_teaching.get("rejected_slots") or [])],
+            *[int(slot) for slot in (finalizer_teaching.get("rejected_slots") or [])],
+        }),
+        "primary_evidence_move_family_count": min(
+            int(verifier_teaching.get("primary_evidence_move_family_count") or 0),
+            int(finalizer_teaching.get("primary_evidence_move_family_count") or 0),
+        ),
+        "homogeneous_clusters": _v12_union_dict_entries(
+            verifier_teaching.get("homogeneous_clusters"),
+            finalizer_teaching.get("homogeneous_clusters"),
+        ),
+        "oversized_homogeneous_clusters": _v12_union_dict_entries(
+            verifier_teaching.get("oversized_homogeneous_clusters"),
+            finalizer_teaching.get("oversized_homogeneous_clusters"),
+        ),
+        "repetitive_clusters_missing_exact_plan": sorted({
+            *(verifier_teaching.get("repetitive_clusters_missing_exact_plan") or []),
+            *(finalizer_teaching.get("repetitive_clusters_missing_exact_plan") or []),
+        }),
+        "authority_results": {
+            "global_verifier": copy.deepcopy(verifier_teaching),
+            "global_finalizer": copy.deepcopy(finalizer_teaching),
+        },
+    }
+    return {
+        "errors": [],
+        "verdict": "needs_repair" if (
+            verifier.get("verdict") != "approved"
+            or finalizer.get("verdict") != "approved"
+            or rejected_slots
+            or repair_instructions
+        ) else "approved",
+        "node_ux_verdict": "needs_repair" if (
+            verifier.get("node_ux_verdict") != "approved"
+            or finalizer.get("node_ux_verdict") != "approved"
+        ) else "approved",
+        "distribution_scores": {
+            key: min(
+                _v12_score(verifier.get("distribution_scores") or {}, key),
+                _v12_score(finalizer.get("distribution_scores") or {}, key),
+            )
+            for key in V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+        },
+        "confidence": min(
+            _v12_score(verifier, "confidence"),
+            _v12_score(finalizer, "confidence"),
+        ),
+        "duplicate_groups": _v12_union_dict_entries(
+            verifier.get("duplicate_groups"),
+            finalizer.get("duplicate_groups"),
+        ),
+        "reasons": [
+            *(f"global_verifier: {reason}" for reason in (verifier.get("reasons") or [])),
+            *(f"global_finalizer: {reason}" for reason in (finalizer.get("reasons") or [])),
+        ],
+        "repair_instructions": repair_instructions,
+        "rejected_slots": rejected_slots,
+        "teaching_quality_gate": teaching_quality_gate,
+        "unprompted_slot_results": _v12_union_dict_entries(
+            verifier.get("unprompted_slot_results"),
+            finalizer.get("unprompted_slot_results"),
+        ),
+        "instruction_voice_distribution": verifier.get("instruction_voice_distribution") or [],
+        "repetitive_instruction_clusters": _v12_union_dict_entries(
+            verifier.get("repetitive_instruction_clusters"),
+            finalizer.get("repetitive_instruction_clusters"),
+        ),
+        "overloaded_slots": sorted({
+            *(verifier.get("overloaded_slots") or []),
+            *(finalizer.get("overloaded_slots") or []),
+        }),
+        "notation_failure_slots": sorted({
+            *(verifier.get("notation_failure_slots") or []),
+            *(finalizer.get("notation_failure_slots") or []),
+        }),
+        "dignity_failure_slots": sorted({
+            *(verifier.get("dignity_failure_slots") or []),
+            *(finalizer.get("dignity_failure_slots") or []),
+        }),
+        "ux_rejected_slots": sorted({
+            *(verifier.get("ux_rejected_slots") or []),
+            *(finalizer.get("ux_rejected_slots") or []),
+        }),
+        "voice_family_count": min(
+            int(verifier.get("voice_family_count") or 0),
+            int(finalizer.get("voice_family_count") or 0),
+        ),
+        "item_count": min(
+            int(verifier.get("item_count") or 0),
+            int(finalizer.get("item_count") or 0),
+        ),
+        "node_local_mainline_count": min(
+            int(verifier.get("node_local_mainline_count") or 0),
+            int(finalizer.get("node_local_mainline_count") or 0),
+        ),
+        "controlled_stretch_count": max(
+            int(verifier.get("controlled_stretch_count") or 0),
+            int(finalizer.get("controlled_stretch_count") or 0),
+        ),
+        "invalid_difficulty_vector_slots": sorted({
+            *(verifier.get("invalid_difficulty_vector_slots") or []),
+            *(finalizer.get("invalid_difficulty_vector_slots") or []),
+        }),
+        "oversized_cluster_slots": sorted({
+            *(verifier.get("oversized_cluster_slots") or []),
+            *(finalizer.get("oversized_cluster_slots") or []),
+        }),
+        "consecutive_voice_violation_slots": sorted({
+            *(verifier.get("consecutive_voice_violation_slots") or []),
+            *(finalizer.get("consecutive_voice_violation_slots") or []),
+        }),
+        "gate_errors": sorted({
+            *(verifier.get("gate_errors") or []),
+            *(finalizer.get("gate_errors") or []),
+        }),
+    }
+
+
 def v12_node_semantic_evidence_commitment(node_entry: dict[str, Any]) -> dict[str, Any]:
     item_reviews = []
     items = [item for item in (node_entry.get("items") or []) if isinstance(item, dict)]
@@ -2561,6 +2830,7 @@ def v12_node_semantic_evidence_commitment(node_entry: dict[str, Any]) -> dict[st
         })
     artifact = node_entry.get("node_review_artifact") if isinstance(node_entry.get("node_review_artifact"), dict) else {}
     constituent_reviews = artifact.get("constituent_reviews") if isinstance(artifact.get("constituent_reviews"), list) else []
+    global_verifier = artifact.get("global_verifier") if isinstance(artifact.get("global_verifier"), dict) else {}
     global_finalizer = artifact.get("global_finalizer") if isinstance(artifact.get("global_finalizer"), dict) else {}
     node_set_review = {
         "semantic_evidence_version": artifact.get("semantic_evidence_version") or "",
@@ -2584,6 +2854,23 @@ def v12_node_semantic_evidence_commitment(node_entry: dict[str, Any]) -> dict[st
             for review in constituent_reviews
             if isinstance(review, dict)
         ],
+        "global_verifier": {
+            "contract_version": global_verifier.get("contract_version") or "",
+            "prompt_version_id": global_verifier.get("prompt_version_id") or "",
+            "prompt_template_sha256": global_verifier.get("prompt_template_sha256") or "",
+            "rendered_prompt_sha256": global_verifier.get("rendered_prompt_sha256") or "",
+            "response_schema_version": global_verifier.get("response_schema_version") or "",
+            "response_schema_sha256": global_verifier.get("response_schema_sha256") or "",
+            "request_lineage_version": global_verifier.get("request_lineage_version") or "",
+            "trusted_context_sha256": global_verifier.get("trusted_context_sha256") or "",
+            "untrusted_payload_sha256": global_verifier.get("untrusted_payload_sha256") or "",
+            "request_options_sha256": global_verifier.get("request_options_sha256") or "",
+            "request_input_sha256": global_verifier.get("request_input_sha256") or "",
+            "request_lineage_sha256": global_verifier.get("request_lineage_sha256") or "",
+            "semantic_evidence_version": global_verifier.get("semantic_evidence_version") or "",
+            "semantic_evidence_sha256": global_verifier.get("semantic_evidence_sha256") or "",
+            "model_judgment_output_sha256": global_verifier.get("model_judgment_output_sha256") or "",
+        },
         "global_finalizer": {
             "contract_version": global_finalizer.get("contract_version") or "",
             "prompt_version_id": global_finalizer.get("prompt_version_id") or "",
@@ -2702,6 +2989,7 @@ def validate_external_question_bank_v12(manifest: dict[str, Any], graph: dict[st
         node_core_counts: Counter[str] = Counter()
         node_family_counts: Counter[str] = Counter()
         approved_count = 0
+        node_child_surfaces_valid = True
         for item in items:
             item_id = str(item.get("id") or "")
             slot = int(item.get("slot") or 0)
@@ -2719,7 +3007,10 @@ def validate_external_question_bank_v12(manifest: dict[str, Any], graph: dict[st
             expected_slot_role = v12_slot_role_for_node(graph_node, slot)
             if expected_slot_role and role != expected_slot_role:
                 issues.append(_v12_issue("P1", "v12_slot_role_mismatch", node_id, f"{item_id}:{role}"))
-            for detail in v12_item_policy_errors(graph_node, item):
+            item_policy_errors = v12_item_policy_errors(graph_node, item)
+            if any(detail.startswith("child_surface:") for detail in item_policy_errors):
+                node_child_surfaces_valid = False
+            for detail in item_policy_errors:
                 issues.append(_v12_issue("P1", "v12_item_policy_violation", node_id, f"{item_id}:{detail}"))
             for detail in _v12_difficulty_vector_errors(item):
                 issues.append(_v12_issue("P1", "v12_invalid_difficulty_vector", node_id, f"{item_id}:{detail}"))
@@ -2756,7 +3047,10 @@ def validate_external_question_bank_v12(manifest: dict[str, Any], graph: dict[st
             issues.append(_v12_issue("P1", "v12_too_few_node_local_mainline_items", node_id, f"{mainline_count}/{QUESTIONS_PER_GRAPH_NODE}"))
         if stretch_count > V12_MAX_CONTROLLED_STRETCH_PER_NODE:
             issues.append(_v12_issue("P1", "v12_too_many_controlled_stretch_items", node_id, f"{stretch_count}"))
-        if str(manifest.get("status") or "") not in {"draft_live_round", "checkpoint_resume"}:
+        if (
+            node_child_surfaces_valid
+            and str(manifest.get("status") or "") not in {"draft_live_round", "checkpoint_resume"}
+        ):
             _validate_v12_node_review_artifact(
                 node_entry,
                 node_id=node_id,
@@ -2866,6 +3160,8 @@ def _validate_v12_item_review_artifact(item: dict[str, Any], *, node_id: str, it
             issues.append(_v12_issue("P1", "v12_reviewer_contract_identity_mismatch", node_id, f"{item_id}:{key}"))
     if review.get("candidate_sha256") != v12_external_candidate_sha256(item):
         issues.append(_v12_issue("P1", "v12_review_candidate_hash_mismatch", node_id, item_id))
+    for detail in v12_item_review_binding_errors(item):
+        issues.append(_v12_issue("P1", "v12_item_review_binding_failed", node_id, f"{item_id}:{detail}"))
     if evidence.get("provenance_type") != V12_REVIEW_PROVENANCE:
         issues.append(_v12_issue("P1", "v12_missing_independent_review_artifact", node_id, f"{item_id}:bad_provenance"))
     scores = review.get("scores") if isinstance(review.get("scores"), dict) else {}
@@ -3033,6 +3329,67 @@ def _validate_v12_node_review_artifact(
         issues.append(_v12_issue("P1", "v12_node_set_semantic_evidence_coverage_mismatch", node_id, "coverage"))
     if [entry.get("slot") for entry in expected_semantic_coverage] != expected_slots:
         issues.append(_v12_issue("P1", "v12_node_set_semantic_evidence_coverage_mismatch", node_id, "slots"))
+    expected_constituent_semantic_hashes = [
+        review.get("semantic_evidence_sha256") or ""
+        for review in constituent_reviews
+        if isinstance(review, dict)
+    ]
+    global_verifier = artifact.get("global_verifier") if isinstance(artifact.get("global_verifier"), dict) else {}
+    expected_verifier_identity = {
+        "agent_key": QUESTION_REVIEWER_AGENT_KEY,
+        "phase": "node_global_verifier",
+        "artifact_role": "node_set_global_verifier",
+        "contract_key": "math_question_bank_v12_node_set_global_verifier",
+        "contract_version": V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION,
+        "prompt_version_id": V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID,
+        "response_schema_version": V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+        "semantic_evidence_version": V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
+        "provider_mode": "live_model",
+        "prompt_template_sha256": V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256,
+        "response_schema_sha256": V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256,
+        "request_lineage_version": V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION,
+    }
+    if not global_verifier:
+        issues.append(_v12_issue("P1", "v12_node_set_review_missing_global_verifier", node_id, "global_verifier"))
+    for key, value in expected_verifier_identity.items():
+        if global_verifier.get(key) != value:
+            issues.append(_v12_issue("P1", "v12_node_set_global_verifier_identity_mismatch", node_id, key))
+    for key in (
+        "rendered_prompt_sha256",
+        "batch_raw_response_sha256",
+        "trusted_context_sha256",
+        "untrusted_payload_sha256",
+        "request_options_sha256",
+        "request_input_sha256",
+        "request_lineage_sha256",
+    ):
+        if not str(global_verifier.get(key) or "").strip():
+            issues.append(_v12_issue("P1", "v12_node_set_global_verifier_identity_mismatch", node_id, key))
+    if global_verifier.get("node_candidate_sha256") != v12_node_candidate_sha256(node_entry):
+        issues.append(_v12_issue("P1", "v12_node_set_global_verifier_candidate_hash_mismatch", node_id, "node_candidate_sha256"))
+    if global_verifier.get("constituent_semantic_evidence_sha256") != expected_constituent_semantic_hashes:
+        issues.append(_v12_issue("P1", "v12_node_set_global_verifier_constituent_mismatch", node_id, "constituent hashes"))
+    verifier_judgment = global_verifier.get("model_judgment_output") if isinstance(
+        global_verifier.get("model_judgment_output"), dict
+    ) else {}
+    if global_verifier.get("model_judgment_output_sha256") != _v12_digest_json(verifier_judgment):
+        issues.append(_v12_issue("P1", "v12_node_set_global_verifier_digest_mismatch", node_id, "model_judgment_output_sha256"))
+    for detail in v12_global_model_judgment_errors(
+        verifier_judgment,
+        node_id=node_id,
+        graph_version=str(verifier_judgment.get("graph_version") or ""),
+    ):
+        issues.append(_v12_issue("P1", "v12_node_set_global_verifier_invalid", node_id, detail))
+    for detail in v12_global_model_judgment_binding_errors(node_entry, verifier_judgment):
+        issues.append(_v12_issue("P1", "v12_node_set_global_verifier_binding_invalid", node_id, detail))
+    expected_verifier_semantic_sha256 = _v12_digest_json({
+        "semantic_evidence_version": V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
+        "node_candidate_sha256": v12_node_candidate_sha256(node_entry),
+        "constituent_semantic_evidence_sha256": expected_constituent_semantic_hashes,
+        "model_judgment_output_sha256": global_verifier.get("model_judgment_output_sha256") or "",
+    })
+    if global_verifier.get("semantic_evidence_sha256") != expected_verifier_semantic_sha256:
+        issues.append(_v12_issue("P1", "v12_node_set_global_verifier_semantic_digest_mismatch", node_id, "semantic_evidence_sha256"))
     global_finalizer = artifact.get("global_finalizer") if isinstance(artifact.get("global_finalizer"), dict) else {}
     expected_global_identity = {
         "agent_key": QUESTION_REVIEWER_AGENT_KEY,
@@ -3071,11 +3428,6 @@ def _validate_v12_node_review_artifact(
             issues.append(_v12_issue("P1", "v12_node_set_global_finalizer_identity_mismatch", node_id, key))
     if global_finalizer.get("node_candidate_sha256") != v12_node_candidate_sha256(node_entry):
         issues.append(_v12_issue("P1", "v12_node_set_global_finalizer_candidate_hash_mismatch", node_id, "node_candidate_sha256"))
-    expected_constituent_semantic_hashes = [
-        review.get("semantic_evidence_sha256") or ""
-        for review in constituent_reviews
-        if isinstance(review, dict)
-    ]
     if global_finalizer.get("constituent_semantic_evidence_sha256") != expected_constituent_semantic_hashes:
         issues.append(_v12_issue("P1", "v12_node_set_global_finalizer_constituent_mismatch", node_id, "constituent hashes"))
     global_output = (
@@ -3098,6 +3450,8 @@ def _validate_v12_node_review_artifact(
         graph_version=str(global_output.get("graph_version") or ""),
     ):
         issues.append(_v12_issue("P1", "v12_node_set_global_model_judgment_invalid", node_id, detail))
+    for detail in v12_global_model_judgment_binding_errors(node_entry, model_judgment):
+        issues.append(_v12_issue("P1", "v12_node_set_global_model_judgment_binding_invalid", node_id, detail))
     if model_judgment and v12_expand_global_model_judgment(
         node_entry,
         constituent_reviews,
@@ -3113,12 +3467,24 @@ def _validate_v12_node_review_artifact(
     })
     if global_finalizer.get("semantic_evidence_sha256") != expected_global_semantic_sha256:
         issues.append(_v12_issue("P1", "v12_node_set_global_finalizer_semantic_digest_mismatch", node_id, "semantic_evidence_sha256"))
-    reduced = v12_reduce_node_set_v4(node_entry, constituent_reviews, global_output)
+    verifier_output = v12_expand_global_model_judgment(
+        node_entry,
+        constituent_reviews,
+        verifier_judgment,
+        graph_version=str(global_output.get("graph_version") or ""),
+    )
+    reduced = v12_union_independent_global_reviews(
+        node_entry,
+        constituent_reviews,
+        verifier_output,
+        global_output,
+    )
     for detail in reduced.get("errors") or []:
         issues.append(_v12_issue("P1", "v12_node_set_global_finalizer_output_failed", node_id, str(detail)))
     expected_aggregate = v12_node_set_review_aggregate_payload(
         node_entry=node_entry,
         shard_reviews=constituent_reviews,
+        global_verifier_artifact=global_verifier,
         global_finalizer_artifact=global_finalizer,
         reduced=reduced,
     )
@@ -3126,6 +3492,7 @@ def _validate_v12_node_review_artifact(
         node_entry,
         constituent_reviews,
         global_finalizer,
+        global_verifier,
     )
     if artifact.get("semantic_evidence_sha256") != expected_semantic_digest:
         issues.append(_v12_issue("P1", "v12_node_set_semantic_evidence_digest_mismatch", node_id, "aggregate"))
@@ -3185,6 +3552,7 @@ def v12_node_set_review_aggregate_payload(
     node_entry: dict[str, Any],
     shard_reviews: list[dict[str, Any]],
     global_finalizer_artifact: dict[str, Any],
+    global_verifier_artifact: dict[str, Any] | None = None,
     reduced: dict[str, Any],
 ) -> dict[str, Any]:
     constituent_hashes = [
@@ -3204,6 +3572,7 @@ def v12_node_set_review_aggregate_payload(
         node_entry,
         shard_reviews,
         global_finalizer_artifact,
+        global_verifier_artifact,
     )
     payload = {
         "node_candidate_sha256": v12_node_candidate_sha256(node_entry),
@@ -3214,6 +3583,9 @@ def v12_node_set_review_aggregate_payload(
         "constituent_hashes": constituent_hashes,
         "reviewed_slots": reviewed_slots,
         "global_finalizer_output_sha256": global_finalizer_artifact.get("global_review_output_sha256", ""),
+        "global_verifier_semantic_evidence_sha256": (
+            (global_verifier_artifact or {}).get("semantic_evidence_sha256", "")
+        ),
         "verdict": reduced.get("verdict"),
         "distribution_scores": reduced.get("distribution_scores") or {},
         "confidence": reduced.get("confidence"),
@@ -3264,6 +3636,9 @@ def v12_node_set_review_aggregate_payload(
             "constituent_hashes": constituent_hashes,
             "reviewed_slots": reviewed_slots,
             "global_finalizer_output_sha256": global_finalizer_artifact.get("global_review_output_sha256", ""),
+            "global_verifier_semantic_evidence_sha256": (
+                (global_verifier_artifact or {}).get("semantic_evidence_sha256", "")
+            ),
         }
     }
 

@@ -64,10 +64,11 @@
 
           <div id="childTaskContent" class="task-content" role="region" aria-live="polite" aria-atomic="false" aria-labelledby="childHeading"></div>
 
-          <form id="childAttemptForm" class="attempt-form">
+          <form id="childAttemptForm" class="attempt-form" novalidate>
+            <div id="interactionAnswerPanel" class="interaction-answer-panel" hidden></div>
             <label for="childAnswerRaw">我的答案和步骤</label>
             <textarea id="childAnswerRaw" name="answerRaw" rows="7" placeholder="写关键步骤、答案；如果卡住，就写卡在哪一步"></textarea>
-            <div id="interactionAnswerPanel" class="interaction-answer-panel" hidden></div>
+            <p id="childAttemptError" class="attempt-error" role="alert" aria-live="assertive" hidden></p>
 
             <div class="photo-field">
               <label for="childAnswerPhoto">拍纸面答案</label>

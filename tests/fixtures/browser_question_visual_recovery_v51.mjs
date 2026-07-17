@@ -35,8 +35,12 @@ try {
   });
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
-  const visualError = page.getByRole("alert").filter({ hasText: /图|题面|显示|加载/ });
-  await visualError.waitFor({ timeout: 10000 });
+  const visualError = page.getByRole("alert").filter({ hasText: /题面图未加载|当前步骤还没有准备好/ });
+  try {
+    await visualError.waitFor({ timeout: 10000 });
+  } catch (waitError) {
+    throw new Error(`${waitError.message}\nBODY:\n${await page.locator("body").innerText()}`);
+  }
   const submit = page.getByRole("button", { name: /保存|提交|完成/ }).first();
   assert(await submit.isDisabled(), "required visual failure did not disable submit");
   assert(submitRequestCount === 0, "failed visual phase emitted a submit request");

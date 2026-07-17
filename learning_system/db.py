@@ -3771,6 +3771,28 @@ def _assert_v12_trusted_live_runner_provenance(
     manifest_nodes = [
         node for node in manifest.get("nodes") or [] if isinstance(node, dict)
     ]
+    receipt_prompt_schema_hashes = (
+        runner_receipt.get("prompt_schema_hashes")
+        if isinstance(runner_receipt.get("prompt_schema_hashes"), dict)
+        else {}
+    )
+    expected_verifier_role_hashes = {
+        "node_set_global_verifier_prompt_template_sha256": sorted({
+            str(((node.get("node_review_artifact") or {}).get("global_verifier") or {}).get("prompt_template_sha256") or "")
+            for node in manifest_nodes
+            if str(((node.get("node_review_artifact") or {}).get("global_verifier") or {}).get("prompt_template_sha256") or "")
+        }),
+        "node_set_global_verifier_response_schema_sha256": sorted({
+            str(((node.get("node_review_artifact") or {}).get("global_verifier") or {}).get("response_schema_sha256") or "")
+            for node in manifest_nodes
+            if str(((node.get("node_review_artifact") or {}).get("global_verifier") or {}).get("response_schema_sha256") or "")
+        }),
+    }
+    for key, expected_hashes in expected_verifier_role_hashes.items():
+        if receipt_prompt_schema_hashes.get(key) != expected_hashes:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner receipt: prompt_schema_hashes:{key}:mismatch"
+            )
     graph_order = [
         str(node.get("id"))
         for node in graph.get("nodes") or []
@@ -4013,6 +4035,123 @@ def _assert_v12_trusted_live_runner_provenance(
                 raise ValueError(
                     f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:constituent:{index}:identity"
                 )
+        global_verifier = artifact.get("global_verifier") if isinstance(artifact.get("global_verifier"), dict) else {}
+        receipt_global_verifier = (
+            receipt_role.get("global_verifier")
+            if isinstance(receipt_role.get("global_verifier"), dict)
+            else {}
+        )
+        if not receipt_global_verifier:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner receipt: {node_id}:node_set_review:global_verifier:missing"
+            )
+        expected_verifier_identity = {
+            "agent_key": question_bank.QUESTION_REVIEWER_AGENT_KEY,
+            "phase": "node_global_verifier",
+            "artifact_role": "node_set_global_verifier",
+            "contract_key": "math_question_bank_v12_node_set_global_verifier",
+            "contract_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION,
+            "prompt_version_id": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID,
+            "response_schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
+            "provider_mode": "live_model",
+            "prompt_template_sha256": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256,
+            "response_schema_sha256": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256,
+            "request_lineage_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION,
+        }
+        for key, value in expected_verifier_identity.items():
+            if global_verifier.get(key) != value:
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:{key}"
+                )
+        for key in (
+            "model_provider",
+            "model_name",
+            "model_alias",
+            "structured_json_mode",
+            "rendered_prompt_sha256",
+            "batch_raw_response_sha256",
+            "trusted_context_sha256",
+            "untrusted_payload_sha256",
+            "request_options_sha256",
+            "request_input_sha256",
+            "request_lineage_sha256",
+            "model_judgment_output_sha256",
+        ):
+            if not str(global_verifier.get(key) or "").strip():
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:{key}"
+                )
+        expected_constituent_semantic_hashes = [
+            review.get("semantic_evidence_sha256") or ""
+            for review in artifact_reviews
+            if isinstance(review, dict)
+        ]
+        if global_verifier.get("node_candidate_sha256") != node_candidate_sha256:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:node_candidate_sha256"
+            )
+        if global_verifier.get("constituent_semantic_evidence_sha256") != expected_constituent_semantic_hashes:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:constituents"
+            )
+        verifier_judgment = (
+            global_verifier.get("model_judgment_output")
+            if isinstance(global_verifier.get("model_judgment_output"), dict)
+            else {}
+        )
+        expected_verifier_judgment_sha256 = _v12_sorted_digest_json(verifier_judgment)
+        if global_verifier.get("model_judgment_output_sha256") != expected_verifier_judgment_sha256:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:model_judgment_output_sha256"
+            )
+        expected_verifier_semantic_sha256 = _v12_sorted_digest_json({
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
+            "node_candidate_sha256": node_candidate_sha256,
+            "constituent_semantic_evidence_sha256": expected_constituent_semantic_hashes,
+            "model_judgment_output_sha256": expected_verifier_judgment_sha256,
+        })
+        if global_verifier.get("semantic_evidence_sha256") != expected_verifier_semantic_sha256:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:semantic_evidence_sha256"
+            )
+        verifier_receipt_fields = (
+            "agent_key",
+            "phase",
+            "artifact_role",
+            "provider_mode",
+            "model_provider",
+            "model_name",
+            "model_alias",
+            "structured_json_mode",
+            "prompt_template_sha256",
+            "rendered_prompt_sha256",
+            "response_schema_version",
+            "response_schema_sha256",
+            "batch_raw_response_sha256",
+            "contract_key",
+            "contract_version",
+            "prompt_version_id",
+            "semantic_evidence_version",
+            "semantic_evidence_sha256",
+            "pipeline_stage",
+            "stage_attempt",
+            "node_candidate_sha256",
+            "request_lineage_version",
+            "trusted_context_sha256",
+            "untrusted_payload_sha256",
+            "request_options_sha256",
+            "request_input_sha256",
+            "request_lineage_sha256",
+            "model_judgment_output_sha256",
+            "constituent_semantic_evidence_sha256",
+        )
+        for key in verifier_receipt_fields:
+            if receipt_global_verifier.get(key) != global_verifier.get(key):
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner receipt: {node_id}:node_set_review:global_verifier:{key}:mismatch"
+                )
+
         global_finalizer = artifact.get("global_finalizer") if isinstance(artifact.get("global_finalizer"), dict) else {}
         receipt_global_finalizer = (
             receipt_role.get("global_finalizer")
@@ -4035,11 +4174,6 @@ def _assert_v12_trusted_live_runner_provenance(
                 raise ValueError(
                     f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_finalizer:{key}"
                 )
-        expected_constituent_semantic_hashes = [
-            review.get("semantic_evidence_sha256") or ""
-            for review in artifact_reviews
-            if isinstance(review, dict)
-        ]
         if global_finalizer.get("constituent_semantic_evidence_sha256") != expected_constituent_semantic_hashes:
             raise ValueError(
                 f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_finalizer:constituents"
@@ -4067,6 +4201,7 @@ def _assert_v12_trusted_live_runner_provenance(
             node_entry,
             artifact_reviews,
             global_finalizer,
+            artifact.get("global_verifier") if isinstance(artifact.get("global_verifier"), dict) else {},
         )
         if artifact.get("semantic_evidence_sha256") != expected_aggregate_semantic_sha256:
             raise ValueError(
@@ -4246,6 +4381,7 @@ def _v12_completed_node_receipt_for_seed(
     include_cross_node_context_commitment: bool = True,
 ) -> dict[str, Any]:
     artifact = node_entry.get("node_review_artifact") if isinstance(node_entry.get("node_review_artifact"), dict) else {}
+    global_verifier = artifact.get("global_verifier") if isinstance(artifact.get("global_verifier"), dict) else {}
     global_finalizer = artifact.get("global_finalizer") if isinstance(artifact.get("global_finalizer"), dict) else {}
     semantic_commitment = question_bank.v12_node_semantic_evidence_commitment(node_entry)
     payload = {
@@ -4281,6 +4417,18 @@ def _v12_completed_node_receipt_for_seed(
                 for review in (artifact.get("constituent_reviews") or [])
                 if isinstance(review, dict)
             ],
+            "global_verifier": {
+                "agent_key": global_verifier.get("agent_key", ""),
+                "phase": global_verifier.get("phase", ""),
+                "artifact_role": global_verifier.get("artifact_role", ""),
+                "contract_key": global_verifier.get("contract_key", ""),
+                "contract_version": global_verifier.get("contract_version", ""),
+                "prompt_version_id": global_verifier.get("prompt_version_id", ""),
+                "response_schema_version": global_verifier.get("response_schema_version", ""),
+                "semantic_evidence_version": global_verifier.get("semantic_evidence_version", ""),
+                "semantic_evidence_sha256": global_verifier.get("semantic_evidence_sha256", ""),
+                "model_judgment_output_sha256": global_verifier.get("model_judgment_output_sha256", ""),
+            },
             "global_finalizer": {
                 "agent_key": global_finalizer.get("agent_key", ""),
                 "phase": global_finalizer.get("phase", ""),

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import gzip
+import hashlib
 import importlib.util
 import json
 import tempfile
@@ -13,25 +15,17 @@ from learning_system import model_router, question_bank
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 GRAPH_PATH = PROJECT_ROOT / "data/knowledge_graphs/math/math_knowledge_graph_v2.json"
-NUMBER_LINE_CHECKPOINT = (
-    PROJECT_ROOT
-    / "data/question_banks/math/.v12_pilot_six_checkpoints/M-G7-NUMBER-LINE.json"
-)
-PROCESS_CHECKPOINT = (
-    PROJECT_ROOT
-    / "data/question_banks/math/.v12_checkpoints_20260712_process_pilot_v3/"
-    "M-BRIDGE-SOLUTION-HABIT.json"
-)
-PROCESS_PILOT_CHECKPOINT = (
-    PROJECT_ROOT
-    / "data/question_banks/math/.v12_pilot_six_checkpoints/"
-    "M-BRIDGE-SOLUTION-HABIT.json"
-)
+FIXTURE_ROOT = PROJECT_ROOT / "tests/fixtures/v12_force_v6_sources"
+NUMBER_LINE_SOURCE = FIXTURE_ROOT / "M-G7-NUMBER-LINE.v5-source.json.gz"
+PROCESS_SOURCE = FIXTURE_ROOT / "M-BRIDGE-SOLUTION-HABIT.pilot-source.json.gz"
 PROCESS_LEGACY_SUPERSESSION_BACKUP = (
-    PROJECT_ROOT
-    / "artifacts/recovery/"
-    "M-BRIDGE-SOLUTION-HABIT.pre-supersession-v2.20260715-legacy-quarantine.json"
+    FIXTURE_ROOT / "M-BRIDGE-SOLUTION-HABIT.legacy-supersession-source.json.gz"
 )
+PINNED_SOURCE_SHA256 = {
+    NUMBER_LINE_SOURCE.name: "21777ba981cf765ec1463c91f4cbb81ccbccf6427e6730fb7652367fbed47e47",
+    PROCESS_SOURCE.name: "8b1634b712800807ef704e4251299c1a5287e3fc671d62646f76de8e4615d9ef",
+    PROCESS_LEGACY_SUPERSESSION_BACKUP.name: "91640d52c775dd8f11feb9b6571fd6c56e7d2010d5ddbcf9c2efee276b9cca19",
+}
 FORCE_OPERATION_TOKEN = "number-line-slot20-standard-op1"
 NEXT_FORCE_OPERATION_TOKEN = "number-line-slot20-standard-op2"
 TERMINAL_PROCESS_OPERATION_TOKEN = "solution-habit-slot20-terminal-op1"
@@ -53,8 +47,193 @@ def _graph() -> dict:
     return json.loads(GRAPH_PATH.read_text(encoding="utf-8"))
 
 
-def _number_line_checkpoint_bytes() -> bytes:
-    raw = NUMBER_LINE_CHECKPOINT.read_bytes()
+def _pinned_source_bytes(path: Path) -> bytes:
+    with gzip.open(path, "rb") as handle:
+        raw = handle.read()
+    if hashlib.sha256(raw).hexdigest() != PINNED_SOURCE_SHA256[path.name]:
+        raise AssertionError(f"force fixture source hash mismatch: {path.name}")
+    return raw
+
+
+def _approved_global_judgment(node_entry: dict, graph_version: str) -> dict:
+    evidence_moves = list(question_bank.V12_PRIMARY_EVIDENCE_MOVES)
+    answer_paths = list(question_bank.V12_ANSWER_PATH_FAMILIES)
+    representations = list(question_bank.V12_REPRESENTATION_FAMILIES)
+    classifications = []
+    for index, item in enumerate(sorted(node_entry["items"], key=lambda value: int(value["slot"]))):
+        subject = question_bank.v12_item_review_subject_binding(item)
+        classifications.append({
+            **{key: subject[key] for key in (
+                "node_id", "slot", "item_id", "candidate_sha256", "child_surface_sha256",
+                "item_review_request_sha256", "item_review_semantic_evidence_sha256",
+            )},
+            "ownership_mode": "current_node_mainline",
+            "current_node_indispensable": "yes",
+            "primary_evidence_move": evidence_moves[index % len(evidence_moves)],
+            "answer_path_family": answer_paths[index % len(answer_paths)],
+            "representation_family": representations[index % len(representations)],
+            "difficulty_verdict": "L2" if index < 14 else "L3",
+            "difficulty_features": [],
+            "prompt_interaction_verdict": "aligned",
+            "reason": "version-pinned v6 force fixture semantic classification",
+        })
+    return {
+        "schema_version": question_bank.V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION,
+        "node_id": node_entry["node_id"],
+        "graph_version": graph_version,
+        "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
+        "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_FINALIZER_MODEL_EVIDENCE_VERSION,
+        "item_classifications": classifications,
+        "homogeneous_clusters": [],
+        "distribution_scores": {
+            key: 0.95 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+        },
+        "repetitive_instruction_clusters": [],
+        "duplicate_groups": [],
+        "confidence": 0.95,
+        "reasons": ["version-pinned v6 force fixture approved"],
+        "repair_plan": [],
+    }
+
+
+def _upgrade_node_to_v6(module, source: dict) -> dict:
+    node_entry = copy.deepcopy(source["node"])
+    for item in node_entry["items"]:
+        review = item["review_artifact"]
+        review["child_surface_sha256"] = question_bank.canonical_child_surface_projection(item)[
+            "projection_sha256"
+        ]
+        review["item_review_request_sha256"] = question_bank.v12_item_review_request_sha256(item)
+    artifact = node_entry["node_review_artifact"]
+    reviews = artifact["constituent_reviews"]
+    item_by_slot = {int(item["slot"]): item for item in node_entry["items"]}
+    node_candidate_sha256 = question_bank.v12_node_candidate_sha256(node_entry)
+    for review in reviews:
+        review["node_candidate_sha256"] = node_candidate_sha256
+        output = review["review_output"]
+        for entry in output["focal_slot_reviews"]:
+            subject = question_bank.v12_item_review_subject_binding(item_by_slot[int(entry["slot"])])
+            entry["child_surface_sha256"] = subject["child_surface_sha256"]
+            entry["item_review_request_sha256"] = subject["item_review_request_sha256"]
+        review["review_output_sha256"] = module._sha256_json(output)
+        review["semantic_evidence_sha256"] = question_bank.v12_node_set_constituent_semantic_evidence_sha256(
+            node_entry,
+            review,
+        )
+    judgment = _approved_global_judgment(node_entry, source["graph_version"])
+    verifier_contract = module._load_global_verifier_contract()
+    verifier_prompt = module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8")
+    finalizer_contract = json.loads(module.GLOBAL_FINALIZER_CONTRACT_PATH.read_text(encoding="utf-8"))
+    finalizer_prompt = module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8")
+    request = module._global_finalizer_request_payloads(node_entry, reviews)
+    verifier_rendered = module._render_prompt(
+        verifier_prompt,
+        trusted_context=request["trusted_context"],
+        untrusted_payload=request["untrusted_payload"],
+    )
+    finalizer_rendered = module._render_prompt(
+        finalizer_prompt,
+        trusted_context=request["trusted_context"],
+        untrusted_payload=request["untrusted_payload"],
+    )
+    verifier_route = model_router.ModelRoute(
+        agent_key=question_bank.QUESTION_REVIEWER_AGENT_KEY,
+        task="node_global_verifier",
+        provider="recorded_fixture",
+        model="v6-fixture",
+        model_alias="v6-fixture",
+        base_url="",
+        api_key="",
+        timeout_seconds=1.0,
+        model_params={},
+    )
+    finalizer_route = copy.copy(verifier_route)
+    finalizer_route = model_router.ModelRoute(
+        **{**finalizer_route.__dict__, "task": "node_global_finalizer"}
+    )
+    verifier_result = model_router.StructuredJSONResult(
+        value=judgment,
+        mode="json_schema",
+        raw_response={"fixture": "global_verifier_v1"},
+    )
+    finalizer_result = model_router.StructuredJSONResult(
+        value=judgment,
+        mode="json_schema",
+        raw_response={"fixture": "global_finalizer_v6"},
+    )
+    verifier = module._node_set_global_verifier_artifact(
+        node_entry=node_entry,
+        constituent_reviews=reviews,
+        model_judgment=judgment,
+        contract=verifier_contract,
+        prompt_template=verifier_prompt,
+        rendered_prompt=verifier_rendered,
+        result=verifier_result,
+        route=verifier_route,
+        stage_attempt=1,
+    )
+    output = question_bank.v12_expand_global_model_judgment(
+        node_entry,
+        reviews,
+        judgment,
+        graph_version=source["graph_version"],
+    )
+    finalizer = module._node_set_global_finalizer_artifact(
+        node_entry=node_entry,
+        constituent_reviews=reviews,
+        output=output,
+        contract=finalizer_contract,
+        prompt_template=finalizer_prompt,
+        rendered_prompt=finalizer_rendered,
+        result=finalizer_result,
+        route=finalizer_route,
+        stage_attempt=1,
+        model_judgment=judgment,
+        source_model_judgment=judgment,
+    )
+    aggregate = module._aggregate_node_set_review_outputs(
+        node_entry=node_entry,
+        shard_reviews=reviews,
+        global_verifier_artifact=verifier,
+        global_finalizer_artifact=finalizer,
+        node_review_concurrency=1,
+        stage_attempt=1,
+    )
+    node_entry["node_review_artifact"] = aggregate["node_review_artifact"]
+    return node_entry
+
+
+def _v6_checkpoint_bytes(module, source_path: Path) -> bytes:
+    source = json.loads(_pinned_source_bytes(source_path))
+    node_entry = _upgrade_node_to_v6(module, source)
+    with tempfile.TemporaryDirectory() as tmp:
+        checkpoint_dir = Path(tmp)
+        module._write_checkpoint(
+            checkpoint_dir,
+            node_id=source["node_id"],
+            graph_version=source["graph_version"],
+            rounds_used=int(source.get("rounds_used") or 0),
+            rejected_rounds=int(source.get("rejected_rounds") or 0),
+            report={"issues": []},
+            node_entry=node_entry,
+            status="completed",
+            slot_rounds={
+                slot: int((source.get("slot_rounds") or {}).get(str(slot), 0) or 0)
+                for slot in range(1, 21)
+            },
+            pending_repair_by_slot={},
+            stage_counters=module._stage_counters_from_checkpoint(source, slot_rounds={
+                slot: int((source.get("slot_rounds") or {}).get(str(slot), 0) or 0)
+                for slot in range(1, 21)
+            }),
+            repair_chain_events=module._repair_chain_events_from_checkpoint(source),
+            checkpoint_migrations=source.get("checkpoint_migrations"),
+        )
+        return (checkpoint_dir / f"{source['node_id']}.json").read_bytes()
+
+
+def _number_line_checkpoint_bytes(module) -> bytes:
+    raw = _v6_checkpoint_bytes(module, NUMBER_LINE_SOURCE)
     checkpoint = json.loads(raw)
     accepted = checkpoint.get("accepted_slots") or {}
     if set(accepted) != {str(slot) for slot in range(1, 21)}:
@@ -140,7 +319,7 @@ def _state_only_replacement(item: dict) -> dict:
 
 
 def _write_completed_force_operation_checkpoint(module, checkpoint_dir: Path) -> tuple[dict, dict]:
-    source = json.loads(_number_line_checkpoint_bytes())
+    source = json.loads(_number_line_checkpoint_bytes(module))
     accepted = _items_by_slot(source)
     completed_candidate = copy.deepcopy(accepted[20])
     pending = module._pending_repair_from_checkpoint(source)
@@ -208,7 +387,7 @@ def _write_terminal_failed_process_operation_checkpoint(
     module,
     checkpoint_dir: Path,
 ) -> tuple[dict, dict]:
-    source = json.loads(PROCESS_CHECKPOINT.read_text(encoding="utf-8"))
+    source = json.loads(_v6_checkpoint_bytes(module, PROCESS_SOURCE))
     accepted = _items_by_slot(source)
     pending: dict[int, list[dict]] = {}
     slot_rounds = {
@@ -728,7 +907,7 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
 
     def test_legacy_v1_supersession_checkpoint_is_not_activation_grade(self):
         module = _load_builder()
-        legacy = json.loads(PROCESS_LEGACY_SUPERSESSION_BACKUP.read_text(encoding="utf-8"))
+        legacy = json.loads(_pinned_source_bytes(PROCESS_LEGACY_SUPERSESSION_BACKUP))
         self.assertEqual("completed", legacy["status"])
         with self.assertRaisesRegex(
             model_router.ModelCallError,
@@ -776,7 +955,7 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
 
     def test_operator_operation_receipt_fields_and_tampering_are_rejected(self):
         module = _load_builder()
-        checkpoint = json.loads(_number_line_checkpoint_bytes())
+        checkpoint = json.loads(_number_line_checkpoint_bytes(module))
         item = _items_by_slot(checkpoint)[20]
         accepted = {20: copy.deepcopy(item)}
         pending: dict[int, list[dict]] = {}
@@ -853,7 +1032,7 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
 
     def test_completed_number_line_slot20_is_a_standard_concept_probe_with_exact_live_lineage(self):
         module = _load_builder()
-        checkpoint = json.loads(_number_line_checkpoint_bytes())
+        checkpoint = json.loads(_number_line_checkpoint_bytes(module))
         graph = _graph()
         node = next(item for item in graph["nodes"] if item["id"] == checkpoint["node_id"])
         item = _items_by_slot(checkpoint)[20]
@@ -885,8 +1064,40 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
             question_bank.v12_item_review_semantic_evidence_sha256(item, review),
             review["semantic_evidence_sha256"],
         )
+        subject = question_bank.v12_item_review_subject_binding(item)
+        self.assertEqual(subject["child_surface_sha256"], review["child_surface_sha256"])
+        self.assertEqual(subject["item_review_request_sha256"], review["item_review_request_sha256"])
         self.assertEqual("not_applicable", evidence["unprompted_process_evidence"]["applicability"])
         self.assertFalse(evidence["process_target_disclosed"])
+        node_review = checkpoint["node"]["node_review_artifact"]
+        verifier = node_review["global_verifier"]
+        finalizer = node_review["global_finalizer"]
+        self.assertEqual("node_global_verifier", verifier["phase"])
+        self.assertEqual(
+            question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION,
+            verifier["contract_version"],
+        )
+        self.assertEqual(
+            question_bank.V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION,
+            verifier["request_lineage_version"],
+        )
+        self.assertEqual("node_global_finalizer", finalizer["phase"])
+        self.assertEqual(
+            question_bank.V12_GLOBAL_FINALIZER_CONTRACT_VERSION,
+            finalizer["contract_version"],
+        )
+        self.assertEqual(
+            question_bank.V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION,
+            finalizer["request_lineage_version"],
+        )
+        self.assertEqual(
+            question_bank.V12_SEMANTIC_EVIDENCE_COMMITMENT_VERSION,
+            checkpoint["semantic_evidence_commitment"]["version"],
+        )
+        self.assertEqual(
+            question_bank.V12_COMPLETED_NODE_RECEIPT_SCHEMA_VERSION,
+            checkpoint["completed_node_receipt"]["schema_version"],
+        )
         self.assertEqual("current", module._validate_live_checkpoint_integrity(checkpoint))
 
     def test_process_node_standard_downgrade_fails_before_model_and_checkpoint_mutation(self):
@@ -897,13 +1108,20 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
         )
         self.assertTrue(question_bank.v12_is_process_node(process_node))
         self.assertIn(20, question_bank.V12_PROCESS_UNPROMPTED_SLOTS)
-        original = PROCESS_CHECKPOINT.read_bytes()
+        original = _v6_checkpoint_bytes(module, PROCESS_SOURCE)
 
         with tempfile.TemporaryDirectory() as tmp:
-            checkpoint_dir = Path(tmp) / "checkpoints"
+            root = Path(tmp)
+            checkpoint_dir = root / "checkpoints"
             checkpoint_dir.mkdir()
             copied = checkpoint_dir / "M-BRIDGE-SOLUTION-HABIT.json"
             copied.write_bytes(original)
+            output_path = root / "out.json"
+            inventory_before = sorted(
+                path.relative_to(root).as_posix()
+                for path in root.rglob("*")
+                if path.is_file()
+            )
             with mock.patch.object(
                 module,
                 "_call_v12_batch_agent",
@@ -913,8 +1131,8 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
                     ValueError,
                     r"cannot weaken process-node evidence policy",
                 ):
-                    module._build_live_locked(
-                        output_path=Path(tmp) / "out.json",
+                    module.build_live(
+                        output_path=output_path,
                         checkpoint_dir=checkpoint_dir,
                         project_root=PROJECT_ROOT,
                         node_ids=[process_node["id"]],
@@ -925,18 +1143,30 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
                         force_nodes=None,
                         force_slots=None,
                         force_slot_modes={process_node["id"]: {20: "standard"}},
+                        force_slot_operation_tokens={
+                            process_node["id"]: {20: "invalid-process-downgrade-v6"}
+                        },
                         force_node_reviews=None,
                         max_semantic_calls=16,
                         max_provider_attempts=48,
-                        run_id="force-slot-process-downgrade-test",
-                        model_budget_by_node={},
                     )
             model_call.assert_not_called()
             self.assertEqual(original, copied.read_bytes())
+            self.assertFalse(output_path.exists())
+            self.assertFalse((checkpoint_dir / ".run-state").exists())
+            self.assertFalse((checkpoint_dir / ".run-locks").exists())
+            self.assertEqual(
+                inventory_before,
+                sorted(
+                    path.relative_to(root).as_posix()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                ),
+            )
 
     def test_number_line_slot20_force_intent_changes_only_target_state_and_is_sealed(self):
         module = _load_builder()
-        checkpoint = json.loads(_number_line_checkpoint_bytes())
+        checkpoint = json.loads(_number_line_checkpoint_bytes(module))
         graph = _graph()
         node = next(item for item in graph["nodes"] if item["id"] == checkpoint["node_id"])
         self.assertFalse(question_bank.v12_is_process_node(node))
@@ -1002,7 +1232,7 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
 
     def test_force_intent_is_durable_before_first_slot20_model_failure(self):
         module = _load_builder()
-        source = _number_line_checkpoint_bytes()
+        source = _number_line_checkpoint_bytes(module)
         before = json.loads(source)
         before_items = _items_by_slot(before)
 
@@ -1044,7 +1274,7 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
 
     def test_successful_slot20_state_transition_commits_new_candidate_to_repair_chain(self):
         module = _load_builder()
-        source = _number_line_checkpoint_bytes()
+        source = _number_line_checkpoint_bytes(module)
         before = json.loads(source)
         before_items = _items_by_slot(before)
         replacement = _state_only_replacement(before_items[20])

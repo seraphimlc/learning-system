@@ -80,7 +80,9 @@ _INTERNAL_RESIDUE = (
     "<trusted",
     "<untrusted",
 )
-_EXPONENT_TOKEN = re.compile(r"(?P<base>[A-Za-z0-9]|\))\^(?P<exponent>[A-Za-z]|[0-9]+)")
+_EXPONENT_TOKEN = re.compile(
+    r"(?P<base>\([^()\n]+\)|[A-Za-z0-9])\^(?P<exponent>[A-Za-z]|[0-9]+)"
+)
 _ANY_CARET = re.compile(r"\^")
 _MARKDOWN_TABLE_DELIMITER = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")
 _MARKDOWN_PIPE_ROW = re.compile(r"^\s*\|.*\|\s*$")
@@ -89,6 +91,7 @@ _MARKDOWN_LINK = re.compile(r"!?\[[^\]\n]+\]\([^\)\n]+\)")
 _LITERAL_ESCAPE = re.compile(r"\\(?:n|r|t|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2})")
 _HTML_TAG = re.compile(r"</?[A-Za-z][^>]*>")
 _HTML_ENTITY = re.compile(r"&(?:[A-Za-z][A-Za-z0-9]+|#[0-9]+|#x[0-9A-Fa-f]+);")
+_EXPLANATION_INSTRUCTION = re.compile(r"说明|解释|理由|依据|为什么|论证|证明|反驳|检查")
 
 
 class ChildPromptContractError(ValueError):
@@ -148,7 +151,13 @@ def normalize_interaction_schema(
         errors.append("interaction_schema.requires_explanation:explicit_boolean_required")
 
     fields: list[dict[str, str]] = []
-    for index, field in enumerate(schema.get("fields") or []):
+    raw_fields = schema.get("fields") or []
+    if not isinstance(raw_fields, list):
+        errors.append("interaction_schema.fields:not_array")
+        raw_fields = []
+    if len(raw_fields) > 8:
+        errors.append("interaction_schema.fields:too_many")
+    for index, field in enumerate(raw_fields):
         if not isinstance(field, dict):
             errors.append(f"interaction_schema.fields[{index}]:not_object")
             continue
@@ -166,7 +175,13 @@ def normalize_interaction_schema(
         })
 
     choices: list[dict[str, str]] = []
-    for index, choice in enumerate(schema.get("choices") or []):
+    raw_choices = schema.get("choices") or []
+    if not isinstance(raw_choices, list):
+        errors.append("interaction_schema.choices:not_array")
+        raw_choices = []
+    if len(raw_choices) > 8:
+        errors.append("interaction_schema.choices:too_many")
+    for index, choice in enumerate(raw_choices):
         if not isinstance(choice, dict):
             errors.append(f"interaction_schema.choices[{index}]:not_object")
             continue
@@ -200,6 +215,12 @@ def normalize_interaction_schema(
         errors.append("interaction_schema:fields_not_owned_by_type")
     if interaction_type not in {"single_choice", "multi_choice"} and choices:
         errors.append("interaction_schema:choices_not_owned_by_type")
+    field_ids = [field["id"] for field in fields]
+    choice_ids = [choice["id"] for choice in choices]
+    if len(field_ids) != len(set(field_ids)):
+        errors.append("interaction_schema.fields:duplicate_id")
+    if len(choice_ids) != len(set(choice_ids)):
+        errors.append("interaction_schema.choices:duplicate_id")
     if errors:
         raise ChildPromptContractError(errors)
     return {
@@ -361,6 +382,21 @@ def _duplicate_choice_errors(prompt: str, schema: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _prompt_schema_alignment_errors(prompt: str, schema: dict[str, Any]) -> list[str]:
+    interaction_type = str(schema.get("type") or "")
+    errors: list[str] = []
+    if "请选择所有" in prompt and interaction_type != "multi_choice":
+        errors.append("prompt_interaction:select_all_requires_multi_choice")
+    if "请选择一个" in prompt and interaction_type != "single_choice":
+        errors.append("prompt_interaction:select_one_requires_single_choice")
+    explanation_requested = bool(_EXPLANATION_INSTRUCTION.search(prompt))
+    if schema.get("requires_explanation") and not explanation_requested:
+        errors.append("prompt_interaction:required_explanation_instruction_missing")
+    if explanation_requested and schema.get("allow_explanation") is False:
+        errors.append("prompt_interaction:explanation_control_missing")
+    return errors
+
+
 def prompt_segments(prompt: str) -> list[dict[str, str]]:
     segments: list[dict[str, str]] = []
     cursor = 0
@@ -480,8 +516,9 @@ def project_child_surface(
         normalized_schema = normalize_interaction_schema(raw_schema, allow_legacy=False)
     normalized_prompt = normalize_prompt_text(raw_prompt, allow_legacy=legacy, limit=limit)
     duplicate_errors = _duplicate_choice_errors(normalized_prompt, normalized_schema)
-    if duplicate_errors:
-        raise ChildPromptContractError(duplicate_errors)
+    alignment_errors = _prompt_schema_alignment_errors(normalized_prompt, normalized_schema)
+    if duplicate_errors or alignment_errors:
+        raise ChildPromptContractError([*duplicate_errors, *alignment_errors])
     segments = prompt_segments(normalized_prompt)
     interaction_rendering = _interaction_rendering(normalized_schema, legacy=legacy)
     source_changed = normalized_prompt != str(prompt or "").replace("\r\n", "\n").replace("\r", "\n").strip()

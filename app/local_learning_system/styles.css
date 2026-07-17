@@ -392,10 +392,22 @@ img { max-width: 100%; display: block; }
   display: inline;
   white-space: nowrap;
 }
+.math-power-caret {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 0;
+}
 .math-power sup {
   font-size: 0.72em;
   line-height: 1;
   vertical-align: super;
+}
+.attempt-error {
+  margin: 0;
+  color: #8b1e1e;
+  font-weight: 750;
 }
 .interaction-card {
   border: 1px solid var(--line);

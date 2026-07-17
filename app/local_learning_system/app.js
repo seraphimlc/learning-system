@@ -99,6 +99,7 @@ const state = {
 
 const V3_BLOCKED_RECOVERY_MAX_ATTEMPTS = 3;
 const V3_BLOCKED_RECOVERY_DELAY_MS = 1000;
+const CHILD_SAFE_UNAVAILABLE_MESSAGE = "当前步骤还没有准备好，请稍后再试。";
 
 const $ = (id) => document.getElementById(id);
 const sessionStorageKey = (planId) => `son-ai-learning-session:${planId || "latest"}`;
@@ -342,8 +343,8 @@ function renderInteractionAnswerControls(schema, rendering = null) {
   if (!normalized) return "";
   if (normalized.type === "fill_blank") {
     return `
-      <div class="interaction-card" data-interaction-kind="fill_blank">
-        ${normalized.title ? `<p class="interaction-title">${canonicalInlineHtml(rendering?.title, normalized.title) ?? escapeHtml(normalized.title)}</p>` : ""}
+      <fieldset class="interaction-card" data-interaction-kind="fill_blank">
+        <legend class="interaction-title">${canonicalInlineHtml(rendering?.title, normalized.title || "填写每一项") ?? escapeHtml(normalized.title || "填写每一项")}</legend>
         <div class="interaction-fields">
           ${normalized.fields.map((field) => `
             <label class="interaction-field">
@@ -356,15 +357,15 @@ function renderInteractionAnswerControls(schema, rendering = null) {
             </label>
           `).join("")}
         </div>
-      </div>
+      </fieldset>
     `;
   }
   if (normalized.type === "single_choice" || normalized.type === "multi_choice") {
     const inputType = normalized.type === "single_choice" ? "radio" : "checkbox";
     const name = "interaction-choice-current";
     return `
-      <div class="interaction-card" data-interaction-kind="${escapeAttr(normalized.type)}">
-        ${normalized.title ? `<p class="interaction-title">${canonicalInlineHtml(rendering?.title, normalized.title) ?? escapeHtml(normalized.title)}</p>` : ""}
+      <fieldset class="interaction-card" data-interaction-kind="${escapeAttr(normalized.type)}">
+        <legend class="interaction-title">${canonicalInlineHtml(rendering?.title, normalized.title || "选择答案") ?? escapeHtml(normalized.title || "选择答案")}</legend>
         <div class="interaction-choices">
           ${normalized.choices.map((choice) => `
             <label class="interaction-choice">
@@ -373,7 +374,7 @@ function renderInteractionAnswerControls(schema, rendering = null) {
             </label>
           `).join("")}
         </div>
-      </div>
+      </fieldset>
     `;
   }
   if (normalized.type === "formula_input") {
@@ -485,6 +486,9 @@ function childSafeErrorMessage(error) {
 
 function childSafeLoadErrorMessage(error) {
   const raw = String(error?.message || "");
+  if (raw.includes(CHILD_SAFE_UNAVAILABLE_MESSAGE)) {
+    return CHILD_SAFE_UNAVAILABLE_MESSAGE;
+  }
   if (raw.includes("Failed to fetch") || raw.includes("NetworkError")) {
     return "网络刚才断了一下，请重新连接";
   }
@@ -493,11 +497,13 @@ function childSafeLoadErrorMessage(error) {
 
 function errorPanelCopy(kind, message = "") {
   if (kind === CHILD_UI_STATES.LOAD_ERROR) {
+    const unavailable = message === CHILD_SAFE_UNAVAILABLE_MESSAGE;
     return {
       kind,
-      title: "页面刚才没有连上",
-      body: "请再试一次。已经保存过的答案不会因为刷新而改变。",
-      actionLabel: "重新连接",
+      title: unavailable ? "当前步骤还没有准备好" : "页面刚才没有连上",
+      body: unavailable ? CHILD_SAFE_UNAVAILABLE_MESSAGE : "请再试一次。已经保存过的答案不会因为刷新而改变。",
+      actionLabel: unavailable ? "刷新" : "重新连接",
+      unavailable,
     };
   }
   if (kind === CHILD_UI_STATES.UPLOAD_ERROR) {
@@ -677,7 +683,15 @@ function validateRenderedLearningSurface(payload) {
   ].includes(childState)) {
     const prompt = String(payload.current_step?.prompt || "").trim();
     const renderedPrompt = surface.querySelector("[data-child-prompt]");
-    if (!prompt || !renderedPrompt || form?.hidden || answer?.disabled) {
+    const requiredVisualUnavailable = Boolean(
+      payload.current_step?.question_visual && !state.questionVisualReady
+    );
+    const visualError = surface.querySelector("[data-question-visual-error]");
+    if (
+      !prompt || !renderedPrompt || form?.hidden ||
+      (answer?.disabled && !requiredVisualUnavailable) ||
+      (requiredVisualUnavailable && visualError?.hidden !== false)
+    ) {
       throw new TypeError("focused answer step is not materialized");
     }
   }
@@ -930,6 +944,20 @@ function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel
       : "我的答案和步骤";
   }
   textarea.hidden = !allowExplanationText;
+  const explanationRequired = Boolean(
+    normalizedInteraction
+    && !isShortText
+    && normalizedInteraction.requires_explanation
+  );
+  textarea.required = explanationRequired;
+  textarea.setAttribute("aria-required", explanationRequired ? "true" : "false");
+  textarea.setAttribute("aria-invalid", "false");
+  textarea.setCustomValidity("");
+  const attemptError = $("childAttemptError");
+  if (attemptError) {
+    attemptError.textContent = "";
+    attemptError.hidden = true;
+  }
   if (allowExplanationText) {
     textarea.placeholder = normalizedInteraction
       ? (normalizedInteraction.answer_placeholder || (
@@ -1445,11 +1473,12 @@ function render() {
 function renderLoadErrorState() {
   clearReviewPoll();
   $("pageTitle").textContent = "今天的数学学习";
-  $("dbStatus").textContent = "连接失败";
-  $("childHeading").textContent = "页面刚才没有连上";
-  $("childTaskType").textContent = "重试";
-  $("childProgressText").textContent = "还没连接";
-  $("childPendingText").textContent = "请再试一次";
+  const unavailable = state.errorPanel?.unavailable === true;
+  $("dbStatus").textContent = unavailable ? "等待" : "连接失败";
+  $("childHeading").textContent = unavailable ? "当前步骤还没有准备好" : "页面刚才没有连上";
+  $("childTaskType").textContent = unavailable ? "等待" : "重试";
+  $("childProgressText").textContent = unavailable ? "暂时不可用" : "还没连接";
+  $("childPendingText").textContent = unavailable ? CHILD_SAFE_UNAVAILABLE_MESSAGE : "请再试一次";
   $("childProgressBar").style.width = "0%";
   $("childHandoffState").hidden = true;
   $("childTaskContent").hidden = true;
@@ -1852,6 +1881,8 @@ async function submitV3CurrentStep() {
     return;
   }
   const freeText = $("childAnswerRaw").value.trim();
+  const answerField = $("childAnswerRaw");
+  const attemptError = $("childAttemptError");
   const normalizedInteraction = normalizeInteractionSchema(step.interaction_schema);
   if (
     normalizedInteraction?.requires_explanation
@@ -1859,8 +1890,24 @@ async function submitV3CurrentStep() {
     && !state.pendingEvidence.photoDataUrl
     && !state.v3Stuck
   ) {
-    toast(`请先${normalizedInteraction.explanation_label || "说明理由"}`);
+    const message = `请先${normalizedInteraction.explanation_label || "说明理由"}`;
+    answerField.required = true;
+    answerField.setAttribute("aria-required", "true");
+    answerField.setAttribute("aria-invalid", "true");
+    answerField.setCustomValidity(message);
+    if (attemptError) {
+      attemptError.textContent = message;
+      attemptError.hidden = false;
+    }
+    toast(message);
+    answerField.focus({ preventScroll: true });
     return;
+  }
+  answerField.setAttribute("aria-invalid", "false");
+  answerField.setCustomValidity("");
+  if (attemptError) {
+    attemptError.textContent = "";
+    attemptError.hidden = true;
   }
   const interactionResponse = collectInteractionResponse(step.interaction_schema, freeText);
   const structuredText = interactionResponseToEvidenceText(interactionResponse);
@@ -2059,6 +2106,16 @@ function handleErrorActionClick() {
 
 $("childErrorActionBtn").addEventListener("click", handleErrorActionClick);
 $("childAnswerRaw").addEventListener("input", syncV3StuckSelectionFromAnswerText);
+$("childAnswerRaw").addEventListener("input", () => {
+  const answerField = $("childAnswerRaw");
+  const attemptError = $("childAttemptError");
+  answerField.setAttribute("aria-invalid", "false");
+  answerField.setCustomValidity("");
+  if (attemptError) {
+    attemptError.textContent = "";
+    attemptError.hidden = true;
+  }
+});
 
 async function enterNextLearningGroup() {
   clearReviewPoll();

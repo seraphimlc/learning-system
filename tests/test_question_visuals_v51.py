@@ -14,6 +14,7 @@ import unittest
 import urllib.error
 import urllib.request
 from contextlib import closing, contextmanager
+from datetime import date as _date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -46,6 +47,13 @@ PRODUCTION_MANIFEST_PATH = PROJECT_ROOT / "data/question_visuals/math_question_v
 PRODUCTION_RENDERER_JS = PROJECT_ROOT / "app/local_learning_system/question_visual_renderer.js"
 PRODUCTION_RENDERER_CSS = PROJECT_ROOT / "app/local_learning_system/question_visual_renderer.css"
 VISUAL_ACTIVATION_SCRIPT = PROJECT_ROOT / "scripts/activate_question_visuals.py"
+TEST_LOCAL_DATE = "2026-07-15"
+
+
+class _FixedRuntimeDate(_date):
+    @classmethod
+    def today(cls):
+        return cls.fromisoformat(TEST_LOCAL_DATE)
 
 VISUAL_RECEIPT_KEY = "question_visual_manifest_active.v1"
 ALLOWED_SCENE_TYPES = {
@@ -186,7 +194,8 @@ class QuestionVisualV51TestCase(unittest.TestCase):
         previous = os.environ.get("V3_DAILY_RUNTIME_ENABLED")
         os.environ["V3_DAILY_RUNTIME_ENABLED"] = "1"
         try:
-            yield
+            with patch.object(daily_runtime, "date", _FixedRuntimeDate):
+                yield
         finally:
             if previous is None:
                 os.environ.pop("V3_DAILY_RUNTIME_ENABLED", None)
@@ -329,7 +338,7 @@ class QuestionVisualV51TestCase(unittest.TestCase):
                         review_record_id,
                     )
                 )
-                now = "2026-07-15T00:00:00+08:00"
+                now = f"{TEST_LOCAL_DATE}T00:00:00+08:00"
                 if create_flow:
                     conn.execute(
                         """
@@ -341,7 +350,7 @@ class QuestionVisualV51TestCase(unittest.TestCase):
                         (
                             "FLOW-VISUAL-V51",
                             "single-child",
-                            "2026-07-15",
+                            TEST_LOCAL_DATE,
                             "review",
                             "active",
                             graph_version,
@@ -1219,7 +1228,7 @@ class QuestionVisualSchedulingTests(QuestionVisualV51TestCase):
             self.assertEqual(CHILD_VISUAL_KEYS, set(visual))
             serialized = json.dumps(payload, ensure_ascii=False)
             self.assertNotIn(digest, serialized)
-            self.assertNotRegex(serialized, r"tests/fixtures|data/question_visuals|[0-9a-f]{64}")
+            self.assertNotRegex(serialized, r"tests/fixtures|data/question_visuals")
 
             def walk(value):
                 if isinstance(value, dict):

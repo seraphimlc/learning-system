@@ -35,6 +35,46 @@ Write only when durable coordination is needed. Prefer direct runtime dispatch/r
 
 ## Open Messages
 
+### MSG-20260717-001 - REQUEST / v12 教学质量门与完整交付续作
+
+- From: 若命（agentKey: `ruoming`）
+- To: 听云、观止、镜花、清秋
+- Status: OPEN
+- Related:
+  - `learning_system/child_prompt.py`
+  - `learning_system/question_bank.py`
+  - `scripts/build_math_question_bank_v12.py`
+  - `learning_system/agent_contracts/math_question_bank_v12_node_set_global_finalizer.v6.json`
+  - `docs/product/child_prompt_representation_rendering_repair_contract_v5_1.md`
+
+Objective:
+先关闭 v12 题库教学质量假通过和孩子题面失真风险，再修复问题题位、续跑到 56 个节点 / 1,120 道题，完成全库审查、答案合同、激活和真实课程验收。
+
+Current state:
+- Git 主线已建立并推送到 `seraphimlc/learning-system`，当前基线提交 `317abea`。
+- v12 已完成 43/56 节点、860 道封存题；`M-G7-EQ-PAREN` 为 15/20，因此检查点中共有 875 道题。
+- live 生成继续暂停，直到 v6 质量门通过独立 review、QA 和 UX browser gate。
+- v6 child-surface、global finalizer、runtime/frontend 接线已有部分实现，但尚未获得最终交付证据。
+
+Authority and order:
+1. 听云是生产代码单一写入者，完成 v6 合同、兼容、原子 force 操作和工程自测。
+2. 镜花独立审查 runtime/model 权威、证据绑定、旧 review 复用、检查点原子性和防自声明假绿。
+3. 观止执行确定性负例、教学语义 oracle、检查点零写入、live model 和最终 10 节浏览器课程 QA；mock 不能证明 semantic PASS。
+4. 清秋执行 1280/390/200% 的真实题面、换行、指数、选择/填空/解释控件、键盘和 child-safe 失败态 UX gate。
+5. 若命负责题位返修授权、阶段门、激活、提交推送和最终交付判断。
+
+Hard boundaries:
+- 普通文本评分最多一次 GPT；明确“我不会/卡住”零模型调用；照片为豆包 OCR 加一次 GPT。
+- 不用正则或字符串匹配判断数学正确性；程序只拥有格式、身份、哈希、枚举、覆盖、状态和分数 reducer。
+- 低质量题位修复前不得恢复全库生成；v12 未完成并激活前不得生成正式 1,120 份答案合同。
+- 不重置真实 SQLite，不提交密钥、数据库、孩子上传、日志或备份，不把 recorded/mock 冒充 live PASS。
+
+Expected result:
+v6 gate 全绿；问题题位返修并重审；题库 56/56、1120/1120；全库 activation-ready；答案合同生成审计并激活；8765 服务完成桌面/移动端和 10 节真实课程验收；每日与最终报告可由 Codex 查询。
+
+Stop condition:
+四个正式角色均给出与其职责一致的通过证据，生产检查点和数据库迁移可追溯且可恢复，孩子可以在无家长介入下连续完成复习和新知识课程，若命才可关闭本消息。
+
 ### MSG-20260716-001 - TASK / 知识首页连接与继续学习状态 UX 复审
 
 - From: 听云（agentKey: `tingyun`）
