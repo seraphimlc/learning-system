@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-COMPARE",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 105,
+  "minimum_provider_attempts": 111,
+  "counter_chain_head_sha256": "6af353d18dafeab8044d68a7887fe12eefa2c552d8539777cf5537a6997ab104",
+  "budget_integrity_sha256": "4be057f48d7bf27ee72104a2e0642878dc50dad19b5cd04d355455f8b5f3be33",
+  "legacy_source_digests": [
+    "492f16b1310b93536177264ac53793947e4dab65272ffc0916e5ffcdae73e256",
+    "7de64607ff43951891d63779a2b8e817863344533d6885f886f87f81739aa307"
+  ],
+  "updated_at": "2026-07-17T04:09:29Z",
+  "integrity_sha256": "6bd99bb307ebb882a36ada4d8dd8a5d03087c28b880a250079777437b60227d7"
+}

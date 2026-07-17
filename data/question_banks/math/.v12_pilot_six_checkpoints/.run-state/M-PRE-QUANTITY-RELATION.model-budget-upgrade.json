@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-PRE-QUANTITY-RELATION",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 80,
+  "minimum_provider_attempts": 84,
+  "counter_chain_head_sha256": "e8e6cbc1e3ba3183e7bacdd03ed4dee49e6d5ef7083d31d4814be3c4d3652360",
+  "budget_integrity_sha256": "77990e92e4534fc8391ab3a2f9bb6b3117d38f67c4f49e2333fbc37a6ddeae8a",
+  "legacy_source_digests": [
+    "88ff7feb73014649fbaabb72805ca6cb2ae925d4f33825e3bc4118cccd3f3f6a",
+    "bb72ff5e11fa6307c60ae748454fa3524159f91aab839da05780307a43a971f4"
+  ],
+  "updated_at": "2026-07-17T04:09:22Z",
+  "integrity_sha256": "2df4212a06157571d6138f91f80b9ccf727d805be5ab30a09711a0f6692da899"
+}

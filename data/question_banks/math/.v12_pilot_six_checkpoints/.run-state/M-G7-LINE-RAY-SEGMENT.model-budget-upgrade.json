@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-LINE-RAY-SEGMENT",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "64a8135fdd3c0a68684f924fcf51c784a0299339244314d3918d0d6e3a0eb4d5",
+  "budget_integrity_sha256": "6bff5ddf2ddf0baf3bd8db92daf03eeb536d7bf5ffabf6b94d91c9bc4d5fa258",
+  "legacy_source_digests": [
+    "9ffcba80ab9725a0d12e6c9eda815f2d1e25503e74bb634f2491605b70f1a683"
+  ],
+  "updated_at": "2026-07-17T03:04:17Z",
+  "integrity_sha256": "c79222eed8745165a5e05548de74162f29ea2046169c04bdd2794729d120c561"
+}

@@ -1,0 +1,11 @@
+{
+  "agent_key": "question_designer_agent",
+  "contract_key": "question_candidate",
+  "contract_version": "2026-07-06.question-candidate.v2",
+  "prompt_version_id": "2026-07-06.question-candidate.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/question_candidate.v1.md",
+  "response_schema_version": "2026-07-05.question-candidate.schema.v1",
+  "minimum_confidence_to_apply": 0.75,
+  "engine_type": "model",
+  "authority": "candidate_only"
+}

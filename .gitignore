@@ -1,0 +1,43 @@
+.env
+.env.local
+.env.*.local
+
+# Python and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local runtimes and dependencies
+.venv/
+venv/
+node_modules/
+
+# Local credentials and editor/OS files
+.DS_Store
+*.key
+*.pem
+
+# Runtime databases and personal learning uploads
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.db
+*.db-*
+data/backups/
+data/uploads/
+/backups/
+
+# Generated runtime output
+artifacts/
+logs/
+**/.run-locks/
+*.log
+*.pid
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

@@ -1,0 +1,180 @@
+{
+  "knowledge_version": "2026-07-12.math-qb-v12.review-policy.v4",
+  "scope": "bounded_question_bank_v12_design_and_review_policy",
+  "child_surface_boundary": {
+    "child_visible_fields": ["prompt"],
+    "review_only_fields": [
+      "answer_format",
+      "expected_answer",
+      "accepted_alternatives",
+      "solution_steps",
+      "rubric"
+    ],
+    "process_disclosure_source_field": "child_visible.prompt",
+    "hidden_fields_never_prove_or_disprove_disclosure": true
+  },
+  "instruction_voice_families": [
+    "solve_and_interpret",
+    "compare_and_choose",
+    "diagnose_and_repair",
+    "represent_and_translate",
+    "classify_and_justify",
+    "estimate_and_predict",
+    "construct_or_complete",
+    "reverse_reasoning",
+    "validate_a_claim",
+    "explain_a_relationship"
+  ],
+  "initial_plan": {
+    "design_target_distinct_families": 8,
+    "hard_minimum_distinct_families": 6,
+    "max_consecutive_same_family": 2
+  },
+  "role_voice_matrix": {
+    "concept_boundary": {
+      "preferred": ["classify_and_justify", "validate_a_claim"],
+      "allowed": ["classify_and_justify", "validate_a_claim", "compare_and_choose", "explain_a_relationship"],
+      "repair_priority": 6
+    },
+    "essence_model": {
+      "preferred": ["explain_a_relationship", "represent_and_translate"],
+      "allowed": ["explain_a_relationship", "represent_and_translate", "construct_or_complete", "solve_and_interpret"],
+      "repair_priority": 8
+    },
+    "standard_model": {
+      "preferred": ["estimate_and_predict", "represent_and_translate"],
+      "allowed": ["estimate_and_predict", "represent_and_translate", "solve_and_interpret", "construct_or_complete", "explain_a_relationship"],
+      "repair_priority": 1
+    },
+    "standard_example": {
+      "preferred": ["solve_and_interpret", "estimate_and_predict"],
+      "allowed": ["solve_and_interpret", "estimate_and_predict", "construct_or_complete", "validate_a_claim"],
+      "repair_priority": 14
+    },
+    "representation_translation": {
+      "preferred": ["represent_and_translate", "construct_or_complete"],
+      "allowed": ["represent_and_translate", "construct_or_complete", "compare_and_choose", "explain_a_relationship"],
+      "repair_priority": 13
+    },
+    "wrong_solution_repair": {
+      "preferred": ["diagnose_and_repair", "validate_a_claim"],
+      "allowed": ["diagnose_and_repair", "validate_a_claim", "compare_and_choose"],
+      "repair_priority": 18
+    },
+    "necessary_condition": {
+      "preferred": ["validate_a_claim", "classify_and_justify"],
+      "allowed": ["validate_a_claim", "classify_and_justify", "reverse_reasoning", "compare_and_choose"],
+      "repair_priority": 10
+    },
+    "same_structure_confirmation": {
+      "preferred": ["compare_and_choose", "construct_or_complete"],
+      "allowed": ["compare_and_choose", "construct_or_complete", "solve_and_interpret", "estimate_and_predict", "represent_and_translate"],
+      "repair_priority": 15
+    },
+    "near_transfer": {
+      "preferred": ["estimate_and_predict", "solve_and_interpret"],
+      "allowed": ["estimate_and_predict", "solve_and_interpret", "represent_and_translate", "reverse_reasoning"],
+      "repair_priority": 12
+    },
+    "alternative_method": {
+      "preferred": ["compare_and_choose", "explain_a_relationship"],
+      "allowed": ["compare_and_choose", "explain_a_relationship", "validate_a_claim", "represent_and_translate"],
+      "repair_priority": 9
+    },
+    "inverse_check": {
+      "preferred": ["reverse_reasoning", "validate_a_claim"],
+      "allowed": ["reverse_reasoning", "validate_a_claim", "estimate_and_predict", "solve_and_interpret"],
+      "repair_priority": 11
+    },
+    "expression_notation": {
+      "preferred": ["compare_and_choose", "diagnose_and_repair"],
+      "allowed": ["compare_and_choose", "diagnose_and_repair", "classify_and_justify", "construct_or_complete", "validate_a_claim"],
+      "repair_priority": 17
+    },
+    "prerequisite_probe": {
+      "preferred": ["classify_and_justify", "estimate_and_predict"],
+      "allowed": ["estimate_and_predict", "reverse_reasoning", "classify_and_justify", "solve_and_interpret", "represent_and_translate"],
+      "repair_priority": 2
+    },
+    "root_readiness_probe": {
+      "preferred": ["classify_and_justify", "estimate_and_predict"],
+      "allowed": ["estimate_and_predict", "classify_and_justify", "reverse_reasoning", "solve_and_interpret", "represent_and_translate"],
+      "repair_priority": 2
+    },
+    "integrated_transfer": {
+      "preferred": ["solve_and_interpret", "represent_and_translate"],
+      "allowed": ["solve_and_interpret", "represent_and_translate", "compare_and_choose", "estimate_and_predict"],
+      "repair_priority": 7
+    },
+    "calculation_symbol_precision": {
+      "preferred": ["compare_and_choose", "construct_or_complete"],
+      "allowed": ["compare_and_choose", "construct_or_complete", "diagnose_and_repair", "validate_a_claim", "solve_and_interpret"],
+      "repair_priority": 5
+    },
+    "model_selection": {
+      "preferred": ["compare_and_choose", "classify_and_justify"],
+      "allowed": ["compare_and_choose", "classify_and_justify", "validate_a_claim", "explain_a_relationship"],
+      "repair_priority": 3
+    },
+    "misconception_boundary": {
+      "preferred": ["classify_and_justify", "validate_a_claim"],
+      "allowed": ["validate_a_claim", "classify_and_justify", "diagnose_and_repair", "reverse_reasoning"],
+      "repair_priority": 4
+    },
+    "multi_representation": {
+      "preferred": ["represent_and_translate", "compare_and_choose"],
+      "allowed": ["represent_and_translate", "compare_and_choose", "construct_or_complete", "explain_a_relationship"],
+      "repair_priority": 16
+    },
+    "stretch_readiness_check": {
+      "preferred": ["reverse_reasoning", "estimate_and_predict"],
+      "allowed": ["reverse_reasoning", "estimate_and_predict", "validate_a_claim", "solve_and_interpret"],
+      "repair_priority": 5
+    },
+    "summary_transfer_check": {
+      "preferred": ["explain_a_relationship", "solve_and_interpret"],
+      "allowed": ["explain_a_relationship", "solve_and_interpret", "compare_and_choose", "represent_and_translate"],
+      "repair_priority": 20
+    }
+  },
+  "coherent_response_moves": {
+    "maximum_independent_moves": 3,
+    "two_naturally_linked_outputs_are_one_coherent_step": true,
+    "review_only_fields_do_not_count_as_child_moves": true,
+    "move_definition": "one independently requested child action visible in the prompt"
+  },
+  "semantic_clusters": {
+    "duplicate_definition": "substantially the same givens, unknown relation, transformation path, error mechanism, or answer path",
+    "repetitive_instruction_cluster_definition": "substantially the same child-facing action and sentence skeleton despite cosmetic wording changes",
+    "deterministic_text_fingerprints_are_not_semantic_evidence": true,
+    "maximum_repetitive_cluster_size": 4
+  },
+  "global_repair_slot_priority": [3, 13, 16, 17, 19, 8, 11, 6, 7, 15, 18, 2, 9, 14, 20, 1, 4, 5, 10, 12],
+  "repair_delta_rules": {
+    "repair_scopes": [
+      "focal_math_or_context",
+      "global_duplicate",
+      "global_voice_distribution",
+      "global_response_burden",
+      "global_notation",
+      "global_dignity",
+      "global_process_disclosure",
+      "global_slot_fit"
+    ],
+    "math_core_decisions": ["preserve_math_core", "replace_math_core"],
+    "delta_dimensions": [
+      "instruction_voice_family",
+      "mathematical_core",
+      "context_semantics",
+      "prompt_answer_alignment",
+      "notation_readiness",
+      "response_burden",
+      "age_dignity",
+      "process_disclosure",
+      "slot_fit"
+    ],
+    "no_op_guidance_is_invalid": true,
+    "rejected_slots_must_equal_directive_slots": true,
+    "hidden_field_process_disclosure_citation_is_invalid": true
+  }
+}

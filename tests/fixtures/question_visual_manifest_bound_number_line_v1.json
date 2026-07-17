@@ -1,0 +1,29 @@
+{
+  "schema_version": "question-visual-manifest.v1",
+  "manifest_version": "2026-07-15.test.bound-number-line.v1",
+  "inventory_relative_path": "tests/fixtures/question_visual_inventory_v51.json",
+  "renderer_contract_version": "question-visual-renderer.v1",
+  "entries": [
+    {
+      "question_id": "QB12-M-G7-NUMBER-LINE-01",
+      "item_version": "2026-07-12.bank.v12",
+      "question_digest_sha256": "df56a6439949ee29b186ba8eafe4dc0de279e322aabcba311fcde254baec47e9",
+      "required": true,
+      "scene_type": "number_line",
+      "alt_text": "数轴上标出负三、零和二的位置。",
+      "long_description": "数轴向右为正方向，每格表示一。负三在原点左边三格，二在原点右边两格。",
+      "scene": {
+        "axis": {"min": -4, "max": 3, "step": 1, "origin": 0, "direction": "right"},
+        "ticks": [
+          {"value": -3, "label": "-3"},
+          {"value": 0, "label": "0"},
+          {"value": 2, "label": "2"}
+        ],
+        "points": [
+          {"key": "negative-three", "value": -3, "label": "-3"},
+          {"key": "positive-two", "value": 2, "label": "2"}
+        ]
+      }
+    }
+  ]
+}

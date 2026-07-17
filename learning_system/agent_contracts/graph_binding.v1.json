@@ -1,0 +1,11 @@
+{
+  "agent_key": "graph_agent",
+  "contract_key": "graph_binding",
+  "contract_version": "2026-07-05.graph-binding.v1",
+  "prompt_version_id": "2026-07-05.graph-binding.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/graph_binding.v1.md",
+  "response_schema_version": "2026-07-05.graph-binding.schema.v1",
+  "minimum_confidence_to_apply": 0.8,
+  "engine_type": "hybrid",
+  "authority": "advisory"
+}

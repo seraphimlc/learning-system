@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-BRIDGE-SOLUTION-HABIT",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 186,
+  "minimum_provider_attempts": 197,
+  "counter_chain_head_sha256": "7cec4877962aa814d99d816ec2d9e8492d43f548f65c4ebafda23c6d7338ac6c",
+  "budget_integrity_sha256": "f246307b4ae7cff3ae818b1805ad21bbd03c34617fb17916b11a578081141786",
+  "legacy_source_digests": [
+    "64b9e79dd8fc9862735a1bf836169f865b9ecb462e789e0676e9f1843dcd64fd",
+    "ec3c8c97b55505bbdcae1a6c4ebcfc6724e5b7c0858a0775744fcfd072c5fcdf"
+  ],
+  "updated_at": "2026-07-17T04:09:13Z",
+  "integrity_sha256": "6d1853116bd59bd90c1be2e577e23033b12e110ff43781eddbf38f8312054019"
+}

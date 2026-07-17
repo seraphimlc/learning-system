@@ -1,0 +1,106 @@
+{
+  "agent_key": "teaching_agent",
+  "contract_key": "teaching_step",
+  "contract_version": "2026-07-12.teaching-step.v5.v3",
+  "prompt_version_id": "2026-07-12.teaching-step.v5.prompt.v3",
+  "prompt_template_path": "learning_system/prompts/teaching_step.v3.md",
+  "response_schema_version": "2026-07-12.teaching-step.v5.schema.v3",
+  "minimum_confidence_to_apply": 0.78,
+  "engine_type": "model",
+  "authority": "child_safe_teaching_candidate",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_update_mastery",
+    "does_not_select_next_question",
+    "does_not_expose_internal_terms"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "target_node_id",
+      "teaching_step_type",
+      "child_title",
+      "teaching_sections",
+      "next_child_action",
+      "allowed_response_modes",
+      "confidence",
+      "source_reason"
+    ],
+    "properties": {
+      "schema_version": {"type": "string", "const": "2026-07-12.teaching-step.v5.schema.v3"},
+      "target_node_id": {"type": "string"},
+      "teaching_step_type": {"type": "string", "enum": ["worked_example", "teaching_repair", "clarification"]},
+      "child_title": {"type": "string"},
+      "teaching_sections": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["essence", "core_model", "worked_example", "why_it_works", "next_micro_check"],
+        "properties": {
+          "essence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "body"],
+            "properties": {
+              "title": {"type": "string"},
+              "body": {"type": "string"}
+            }
+          },
+          "core_model": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "body"],
+            "properties": {
+              "title": {"type": "string"},
+              "body": {"type": "string"}
+            }
+          },
+          "worked_example": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "problem", "steps", "check"],
+            "properties": {
+              "title": {"type": "string"},
+              "problem": {"type": "string"},
+              "steps": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 6
+              },
+              "check": {"type": "string"}
+            }
+          },
+          "why_it_works": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "body"],
+            "properties": {
+              "title": {"type": "string"},
+              "body": {"type": "string"}
+            }
+          },
+          "next_micro_check": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "prompt"],
+            "properties": {
+              "title": {"type": "string"},
+              "prompt": {"type": "string"}
+            }
+          }
+        }
+      },
+      "next_child_action": {"type": "string"},
+      "allowed_response_modes": {
+        "type": "array",
+        "items": {"type": "string", "enum": ["continue", "stuck", "cannot_provide"]},
+        "minItems": 1,
+        "maxItems": 3
+      },
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+      "source_reason": {"type": "string"}
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-PRE-INTEGER-OPS",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 85,
+  "minimum_provider_attempts": 95,
+  "counter_chain_head_sha256": "2cb50a815555a9911edda8424334f56c0225fc47b2519b31d8dfbb0620552354",
+  "budget_integrity_sha256": "04ea3924d177bb64b1bc99615c7caaf4ef7bcb805b4f87aa3cf125023e6a4163",
+  "legacy_source_digests": [
+    "268953164b9643842e636beed852f26938cc4cb1e3832c8b3a7b07c84e540b6b",
+    "5bfea5f172446ce460f9b884d6aa2499c3f501c2795e2a1a86d74b9267e367d8"
+  ],
+  "updated_at": "2026-07-17T04:09:15Z",
+  "integrity_sha256": "05815f4ea8a188f7a4175f0df409866035618e19c9900099bd6ac55463a72e38"
+}

@@ -1,0 +1,188 @@
+{
+  "agent_key": "self_evolution_agent",
+  "contract_key": "evolution_proposal",
+  "contract_version": "2026-07-09.evolution-proposal.v2",
+  "prompt_version_id": "2026-07-09.evolution-proposal.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/evolution_proposal.v1.md",
+  "response_schema_version": "2026-07-09.evolution-proposal.schema.v2",
+  "minimum_confidence_to_apply": 0.85,
+  "engine_type": "hybrid",
+  "authority": "audited_proposal",
+  "input_contract": [
+    "usable_active_graded_attempts",
+    "valid_structured_answer_analysis",
+    "current_graph_binding",
+    "closed_or_authorized_evolution_context",
+    "question_review_and_evolution_lineage",
+    "prior_agent_profiles_and_evolution_audits"
+  ],
+  "blocked_inputs": [
+    "pending_review",
+    "invalidated_attempt",
+    "stale_graph_or_question_version",
+    "missing_or_malformed_answer_analysis",
+    "low_confidence_ocr_or_model_output",
+    "open_child_learning_group_without_session_close",
+    "mock_only_or_test_fabricated_evidence",
+    "parent_note_without_matching_child_evidence"
+  ],
+  "output_contract": [
+    "no_action",
+    "profile_patch",
+    "question_pattern_rule",
+    "retest_candidate_request",
+    "rollback_hint",
+    "prompt_delta"
+  ],
+  "non_authority": [
+    "does_not_grade_raw_answers",
+    "does_not_update_mastery_directly_without_evaluation_evidence",
+    "does_not_select_next_round_tasks",
+    "does_not_generate_child_facing_teaching_copy",
+    "does_not_approve_active_use_questions",
+    "does_not_delete_or_hide_evidence",
+    "does_not_create_global_rules_from_single_attempt"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "status",
+      "confidence",
+      "evidence_gate",
+      "proposals",
+      "no_action_reason",
+      "audit_summary"
+    ],
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["no_action", "proposal_ready", "blocked"]
+      },
+      "confidence": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "evidence_gate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "usable_attempt_ids",
+          "blocked_attempt_ids",
+          "evidence_strength",
+          "closed_context",
+          "graph_current",
+          "why_evidence_is_sufficient"
+        ],
+        "properties": {
+          "usable_attempt_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "blocked_attempt_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "evidence_strength": {
+            "type": "string",
+            "enum": [
+              "none",
+              "single_local",
+              "repeated_node_pattern",
+              "cross_node_pattern",
+              "recovery_confirmed",
+              "rejection_learning"
+            ]
+          },
+          "closed_context": {"type": "boolean"},
+          "graph_current": {"type": "boolean"},
+          "why_evidence_is_sufficient": {"type": "string"}
+        }
+      },
+      "proposals": {
+        "type": "array",
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action_type",
+            "affected_agent_keys",
+            "affected_node_ids",
+            "evidence_attempt_ids",
+            "change_scope",
+            "proposal",
+            "risk_level",
+            "rollback_condition",
+            "verification_signal",
+            "why_not_no_action"
+          ],
+          "properties": {
+            "action_type": {
+              "type": "string",
+              "enum": [
+                "profile_patch",
+                "question_pattern_rule",
+                "retest_candidate_request",
+                "rollback_hint",
+                "prompt_delta"
+              ]
+            },
+            "affected_agent_keys": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "graph_agent",
+                  "question_designer_agent",
+                  "question_reviewer_agent",
+                  "answer_analysis_agent",
+                  "evaluation_agent",
+                  "teaching_agent",
+                  "planner_agent",
+                  "self_evolution_agent"
+                ]
+              }
+            },
+            "affected_node_ids": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "evidence_attempt_ids": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "change_scope": {
+              "type": "string",
+              "enum": ["single_node_tentative", "node_family", "cross_node_local", "global_requires_review"]
+            },
+            "proposal": {"type": "string"},
+            "risk_level": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            },
+            "rollback_condition": {"type": "string"},
+            "verification_signal": {"type": "string"},
+            "why_not_no_action": {"type": "string"}
+          }
+        }
+      },
+      "no_action_reason": {"type": "string"},
+      "audit_summary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "lineage_summary",
+          "blocked_reason_summary",
+          "child_safe_boundary"
+        ],
+        "properties": {
+          "lineage_summary": {"type": "string"},
+          "blocked_reason_summary": {"type": "string"},
+          "child_safe_boundary": {"type": "string"}
+        }
+      }
+    }
+  }
+}

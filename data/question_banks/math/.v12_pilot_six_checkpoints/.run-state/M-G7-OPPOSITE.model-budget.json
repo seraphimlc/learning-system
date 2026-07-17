@@ -1,0 +1,1241 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget.v2",
+  "node_id": "M-G7-OPPOSITE",
+  "run_ids": [
+    "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+    "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+    "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+    "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+    "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+    "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+    "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+    "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+    "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+    "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+    "V12-RUN-4ea53ce22421407b97b236727eff7436",
+    "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+    "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+    "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+    "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+    "V12-RUN-929248881e034015bae2e360f46cb11f",
+    "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+    "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+    "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+    "V12-RUN-70afe1c390de4f799d35f40549264aba",
+    "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+    "V12-RUN-27d174e3197943198253316ecd304ce1",
+    "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+    "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+    "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+    "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+    "V12-RUN-684d68c7a90141ed85b173927c097e99",
+    "V12-RUN-02ced42d767b456c915566edd00b364b",
+    "V12-RUN-af8f70c196e4424bbb9331045897326d",
+    "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+    "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+    "V12-RUN-2d683a71cff246e09531054261852a71",
+    "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+    "V12-RUN-ccef9020a53746c48804f057997ae646",
+    "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+    "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+    "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+    "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+    "V12-RUN-c889e02eabee434da770844d8ea3462f",
+    "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+    "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+    "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+    "V12-RUN-96e372b68eba4916b4909138943030ec",
+    "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+    "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+    "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+    "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+    "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+    "V12-RUN-6a1c0f53434943a898653c4f80347621",
+    "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+    "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+    "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+    "V12-RUN-99012ac48e11479483ff49846943b80c",
+    "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+    "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+    "V12-RUN-45ba13e552614d05be561d96edfab655",
+    "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+    "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+    "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+    "V12-RUN-416e648f87a2400ca83610fc734b161e",
+    "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+    "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+    "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+    "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+    "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+    "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+    "V12-RUN-11f0712d40c94890a7605034516f4b26",
+    "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+    "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+    "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+    "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+    "V12-RUN-3139466b050c495fbfbf657f64797f93",
+    "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+    "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+    "V12-RUN-5fe75ec1489643a8af664d739654a742",
+    "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+    "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+    "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+    "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+    "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+    "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+    "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+    "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+    "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+    "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+    "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+    "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+    "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+    "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+    "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+    "V12-RUN-a0fc28967b0d40ec9f24b7a3d6fc62bc",
+    "V12-RUN-0dd591ad86dc4344a6e7373d1474fbc8",
+    "V12-RUN-8575a023ebf34aef839578c85e2936ee",
+    "V12-RUN-fb2acd3497524a04a39f1a1553302391",
+    "V12-RUN-9c035038cb1f481ca13f3be1d8ed25bd",
+    "V12-RUN-e594bcdc6805432d8abed23c2d84db56",
+    "V12-RUN-e95af84509d7478b883fb9574be27d74",
+    "V12-RUN-13d13aee0f554ce5b6dfc35fbdc6eda4",
+    "V12-RUN-ee6e9384d7d04d37a021630468769891",
+    "V12-RUN-9f4b2aec31e2451dae37a93d0146c036",
+    "V12-RUN-bec394ef7d7a4b359c6b532ad5cfa519",
+    "V12-RUN-fa2e94a777be4dcf9bbe87ca4e138fc6",
+    "V12-RUN-4b2d7133b76745a3a4941e598f271bf8",
+    "V12-RUN-1280fd46bb144ccc8ba91d0abe7f3e24",
+    "V12-RUN-522e03ff228e43678c72de3f81632e02",
+    "V12-RUN-433009fd3724479d8791b876760f553e",
+    "V12-RUN-b46b2734ddac4450bb3e1f23d81362b0"
+  ],
+  "pid": 60540,
+  "semantic_calls": 86,
+  "provider_attempts": 92,
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "status": "completed",
+  "reason": "",
+  "last_error_class": "KeyboardInterrupt",
+  "last_error_at": "2026-07-15T13:47:59Z",
+  "interruptions": [
+    {
+      "run_id": "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+      "pid": 71569,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-SOLUTION-HABIT slots: [20]",
+      "failed_at": "2026-07-14T22:52:09Z"
+    },
+    {
+      "run_id": "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+      "pid": 33052,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-PRE-ORDER-OPS slots: [19]",
+      "failed_at": "2026-07-15T01:11:23Z"
+    },
+    {
+      "run_id": "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+      "pid": 28819,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13, 17]; normalization={}",
+      "failed_at": "2026-07-15T01:45:55Z"
+    },
+    {
+      "run_id": "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+      "pid": 69983,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.24s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:55:20Z"
+    },
+    {
+      "run_id": "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+      "pid": 7038,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=123.04s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:57:46Z"
+    },
+    {
+      "run_id": "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+      "pid": 9677,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.88s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T02:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+      "pid": 36902,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-15T03:19:40Z"
+    },
+    {
+      "run_id": "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+      "pid": 12990,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:27:09Z"
+    },
+    {
+      "run_id": "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+      "pid": 56323,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:35:05Z"
+    },
+    {
+      "run_id": "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+      "pid": 838,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:37:22Z"
+    },
+    {
+      "run_id": "V12-RUN-4ea53ce22421407b97b236727eff7436",
+      "pid": 96857,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=116.97s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:43:41Z"
+    },
+    {
+      "run_id": "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+      "pid": 19589,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.28s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:03:20Z"
+    },
+    {
+      "run_id": "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+      "pid": 49266,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.93s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:19:03Z"
+    },
+    {
+      "run_id": "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+      "pid": 63008,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.75s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:21:50Z"
+    },
+    {
+      "run_id": "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+      "pid": 71836,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.10s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:27:46Z"
+    },
+    {
+      "run_id": "V12-RUN-929248881e034015bae2e360f46cb11f",
+      "pid": 76175,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.05s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:30:01Z"
+    },
+    {
+      "run_id": "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+      "pid": 79450,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.53s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:32:20Z"
+    },
+    {
+      "run_id": "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+      "pid": 81527,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.86s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:34:41Z"
+    },
+    {
+      "run_id": "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+      "pid": 83676,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T05:35:34Z"
+    },
+    {
+      "run_id": "V12-RUN-70afe1c390de4f799d35f40549264aba",
+      "pid": 30351,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T06:05:08Z"
+    },
+    {
+      "run_id": "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+      "pid": 13960,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:20Z"
+    },
+    {
+      "run_id": "V12-RUN-27d174e3197943198253316ecd304ce1",
+      "pid": 44755,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:40Z"
+    },
+    {
+      "run_id": "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+      "pid": 45913,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:06Z"
+    },
+    {
+      "run_id": "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+      "pid": 48845,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:26Z"
+    },
+    {
+      "run_id": "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+      "pid": 49299,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:46Z"
+    },
+    {
+      "run_id": "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+      "pid": 49694,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:05Z"
+    },
+    {
+      "run_id": "V12-RUN-684d68c7a90141ed85b173927c097e99",
+      "pid": 50605,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:25Z"
+    },
+    {
+      "run_id": "V12-RUN-02ced42d767b456c915566edd00b364b",
+      "pid": 51454,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:45Z"
+    },
+    {
+      "run_id": "V12-RUN-af8f70c196e4424bbb9331045897326d",
+      "pid": 52700,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:05Z"
+    },
+    {
+      "run_id": "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+      "pid": 53007,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:25Z"
+    },
+    {
+      "run_id": "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+      "pid": 53750,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:44Z"
+    },
+    {
+      "run_id": "V12-RUN-2d683a71cff246e09531054261852a71",
+      "pid": 54217,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:34:04Z"
+    },
+    {
+      "run_id": "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+      "pid": 95732,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13]; normalization={}",
+      "failed_at": "2026-07-15T08:12:36Z"
+    },
+    {
+      "run_id": "V12-RUN-ccef9020a53746c48804f057997ae646",
+      "pid": 18748,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.25s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:34:10Z"
+    },
+    {
+      "run_id": "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+      "pid": 60260,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.32s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:36:30Z"
+    },
+    {
+      "run_id": "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+      "pid": 69639,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:40:06Z"
+    },
+    {
+      "run_id": "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+      "pid": 87882,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.63s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:53:03Z"
+    },
+    {
+      "run_id": "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+      "pid": 27685,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.09s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T09:15:21Z"
+    },
+    {
+      "run_id": "V12-RUN-c889e02eabee434da770844d8ea3462f",
+      "pid": 98654,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:41:16Z"
+    },
+    {
+      "run_id": "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+      "pid": 95730,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:42:17Z"
+    },
+    {
+      "run_id": "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+      "pid": 2750,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:43:11Z"
+    },
+    {
+      "run_id": "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+      "pid": 5501,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:44:48Z"
+    },
+    {
+      "run_id": "V12-RUN-96e372b68eba4916b4909138943030ec",
+      "pid": 8814,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:45:48Z"
+    },
+    {
+      "run_id": "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+      "pid": 9848,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:46:46Z"
+    },
+    {
+      "run_id": "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+      "pid": 68083,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:06:16Z"
+    },
+    {
+      "run_id": "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+      "pid": 73288,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:07:15Z"
+    },
+    {
+      "run_id": "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+      "pid": 77062,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:08:12Z"
+    },
+    {
+      "run_id": "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+      "pid": 80427,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:09:09Z"
+    },
+    {
+      "run_id": "V12-RUN-6a1c0f53434943a898653c4f80347621",
+      "pid": 82481,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:10:07Z"
+    },
+    {
+      "run_id": "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+      "pid": 84402,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:11:06Z"
+    },
+    {
+      "run_id": "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+      "pid": 88436,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:12:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+      "pid": 94438,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:13:15Z"
+    },
+    {
+      "run_id": "V12-RUN-99012ac48e11479483ff49846943b80c",
+      "pid": 418,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:14:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+      "pid": 4096,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:15:21Z"
+    },
+    {
+      "run_id": "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+      "pid": 8172,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:16:18Z"
+    },
+    {
+      "run_id": "V12-RUN-45ba13e552614d05be561d96edfab655",
+      "pid": 12488,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:17:50Z"
+    },
+    {
+      "run_id": "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+      "pid": 2614,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:57:23Z"
+    },
+    {
+      "run_id": "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+      "pid": 5051,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:58:28Z"
+    },
+    {
+      "run_id": "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+      "pid": 5957,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-416e648f87a2400ca83610fc734b161e",
+      "pid": 6538,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:00:25Z"
+    },
+    {
+      "run_id": "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+      "pid": 8210,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+      "pid": 8822,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:02:23Z"
+    },
+    {
+      "run_id": "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+      "pid": 9206,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:04:09Z"
+    },
+    {
+      "run_id": "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+      "pid": 12019,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:05:12Z"
+    },
+    {
+      "run_id": "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+      "pid": 13233,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T11:06:09Z"
+    },
+    {
+      "run_id": "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+      "pid": 56011,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:16Z"
+    },
+    {
+      "run_id": "V12-RUN-11f0712d40c94890a7605034516f4b26",
+      "pid": 73081,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:43Z"
+    },
+    {
+      "run_id": "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+      "pid": 73152,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:10Z"
+    },
+    {
+      "run_id": "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+      "pid": 73229,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:37Z"
+    },
+    {
+      "run_id": "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+      "pid": 73463,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:04Z"
+    },
+    {
+      "run_id": "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+      "pid": 73560,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:31Z"
+    },
+    {
+      "run_id": "V12-RUN-3139466b050c495fbfbf657f64797f93",
+      "pid": 73769,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:59Z"
+    },
+    {
+      "run_id": "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+      "pid": 74049,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:25Z"
+    },
+    {
+      "run_id": "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+      "pid": 74119,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:52Z"
+    },
+    {
+      "run_id": "V12-RUN-5fe75ec1489643a8af664d739654a742",
+      "pid": 74227,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+      "pid": 74301,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:45Z"
+    },
+    {
+      "run_id": "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+      "pid": 74358,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:23:12Z"
+    },
+    {
+      "run_id": "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+      "pid": 83636,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:55:49Z"
+    },
+    {
+      "run_id": "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+      "pid": 88457,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+      "pid": 88944,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:45Z"
+    },
+    {
+      "run_id": "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+      "pid": 89547,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:11Z"
+    },
+    {
+      "run_id": "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+      "pid": 89861,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:38Z"
+    },
+    {
+      "run_id": "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+      "pid": 90116,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:05Z"
+    },
+    {
+      "run_id": "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+      "pid": 90212,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:33Z"
+    },
+    {
+      "run_id": "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+      "pid": 90316,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:01Z"
+    },
+    {
+      "run_id": "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+      "pid": 90414,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+      "pid": 90486,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:57Z"
+    },
+    {
+      "run_id": "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+      "pid": 90573,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:26Z"
+    },
+    {
+      "run_id": "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+      "pid": 90647,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:53Z"
+    },
+    {
+      "run_id": "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+      "pid": 472,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T13:47:59Z"
+    }
+  ],
+  "counter_events": [
+    {
+      "sequence": 1,
+      "event_type": "legacy_baseline_import",
+      "phase": "legacy_v1_budget_migration",
+      "semantic_calls": 62,
+      "provider_attempts": 65,
+      "previous_event_sha256": "",
+      "legacy_source_digests": [
+        "1f67259788dadda04fb03a875045f31e936ad52f31e79acd75e6a82307e4a839",
+        "dccbb1f65a27064314877bfe70a0236288fa14a3b7847505c158813755e9960a"
+      ],
+      "event_sha256": "39f0907756624690e1268acac56387eb85482d082af1b13b4343d075dbd6a847"
+    },
+    {
+      "sequence": 2,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 63,
+      "provider_attempts": 65,
+      "previous_event_sha256": "39f0907756624690e1268acac56387eb85482d082af1b13b4343d075dbd6a847",
+      "event_sha256": "434ac40cc4318559d919cf8d472e4dde66f44469e9321a5871a9ddb5f170a46c"
+    },
+    {
+      "sequence": 3,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 63,
+      "provider_attempts": 66,
+      "previous_event_sha256": "434ac40cc4318559d919cf8d472e4dde66f44469e9321a5871a9ddb5f170a46c",
+      "event_sha256": "f7b4b742eb0520702d84225c4f22e0732adc1bbd3cf3dcb77ab8a491b0049d27"
+    },
+    {
+      "sequence": 4,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 64,
+      "provider_attempts": 66,
+      "previous_event_sha256": "f7b4b742eb0520702d84225c4f22e0732adc1bbd3cf3dcb77ab8a491b0049d27",
+      "event_sha256": "de94ba46acf8534e5ddacd764e9ce6fb8f73fd6dceba32ad5b1d2b8275cabd29"
+    },
+    {
+      "sequence": 5,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 64,
+      "provider_attempts": 67,
+      "previous_event_sha256": "de94ba46acf8534e5ddacd764e9ce6fb8f73fd6dceba32ad5b1d2b8275cabd29",
+      "event_sha256": "3646fd06214811e7a9c549f4e491bd631cf9a405e273ad6504bac2b2a6276a5d"
+    },
+    {
+      "sequence": 6,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 65,
+      "provider_attempts": 67,
+      "previous_event_sha256": "3646fd06214811e7a9c549f4e491bd631cf9a405e273ad6504bac2b2a6276a5d",
+      "event_sha256": "7419102bca7129ea3b50bcc83afa52e3744de1164142fd1b2fae57521ed80a31"
+    },
+    {
+      "sequence": 7,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 65,
+      "provider_attempts": 68,
+      "previous_event_sha256": "7419102bca7129ea3b50bcc83afa52e3744de1164142fd1b2fae57521ed80a31",
+      "event_sha256": "edcdbfa8959470692462c7253a10e875ad7584dc61ea5821e7be7dc2862e7e66"
+    },
+    {
+      "sequence": 8,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 68,
+      "previous_event_sha256": "edcdbfa8959470692462c7253a10e875ad7584dc61ea5821e7be7dc2862e7e66",
+      "event_sha256": "16d80afe658a8eeb608be293aa4bfb15f5ffcf16b924d985f2aab2e4ce82638a"
+    },
+    {
+      "sequence": 9,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 69,
+      "previous_event_sha256": "16d80afe658a8eeb608be293aa4bfb15f5ffcf16b924d985f2aab2e4ce82638a",
+      "event_sha256": "b8a0ee4d41e7ff593fd28a9b1eef0827f22c9dfa72f6fe3e3a5f338a393192fc"
+    },
+    {
+      "sequence": 10,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 69,
+      "previous_event_sha256": "b8a0ee4d41e7ff593fd28a9b1eef0827f22c9dfa72f6fe3e3a5f338a393192fc",
+      "event_sha256": "e7378d00efb69bc9e90c64bf435e05dc09fbfcaab936b415da23931e20412c21"
+    },
+    {
+      "sequence": 11,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 70,
+      "previous_event_sha256": "e7378d00efb69bc9e90c64bf435e05dc09fbfcaab936b415da23931e20412c21",
+      "event_sha256": "877712bd457463a7e842d9d2e847c0ea662da0f9d46e5ea70c456f1d06e63f7a"
+    },
+    {
+      "sequence": 12,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 70,
+      "previous_event_sha256": "877712bd457463a7e842d9d2e847c0ea662da0f9d46e5ea70c456f1d06e63f7a",
+      "event_sha256": "fb425fd85b5ccee57de13aacd42ac38c82944e8889039934f9885db7400a465c"
+    },
+    {
+      "sequence": 13,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 71,
+      "previous_event_sha256": "fb425fd85b5ccee57de13aacd42ac38c82944e8889039934f9885db7400a465c",
+      "event_sha256": "4d8b54904b1380347ee19c7752a547e521b457a28ab3bbadbcd95a1d283999e6"
+    },
+    {
+      "sequence": 14,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 72,
+      "previous_event_sha256": "4d8b54904b1380347ee19c7752a547e521b457a28ab3bbadbcd95a1d283999e6",
+      "event_sha256": "997417bac9e79e8c91d169434c056c1d9449af54badc8d1b02f1d0523a01e654"
+    },
+    {
+      "sequence": 15,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 69,
+      "provider_attempts": 72,
+      "previous_event_sha256": "997417bac9e79e8c91d169434c056c1d9449af54badc8d1b02f1d0523a01e654",
+      "event_sha256": "6834a73ce394e4b9fdbc1660d138383fe006d0d04617677744df6d9186811d3c"
+    },
+    {
+      "sequence": 16,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 69,
+      "provider_attempts": 73,
+      "previous_event_sha256": "6834a73ce394e4b9fdbc1660d138383fe006d0d04617677744df6d9186811d3c",
+      "event_sha256": "12edf9966c3aa8db702a47e42ae9551d4e522e76b49c2d4b242e9dc4a8680129"
+    },
+    {
+      "sequence": 17,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 70,
+      "provider_attempts": 73,
+      "previous_event_sha256": "12edf9966c3aa8db702a47e42ae9551d4e522e76b49c2d4b242e9dc4a8680129",
+      "event_sha256": "50013079b984deb27a90fed83392dd108dba666a95f919acaeeebe2248de8b22"
+    },
+    {
+      "sequence": 18,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 70,
+      "provider_attempts": 74,
+      "previous_event_sha256": "50013079b984deb27a90fed83392dd108dba666a95f919acaeeebe2248de8b22",
+      "event_sha256": "5ac04a24b8b343598c1ceb4e7fede429721e2855f2365853796d048fee3195b5"
+    },
+    {
+      "sequence": 19,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 71,
+      "provider_attempts": 74,
+      "previous_event_sha256": "5ac04a24b8b343598c1ceb4e7fede429721e2855f2365853796d048fee3195b5",
+      "event_sha256": "700aa3de802fc833174db9a88ad1010ee622286f24897f93e7836920adfdbaff"
+    },
+    {
+      "sequence": 20,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 71,
+      "provider_attempts": 75,
+      "previous_event_sha256": "700aa3de802fc833174db9a88ad1010ee622286f24897f93e7836920adfdbaff",
+      "event_sha256": "148b3ad96d64137ebbdfa41c143716ab5e80852d54b6844ee21bebfe62b8ddd6"
+    },
+    {
+      "sequence": 21,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 72,
+      "provider_attempts": 75,
+      "previous_event_sha256": "148b3ad96d64137ebbdfa41c143716ab5e80852d54b6844ee21bebfe62b8ddd6",
+      "event_sha256": "ad03148d8de111ad7f9e9a367275d2846bc37f5955b2213407d5a36e9ad1d3e0"
+    },
+    {
+      "sequence": 22,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 72,
+      "provider_attempts": 76,
+      "previous_event_sha256": "ad03148d8de111ad7f9e9a367275d2846bc37f5955b2213407d5a36e9ad1d3e0",
+      "event_sha256": "9e52657d4476e2d2610d9b64dd1619e414caa349db233703d60823fcba93a66c"
+    },
+    {
+      "sequence": 23,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 73,
+      "provider_attempts": 76,
+      "previous_event_sha256": "9e52657d4476e2d2610d9b64dd1619e414caa349db233703d60823fcba93a66c",
+      "event_sha256": "6c7dcfa97b2d4db627b69a28eb44e893234c5bf7e463a31aaa138c0c0e4561c6"
+    },
+    {
+      "sequence": 24,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 73,
+      "provider_attempts": 77,
+      "previous_event_sha256": "6c7dcfa97b2d4db627b69a28eb44e893234c5bf7e463a31aaa138c0c0e4561c6",
+      "event_sha256": "fc3d65e6d398bd3086e4720855aee0aa48f84a0c53c17768d3ea95f3ae966106"
+    },
+    {
+      "sequence": 25,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 74,
+      "provider_attempts": 77,
+      "previous_event_sha256": "fc3d65e6d398bd3086e4720855aee0aa48f84a0c53c17768d3ea95f3ae966106",
+      "event_sha256": "8cdc6d9366010ab0a5bbb874c842f21ba496b79aecd103d5550369bfcea951d2"
+    },
+    {
+      "sequence": 26,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 74,
+      "provider_attempts": 78,
+      "previous_event_sha256": "8cdc6d9366010ab0a5bbb874c842f21ba496b79aecd103d5550369bfcea951d2",
+      "event_sha256": "8c827f90ae716d4e02bf377c89c81246403ba07ecdd90888a8630ceecd20087e"
+    },
+    {
+      "sequence": 27,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 74,
+      "provider_attempts": 79,
+      "previous_event_sha256": "8c827f90ae716d4e02bf377c89c81246403ba07ecdd90888a8630ceecd20087e",
+      "event_sha256": "33b5428695c50ec46d816da952adfe7d59b87f61cdaa35c50d2472bccad0a8dc"
+    },
+    {
+      "sequence": 28,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 75,
+      "provider_attempts": 79,
+      "previous_event_sha256": "33b5428695c50ec46d816da952adfe7d59b87f61cdaa35c50d2472bccad0a8dc",
+      "event_sha256": "7b649f976efef9e5a34b88a7277a08267b981a35049a29a75062cd4afd3077eb"
+    },
+    {
+      "sequence": 29,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 75,
+      "provider_attempts": 80,
+      "previous_event_sha256": "7b649f976efef9e5a34b88a7277a08267b981a35049a29a75062cd4afd3077eb",
+      "event_sha256": "a6dbbd0a1c09b472e8816de9bbd328d7c3e5f35209957288aa40bf0069e18ccd"
+    },
+    {
+      "sequence": 30,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 76,
+      "provider_attempts": 80,
+      "previous_event_sha256": "a6dbbd0a1c09b472e8816de9bbd328d7c3e5f35209957288aa40bf0069e18ccd",
+      "event_sha256": "9de921beec627e7e950623d5c556cd5a382bd8eafc70a6ba47079cd22f88dc51"
+    },
+    {
+      "sequence": 31,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 76,
+      "provider_attempts": 81,
+      "previous_event_sha256": "9de921beec627e7e950623d5c556cd5a382bd8eafc70a6ba47079cd22f88dc51",
+      "event_sha256": "97d805e094d31d6c08b6e56ae35503bf94a86595ad0c05566e3f83f8c1d9c46d"
+    },
+    {
+      "sequence": 32,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 77,
+      "provider_attempts": 81,
+      "previous_event_sha256": "97d805e094d31d6c08b6e56ae35503bf94a86595ad0c05566e3f83f8c1d9c46d",
+      "event_sha256": "e80130a3d4bb170efe05858112bc3fcfdd3ca9497361b039a27d15b76dae03c3"
+    },
+    {
+      "sequence": 33,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 77,
+      "provider_attempts": 82,
+      "previous_event_sha256": "e80130a3d4bb170efe05858112bc3fcfdd3ca9497361b039a27d15b76dae03c3",
+      "event_sha256": "ce6935d639b6eb38d01083f4ff7a650e9729be5fe20b9a99f3e56c9b13487510"
+    },
+    {
+      "sequence": 34,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 77,
+      "provider_attempts": 83,
+      "previous_event_sha256": "ce6935d639b6eb38d01083f4ff7a650e9729be5fe20b9a99f3e56c9b13487510",
+      "event_sha256": "5108756f5801b72ff43983eff3aac6011cbb8acf5685592ee963bc85b21977b0"
+    },
+    {
+      "sequence": 35,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 78,
+      "provider_attempts": 83,
+      "previous_event_sha256": "5108756f5801b72ff43983eff3aac6011cbb8acf5685592ee963bc85b21977b0",
+      "event_sha256": "45ad41f061e853d1e9b432aa9b14f4b33a7de8e2889ea74921289cea3fd09227"
+    },
+    {
+      "sequence": 36,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 78,
+      "provider_attempts": 84,
+      "previous_event_sha256": "45ad41f061e853d1e9b432aa9b14f4b33a7de8e2889ea74921289cea3fd09227",
+      "event_sha256": "69b1d9776300a52ae66a97e69d10fd8d9abcbdb8c746a98659bf8d72f6a6251b"
+    },
+    {
+      "sequence": 37,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 79,
+      "provider_attempts": 84,
+      "previous_event_sha256": "69b1d9776300a52ae66a97e69d10fd8d9abcbdb8c746a98659bf8d72f6a6251b",
+      "event_sha256": "e5035918a54b314994c9a238fd0614b318d52217dfb42082d2863ac1938ed7bf"
+    },
+    {
+      "sequence": 38,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 79,
+      "provider_attempts": 85,
+      "previous_event_sha256": "e5035918a54b314994c9a238fd0614b318d52217dfb42082d2863ac1938ed7bf",
+      "event_sha256": "9b17601bfc01e46b0409e0b1c85ee09a1509225c192c4d1f7a8e69c89b41703e"
+    },
+    {
+      "sequence": 39,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 80,
+      "provider_attempts": 85,
+      "previous_event_sha256": "9b17601bfc01e46b0409e0b1c85ee09a1509225c192c4d1f7a8e69c89b41703e",
+      "event_sha256": "8a0a8ec9a6b4e977fd35f714c2199c2a51ea60064d286d3f1150d5632e523955"
+    },
+    {
+      "sequence": 40,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 80,
+      "provider_attempts": 86,
+      "previous_event_sha256": "8a0a8ec9a6b4e977fd35f714c2199c2a51ea60064d286d3f1150d5632e523955",
+      "event_sha256": "6b192b2c24110668153892516b7a589895ca517390afead958811d27dd3afb03"
+    },
+    {
+      "sequence": 41,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 81,
+      "provider_attempts": 86,
+      "previous_event_sha256": "6b192b2c24110668153892516b7a589895ca517390afead958811d27dd3afb03",
+      "event_sha256": "f35d546ff427648a27a54c69579c4ece06ab6c5eb272462efaa7601abea25804"
+    },
+    {
+      "sequence": 42,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 81,
+      "provider_attempts": 87,
+      "previous_event_sha256": "f35d546ff427648a27a54c69579c4ece06ab6c5eb272462efaa7601abea25804",
+      "event_sha256": "74430679fa69da4f7ea8f1464bbf101b9752a8b426a58038f61d3cbf3ac03c0e"
+    },
+    {
+      "sequence": 43,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 82,
+      "provider_attempts": 87,
+      "previous_event_sha256": "74430679fa69da4f7ea8f1464bbf101b9752a8b426a58038f61d3cbf3ac03c0e",
+      "event_sha256": "4f333a2f463ec837cd28963ffb09c0b824a4b09a5032757651385492808fd7ef"
+    },
+    {
+      "sequence": 44,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 82,
+      "provider_attempts": 88,
+      "previous_event_sha256": "4f333a2f463ec837cd28963ffb09c0b824a4b09a5032757651385492808fd7ef",
+      "event_sha256": "cf3bac6495827858a6c75dacc0f70e71334ad2317dcbcaa1342d2cd48a2e375a"
+    },
+    {
+      "sequence": 45,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 83,
+      "provider_attempts": 88,
+      "previous_event_sha256": "cf3bac6495827858a6c75dacc0f70e71334ad2317dcbcaa1342d2cd48a2e375a",
+      "event_sha256": "6855b2901e3aabafc0fc531956cc305087350dfecb8f8a97a9c588ee070bb4b5"
+    },
+    {
+      "sequence": 46,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 83,
+      "provider_attempts": 89,
+      "previous_event_sha256": "6855b2901e3aabafc0fc531956cc305087350dfecb8f8a97a9c588ee070bb4b5",
+      "event_sha256": "e187704cb072b8269372ddd100405230cd939b0b0c24cc0f2ac12f1b91490371"
+    },
+    {
+      "sequence": 47,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 84,
+      "provider_attempts": 89,
+      "previous_event_sha256": "e187704cb072b8269372ddd100405230cd939b0b0c24cc0f2ac12f1b91490371",
+      "event_sha256": "4077dd21fe854742e9e1827bdcc86fd7d092cf3d0394e4f767f2add17d159c78"
+    },
+    {
+      "sequence": 48,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 84,
+      "provider_attempts": 90,
+      "previous_event_sha256": "4077dd21fe854742e9e1827bdcc86fd7d092cf3d0394e4f767f2add17d159c78",
+      "event_sha256": "d87178c2d00f88b0539501e6ac62e9c245b6fd6dbdeef9fa890a9f5d0ae73835"
+    },
+    {
+      "sequence": 49,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 85,
+      "provider_attempts": 90,
+      "previous_event_sha256": "d87178c2d00f88b0539501e6ac62e9c245b6fd6dbdeef9fa890a9f5d0ae73835",
+      "event_sha256": "6becd14ca2cb8088d67db202b0dc31d6b35ccb04bd5eb74a7379a4ae0da998d9"
+    },
+    {
+      "sequence": 50,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 85,
+      "provider_attempts": 91,
+      "previous_event_sha256": "6becd14ca2cb8088d67db202b0dc31d6b35ccb04bd5eb74a7379a4ae0da998d9",
+      "event_sha256": "fd10e30f272f3502c689f994a8b6a987b6f25b2236944edd17e0a3811363bd45"
+    },
+    {
+      "sequence": 51,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 86,
+      "provider_attempts": 91,
+      "previous_event_sha256": "fd10e30f272f3502c689f994a8b6a987b6f25b2236944edd17e0a3811363bd45",
+      "event_sha256": "92645e040d93e7d5253b5f82116afe9efcf22e7999f2a2331870ad8d35693bc5"
+    },
+    {
+      "sequence": 52,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 86,
+      "provider_attempts": 92,
+      "previous_event_sha256": "92645e040d93e7d5253b5f82116afe9efcf22e7999f2a2331870ad8d35693bc5",
+      "event_sha256": "889fabb5c0a7b73140b8337d398a245803c02e81bcd97c6f50d7c474ad1c17c8"
+    }
+  ],
+  "counter_chain_head_sha256": "889fabb5c0a7b73140b8337d398a245803c02e81bcd97c6f50d7c474ad1c17c8",
+  "migrations": [
+    {
+      "migration_id": "legacy_v1_budget_to_counter_ledger_v2",
+      "source_digests": [
+        "1f67259788dadda04fb03a875045f31e936ad52f31e79acd75e6a82307e4a839",
+        "dccbb1f65a27064314877bfe70a0236288fa14a3b7847505c158813755e9960a"
+      ]
+    }
+  ],
+  "updated_at": "2026-07-17T04:09:30Z",
+  "terminal_receipt_path": "data/question_banks/math/.v12_pilot_six_checkpoints/.run-state/M-G7-OPPOSITE.model-budget.json",
+  "integrity_sha256": "c98442907a81bd0ba56782c673aee73f15691d0ca4e708cf9cc669b0506202c6"
+}

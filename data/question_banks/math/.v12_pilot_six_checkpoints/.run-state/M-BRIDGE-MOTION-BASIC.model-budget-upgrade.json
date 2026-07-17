@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-BRIDGE-MOTION-BASIC",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 118,
+  "minimum_provider_attempts": 126,
+  "counter_chain_head_sha256": "b7d3acd9db3a3f246be37afdaaec09d30baaf032dda17a8f709217b87bb967cf",
+  "budget_integrity_sha256": "7ad810c42ccddabc2d0ffa739a45d9bd30e90cfebefc4ef31ffee9a083404ba8",
+  "legacy_source_digests": [
+    "9074f2a750301e2b8c5eabbb8eb8b15c645c57e21c8f2a09be58deec6f4df597",
+    "d0340251107b285afb8a486de7c4c40e9bfec5c1b0f3f30884c30022c360f9b0"
+  ],
+  "updated_at": "2026-07-17T04:09:23Z",
+  "integrity_sha256": "aa446ba9b14cc46c47d45b3d3055d6a76c06d514995a501d1c04a0715fa6c5eb"
+}

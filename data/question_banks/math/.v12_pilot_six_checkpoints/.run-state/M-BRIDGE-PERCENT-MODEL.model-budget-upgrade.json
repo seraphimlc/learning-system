@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-BRIDGE-PERCENT-MODEL",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 68,
+  "minimum_provider_attempts": 70,
+  "counter_chain_head_sha256": "716a4a67c2f3e7197fbbec4f727f535c19e930ea00ac1de557895f8b38e30da3",
+  "budget_integrity_sha256": "f2de2894468c391fbd9633e44d2445ef10de15e0363d47b848840fc9e65fc10d",
+  "legacy_source_digests": [
+    "ad6ecd55cb631a7fd71a35e6057f9fefce6e81c75d9ef9e6a354d24e99d7e102",
+    "f0e736e34a19f5453d6453b952b8446c2d979822b6920c228f0b8f6105925a54"
+  ],
+  "updated_at": "2026-07-17T04:09:24Z",
+  "integrity_sha256": "d73a246627fe9c075170f1008af5efc2dbd3ce322d38e5321fceebe27928fa40"
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数学学习任务</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/knowledge_views.css">
+  <link rel="stylesheet" href="/question_visual_renderer.css">
+</head>
+<body class="child-mode">
+  <div class="shell">
+    <main class="main child-mode" id="main" tabindex="-1">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">数学学习</p>
+          <h1 id="pageTitle">今天的数学学习</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="knowledgeHomeBtn" type="button" hidden>知识首页</button>
+          <span class="connection-state" id="dbStatus">连接中</span>
+        </div>
+      </header>
+
+      <section class="view" id="view-knowledge-home" aria-label="数学知识首页" hidden inert>
+        <div id="knowledgeHomeMount"></div>
+      </section>
+
+      <section class="view active" id="view-child" aria-labelledby="childHeading">
+        <article class="panel task-panel child-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">当前任务</p>
+              <h2 id="childHeading">准备中</h2>
+            </div>
+            <span class="pill" id="childTaskType">学习</span>
+          </div>
+
+          <div class="child-progress" aria-label="今日任务进度">
+            <div>
+              <span id="childProgressText">准备中</span>
+              <span id="childPendingText">已保存 0</span>
+            </div>
+            <div class="progress-track" aria-hidden="true">
+              <span id="childProgressBar"></span>
+            </div>
+          </div>
+
+          <section class="error-panel" id="childErrorPanel" role="status" aria-live="polite" aria-atomic="true" aria-labelledby="childErrorTitle" aria-describedby="childErrorBody" tabindex="-1" hidden>
+            <strong id="childErrorTitle">刚才没有连上</strong>
+            <p id="childErrorBody">请再试一次。</p>
+            <button class="error-action" id="childErrorActionBtn" type="button">再试一次</button>
+          </section>
+
+          <div class="handoff-state" id="childHandoffState" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
+            <strong id="childHandoffTitle">这一步完成了</strong>
+            <span id="childHandoffText">答案已经保存。系统会继续分析你的步骤、照片和思路，再安排下一步。</span>
+            <div class="review-points" id="childReviewPoints"></div>
+            <div class="coach-points" id="childCoachPoints"></div>
+            <button class="primary start-next" id="startNextRoundBtn" type="button" hidden>继续下一步</button>
+            <button class="start-next" id="v3SecondaryActionBtn" type="button" hidden>今天到这里</button>
+          </div>
+
+          <div id="childTaskContent" class="task-content" role="region" aria-live="polite" aria-atomic="false" aria-labelledby="childHeading"></div>
+
+          <form id="childAttemptForm" class="attempt-form">
+            <label for="childAnswerRaw">我的答案和步骤</label>
+            <textarea id="childAnswerRaw" name="answerRaw" rows="7" placeholder="写关键步骤、答案；如果卡住，就写卡在哪一步"></textarea>
+            <div id="interactionAnswerPanel" class="interaction-answer-panel" hidden></div>
+
+            <div class="photo-field">
+              <label for="childAnswerPhoto">拍纸面答案</label>
+              <div class="photo-input-row">
+                <input id="childAnswerPhoto" class="visually-hidden-file" type="file" accept="image/*" capture="environment">
+                <label class="photo-picker" for="childAnswerPhoto">拍照或选择图片</label>
+                <span class="photo-hint">可选：拍纸面步骤</span>
+              </div>
+              <div class="photo-preview" id="childPhotoPreview" hidden>
+                <img id="childPhotoThumb" alt="纸面答案预览">
+                <div>
+                  <span id="childPhotoName" class="row-title"></span>
+                  <span class="row-meta">照片会和文字答案一起保存，由系统分析。</span>
+                  <button id="removeChildPhoto" type="button">移除照片</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="v3StuckChoicePanel" class="stuck-choice-panel" hidden></div>
+
+            <div class="form-actions">
+              <button class="primary" id="childSubmitBtn" type="submit">保存</button>
+            </div>
+          </form>
+        </article>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/knowledge_views.js"></script>
+  <script src="/question_visual_renderer.js"></script>
+  <script src="/child_prompt_renderer.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

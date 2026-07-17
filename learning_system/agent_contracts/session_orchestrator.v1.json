@@ -1,0 +1,11 @@
+{
+  "agent_key": "session_orchestrator_agent",
+  "contract_key": "session_orchestrator",
+  "contract_version": "2026-07-05.session-orchestrator.v1",
+  "prompt_version_id": "2026-07-05.session-orchestrator.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/session_orchestrator.v1.md",
+  "response_schema_version": "2026-07-05.session-orchestrator.schema.v1",
+  "minimum_confidence_to_apply": 1.0,
+  "engine_type": "deterministic",
+  "authority": "authoritative_state_machine"
+}

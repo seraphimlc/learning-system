@@ -1,0 +1,72 @@
+{
+  "agent_key": "answer_contract_designer_agent",
+  "contract_key": "answer_contract_design",
+  "contract_version": "2026-07-14.answer-contract-design.v2",
+  "prompt_version_id": "2026-07-14.answer-contract-design.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/answer_contract_design.v2.md",
+  "response_schema_version": "2026-07-14.answer-contract-design.schema.v2",
+  "minimum_confidence_to_apply": 0.8,
+  "engine_type": "model",
+  "authority": "semantic_atomic_component_selection_only",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_assign_order_or_points",
+    "does_not_assign_dimensions",
+    "does_not_set_required_for_pass",
+    "does_not_create_reference_components",
+    "does_not_bind_question_or_node",
+    "does_not_version_review_or_activate_contracts"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema_version", "items"],
+    "properties": {
+      "schema_version": {
+        "const": "2026-07-14.answer-contract-design.schema.v2"
+      },
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "item_handle",
+            "slot_key",
+            "criterion",
+            "reference_evidence",
+            "confidence"
+          ],
+          "properties": {
+            "item_handle": {"type": "string", "minLength": 1, "maxLength": 120},
+            "slot_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "criterion": {"type": "string", "minLength": 1, "maxLength": 800},
+            "reference_evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["claim", "source_anchor_keys", "derivation_scope"],
+              "properties": {
+                "claim": {"type": "string", "minLength": 1, "maxLength": 800},
+                "source_anchor_keys": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": {"type": "string", "minLength": 1, "maxLength": 120}
+                },
+                "derivation_scope": {"type": "string", "enum": ["direct", "derived"]}
+              }
+            },
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      }
+    }
+  }
+}

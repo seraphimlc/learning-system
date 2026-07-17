@@ -1,0 +1,264 @@
+{
+  "agent_key": "question_reviewer_agent",
+  "contract_key": "math_question_bank_v12_node_set_global_finalizer",
+  "contract_version": "2026-07-12.math-qb-v12.node-set-global-finalizer.v4",
+  "prompt_version_id": "2026-07-14.math-qb-v12.node-set-global-finalizer.prompt.v4.1",
+  "prompt_template_path": "learning_system/prompts/math_question_bank_v12_node_set_global_finalizer.v4.md",
+  "response_schema_version": "2026-07-12.math-qb-v12.node-set-global-finalizer.schema.v4",
+  "minimum_confidence_to_apply": 0.88,
+  "engine_type": "model",
+  "authority": "one_node_global_semantic_and_ux_finalizer",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_reclassify_item_reviewer_semantic_evidence",
+    "does_not_generate_replacement_question",
+    "does_not_mutate_sqlite",
+    "does_not_activate_question"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "node_id",
+      "graph_version",
+      "question_bank_version",
+      "semantic_evidence_version",
+      "verdict",
+      "node_ux_verdict",
+      "slot_evidence_coverage",
+      "distribution_scores",
+      "instruction_voice_distribution",
+      "unprompted_slot_results",
+      "repetitive_instruction_clusters",
+      "duplicate_groups",
+      "overloaded_slots",
+      "notation_failure_slots",
+      "dignity_failure_slots",
+      "ux_rejected_slots",
+      "rejected_slots",
+      "confidence",
+      "reasons",
+      "repair_plan"
+    ],
+    "properties": {
+      "schema_version": {"const": "2026-07-12.math-qb-v12.node-set-global-finalizer.schema.v4"},
+      "node_id": {"type": "string"},
+      "graph_version": {"type": "string"},
+      "question_bank_version": {"const": "2026-07-12.bank.v12"},
+      "semantic_evidence_version": {"const": "2026-07-12.math-qb-v12.node-set-global-evidence.v4"},
+      "verdict": {"type": "string", "enum": ["approved", "needs_repair", "blocked"]},
+      "node_ux_verdict": {"type": "string", "enum": ["approved", "needs_repair", "blocked"]},
+      "slot_evidence_coverage": {
+        "type": "array",
+        "minItems": 20,
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slot", "item_id", "candidate_sha256", "item_review_semantic_evidence_sha256", "focal_review_sha256", "shard_id"],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+            "item_id": {"type": "string"},
+            "candidate_sha256": {"type": "string"},
+            "item_review_semantic_evidence_sha256": {"type": "string"},
+            "focal_review_sha256": {"type": "string"},
+            "shard_id": {"type": "string"}
+          }
+        }
+      },
+      "distribution_scores": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["semantic_diversity", "slot_fit", "difficulty_distribution", "problem_family_distribution", "age_context_fit", "instruction_voice_variety"],
+        "properties": {
+          "semantic_diversity": {"type": "number", "minimum": 0, "maximum": 1},
+          "slot_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "difficulty_distribution": {"type": "number", "minimum": 0, "maximum": 1},
+          "problem_family_distribution": {"type": "number", "minimum": 0, "maximum": 1},
+          "age_context_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "instruction_voice_variety": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "instruction_voice_distribution": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["instruction_voice_family", "slots"],
+          "properties": {
+            "instruction_voice_family": {
+              "type": "string",
+              "enum": [
+                "solve_and_interpret",
+                "compare_and_choose",
+                "diagnose_and_repair",
+                "represent_and_translate",
+                "classify_and_justify",
+                "estimate_and_predict",
+                "construct_or_complete",
+                "reverse_reasoning",
+                "validate_a_claim",
+                "explain_a_relationship"
+              ]
+            },
+            "slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "minItems": 1, "maxItems": 20}
+          }
+        }
+      },
+      "unprompted_slot_results": {
+        "type": "array",
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slot", "item_id", "candidate_sha256", "process_target_disclosed", "verdict", "score", "source_field", "quote", "reason"],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+            "item_id": {"type": "string"},
+            "candidate_sha256": {"type": "string"},
+            "process_target_disclosed": {"type": "boolean"},
+            "verdict": {"type": "string", "enum": ["satisfied", "violated"]},
+            "score": {"type": "number", "minimum": 0, "maximum": 1},
+            "source_field": {"type": "string", "enum": ["none", "child_visible.prompt"]},
+            "quote": {"type": "string"},
+            "reason": {"type": "string"}
+          }
+        }
+      },
+      "repetitive_instruction_clusters": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cluster_id", "slots", "cluster_summary", "reason", "evidence_refs"],
+          "properties": {
+            "cluster_id": {"type": "string", "minLength": 1},
+            "slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "minItems": 2, "maxItems": 20},
+            "cluster_summary": {"type": "string", "minLength": 1},
+            "reason": {"type": "string", "minLength": 1},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 12}
+          }
+        }
+      },
+      "duplicate_groups": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["group_id", "slots", "reason", "evidence_refs"],
+          "properties": {
+            "group_id": {"type": "string", "minLength": 1},
+            "slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "minItems": 2, "maxItems": 20},
+            "reason": {"type": "string", "minLength": 1},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 12}
+          }
+        }
+      },
+      "overloaded_slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "maxItems": 20},
+      "notation_failure_slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "maxItems": 20},
+      "dignity_failure_slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "maxItems": 20},
+      "ux_rejected_slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "maxItems": 20},
+      "rejected_slots": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 20}, "maxItems": 20},
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+      "reasons": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 16},
+      "repair_plan": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "repair_scope",
+            "preserved_role",
+            "preserve_or_replace_math_core",
+            "required_voice_family",
+            "avoided_voice_families",
+            "exact_target_delta",
+            "evidence_refs"
+          ],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+            "repair_scope": {
+              "type": "string",
+              "enum": [
+                "global_duplicate",
+                "global_voice_distribution",
+                "global_response_burden",
+                "global_notation",
+                "global_dignity",
+                "global_process_disclosure",
+                "global_slot_fit"
+              ]
+            },
+            "preserved_role": {"type": "string"},
+            "preserve_or_replace_math_core": {"type": "string", "enum": ["preserve_math_core", "replace_math_core"]},
+            "required_voice_family": {
+              "type": "string",
+              "enum": [
+                "solve_and_interpret",
+                "compare_and_choose",
+                "diagnose_and_repair",
+                "represent_and_translate",
+                "classify_and_justify",
+                "estimate_and_predict",
+                "construct_or_complete",
+                "reverse_reasoning",
+                "validate_a_claim",
+                "explain_a_relationship"
+              ]
+            },
+            "avoided_voice_families": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "solve_and_interpret",
+                  "compare_and_choose",
+                  "diagnose_and_repair",
+                  "represent_and_translate",
+                  "classify_and_justify",
+                  "estimate_and_predict",
+                  "construct_or_complete",
+                  "reverse_reasoning",
+                  "validate_a_claim",
+                  "explain_a_relationship"
+                ]
+              },
+              "maxItems": 10
+            },
+            "exact_target_delta": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["dimension", "from_value", "to_value"],
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "instruction_voice_family",
+                    "mathematical_core",
+                    "context_semantics",
+                    "prompt_answer_alignment",
+                    "notation_readiness",
+                    "response_burden",
+                    "age_dignity",
+                    "process_disclosure",
+                    "slot_fit"
+                  ]
+                },
+                "from_value": {"type": "string"},
+                "to_value": {"type": "string"}
+              }
+            },
+            "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 12}
+          }
+        }
+      }
+    }
+  }
+}

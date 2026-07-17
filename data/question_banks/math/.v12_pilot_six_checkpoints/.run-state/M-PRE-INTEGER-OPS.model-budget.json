@@ -1,0 +1,1307 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget.v2",
+  "node_id": "M-PRE-INTEGER-OPS",
+  "run_ids": [
+    "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+    "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+    "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+    "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+    "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+    "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+    "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+    "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+    "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+    "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+    "V12-RUN-4ea53ce22421407b97b236727eff7436",
+    "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+    "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+    "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+    "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+    "V12-RUN-929248881e034015bae2e360f46cb11f",
+    "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+    "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+    "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+    "V12-RUN-70afe1c390de4f799d35f40549264aba",
+    "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+    "V12-RUN-27d174e3197943198253316ecd304ce1",
+    "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+    "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+    "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+    "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+    "V12-RUN-684d68c7a90141ed85b173927c097e99",
+    "V12-RUN-02ced42d767b456c915566edd00b364b",
+    "V12-RUN-af8f70c196e4424bbb9331045897326d",
+    "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+    "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+    "V12-RUN-2d683a71cff246e09531054261852a71",
+    "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+    "V12-RUN-ccef9020a53746c48804f057997ae646",
+    "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+    "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+    "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+    "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+    "V12-RUN-c889e02eabee434da770844d8ea3462f",
+    "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+    "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+    "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+    "V12-RUN-96e372b68eba4916b4909138943030ec",
+    "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+    "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+    "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+    "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+    "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+    "V12-RUN-6a1c0f53434943a898653c4f80347621",
+    "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+    "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+    "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+    "V12-RUN-99012ac48e11479483ff49846943b80c",
+    "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+    "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+    "V12-RUN-45ba13e552614d05be561d96edfab655",
+    "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+    "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+    "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+    "V12-RUN-416e648f87a2400ca83610fc734b161e",
+    "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+    "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+    "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+    "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+    "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+    "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+    "V12-RUN-11f0712d40c94890a7605034516f4b26",
+    "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+    "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+    "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+    "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+    "V12-RUN-3139466b050c495fbfbf657f64797f93",
+    "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+    "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+    "V12-RUN-5fe75ec1489643a8af664d739654a742",
+    "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+    "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+    "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+    "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+    "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+    "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+    "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+    "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+    "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+    "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+    "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+    "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+    "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+    "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+    "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+    "V12-RUN-a0fc28967b0d40ec9f24b7a3d6fc62bc",
+    "V12-RUN-3ceb3f4734574f8083d2e67f83336e49",
+    "V12-RUN-0dd591ad86dc4344a6e7373d1474fbc8",
+    "V12-RUN-8575a023ebf34aef839578c85e2936ee",
+    "V12-RUN-fb2acd3497524a04a39f1a1553302391",
+    "V12-RUN-9c035038cb1f481ca13f3be1d8ed25bd",
+    "V12-RUN-e594bcdc6805432d8abed23c2d84db56",
+    "V12-RUN-e95af84509d7478b883fb9574be27d74",
+    "V12-RUN-13d13aee0f554ce5b6dfc35fbdc6eda4",
+    "V12-RUN-ee6e9384d7d04d37a021630468769891",
+    "V12-RUN-9f4b2aec31e2451dae37a93d0146c036",
+    "V12-RUN-bec394ef7d7a4b359c6b532ad5cfa519",
+    "V12-RUN-fa2e94a777be4dcf9bbe87ca4e138fc6",
+    "V12-RUN-4b2d7133b76745a3a4941e598f271bf8",
+    "V12-RUN-1280fd46bb144ccc8ba91d0abe7f3e24",
+    "V12-RUN-522e03ff228e43678c72de3f81632e02",
+    "V12-RUN-433009fd3724479d8791b876760f553e",
+    "V12-RUN-b46b2734ddac4450bb3e1f23d81362b0"
+  ],
+  "pid": 60540,
+  "semantic_calls": 85,
+  "provider_attempts": 95,
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "status": "completed",
+  "reason": "",
+  "last_error_class": "KeyboardInterrupt",
+  "last_error_at": "2026-07-15T13:47:59Z",
+  "interruptions": [
+    {
+      "run_id": "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+      "pid": 71569,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-SOLUTION-HABIT slots: [20]",
+      "failed_at": "2026-07-14T22:52:09Z"
+    },
+    {
+      "run_id": "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+      "pid": 33052,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-PRE-ORDER-OPS slots: [19]",
+      "failed_at": "2026-07-15T01:11:23Z"
+    },
+    {
+      "run_id": "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+      "pid": 28819,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13, 17]; normalization={}",
+      "failed_at": "2026-07-15T01:45:55Z"
+    },
+    {
+      "run_id": "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+      "pid": 69983,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.24s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:55:20Z"
+    },
+    {
+      "run_id": "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+      "pid": 7038,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=123.04s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:57:46Z"
+    },
+    {
+      "run_id": "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+      "pid": 9677,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.88s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T02:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+      "pid": 12990,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:27:09Z"
+    },
+    {
+      "run_id": "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+      "pid": 56323,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:35:05Z"
+    },
+    {
+      "run_id": "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+      "pid": 838,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:37:22Z"
+    },
+    {
+      "run_id": "V12-RUN-4ea53ce22421407b97b236727eff7436",
+      "pid": 96857,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=116.97s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:43:41Z"
+    },
+    {
+      "run_id": "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+      "pid": 19589,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.28s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:03:20Z"
+    },
+    {
+      "run_id": "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+      "pid": 49266,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.93s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:19:03Z"
+    },
+    {
+      "run_id": "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+      "pid": 63008,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.75s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:21:50Z"
+    },
+    {
+      "run_id": "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+      "pid": 71836,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.10s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:27:46Z"
+    },
+    {
+      "run_id": "V12-RUN-929248881e034015bae2e360f46cb11f",
+      "pid": 76175,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.05s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:30:01Z"
+    },
+    {
+      "run_id": "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+      "pid": 79450,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.53s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:32:20Z"
+    },
+    {
+      "run_id": "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+      "pid": 81527,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.86s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:34:41Z"
+    },
+    {
+      "run_id": "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+      "pid": 83676,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T05:35:34Z"
+    },
+    {
+      "run_id": "V12-RUN-70afe1c390de4f799d35f40549264aba",
+      "pid": 30351,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T06:05:08Z"
+    },
+    {
+      "run_id": "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+      "pid": 13960,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:20Z"
+    },
+    {
+      "run_id": "V12-RUN-27d174e3197943198253316ecd304ce1",
+      "pid": 44755,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:40Z"
+    },
+    {
+      "run_id": "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+      "pid": 45913,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:06Z"
+    },
+    {
+      "run_id": "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+      "pid": 48845,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:26Z"
+    },
+    {
+      "run_id": "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+      "pid": 49299,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:46Z"
+    },
+    {
+      "run_id": "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+      "pid": 49694,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:05Z"
+    },
+    {
+      "run_id": "V12-RUN-684d68c7a90141ed85b173927c097e99",
+      "pid": 50605,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:25Z"
+    },
+    {
+      "run_id": "V12-RUN-02ced42d767b456c915566edd00b364b",
+      "pid": 51454,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:45Z"
+    },
+    {
+      "run_id": "V12-RUN-af8f70c196e4424bbb9331045897326d",
+      "pid": 52700,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:05Z"
+    },
+    {
+      "run_id": "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+      "pid": 53007,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:25Z"
+    },
+    {
+      "run_id": "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+      "pid": 53750,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:44Z"
+    },
+    {
+      "run_id": "V12-RUN-2d683a71cff246e09531054261852a71",
+      "pid": 54217,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:34:04Z"
+    },
+    {
+      "run_id": "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+      "pid": 95732,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13]; normalization={}",
+      "failed_at": "2026-07-15T08:12:36Z"
+    },
+    {
+      "run_id": "V12-RUN-ccef9020a53746c48804f057997ae646",
+      "pid": 18748,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.25s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:34:10Z"
+    },
+    {
+      "run_id": "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+      "pid": 60260,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.32s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:36:30Z"
+    },
+    {
+      "run_id": "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+      "pid": 69639,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:40:06Z"
+    },
+    {
+      "run_id": "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+      "pid": 87882,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.63s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:53:03Z"
+    },
+    {
+      "run_id": "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+      "pid": 27685,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.09s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T09:15:21Z"
+    },
+    {
+      "run_id": "V12-RUN-c889e02eabee434da770844d8ea3462f",
+      "pid": 98654,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:41:16Z"
+    },
+    {
+      "run_id": "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+      "pid": 95730,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:42:17Z"
+    },
+    {
+      "run_id": "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+      "pid": 2750,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:43:11Z"
+    },
+    {
+      "run_id": "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+      "pid": 5501,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:44:48Z"
+    },
+    {
+      "run_id": "V12-RUN-96e372b68eba4916b4909138943030ec",
+      "pid": 8814,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:45:48Z"
+    },
+    {
+      "run_id": "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+      "pid": 9848,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:46:46Z"
+    },
+    {
+      "run_id": "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+      "pid": 68083,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:06:16Z"
+    },
+    {
+      "run_id": "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+      "pid": 73288,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:07:15Z"
+    },
+    {
+      "run_id": "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+      "pid": 77062,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:08:12Z"
+    },
+    {
+      "run_id": "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+      "pid": 80427,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:09:09Z"
+    },
+    {
+      "run_id": "V12-RUN-6a1c0f53434943a898653c4f80347621",
+      "pid": 82481,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:10:07Z"
+    },
+    {
+      "run_id": "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+      "pid": 84402,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:11:06Z"
+    },
+    {
+      "run_id": "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+      "pid": 88436,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:12:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+      "pid": 94438,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:13:15Z"
+    },
+    {
+      "run_id": "V12-RUN-99012ac48e11479483ff49846943b80c",
+      "pid": 418,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:14:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+      "pid": 4096,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:15:20Z"
+    },
+    {
+      "run_id": "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+      "pid": 8172,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:16:18Z"
+    },
+    {
+      "run_id": "V12-RUN-45ba13e552614d05be561d96edfab655",
+      "pid": 12488,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:17:50Z"
+    },
+    {
+      "run_id": "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+      "pid": 2614,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:57:23Z"
+    },
+    {
+      "run_id": "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+      "pid": 5051,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:58:28Z"
+    },
+    {
+      "run_id": "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+      "pid": 5957,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-416e648f87a2400ca83610fc734b161e",
+      "pid": 6538,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:00:25Z"
+    },
+    {
+      "run_id": "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+      "pid": 8210,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+      "pid": 8822,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:02:23Z"
+    },
+    {
+      "run_id": "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+      "pid": 9206,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:04:09Z"
+    },
+    {
+      "run_id": "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+      "pid": 12019,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:05:12Z"
+    },
+    {
+      "run_id": "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+      "pid": 13233,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T11:06:09Z"
+    },
+    {
+      "run_id": "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+      "pid": 56011,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:16Z"
+    },
+    {
+      "run_id": "V12-RUN-11f0712d40c94890a7605034516f4b26",
+      "pid": 73081,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:43Z"
+    },
+    {
+      "run_id": "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+      "pid": 73152,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:10Z"
+    },
+    {
+      "run_id": "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+      "pid": 73229,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:37Z"
+    },
+    {
+      "run_id": "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+      "pid": 73463,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:04Z"
+    },
+    {
+      "run_id": "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+      "pid": 73560,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:31Z"
+    },
+    {
+      "run_id": "V12-RUN-3139466b050c495fbfbf657f64797f93",
+      "pid": 73769,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:59Z"
+    },
+    {
+      "run_id": "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+      "pid": 74049,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:24Z"
+    },
+    {
+      "run_id": "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+      "pid": 74119,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:52Z"
+    },
+    {
+      "run_id": "V12-RUN-5fe75ec1489643a8af664d739654a742",
+      "pid": 74227,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+      "pid": 74301,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:45Z"
+    },
+    {
+      "run_id": "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+      "pid": 74358,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:23:12Z"
+    },
+    {
+      "run_id": "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+      "pid": 83636,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:55:49Z"
+    },
+    {
+      "run_id": "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+      "pid": 88457,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+      "pid": 88944,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:45Z"
+    },
+    {
+      "run_id": "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+      "pid": 89547,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:11Z"
+    },
+    {
+      "run_id": "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+      "pid": 89861,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:38Z"
+    },
+    {
+      "run_id": "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+      "pid": 90116,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:05Z"
+    },
+    {
+      "run_id": "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+      "pid": 90212,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:33Z"
+    },
+    {
+      "run_id": "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+      "pid": 90316,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:01Z"
+    },
+    {
+      "run_id": "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+      "pid": 90414,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+      "pid": 90486,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:57Z"
+    },
+    {
+      "run_id": "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+      "pid": 90573,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:26Z"
+    },
+    {
+      "run_id": "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+      "pid": 90647,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:53Z"
+    },
+    {
+      "run_id": "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+      "pid": 472,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T13:47:59Z"
+    }
+  ],
+  "counter_events": [
+    {
+      "sequence": 1,
+      "event_type": "legacy_baseline_import",
+      "phase": "legacy_v1_budget_migration",
+      "semantic_calls": 59,
+      "provider_attempts": 62,
+      "previous_event_sha256": "",
+      "legacy_source_digests": [
+        "5bfea5f172446ce460f9b884d6aa2499c3f501c2795e2a1a86d74b9267e367d8",
+        "268953164b9643842e636beed852f26938cc4cb1e3832c8b3a7b07c84e540b6b"
+      ],
+      "event_sha256": "efba35329224de4e42de38fbcb0399d39f86901bce64798a0a355510094d03bc"
+    },
+    {
+      "sequence": 2,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 60,
+      "provider_attempts": 62,
+      "previous_event_sha256": "efba35329224de4e42de38fbcb0399d39f86901bce64798a0a355510094d03bc",
+      "event_sha256": "b066157b7e00952c51a82de78aee79236768157175866066e4eab36333ee6ed6"
+    },
+    {
+      "sequence": 3,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 60,
+      "provider_attempts": 63,
+      "previous_event_sha256": "b066157b7e00952c51a82de78aee79236768157175866066e4eab36333ee6ed6",
+      "event_sha256": "cecf250d9143bf899f65f1f0e4303ac1f75daf7f8ec416fa003214b1f50e50f7"
+    },
+    {
+      "sequence": 4,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 61,
+      "provider_attempts": 63,
+      "previous_event_sha256": "cecf250d9143bf899f65f1f0e4303ac1f75daf7f8ec416fa003214b1f50e50f7",
+      "event_sha256": "abf074906664ad42f17dc361be08c978bf3623e3e913f5a69bbd3ce2ffad6fe0"
+    },
+    {
+      "sequence": 5,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 61,
+      "provider_attempts": 64,
+      "previous_event_sha256": "abf074906664ad42f17dc361be08c978bf3623e3e913f5a69bbd3ce2ffad6fe0",
+      "event_sha256": "11d8b2a794b732827441220bcfb00a213c60736210d7410c58576d1ab27b1db6"
+    },
+    {
+      "sequence": 6,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 62,
+      "provider_attempts": 64,
+      "previous_event_sha256": "11d8b2a794b732827441220bcfb00a213c60736210d7410c58576d1ab27b1db6",
+      "event_sha256": "56ddf6ac00b0d05a5884356c97b0ed5ef24ce4d892935768d5fd263b7fd778db"
+    },
+    {
+      "sequence": 7,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 62,
+      "provider_attempts": 65,
+      "previous_event_sha256": "56ddf6ac00b0d05a5884356c97b0ed5ef24ce4d892935768d5fd263b7fd778db",
+      "event_sha256": "ce6204ca74ee2a32fd06f1dd54c5d68f10d69c9b776daa0f3841375052cc1e5e"
+    },
+    {
+      "sequence": 8,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 63,
+      "provider_attempts": 65,
+      "previous_event_sha256": "ce6204ca74ee2a32fd06f1dd54c5d68f10d69c9b776daa0f3841375052cc1e5e",
+      "event_sha256": "1d3e2a9203c5576f095471c558ee18d0bf9def3e2da4c04b03248e512d6278bc"
+    },
+    {
+      "sequence": 9,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 63,
+      "provider_attempts": 66,
+      "previous_event_sha256": "1d3e2a9203c5576f095471c558ee18d0bf9def3e2da4c04b03248e512d6278bc",
+      "event_sha256": "184f3657b46e9e1c00c756a73dfe07cb91e3159cdcb16bc67d30cbdbc69a66cd"
+    },
+    {
+      "sequence": 10,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 63,
+      "provider_attempts": 67,
+      "previous_event_sha256": "184f3657b46e9e1c00c756a73dfe07cb91e3159cdcb16bc67d30cbdbc69a66cd",
+      "event_sha256": "8bed5f351e686f94a1b3e9bcbc8c4bb97821ea944864b5c6c01cdbf36c470db7"
+    },
+    {
+      "sequence": 11,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 63,
+      "provider_attempts": 68,
+      "previous_event_sha256": "8bed5f351e686f94a1b3e9bcbc8c4bb97821ea944864b5c6c01cdbf36c470db7",
+      "event_sha256": "f2fcb6091396fd7a6f6e465e50db555127439732f42086f20f1b09f10a499a16"
+    },
+    {
+      "sequence": 12,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 64,
+      "provider_attempts": 68,
+      "previous_event_sha256": "f2fcb6091396fd7a6f6e465e50db555127439732f42086f20f1b09f10a499a16",
+      "event_sha256": "b3876e25ba7fef4e389ef1cb4c4009e1bf18965e53c36dec8e5d732488fd6ad5"
+    },
+    {
+      "sequence": 13,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 64,
+      "provider_attempts": 69,
+      "previous_event_sha256": "b3876e25ba7fef4e389ef1cb4c4009e1bf18965e53c36dec8e5d732488fd6ad5",
+      "event_sha256": "b5572a69c1eb29e6d6273ed24587e8054eb01b9cdd41c28077533f88c63ede78"
+    },
+    {
+      "sequence": 14,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 65,
+      "provider_attempts": 69,
+      "previous_event_sha256": "b5572a69c1eb29e6d6273ed24587e8054eb01b9cdd41c28077533f88c63ede78",
+      "event_sha256": "b70de5241430e5e50552341ca3e6c72699821e907466781c88819b46d98696aa"
+    },
+    {
+      "sequence": 15,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 65,
+      "provider_attempts": 70,
+      "previous_event_sha256": "b70de5241430e5e50552341ca3e6c72699821e907466781c88819b46d98696aa",
+      "event_sha256": "0e0f29c61f91a04a4b69e5268e8ed0c94360854fa60bf8df32fe0cea70193bb4"
+    },
+    {
+      "sequence": 16,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 70,
+      "previous_event_sha256": "0e0f29c61f91a04a4b69e5268e8ed0c94360854fa60bf8df32fe0cea70193bb4",
+      "event_sha256": "828af752aad669d7c2aa9d6c9d06b84a2bf7c6f522dbb618c74223e86e6dcbb9"
+    },
+    {
+      "sequence": 17,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 71,
+      "previous_event_sha256": "828af752aad669d7c2aa9d6c9d06b84a2bf7c6f522dbb618c74223e86e6dcbb9",
+      "event_sha256": "f6dd27c1eba6583ffe7e6f3ed2a3e3bdf8538731e64b0f84df1421e8f794a16f"
+    },
+    {
+      "sequence": 18,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 72,
+      "previous_event_sha256": "f6dd27c1eba6583ffe7e6f3ed2a3e3bdf8538731e64b0f84df1421e8f794a16f",
+      "event_sha256": "4d1307a91eae8c0d2e943dd48d33c310ef9d554649a41bfe8a92b7569dc29c89"
+    },
+    {
+      "sequence": 19,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 73,
+      "previous_event_sha256": "4d1307a91eae8c0d2e943dd48d33c310ef9d554649a41bfe8a92b7569dc29c89",
+      "event_sha256": "44f25604b1c5526a92dd91e2357c037e69da24fef9d83fb64c13b52030b2a508"
+    },
+    {
+      "sequence": 20,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 73,
+      "previous_event_sha256": "44f25604b1c5526a92dd91e2357c037e69da24fef9d83fb64c13b52030b2a508",
+      "event_sha256": "f8cab094f06be88c9d229f45910cd8b0affde5061bf9e57f514abb59b2a61a42"
+    },
+    {
+      "sequence": 21,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 74,
+      "previous_event_sha256": "f8cab094f06be88c9d229f45910cd8b0affde5061bf9e57f514abb59b2a61a42",
+      "event_sha256": "8afe71de2b4b08bc478001463a3e9b99cb028a6fd0d4ffd41154adf8a9b1340c"
+    },
+    {
+      "sequence": 22,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 75,
+      "previous_event_sha256": "8afe71de2b4b08bc478001463a3e9b99cb028a6fd0d4ffd41154adf8a9b1340c",
+      "event_sha256": "0430c3994a366708a5ea8736ed997ca1d40ca36a683d579c6fb64c9d3d888c80"
+    },
+    {
+      "sequence": 23,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 75,
+      "previous_event_sha256": "0430c3994a366708a5ea8736ed997ca1d40ca36a683d579c6fb64c9d3d888c80",
+      "event_sha256": "1cfd1ab0c6029b3be911648b5152a52d863d1b9390a51077a8387faab8a9d6f3"
+    },
+    {
+      "sequence": 24,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 76,
+      "previous_event_sha256": "1cfd1ab0c6029b3be911648b5152a52d863d1b9390a51077a8387faab8a9d6f3",
+      "event_sha256": "121fdee9b1a8c59e6ade3f1c358ffb9e7bc6b26c25e14e509ab15091607be4b1"
+    },
+    {
+      "sequence": 25,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 69,
+      "provider_attempts": 76,
+      "previous_event_sha256": "121fdee9b1a8c59e6ade3f1c358ffb9e7bc6b26c25e14e509ab15091607be4b1",
+      "event_sha256": "b59f325676f01200b7ef07ed06a9fe3746c37ed89c1980b37fbfb6319929a342"
+    },
+    {
+      "sequence": 26,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 69,
+      "provider_attempts": 77,
+      "previous_event_sha256": "b59f325676f01200b7ef07ed06a9fe3746c37ed89c1980b37fbfb6319929a342",
+      "event_sha256": "96824e04d16416532f0c8aeec1e6afd1fa10f9a574be99353f7d945cd182f0e9"
+    },
+    {
+      "sequence": 27,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 70,
+      "provider_attempts": 77,
+      "previous_event_sha256": "96824e04d16416532f0c8aeec1e6afd1fa10f9a574be99353f7d945cd182f0e9",
+      "event_sha256": "ddaf42b12296c197e4b8dc3a66c7b2caf916a275c13fa9d8c14c8b293f7799fb"
+    },
+    {
+      "sequence": 28,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 70,
+      "provider_attempts": 78,
+      "previous_event_sha256": "ddaf42b12296c197e4b8dc3a66c7b2caf916a275c13fa9d8c14c8b293f7799fb",
+      "event_sha256": "894a6d7b52f98183c3e8fc9b1983b5748bded06d18b2037cbb94203312d786e0"
+    },
+    {
+      "sequence": 29,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 71,
+      "provider_attempts": 78,
+      "previous_event_sha256": "894a6d7b52f98183c3e8fc9b1983b5748bded06d18b2037cbb94203312d786e0",
+      "event_sha256": "dff66cd6e39e0b477d361954d0de9951fc7c6c93429b07744e676a7180d875ba"
+    },
+    {
+      "sequence": 30,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 71,
+      "provider_attempts": 79,
+      "previous_event_sha256": "dff66cd6e39e0b477d361954d0de9951fc7c6c93429b07744e676a7180d875ba",
+      "event_sha256": "3b18e2cdfa6b13dfc3a392bd6e532697804557d88ee6b9dd29a8e92cac0b33be"
+    },
+    {
+      "sequence": 31,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 72,
+      "provider_attempts": 79,
+      "previous_event_sha256": "3b18e2cdfa6b13dfc3a392bd6e532697804557d88ee6b9dd29a8e92cac0b33be",
+      "event_sha256": "5c37665d3d44ee488e45990835fe5fa45b369dfb685196192ace1540065e2a6a"
+    },
+    {
+      "sequence": 32,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 72,
+      "provider_attempts": 80,
+      "previous_event_sha256": "5c37665d3d44ee488e45990835fe5fa45b369dfb685196192ace1540065e2a6a",
+      "event_sha256": "d3933a3bf4eca8ae16239079730501c11125aeaa23268b6b6fe315b4472a5342"
+    },
+    {
+      "sequence": 33,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 73,
+      "provider_attempts": 80,
+      "previous_event_sha256": "d3933a3bf4eca8ae16239079730501c11125aeaa23268b6b6fe315b4472a5342",
+      "event_sha256": "be84763b21ba3d20f45c00e23ce080609bdfa00e59c7dfb90cc9bf512ff27175"
+    },
+    {
+      "sequence": 34,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 73,
+      "provider_attempts": 81,
+      "previous_event_sha256": "be84763b21ba3d20f45c00e23ce080609bdfa00e59c7dfb90cc9bf512ff27175",
+      "event_sha256": "5b69beec5aa5cbad303c937e5185bf8e638ddc37d24f4949f9569278afb383f3"
+    },
+    {
+      "sequence": 35,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 74,
+      "provider_attempts": 81,
+      "previous_event_sha256": "5b69beec5aa5cbad303c937e5185bf8e638ddc37d24f4949f9569278afb383f3",
+      "event_sha256": "489e5b0a7ab4b686915f1a92bfe183b00cca0baccd5f6fb15036f0ccb2432beb"
+    },
+    {
+      "sequence": 36,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 74,
+      "provider_attempts": 82,
+      "previous_event_sha256": "489e5b0a7ab4b686915f1a92bfe183b00cca0baccd5f6fb15036f0ccb2432beb",
+      "event_sha256": "118befd18819366950dd1eabbcb0f7c9bab97def738c1e5851d835a1fc4b0940"
+    },
+    {
+      "sequence": 37,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 75,
+      "provider_attempts": 82,
+      "previous_event_sha256": "118befd18819366950dd1eabbcb0f7c9bab97def738c1e5851d835a1fc4b0940",
+      "event_sha256": "ead54852e865bd167e548e17d8f3f23233e0dc7d96fa323bd0a3e362a261ad95"
+    },
+    {
+      "sequence": 38,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 75,
+      "provider_attempts": 83,
+      "previous_event_sha256": "ead54852e865bd167e548e17d8f3f23233e0dc7d96fa323bd0a3e362a261ad95",
+      "event_sha256": "55103d9efe8d8ca62113b323951cb3e94012a3847fdf8f8f00e91431afb8e5dc"
+    },
+    {
+      "sequence": 39,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 76,
+      "provider_attempts": 83,
+      "previous_event_sha256": "55103d9efe8d8ca62113b323951cb3e94012a3847fdf8f8f00e91431afb8e5dc",
+      "event_sha256": "6580d0207baf8184fe0747a1c229eafd347371b736055fc06072b425d0964b29"
+    },
+    {
+      "sequence": 40,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 76,
+      "provider_attempts": 84,
+      "previous_event_sha256": "6580d0207baf8184fe0747a1c229eafd347371b736055fc06072b425d0964b29",
+      "event_sha256": "24808520664ff0914f5f81bd45fecd1b60ea219792e0ad77cd184cfe5d4155c5"
+    },
+    {
+      "sequence": 41,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 77,
+      "provider_attempts": 84,
+      "previous_event_sha256": "24808520664ff0914f5f81bd45fecd1b60ea219792e0ad77cd184cfe5d4155c5",
+      "event_sha256": "3f1d3c5b3589eabd75f443af57b652fb265cb7f3b6c8bf1307c37ee5af0b392c"
+    },
+    {
+      "sequence": 42,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 77,
+      "provider_attempts": 85,
+      "previous_event_sha256": "3f1d3c5b3589eabd75f443af57b652fb265cb7f3b6c8bf1307c37ee5af0b392c",
+      "event_sha256": "6235020c73b4f9c1b70238fc12ca9be75209399d3dd40dad005bffa59794bdf5"
+    },
+    {
+      "sequence": 43,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 78,
+      "provider_attempts": 85,
+      "previous_event_sha256": "6235020c73b4f9c1b70238fc12ca9be75209399d3dd40dad005bffa59794bdf5",
+      "event_sha256": "1ecbf34cddcdd633daf17256cbb198aa2ef390d72488d8d19d61263f07a9f46a"
+    },
+    {
+      "sequence": 44,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 78,
+      "provider_attempts": 86,
+      "previous_event_sha256": "1ecbf34cddcdd633daf17256cbb198aa2ef390d72488d8d19d61263f07a9f46a",
+      "event_sha256": "349ace847537c4357e858471927444ae8a1e39341673bff3c2a74b69ad81dd67"
+    },
+    {
+      "sequence": 45,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 78,
+      "provider_attempts": 87,
+      "previous_event_sha256": "349ace847537c4357e858471927444ae8a1e39341673bff3c2a74b69ad81dd67",
+      "event_sha256": "886565d0276ec5e10ee1a68b03ec7561eaf1d75fce9bae916d250e1e56c2d448"
+    },
+    {
+      "sequence": 46,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 79,
+      "provider_attempts": 87,
+      "previous_event_sha256": "886565d0276ec5e10ee1a68b03ec7561eaf1d75fce9bae916d250e1e56c2d448",
+      "event_sha256": "8066e91b90acc45410d269b09d29ae86b9b2e2951058f0bc9b6547cb1aefdf2e"
+    },
+    {
+      "sequence": 47,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 79,
+      "provider_attempts": 88,
+      "previous_event_sha256": "8066e91b90acc45410d269b09d29ae86b9b2e2951058f0bc9b6547cb1aefdf2e",
+      "event_sha256": "31509ec2576185746c22ee46fffbeeb6de720bb836f31eaef29824abbd0ea0a4"
+    },
+    {
+      "sequence": 48,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 80,
+      "provider_attempts": 88,
+      "previous_event_sha256": "31509ec2576185746c22ee46fffbeeb6de720bb836f31eaef29824abbd0ea0a4",
+      "event_sha256": "342aa07dc8b3065f5ce62737f58a630e9067bb611758cd8e8202ba50b3e340d3"
+    },
+    {
+      "sequence": 49,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 80,
+      "provider_attempts": 89,
+      "previous_event_sha256": "342aa07dc8b3065f5ce62737f58a630e9067bb611758cd8e8202ba50b3e340d3",
+      "event_sha256": "6a784723a65f064a4ba20978c8c262a7ada09a37a360437caa8b048e85f1ab98"
+    },
+    {
+      "sequence": 50,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 81,
+      "provider_attempts": 89,
+      "previous_event_sha256": "6a784723a65f064a4ba20978c8c262a7ada09a37a360437caa8b048e85f1ab98",
+      "event_sha256": "76429bad88912a850718c746897acbf83bc0c25126e94f8862dbc325737978d4"
+    },
+    {
+      "sequence": 51,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 81,
+      "provider_attempts": 90,
+      "previous_event_sha256": "76429bad88912a850718c746897acbf83bc0c25126e94f8862dbc325737978d4",
+      "event_sha256": "9f1048e938e5d5af7f5e50d96f69889edbcd8a5c3c7a6f4511052a0e65cc65b7"
+    },
+    {
+      "sequence": 52,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 82,
+      "provider_attempts": 90,
+      "previous_event_sha256": "9f1048e938e5d5af7f5e50d96f69889edbcd8a5c3c7a6f4511052a0e65cc65b7",
+      "event_sha256": "129211c933c690047d2541ce1144d026489342d28a887f683df524a4ba019004"
+    },
+    {
+      "sequence": 53,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 82,
+      "provider_attempts": 91,
+      "previous_event_sha256": "129211c933c690047d2541ce1144d026489342d28a887f683df524a4ba019004",
+      "event_sha256": "9bba66651c2cd73129bb21c1c41ac0237f751b02a7c3b6c7e8de4f67d92ea582"
+    },
+    {
+      "sequence": 54,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 83,
+      "provider_attempts": 91,
+      "previous_event_sha256": "9bba66651c2cd73129bb21c1c41ac0237f751b02a7c3b6c7e8de4f67d92ea582",
+      "event_sha256": "9a2943206e9b139db9319e7bd33295370ac9cb30afa753eda99436dc553c628d"
+    },
+    {
+      "sequence": 55,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 83,
+      "provider_attempts": 92,
+      "previous_event_sha256": "9a2943206e9b139db9319e7bd33295370ac9cb30afa753eda99436dc553c628d",
+      "event_sha256": "2a81f89538edeb9272a5d3bb960c8e4679d7a992672c144941f020affdc247af"
+    },
+    {
+      "sequence": 56,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 84,
+      "provider_attempts": 92,
+      "previous_event_sha256": "2a81f89538edeb9272a5d3bb960c8e4679d7a992672c144941f020affdc247af",
+      "event_sha256": "20ccad9b652f718315e07fa92b7e530635801bd8225d027d9186c5cf82985c7f"
+    },
+    {
+      "sequence": 57,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 84,
+      "provider_attempts": 93,
+      "previous_event_sha256": "20ccad9b652f718315e07fa92b7e530635801bd8225d027d9186c5cf82985c7f",
+      "event_sha256": "73b96bac8609bb2d51dff2bd85ba4379a8d144efc6e30df6ee6d634240ce978e"
+    },
+    {
+      "sequence": 58,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 84,
+      "provider_attempts": 94,
+      "previous_event_sha256": "73b96bac8609bb2d51dff2bd85ba4379a8d144efc6e30df6ee6d634240ce978e",
+      "event_sha256": "4caaa99c4795f0273c1e901284beaf01df2f3bff23d65af322828ff00860233a"
+    },
+    {
+      "sequence": 59,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 85,
+      "provider_attempts": 94,
+      "previous_event_sha256": "4caaa99c4795f0273c1e901284beaf01df2f3bff23d65af322828ff00860233a",
+      "event_sha256": "7476a373782ffbe244c08ca1386f72237cab0a9d2e57bb0ef028b011bda04082"
+    },
+    {
+      "sequence": 60,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 85,
+      "provider_attempts": 95,
+      "previous_event_sha256": "7476a373782ffbe244c08ca1386f72237cab0a9d2e57bb0ef028b011bda04082",
+      "event_sha256": "2cb50a815555a9911edda8424334f56c0225fc47b2519b31d8dfbb0620552354"
+    }
+  ],
+  "counter_chain_head_sha256": "2cb50a815555a9911edda8424334f56c0225fc47b2519b31d8dfbb0620552354",
+  "migrations": [
+    {
+      "migration_id": "legacy_v1_budget_to_counter_ledger_v2",
+      "source_digests": [
+        "5bfea5f172446ce460f9b884d6aa2499c3f501c2795e2a1a86d74b9267e367d8",
+        "268953164b9643842e636beed852f26938cc4cb1e3832c8b3a7b07c84e540b6b"
+      ]
+    }
+  ],
+  "updated_at": "2026-07-17T04:09:15Z",
+  "terminal_receipt_path": "data/question_banks/math/.v12_pilot_six_checkpoints/.run-state/M-PRE-INTEGER-OPS.model-budget.json",
+  "integrity_sha256": "04ea3924d177bb64b1bc99615c7caaf4ef7bcb805b4f87aa3cf125023e6a4163"
+}

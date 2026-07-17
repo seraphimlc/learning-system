@@ -1,0 +1,224 @@
+{
+  "agent_key": "answer_analysis_agent",
+  "contract_key": "answer_review",
+  "contract_version": "2026-07-09.answer-review.v2",
+  "prompt_version_id": "2026-07-09.answer-review.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/answer_review.v1.md",
+  "response_schema_version": "2026-07-09.answer-review.schema.v2",
+  "minimum_confidence_to_apply": 0.68,
+  "engine_type": "model",
+  "authority": "advisory_grading_and_evaluation_input",
+  "input_contract": [
+    "graph_bound_question",
+    "reference_solution_and_rubric",
+    "child_text_answer",
+    "untrusted_photo_ocr_evidence"
+  ],
+  "output_contract": [
+    "result_score_and_confidence",
+    "five_dimension_comparison",
+    "optimal_and_alternative_solutions",
+    "process_gap",
+    "evaluation_support",
+    "child_safe_next_prompt"
+  ],
+  "non_authority": [
+    "does_not_update_mastery_state",
+    "does_not_choose_next_questions",
+    "does_not_treat_score_as_mastery",
+    "does_not_string_match_final_answer"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "result",
+      "score_points",
+      "max_points",
+      "error_tags",
+      "explanation_score",
+      "blocking_evidence",
+      "confidence",
+      "parent_note",
+      "key_observations",
+      "next_action",
+      "answer_analysis"
+    ],
+    "properties": {
+      "result": {
+        "type": "string",
+        "enum": ["correct", "partial", "wrong"]
+      },
+      "score_points": {
+        "type": "number",
+        "enum": [0, 1, 2]
+      },
+      "max_points": {
+        "type": "number",
+        "enum": [2]
+      },
+      "error_tags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "calculation_or_symbol",
+            "concept_confusion",
+            "general",
+            "modeling_or_reading",
+            "process_habit",
+            "visual_spatial"
+          ]
+        },
+        "maxItems": 4
+      },
+      "explanation_score": {
+        "type": "integer",
+        "enum": [0, 1, 2]
+      },
+      "blocking_evidence": {
+        "type": "boolean"
+      },
+      "confidence": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "parent_note": {
+        "type": "string"
+      },
+      "key_observations": {
+        "type": "array",
+        "items": {"type": "string"},
+        "maxItems": 5
+      },
+      "next_action": {
+        "type": "string"
+      },
+      "answer_analysis": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "optimal_answer",
+          "optimal_solution_steps",
+          "child_answer_summary",
+          "comparison",
+          "alternative_solutions",
+          "process_gap",
+          "evaluation_support",
+          "teaching_explanation",
+          "next_child_prompt"
+        ],
+        "properties": {
+          "optimal_answer": {
+            "type": "string"
+          },
+          "optimal_solution_steps": {
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 6
+          },
+          "child_answer_summary": {
+            "type": "string"
+          },
+          "comparison": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["dimension", "status", "detail"],
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "final_answer",
+                    "model_or_relation",
+                    "steps",
+                    "symbols_units",
+                    "check_or_explanation",
+                    "other"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["matched", "missing", "incorrect", "unclear", "alternative_valid"]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              }
+            },
+            "maxItems": 8
+          },
+          "alternative_solutions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 4
+          },
+          "process_gap": {
+            "type": "string"
+          },
+          "evaluation_support": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "usable_for_evaluation",
+              "evidence_strength",
+              "reasoning_soundness",
+              "dominant_gap_dimensions",
+              "needs_clearer_evidence",
+              "next_evidence_need"
+            ],
+            "properties": {
+              "usable_for_evaluation": {
+                "type": "boolean"
+              },
+              "evidence_strength": {
+                "type": "string",
+                "enum": ["strong", "medium", "weak", "insufficient"]
+              },
+              "reasoning_soundness": {
+                "type": "string",
+                "enum": ["sound", "incomplete", "unsound", "unclear"]
+              },
+              "dominant_gap_dimensions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "final_answer",
+                    "model_or_relation",
+                    "steps",
+                    "symbols_units",
+                    "check_or_explanation"
+                  ]
+                },
+                "maxItems": 5
+              },
+              "needs_clearer_evidence": {
+                "type": "boolean"
+              },
+              "next_evidence_need": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "same_structure_confirmation",
+                  "near_transfer_confirmation",
+                  "prerequisite_probe",
+                  "clearer_solution_evidence",
+                  "targeted_reteach"
+                ]
+              }
+            }
+          },
+          "teaching_explanation": {
+            "type": "string"
+          },
+          "next_child_prompt": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

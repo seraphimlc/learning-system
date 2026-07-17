@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-EQUALITY-PROP",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "0c3cbf6573e53537f3e57946b83a090f737b395eb51a2c1d836f2e99413230ac",
+  "budget_integrity_sha256": "ce813a6a5bd97fbdb9fed2388c15cd602338915b51682b9ea13d90ff91e0b537",
+  "legacy_source_digests": [
+    "34ada73e4258a46d7d8e17ca7e769b8f430dfafb37d3e9a8c3ab0eecb5eea837"
+  ],
+  "updated_at": "2026-07-17T03:04:17Z",
+  "integrity_sha256": "55422d336cbc5be722127a1127405bee3e090b3a3f290c681c649ba2aad2689a"
+}

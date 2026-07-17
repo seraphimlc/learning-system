@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>知识图谱首页方向</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #68727d;
+      --line: #d9dee4;
+      --paper: #f6f8fa;
+      --white: #ffffff;
+      --blue: #2463eb;
+      --green: #228b5a;
+      --amber: #b56b00;
+      --red: #c53b45;
+      --purple: #7656a8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button { font: inherit; }
+    .page { max-width: 1480px; margin: 0 auto; padding: 28px; }
+    .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+    .eyebrow { margin: 0 0 6px; color: var(--blue); font-size: 13px; font-weight: 700; }
+    h1 { margin: 0; font-size: 31px; line-height: 1.18; }
+    .intro { margin: 8px 0 0; color: var(--muted); max-width: 780px; line-height: 1.6; }
+    .legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 14px; color: var(--muted); font-size: 12px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .dot.mastered { background: var(--green); }
+    .dot.learning { background: var(--blue); }
+    .dot.weak { background: var(--amber); }
+    .dot.untested { background: #aab2bb; }
+    .dot.locked { background: #fff; border: 2px solid #9aa3ad; }
+    .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .option {
+      background: var(--white);
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      min-width: 0;
+      transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+    .option:hover { border-color: #9eb8ef; transform: translateY(-1px); }
+    .option.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36,99,235,.12); }
+    .option-head { min-height: 108px; padding: 18px; border-bottom: 1px solid var(--line); }
+    .option-label { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .letter { width: 28px; height: 28px; display: grid; place-items: center; background: var(--ink); color: #fff; font-weight: 800; border-radius: 4px; }
+    .recommend { color: var(--green); font-size: 12px; font-weight: 800; }
+    h2 { margin: 12px 0 4px; font-size: 20px; }
+    .option-head p { margin: 0; color: var(--muted); line-height: 1.45; font-size: 13px; }
+    .mock { height: 520px; background: #fbfcfd; position: relative; overflow: hidden; }
+    .mockbar { height: 50px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: #fff; }
+    .brand { font-weight: 800; font-size: 14px; }
+    .today { color: var(--muted); font-size: 11px; }
+    .map-area { position: relative; height: calc(100% - 50px); }
+    .graph-node { position: absolute; width: 74px; min-height: 52px; padding: 7px; background: #fff; border: 2px solid #aeb6bf; border-radius: 6px; text-align: center; font-size: 10px; line-height: 1.25; z-index: 2; }
+    .graph-node strong { display: block; font-size: 10px; }
+    .graph-node small { display: block; margin-top: 4px; color: var(--muted); }
+    .graph-node.mastered { border-color: var(--green); background: #f0faf5; }
+    .graph-node.learning { border-color: var(--blue); background: #f1f6ff; }
+    .graph-node.weak { border-color: var(--amber); background: #fff8eb; }
+    .graph-node.locked { opacity: .56; border-style: dashed; }
+    .line { position: absolute; height: 2px; background: #cbd1d8; transform-origin: left center; z-index: 1; }
+    .a-side { position: absolute; left: 12px; top: 12px; width: 110px; bottom: 12px; border-right: 1px solid var(--line); }
+    .a-side div { margin: 0 10px 8px 0; padding: 7px; background: #fff; border: 1px solid var(--line); border-radius: 4px; font-size: 10px; }
+    .a-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 5px; }
+    .icon-btn { width: 28px; height: 28px; border: 1px solid var(--line); background: #fff; border-radius: 4px; }
+    .module-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #fff; }
+    .module-tab { border: 1px solid var(--line); border-radius: 4px; padding: 7px 4px; background: #fff; font-size: 9px; color: var(--muted); }
+    .module-tab.active { color: #fff; background: var(--ink); border-color: var(--ink); }
+    .b-work { display: grid; grid-template-columns: minmax(0, 1fr) 128px; height: calc(100% - 86px); }
+    .b-map { position: relative; overflow: hidden; }
+    .path-title { position: absolute; top: 14px; left: 16px; right: 16px; }
+    .path-title strong { display: block; font-size: 14px; }
+    .path-title span { color: var(--muted); font-size: 10px; }
+    .b-detail { padding: 12px 10px; border-left: 1px solid var(--line); background: #fff; }
+    .b-detail h3 { margin: 0 0 6px; font-size: 13px; }
+    .b-detail p { margin: 0 0 10px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .meter { margin: 9px 0; }
+    .meter-label { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-bottom: 4px; }
+    .track { height: 6px; background: #e8ebef; overflow: hidden; border-radius: 3px; }
+    .fill { height: 100%; background: var(--blue); }
+    .fill.green { background: var(--green); }
+    .action { width: 100%; border: 0; background: var(--blue); color: #fff; padding: 8px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-top: 7px; }
+    .secondary { width: 100%; border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 7px 6px; border-radius: 4px; font-size: 10px; margin-top: 6px; }
+    .c-body { padding: 14px; }
+    .route-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .route-head h3 { margin: 0; font-size: 15px; }
+    .route-head p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
+    .map-link { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 7px 9px; font-size: 10px; }
+    .route-step { display: grid; grid-template-columns: 28px 1fr auto; gap: 9px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .route-step .num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--blue); font-size: 10px; font-weight: 800; }
+    .route-step strong { display: block; font-size: 12px; }
+    .route-step small { color: var(--muted); font-size: 9px; }
+    .tag { font-size: 9px; padding: 4px 6px; border-radius: 3px; background: #edf2ff; color: var(--blue); }
+    .mini-map { margin-top: 14px; height: 175px; position: relative; border: 1px solid var(--line); background: #fff; overflow: hidden; }
+    .mini-map .graph-node { transform: scale(.72); transform-origin: center; }
+    .option-foot { padding: 15px 18px 17px; border-top: 1px solid var(--line); }
+    .option-foot strong { display: block; font-size: 12px; margin-bottom: 5px; }
+    .option-foot p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .choice-bar { margin-top: 20px; padding: 14px 16px; border: 1px solid var(--line); background: #fff; border-radius: 6px; color: var(--muted); font-size: 13px; }
+    .choice-bar strong { color: var(--ink); }
+    @media (max-width: 1050px) { .options { grid-template-columns: 1fr; } .mock { height: 480px; } }
+    @media (max-width: 620px) { .page { padding: 16px; } .top { display: block; } .legend { justify-content: flex-start; margin-top: 14px; } .b-work { grid-template-columns: 1fr; } .b-detail { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <div>
+        <p class="eyebrow">儿子端首页 · 结构选择</p>
+        <h1>知识图谱应该怎样成为学习入口？</h1>
+        <p class="intro">三种方案都允许孩子自主选点。区别在于：是先看完整体系、先看模块路径，还是先看系统推荐。点击一张方案可以标记选择。</p>
+      </div>
+      <div class="legend" aria-label="节点状态图例">
+        <span><i class="dot mastered"></i>已掌握</span>
+        <span><i class="dot learning"></i>学习中</span>
+        <span><i class="dot weak"></i>待巩固</span>
+        <span><i class="dot untested"></i>未测试</span>
+        <span><i class="dot locked"></i>前置未稳</span>
+      </div>
+    </header>
+
+    <section class="options">
+      <article class="option" data-choice="A" tabindex="0">
+        <div class="option-head">
+          <div class="option-label"><span class="letter">A</span><span></span></div>
+          <h2>完整关系图</h2>
+          <p>56 个知识点直接铺在一张可缩放画布上，最接近后台知识图谱。</p>
+        </div>
+        <div class="mock">
+          <div class="mockbar"><span class="brand">我的数学图谱</span><span class="today">已探索 4 / 56</span></div>
+          <div class="map-area">
+            <aside class="a-side">
+              <div>底层计算与数感</div><div>算术到代数</div><div>有理数</div><div>代数式</div><div>一元一次方程</div><div>几何初步</div>
+            </aside>
+            <span class="line" style="left:170px;top:95px;width:120px;transform:rotate(19deg)"></span>
+            <span class="line" style="left:278px;top:132px;width:106px;transform:rotate(23deg)"></span>
+            <span class="line" style="left:365px;top:175px;width:113px;transform:rotate(-14deg)"></span>
+            <span class="line" style="left:250px;top:255px;width:118px;transform:rotate(-23deg)"></span>
+            <span class="line" style="left:362px;top:210px;width:90px;transform:rotate(47deg)"></span>
+            <div class="graph-node mastered" style="left:142px;top:60px"><strong>数感与估算</strong><small>已掌握</small></div>
+            <div class="graph-node learning" style="left:255px;top:105px"><strong>正数与负数</strong><small>学习中</small></div>
+            <div class="graph-node weak" style="left:355px;top:152px"><strong>数轴</strong><small>待巩固</small></div>
+            <div class="graph-node weak" style="left:455px;top:124px"><strong>绝对值</strong><small>待巩固</small></div>
+            <div class="graph-node locked" style="left:214px;top:246px"><strong>代数式</strong><small>前置未稳</small></div>
+            <div class="graph-node locked" style="left:355px;top:270px"><strong>合并同类项</strong><small>未开始</small></div>
+            <div class="graph-node locked" style="left:448px;top:225px"><strong>一元一次方程</strong><small>未开始</small></div>
+            <div class="a-zoom"><button class="icon-btn" aria-label="缩小">−</button><button class="icon-btn" aria-label="放大">＋</button></div>
+          </div>
+        </div>
+        <div class="option-foot"><strong>优势：一眼看到全部连接</strong><p>问题是手机上会拥挤，孩子容易把注意力花在拖动画布和找节点，而不是学习。</p></div>
+      </article>
+
+      <article class="option selected" data-choice="B" tabindex="0">
+        <div class="option-head">
+          <div class="option-label"><span class="letter">B</span><span class="recommend">推荐</span></div>
+          <h2>模块地图 + 节点路径</h2>
+          <p>先看 9 个知识模块，再展开模块内的前置路径；完整体系和实际操作兼顾。</p>
+        </div>
+        <div class="mock">
+          <div class="mockbar"><span class="brand">我的数学地图</span><span class="today">今天可自由选择</span></div>
+          <div class="module-tabs">
+            <button class="module-tab">计算与数感</button><button class="module-tab">分数与比例</button><button class="module-tab">算术到代数</button>
+            <button class="module-tab">应用题模型</button><button class="module-tab active">有理数</button><button class="module-tab">代数式</button>
+            <button class="module-tab">方程</button><button class="module-tab">几何初步</button><button class="module-tab">学习方法</button>
+          </div>
+          <div class="b-work">
+            <div class="b-map">
+              <div class="path-title"><strong>有理数概念与运算</strong><span>建立数轴、符号、绝对值和有理数运算系统</span></div>
+              <span class="line" style="left:48px;top:142px;width:98px"></span>
+              <span class="line" style="left:154px;top:142px;width:99px"></span>
+              <span class="line" style="left:255px;top:142px;width:92px"></span>
+              <span class="line" style="left:149px;top:258px;width:104px;transform:rotate(-16deg)"></span>
+              <div class="graph-node mastered" style="left:18px;top:115px"><strong>数感与估算</strong><small>学习 4/4<br>掌握 稳定</small></div>
+              <div class="graph-node learning" style="left:125px;top:115px"><strong>正数与负数</strong><small>学习 2/4<br>掌握 学习中</small></div>
+              <div class="graph-node weak" style="left:230px;top:115px"><strong>数轴</strong><small>学习 3/4<br>掌握 待巩固</small></div>
+              <div class="graph-node weak" style="left:334px;top:115px"><strong>绝对值</strong><small>学习 1/4<br>掌握 待巩固</small></div>
+              <div class="graph-node locked" style="left:122px;top:245px"><strong>有理数加减</strong><small>前置未稳<br>可以先看看</small></div>
+              <div class="graph-node locked" style="left:250px;top:220px"><strong>有理数乘除</strong><small>未测试</small></div>
+            </div>
+            <aside class="b-detail">
+              <h3>数轴</h3>
+              <p>你已经会判断左右方向，还需要确认表示和检验是否稳定。</p>
+              <div class="meter"><div class="meter-label"><span>学习进度</span><b>3/4</b></div><div class="track"><div class="fill" style="width:75%"></div></div></div>
+              <div class="meter"><div class="meter-label"><span>掌握证据</span><b>待巩固</b></div><div class="track"><div class="fill green" style="width:58%"></div></div></div>
+              <button class="action">继续学习这个点</button>
+              <button class="secondary">先做一次检测</button>
+            </aside>
+          </div>
+        </div>
+        <div class="option-foot"><strong>优势：孩子拥有选择权，系统提供边界</strong><p>点任意节点都能看详情；前置不稳时先解释原因，允许先补前置或预览目标知识。</p></div>
+      </article>
+
+      <article class="option" data-choice="C" tabindex="0">
+        <div class="option-head">
+          <div class="option-label"><span class="letter">C</span><span></span></div>
+          <h2>今日路线 + 图谱入口</h2>
+          <p>首页先展示系统建议的学习路径，完整图谱通过“查看全部”进入。</p>
+        </div>
+        <div class="mock">
+          <div class="mockbar"><span class="brand">今天学什么</span><span class="today">约 45 分钟</span></div>
+          <div class="c-body">
+            <div class="route-head"><div><h3>建议路线</h3><p>根据最近的数轴和绝对值作答生成</p></div><button class="map-link">查看全部图谱</button></div>
+            <div class="route-step"><span class="num">1</span><div><strong>数轴 · 巩固</strong><small>用一道不同结构题确认</small></div><span class="tag">8 分钟</span></div>
+            <div class="route-step"><span class="num">2</span><div><strong>绝对值 · 讲解</strong><small>先分清绝对值和前置负号</small></div><span class="tag">15 分钟</span></div>
+            <div class="route-step"><span class="num">3</span><div><strong>有理数加减 · 预习</strong><small>完成前置后解锁</small></div><span class="tag">20 分钟</span></div>
+            <div class="mini-map">
+              <span class="line" style="left:66px;top:86px;width:100px"></span>
+              <span class="line" style="left:174px;top:86px;width:100px"></span>
+              <div class="graph-node learning" style="left:34px;top:58px"><strong>正负数</strong><small>学习中</small></div>
+              <div class="graph-node weak" style="left:145px;top:58px"><strong>数轴</strong><small>待巩固</small></div>
+              <div class="graph-node locked" style="left:254px;top:58px"><strong>绝对值</strong><small>前置未稳</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="option-foot"><strong>优势：进入学习最快</strong><p>缺点是首页仍以系统安排为中心，孩子自主探索整套知识体系的感受较弱。</p></div>
+      </article>
+    </section>
+
+    <div class="choice-bar" id="choiceBar"><strong>当前建议：B</strong>。点击方案切换选择，然后在 Codex 对话里告诉我你的判断。</div>
+  </main>
+  <script>
+    const options = [...document.querySelectorAll('.option')];
+    const bar = document.getElementById('choiceBar');
+    function choose(option) {
+      options.forEach(item => item.classList.remove('selected'));
+      option.classList.add('selected');
+      const choice = option.dataset.choice;
+      const title = option.querySelector('h2').textContent;
+      bar.innerHTML = `<strong>已选择：${choice} · ${title}</strong>。请回到 Codex 对话里告诉我是否按这个方向继续。`;
+      localStorage.setItem('knowledge-map-layout-choice', choice);
+    }
+    options.forEach(option => {
+      option.addEventListener('click', () => choose(option));
+      option.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(option); }
+      });
+    });
+  </script>
+</body>
+</html>

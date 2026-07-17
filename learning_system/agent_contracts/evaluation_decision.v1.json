@@ -1,0 +1,99 @@
+{
+  "agent_key": "evaluation_agent",
+  "contract_key": "evaluation_decision",
+  "contract_version": "2026-07-05.evaluation-decision.v1",
+  "prompt_version_id": "2026-07-05.evaluation-decision.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/evaluation_decision.v1.md",
+  "response_schema_version": "2026-07-08.evaluation-diagnosis.schema.v2",
+  "minimum_confidence_to_apply": 0.8,
+  "engine_type": "hybrid",
+  "authority": "advisory",
+  "response_schema": {
+    "type": "object",
+    "required": [
+      "schema_version",
+      "threshold_policy_version",
+      "node_id",
+      "evidence_attempt_ids",
+      "mastery_state",
+      "gap_type",
+      "intervention_need",
+      "confirmation_needed",
+      "confirmation_type",
+      "can_advance",
+      "why",
+      "why_not_advance",
+      "target_dimensions",
+      "target_error_tags",
+      "required_question_family",
+      "planner_signal",
+      "confidence"
+    ],
+    "properties": {
+      "schema_version": {"const": "2026-07-08.evaluation-diagnosis.v2"},
+      "threshold_policy_version": {"const": "2026-07-08.single-strong-is-not-stable.v1"},
+      "node_id": {"type": "string"},
+      "evidence_attempt_ids": {"type": "array", "items": {"type": "string"}},
+      "mastery_state": {
+        "enum": ["insufficient_evidence", "blocked", "unstable", "emerging", "likely_stable", "stable"]
+      },
+      "gap_type": {
+        "enum": [
+          "concept_gap",
+          "model_gap",
+          "procedure_gap",
+          "calculation_symbol_gap",
+          "symbol_expression_gap",
+          "transfer_gap",
+          "metacognitive_gap",
+          "prerequisite_gap",
+          "evidence_gap",
+          "no_gap_observed"
+        ]
+      },
+      "intervention_need": {
+        "enum": [
+          "reteach_essence",
+          "model_scaffold",
+          "procedure_scaffold",
+          "symbol_contrast",
+          "transfer_bridge",
+          "metacognitive_check",
+          "prerequisite_repair",
+          "confirmation_only",
+          "request_clearer_evidence"
+        ]
+      },
+      "confirmation_needed": {"type": "boolean"},
+      "confirmation_type": {
+        "enum": ["same_structure_retest", "near_transfer_retest", "delayed_recall", "prerequisite_probe", "no_retest_needed"]
+      },
+      "can_advance": {"type": "boolean"},
+      "why": {"type": "string"},
+      "why_not_advance": {"type": "string"},
+      "target_dimensions": {"type": "array", "items": {"type": "string"}},
+      "target_error_tags": {"type": "array", "items": {"type": "string"}},
+      "required_question_family": {"type": "string"},
+      "planner_signal": {
+        "type": "object",
+        "required": [
+          "preferred_question_kinds",
+          "avoid_question_kinds",
+          "need_same_structure",
+          "need_prerequisite_probe",
+          "need_teaching_before_next",
+          "evidence_policy_notes"
+        ],
+        "properties": {
+          "preferred_question_kinds": {"type": "array", "items": {"type": "string"}},
+          "avoid_question_kinds": {"type": "array", "items": {"type": "string"}},
+          "need_same_structure": {"type": "boolean"},
+          "need_prerequisite_probe": {"type": "boolean"},
+          "need_teaching_before_next": {"type": "boolean"},
+          "evidence_policy_notes": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+    }
+  }
+}

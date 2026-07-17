@@ -1,0 +1,185 @@
+{
+  "agent_key": "question_reviewer_agent",
+  "contract_key": "math_question_bank_v12_node_set_review",
+  "contract_version": "2026-07-12.math-qb-v12.node-set-reviewer.v2",
+  "prompt_version_id": "2026-07-12.math-qb-v12.node-set-reviewer.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/math_question_bank_v12_node_set_reviewer.v2.md",
+  "response_schema_version": "2026-07-12.math-qb-v12.node-set-review.schema.v2",
+  "minimum_confidence_to_apply": 0.88,
+  "engine_type": "model",
+  "authority": "full_node_set_semantic_quality_review_only",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_generate_replacement_question",
+    "does_not_mutate_sqlite",
+    "does_not_activate_question",
+    "does_not_self-certify_manifest"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "node_id",
+      "graph_version",
+      "question_bank_version",
+      "verdict",
+      "rejected_slots",
+      "duplicate_groups",
+      "distribution_scores",
+      "semantic_evidence_version",
+      "slot_semantic_evidence",
+      "confidence",
+      "reasons",
+      "repair_instructions"
+    ],
+    "properties": {
+      "schema_version": {"const": "2026-07-12.math-qb-v12.node-set-review.schema.v2"},
+      "node_id": {"type": "string"},
+      "graph_version": {"type": "string"},
+      "question_bank_version": {"const": "2026-07-12.bank.v12"},
+      "verdict": {"type": "string", "enum": ["approved", "needs_repair", "blocked"]},
+      "rejected_slots": {
+        "type": "array",
+        "items": {"type": "integer", "minimum": 1, "maximum": 20},
+        "maxItems": 20
+      },
+      "duplicate_groups": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slots", "reason"],
+          "properties": {
+            "slots": {
+              "type": "array",
+              "items": {"type": "integer", "minimum": 1, "maximum": 20},
+              "minItems": 2,
+              "maxItems": 20
+            },
+            "reason": {"type": "string"}
+          }
+        }
+      },
+      "distribution_scores": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "semantic_diversity",
+          "slot_fit",
+          "difficulty_distribution",
+          "problem_family_distribution",
+          "age_context_fit",
+          "natural_task_quality",
+          "child_surface_readiness",
+          "response_burden_fit",
+          "unprompted_process_integrity"
+        ],
+        "properties": {
+          "semantic_diversity": {"type": "number", "minimum": 0, "maximum": 1},
+          "slot_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "difficulty_distribution": {"type": "number", "minimum": 0, "maximum": 1},
+          "problem_family_distribution": {"type": "number", "minimum": 0, "maximum": 1},
+          "age_context_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "natural_task_quality": {"type": "number", "minimum": 0, "maximum": 1},
+          "child_surface_readiness": {"type": "number", "minimum": 0, "maximum": 1},
+          "response_burden_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "unprompted_process_integrity": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "semantic_evidence_version": {"const": "2026-07-12.math-qb-v12.node-set-review-semantic-evidence.v2"},
+      "slot_semantic_evidence": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slot", "item_id", "candidate_sha256", "semantic_evidence"],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+            "item_id": {"type": "string"},
+            "candidate_sha256": {"type": "string"},
+            "semantic_evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "version",
+                "natural_self_contained_task",
+                "child_surface_readiness",
+                "single_coherent_response_burden",
+                "unprompted_process_evidence"
+              ],
+              "properties": {
+                "version": {"const": "2026-07-12.math-qb-v12.node-set-review-semantic-evidence.v2"},
+                "natural_self_contained_task": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verdict", "score", "reason"],
+                  "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "child_surface_readiness": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verdict", "score", "reason"],
+                  "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "single_coherent_response_burden": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verdict", "score", "reason"],
+                  "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "unprompted_process_evidence": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["applicability", "verdict", "score", "reason"],
+                  "properties": {
+                    "applicability": {"type": "string", "enum": ["required", "not_applicable"]},
+                    "verdict": {"type": "string", "enum": ["satisfied", "violated", "not_applicable"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+      "reasons": {
+        "type": "array",
+        "items": {"type": "string"},
+        "minItems": 1,
+        "maxItems": 12
+      },
+      "repair_instructions": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slot", "reason", "guidance"],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+            "reason": {"type": "string"},
+            "guidance": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

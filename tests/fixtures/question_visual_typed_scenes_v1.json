@@ -1,0 +1,75 @@
+{
+  "schema_version": "question-visual-scenes.v1",
+  "scenes": [
+    {
+      "scene_type": "number_line",
+      "alt_text": "一条从负三到三的数轴，点A在负二，点B在一。",
+      "long_description": "数轴向右为正方向，每一格表示一。点A位于原点左侧两格，表示负二；点B位于原点右侧一格，表示一。",
+      "scene": {
+        "axis": {"min": -3, "max": 3, "step": 1, "origin": 0, "direction": "right"},
+        "ticks": [
+          {"value": -3, "label": "-3"},
+          {"value": -2, "label": "-2"},
+          {"value": -1, "label": "-1"},
+          {"value": 0, "label": "0"},
+          {"value": 1, "label": "1"},
+          {"value": 2, "label": "2"},
+          {"value": 3, "label": "3"}
+        ],
+        "points": [
+          {"key": "a", "value": -2, "label": "A"},
+          {"key": "b", "value": 1, "label": "B"}
+        ]
+      }
+    },
+    {
+      "scene_type": "cube_net",
+      "alt_text": "由六个正方形组成的正方体展开图。",
+      "long_description": "四个正方形横向相连，第二个正方形的上方和下方各连接一个正方形，共六个面。",
+      "scene": {
+        "cells": [
+          {"key": "f1", "x": 0, "y": 1, "label": "1"},
+          {"key": "f2", "x": 1, "y": 1, "label": "2"},
+          {"key": "f3", "x": 2, "y": 1, "label": "3"},
+          {"key": "f4", "x": 3, "y": 1, "label": "4"},
+          {"key": "f5", "x": 1, "y": 0, "label": "5"},
+          {"key": "f6", "x": 1, "y": 2, "label": "6"}
+        ]
+      }
+    },
+    {
+      "scene_type": "orthographic_view",
+      "alt_text": "同一个小正方体组合的正面、左面和上面视图。",
+      "long_description": "正面视图底层有三个方格，中间上方一个方格；左面视图底层两个方格，右侧上方一个方格；上面视图呈L形三个方格。",
+      "scene": {
+        "views": [
+          {"key": "front", "label": "正面", "width": 3, "height": 2, "filled_cells": [[0, 1], [1, 1], [2, 1], [1, 0]]},
+          {"key": "left", "label": "左面", "width": 2, "height": 2, "filled_cells": [[0, 1], [1, 1], [1, 0]]},
+          {"key": "top", "label": "上面", "width": 2, "height": 2, "filled_cells": [[0, 0], [0, 1], [1, 1]]}
+        ]
+      }
+    },
+    {
+      "scene_type": "simple_geometry",
+      "alt_text": "三角形ABC及从A到BC的垂线段AD。",
+      "long_description": "三角形ABC中，点D在线段BC上，线段AD垂直于BC，垂足为D，并在D处标出直角符号。",
+      "scene": {
+        "points": [
+          {"key": "a", "x": 50, "y": 10, "label": "A"},
+          {"key": "b", "x": 10, "y": 80, "label": "B"},
+          {"key": "c", "x": 90, "y": 80, "label": "C"},
+          {"key": "d", "x": 50, "y": 80, "label": "D"}
+        ],
+        "segments": [
+          {"from": "a", "to": "b"},
+          {"from": "a", "to": "c"},
+          {"from": "b", "to": "c"},
+          {"from": "a", "to": "d"}
+        ],
+        "markers": [
+          {"type": "right_angle", "at": "d", "arms": ["a", "c"]}
+        ]
+      }
+    }
+  ]
+}

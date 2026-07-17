@@ -1,0 +1,65 @@
+{
+  "agent_key": "planner_agent",
+  "contract_key": "planner_next_step",
+  "contract_version": "2026-07-11.planner-next-step.v5-skeleton.v2",
+  "prompt_version_id": "2026-07-11.planner-next-step.v5.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/planner_next_step.v2.md",
+  "response_schema_version": "2026-07-11.planner-next-step.v5.schema.v2",
+  "minimum_confidence_to_apply": 0.8,
+  "engine_type": "model",
+  "authority": "advisory_single_next_action",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_evaluate_mastery",
+    "does_not_generate_questions",
+    "does_not_mutate_flow_state",
+    "does_not_receive_full_question_bank"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "action",
+      "target_node_id",
+      "selected_candidate_id",
+      "candidate_packet_id",
+      "branch_policy",
+      "confidence",
+      "reason"
+    ],
+    "properties": {
+      "schema_version": {"const": "2026-07-11.planner-next-step.v5.schema.v2"},
+      "action": {
+        "type": "string",
+        "enum": [
+          "same_structure_retest",
+          "near_transfer_retest",
+          "prerequisite_probe",
+          "micro_teach",
+          "worked_example",
+          "clarify_evidence",
+          "continue_new_knowledge",
+          "stretch",
+          "summary",
+          "blocked"
+        ]
+      },
+      "target_node_id": {"type": "string"},
+      "selected_candidate_id": {"type": "string"},
+      "candidate_packet_id": {"type": "string"},
+      "branch_policy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uses_prerequisite_first", "requires_teaching_generation"],
+        "properties": {
+          "uses_prerequisite_first": {"type": "boolean"},
+          "requires_teaching_generation": {"type": "boolean"},
+          "blocked_reason": {"type": "string"}
+        }
+      },
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+      "reason": {"type": "string"}
+    }
+  }
+}

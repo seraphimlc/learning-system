@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-BRIDGE-WORD-PROBLEM-READING",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 95,
+  "minimum_provider_attempts": 114,
+  "counter_chain_head_sha256": "4482b826ec434449dd92b1a27b9d79144b5c9e92f6effe58bd36d1e4e46b45d5",
+  "budget_integrity_sha256": "d62bfa1cc30592ea6ea04b6539aef76c129fd732063f8b7edbd63e7710dcfeb6",
+  "legacy_source_digests": [
+    "486c61e58bc3d69e7a9e8ef80cc126165648e0a766fc237c8a987e4c041a4366",
+    "908598ea25b57e36fa88b50d88e4695c792e9d5f4d83b1fe1b1583a0ab92fcf1"
+  ],
+  "updated_at": "2026-07-17T04:09:22Z",
+  "integrity_sha256": "feff471855d936d0839407aa848912ac47cd4817e3f677a2782670e6eee2693e"
+}

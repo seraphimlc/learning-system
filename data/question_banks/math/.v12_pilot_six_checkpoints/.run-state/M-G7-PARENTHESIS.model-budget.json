@@ -1,0 +1,2025 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget.v2",
+  "node_id": "M-G7-PARENTHESIS",
+  "run_ids": [
+    "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+    "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+    "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+    "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+    "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+    "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+    "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+    "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+    "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+    "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+    "V12-RUN-4ea53ce22421407b97b236727eff7436",
+    "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+    "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+    "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+    "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+    "V12-RUN-929248881e034015bae2e360f46cb11f",
+    "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+    "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+    "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+    "V12-RUN-70afe1c390de4f799d35f40549264aba",
+    "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+    "V12-RUN-27d174e3197943198253316ecd304ce1",
+    "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+    "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+    "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+    "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+    "V12-RUN-684d68c7a90141ed85b173927c097e99",
+    "V12-RUN-02ced42d767b456c915566edd00b364b",
+    "V12-RUN-af8f70c196e4424bbb9331045897326d",
+    "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+    "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+    "V12-RUN-2d683a71cff246e09531054261852a71",
+    "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+    "V12-RUN-ccef9020a53746c48804f057997ae646",
+    "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+    "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+    "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+    "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+    "V12-RUN-c889e02eabee434da770844d8ea3462f",
+    "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+    "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+    "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+    "V12-RUN-96e372b68eba4916b4909138943030ec",
+    "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+    "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+    "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+    "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+    "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+    "V12-RUN-6a1c0f53434943a898653c4f80347621",
+    "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+    "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+    "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+    "V12-RUN-99012ac48e11479483ff49846943b80c",
+    "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+    "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+    "V12-RUN-45ba13e552614d05be561d96edfab655",
+    "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+    "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+    "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+    "V12-RUN-416e648f87a2400ca83610fc734b161e",
+    "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+    "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+    "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+    "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+    "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+    "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+    "V12-RUN-11f0712d40c94890a7605034516f4b26",
+    "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+    "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+    "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+    "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+    "V12-RUN-3139466b050c495fbfbf657f64797f93",
+    "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+    "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+    "V12-RUN-5fe75ec1489643a8af664d739654a742",
+    "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+    "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+    "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+    "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+    "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+    "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+    "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+    "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+    "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+    "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+    "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+    "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+    "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+    "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+    "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+    "V12-RUN-855525c43a8448fc9ae94f668dc95e1c",
+    "V12-RUN-56a686b7b3eb4818a591754fa73d4fac",
+    "V12-RUN-a0fc28967b0d40ec9f24b7a3d6fc62bc",
+    "V12-RUN-0dd591ad86dc4344a6e7373d1474fbc8",
+    "V12-RUN-8575a023ebf34aef839578c85e2936ee",
+    "V12-RUN-fb2acd3497524a04a39f1a1553302391",
+    "V12-RUN-9c035038cb1f481ca13f3be1d8ed25bd",
+    "V12-RUN-e594bcdc6805432d8abed23c2d84db56",
+    "V12-RUN-e95af84509d7478b883fb9574be27d74",
+    "V12-RUN-13d13aee0f554ce5b6dfc35fbdc6eda4",
+    "V12-RUN-ee6e9384d7d04d37a021630468769891",
+    "V12-RUN-9f4b2aec31e2451dae37a93d0146c036",
+    "V12-RUN-bec394ef7d7a4b359c6b532ad5cfa519",
+    "V12-RUN-fa2e94a777be4dcf9bbe87ca4e138fc6",
+    "V12-RUN-4b2d7133b76745a3a4941e598f271bf8",
+    "V12-RUN-1280fd46bb144ccc8ba91d0abe7f3e24",
+    "V12-RUN-522e03ff228e43678c72de3f81632e02",
+    "V12-RUN-433009fd3724479d8791b876760f553e",
+    "V12-RUN-b46b2734ddac4450bb3e1f23d81362b0"
+  ],
+  "pid": 60540,
+  "semantic_calls": 61,
+  "provider_attempts": 67,
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "status": "completed",
+  "reason": "",
+  "last_error_class": "UncleanPreviousRun",
+  "last_error_at": "2026-07-16T12:10:39Z",
+  "interruptions": [
+    {
+      "run_id": "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+      "pid": 71569,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-SOLUTION-HABIT slots: [20]",
+      "failed_at": "2026-07-14T22:52:09Z"
+    },
+    {
+      "run_id": "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+      "pid": 33052,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-PRE-ORDER-OPS slots: [19]",
+      "failed_at": "2026-07-15T01:11:23Z"
+    },
+    {
+      "run_id": "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+      "pid": 28819,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13, 17]; normalization={}",
+      "failed_at": "2026-07-15T01:45:55Z"
+    },
+    {
+      "run_id": "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+      "pid": 69983,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.24s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:55:20Z"
+    },
+    {
+      "run_id": "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+      "pid": 7038,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=123.04s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:57:46Z"
+    },
+    {
+      "run_id": "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+      "pid": 9677,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.88s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T02:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+      "pid": 36902,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-15T03:19:41Z"
+    },
+    {
+      "run_id": "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+      "pid": 12990,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:27:09Z"
+    },
+    {
+      "run_id": "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+      "pid": 56323,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:35:05Z"
+    },
+    {
+      "run_id": "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+      "pid": 838,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:37:22Z"
+    },
+    {
+      "run_id": "V12-RUN-4ea53ce22421407b97b236727eff7436",
+      "pid": 96857,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=116.97s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:43:41Z"
+    },
+    {
+      "run_id": "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+      "pid": 19589,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.28s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:03:20Z"
+    },
+    {
+      "run_id": "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+      "pid": 49266,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.93s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:19:03Z"
+    },
+    {
+      "run_id": "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+      "pid": 63008,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.75s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:21:50Z"
+    },
+    {
+      "run_id": "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+      "pid": 71836,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.10s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:27:46Z"
+    },
+    {
+      "run_id": "V12-RUN-929248881e034015bae2e360f46cb11f",
+      "pid": 76175,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.05s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:30:01Z"
+    },
+    {
+      "run_id": "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+      "pid": 79450,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.53s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:32:20Z"
+    },
+    {
+      "run_id": "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+      "pid": 81527,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.86s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:34:41Z"
+    },
+    {
+      "run_id": "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+      "pid": 83676,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T05:35:34Z"
+    },
+    {
+      "run_id": "V12-RUN-70afe1c390de4f799d35f40549264aba",
+      "pid": 30351,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T06:05:08Z"
+    },
+    {
+      "run_id": "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+      "pid": 13960,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:20Z"
+    },
+    {
+      "run_id": "V12-RUN-27d174e3197943198253316ecd304ce1",
+      "pid": 44755,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:40Z"
+    },
+    {
+      "run_id": "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+      "pid": 45913,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:06Z"
+    },
+    {
+      "run_id": "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+      "pid": 48845,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:26Z"
+    },
+    {
+      "run_id": "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+      "pid": 49299,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:46Z"
+    },
+    {
+      "run_id": "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+      "pid": 49694,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:05Z"
+    },
+    {
+      "run_id": "V12-RUN-684d68c7a90141ed85b173927c097e99",
+      "pid": 50605,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:25Z"
+    },
+    {
+      "run_id": "V12-RUN-02ced42d767b456c915566edd00b364b",
+      "pid": 51454,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:45Z"
+    },
+    {
+      "run_id": "V12-RUN-af8f70c196e4424bbb9331045897326d",
+      "pid": 52700,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:05Z"
+    },
+    {
+      "run_id": "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+      "pid": 53007,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:25Z"
+    },
+    {
+      "run_id": "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+      "pid": 53750,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:44Z"
+    },
+    {
+      "run_id": "V12-RUN-2d683a71cff246e09531054261852a71",
+      "pid": 54217,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:34:04Z"
+    },
+    {
+      "run_id": "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+      "pid": 95732,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13]; normalization={}",
+      "failed_at": "2026-07-15T08:12:36Z"
+    },
+    {
+      "run_id": "V12-RUN-ccef9020a53746c48804f057997ae646",
+      "pid": 18748,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.25s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:34:10Z"
+    },
+    {
+      "run_id": "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+      "pid": 60260,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.32s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:36:30Z"
+    },
+    {
+      "run_id": "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+      "pid": 69639,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:40:06Z"
+    },
+    {
+      "run_id": "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+      "pid": 87882,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.63s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:53:03Z"
+    },
+    {
+      "run_id": "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+      "pid": 27685,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.09s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T09:15:21Z"
+    },
+    {
+      "run_id": "V12-RUN-c889e02eabee434da770844d8ea3462f",
+      "pid": 98654,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:41:16Z"
+    },
+    {
+      "run_id": "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+      "pid": 95730,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:42:17Z"
+    },
+    {
+      "run_id": "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+      "pid": 2750,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:43:11Z"
+    },
+    {
+      "run_id": "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+      "pid": 5501,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:44:48Z"
+    },
+    {
+      "run_id": "V12-RUN-96e372b68eba4916b4909138943030ec",
+      "pid": 8814,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:45:48Z"
+    },
+    {
+      "run_id": "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+      "pid": 9848,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:46:46Z"
+    },
+    {
+      "run_id": "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+      "pid": 68083,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:06:16Z"
+    },
+    {
+      "run_id": "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+      "pid": 73288,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:07:15Z"
+    },
+    {
+      "run_id": "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+      "pid": 77062,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:08:12Z"
+    },
+    {
+      "run_id": "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+      "pid": 80427,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:09:09Z"
+    },
+    {
+      "run_id": "V12-RUN-6a1c0f53434943a898653c4f80347621",
+      "pid": 82481,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:10:07Z"
+    },
+    {
+      "run_id": "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+      "pid": 84402,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:11:06Z"
+    },
+    {
+      "run_id": "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+      "pid": 88436,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:12:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+      "pid": 94438,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:13:15Z"
+    },
+    {
+      "run_id": "V12-RUN-99012ac48e11479483ff49846943b80c",
+      "pid": 418,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:14:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+      "pid": 4096,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:15:21Z"
+    },
+    {
+      "run_id": "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+      "pid": 8172,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:16:18Z"
+    },
+    {
+      "run_id": "V12-RUN-45ba13e552614d05be561d96edfab655",
+      "pid": 12488,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:17:50Z"
+    },
+    {
+      "run_id": "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+      "pid": 2614,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:57:23Z"
+    },
+    {
+      "run_id": "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+      "pid": 5051,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:58:28Z"
+    },
+    {
+      "run_id": "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+      "pid": 5957,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-416e648f87a2400ca83610fc734b161e",
+      "pid": 6538,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:00:25Z"
+    },
+    {
+      "run_id": "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+      "pid": 8210,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+      "pid": 8822,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:02:23Z"
+    },
+    {
+      "run_id": "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+      "pid": 9206,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:04:09Z"
+    },
+    {
+      "run_id": "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+      "pid": 12019,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:05:12Z"
+    },
+    {
+      "run_id": "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+      "pid": 13233,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T11:06:09Z"
+    },
+    {
+      "run_id": "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+      "pid": 56011,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:16Z"
+    },
+    {
+      "run_id": "V12-RUN-11f0712d40c94890a7605034516f4b26",
+      "pid": 73081,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:43Z"
+    },
+    {
+      "run_id": "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+      "pid": 73152,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:10Z"
+    },
+    {
+      "run_id": "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+      "pid": 73229,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:37Z"
+    },
+    {
+      "run_id": "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+      "pid": 73463,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:04Z"
+    },
+    {
+      "run_id": "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+      "pid": 73560,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:31Z"
+    },
+    {
+      "run_id": "V12-RUN-3139466b050c495fbfbf657f64797f93",
+      "pid": 73769,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:59Z"
+    },
+    {
+      "run_id": "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+      "pid": 74049,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:25Z"
+    },
+    {
+      "run_id": "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+      "pid": 74119,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:52Z"
+    },
+    {
+      "run_id": "V12-RUN-5fe75ec1489643a8af664d739654a742",
+      "pid": 74227,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+      "pid": 74301,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:45Z"
+    },
+    {
+      "run_id": "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+      "pid": 74358,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:23:12Z"
+    },
+    {
+      "run_id": "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+      "pid": 83636,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:55:49Z"
+    },
+    {
+      "run_id": "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+      "pid": 88457,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+      "pid": 88944,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:45Z"
+    },
+    {
+      "run_id": "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+      "pid": 89547,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:11Z"
+    },
+    {
+      "run_id": "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+      "pid": 89861,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:38Z"
+    },
+    {
+      "run_id": "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+      "pid": 90116,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:05Z"
+    },
+    {
+      "run_id": "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+      "pid": 90212,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:33Z"
+    },
+    {
+      "run_id": "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+      "pid": 90316,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:01Z"
+    },
+    {
+      "run_id": "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+      "pid": 90414,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+      "pid": 90486,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:57Z"
+    },
+    {
+      "run_id": "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+      "pid": 90573,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:26Z"
+    },
+    {
+      "run_id": "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+      "pid": 90647,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:53Z"
+    },
+    {
+      "run_id": "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+      "pid": 472,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T13:47:59Z"
+    },
+    {
+      "run_id": "V12-RUN-855525c43a8448fc9ae94f668dc95e1c",
+      "pid": 36105,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T02:41:19Z"
+    },
+    {
+      "run_id": "V12-RUN-56a686b7b3eb4818a591754fa73d4fac",
+      "pid": 62787,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T03:06:43Z"
+    },
+    {
+      "run_id": "V12-RUN-a0fc28967b0d40ec9f24b7a3d6fc62bc",
+      "pid": 94726,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T06:22:40Z"
+    },
+    {
+      "run_id": "V12-RUN-0dd591ad86dc4344a6e7373d1474fbc8",
+      "pid": 39214,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T06:31:17Z"
+    },
+    {
+      "run_id": "V12-RUN-8575a023ebf34aef839578c85e2936ee",
+      "pid": 55169,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T07:27:57Z"
+    },
+    {
+      "run_id": "V12-RUN-fb2acd3497524a04a39f1a1553302391",
+      "pid": 42550,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T07:46:19Z"
+    },
+    {
+      "run_id": "V12-RUN-9c035038cb1f481ca13f3be1d8ed25bd",
+      "pid": 66839,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T08:26:51Z"
+    },
+    {
+      "run_id": "V12-RUN-e594bcdc6805432d8abed23c2d84db56",
+      "pid": 8365,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T10:01:55Z"
+    },
+    {
+      "run_id": "V12-RUN-e95af84509d7478b883fb9574be27d74",
+      "pid": 59097,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T10:14:49Z"
+    },
+    {
+      "run_id": "V12-RUN-13d13aee0f554ce5b6dfc35fbdc6eda4",
+      "pid": 80139,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T10:18:45Z"
+    },
+    {
+      "run_id": "V12-RUN-ee6e9384d7d04d37a021630468769891",
+      "pid": 87664,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T11:31:51Z"
+    },
+    {
+      "run_id": "V12-RUN-9f4b2aec31e2451dae37a93d0146c036",
+      "pid": 52565,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T11:41:52Z"
+    },
+    {
+      "run_id": "V12-RUN-bec394ef7d7a4b359c6b532ad5cfa519",
+      "pid": 66782,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-16T12:10:39Z"
+    }
+  ],
+  "counter_events": [
+    {
+      "sequence": 1,
+      "event_type": "legacy_baseline_import",
+      "phase": "legacy_v1_budget_migration",
+      "semantic_calls": 0,
+      "provider_attempts": 0,
+      "previous_event_sha256": "",
+      "legacy_source_digests": [
+        "5d7008f758b8554818e168ae321e1cc5defb9f195d54259a5ee9eb1cb7d51587"
+      ],
+      "event_sha256": "32fc8ac73bfe9793bda44d59411a4f36c685045e83f6455a122700a01aff63dc"
+    },
+    {
+      "sequence": 2,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 1,
+      "provider_attempts": 0,
+      "previous_event_sha256": "32fc8ac73bfe9793bda44d59411a4f36c685045e83f6455a122700a01aff63dc",
+      "event_sha256": "9681b7fd4708d4380ce216e615b1e4a93fc8649e86e0d4fb82eb9373d8bc0dbf"
+    },
+    {
+      "sequence": 3,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 1,
+      "provider_attempts": 1,
+      "previous_event_sha256": "9681b7fd4708d4380ce216e615b1e4a93fc8649e86e0d4fb82eb9373d8bc0dbf",
+      "event_sha256": "af8d95d29dd6e66fa3f46e713179155a3f61e7c845690ba324d99744a0091c1e"
+    },
+    {
+      "sequence": 4,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 2,
+      "provider_attempts": 1,
+      "previous_event_sha256": "af8d95d29dd6e66fa3f46e713179155a3f61e7c845690ba324d99744a0091c1e",
+      "event_sha256": "8af08ec9d15a1b0ea3e10d71aa59f231b5b2c5843563dfa4336acb5d261dc220"
+    },
+    {
+      "sequence": 5,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 2,
+      "provider_attempts": 2,
+      "previous_event_sha256": "8af08ec9d15a1b0ea3e10d71aa59f231b5b2c5843563dfa4336acb5d261dc220",
+      "event_sha256": "1f53ccab028a4cbc08bca93bcb95556c5b330ad764b60679a43ad6b80a8fdcb7"
+    },
+    {
+      "sequence": 6,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 3,
+      "provider_attempts": 2,
+      "previous_event_sha256": "1f53ccab028a4cbc08bca93bcb95556c5b330ad764b60679a43ad6b80a8fdcb7",
+      "event_sha256": "62480287369351e447c94b40e8bde8f5b8eef49abc6a417336ec2a1bcf96b332"
+    },
+    {
+      "sequence": 7,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 3,
+      "provider_attempts": 3,
+      "previous_event_sha256": "62480287369351e447c94b40e8bde8f5b8eef49abc6a417336ec2a1bcf96b332",
+      "event_sha256": "85d3d2326f97abaed92557b51cec6dce92e4e383f2870c3fb68371c9e78e6924"
+    },
+    {
+      "sequence": 8,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 4,
+      "provider_attempts": 3,
+      "previous_event_sha256": "85d3d2326f97abaed92557b51cec6dce92e4e383f2870c3fb68371c9e78e6924",
+      "event_sha256": "78d5ae68bf31b13105c7e58144db9a1405fbdb23d672608fd1dfb183381a80fe"
+    },
+    {
+      "sequence": 9,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 4,
+      "provider_attempts": 4,
+      "previous_event_sha256": "78d5ae68bf31b13105c7e58144db9a1405fbdb23d672608fd1dfb183381a80fe",
+      "event_sha256": "27173d6752c583146aaa5e6c8d68f87fa0bc63b1c9267d75bcdc7d1b16d09bbe"
+    },
+    {
+      "sequence": 10,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 5,
+      "provider_attempts": 4,
+      "previous_event_sha256": "27173d6752c583146aaa5e6c8d68f87fa0bc63b1c9267d75bcdc7d1b16d09bbe",
+      "event_sha256": "508a68cf04aec132e6f480062cb1498ea5e53c3079a83cc80578b664b897d015"
+    },
+    {
+      "sequence": 11,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 5,
+      "provider_attempts": 5,
+      "previous_event_sha256": "508a68cf04aec132e6f480062cb1498ea5e53c3079a83cc80578b664b897d015",
+      "event_sha256": "afb2f1c7f0300ab35d9b011d99820d3da6241c26940ce850cc81bec7624b267b"
+    },
+    {
+      "sequence": 12,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 6,
+      "provider_attempts": 5,
+      "previous_event_sha256": "afb2f1c7f0300ab35d9b011d99820d3da6241c26940ce850cc81bec7624b267b",
+      "event_sha256": "a7fe51e9e596938b7480ebcd2254e1f9b227b8eb9b25eb23e17b550edbdf7af9"
+    },
+    {
+      "sequence": 13,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 6,
+      "provider_attempts": 6,
+      "previous_event_sha256": "a7fe51e9e596938b7480ebcd2254e1f9b227b8eb9b25eb23e17b550edbdf7af9",
+      "event_sha256": "c0e4f3bc87e2c3ec1c68723cfd14c5693f193e699d64cb16bd55913af4ec7cc4"
+    },
+    {
+      "sequence": 14,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 7,
+      "provider_attempts": 6,
+      "previous_event_sha256": "c0e4f3bc87e2c3ec1c68723cfd14c5693f193e699d64cb16bd55913af4ec7cc4",
+      "event_sha256": "e7e28c79093221fd70ec965c6917a5d253bdaa6dc40615389737ba509e51284b"
+    },
+    {
+      "sequence": 15,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 7,
+      "provider_attempts": 7,
+      "previous_event_sha256": "e7e28c79093221fd70ec965c6917a5d253bdaa6dc40615389737ba509e51284b",
+      "event_sha256": "5cacc747900a47f8fdf58a1f13576031097dcd5a4a88059ba28492e62ee2fe47"
+    },
+    {
+      "sequence": 16,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 8,
+      "provider_attempts": 7,
+      "previous_event_sha256": "5cacc747900a47f8fdf58a1f13576031097dcd5a4a88059ba28492e62ee2fe47",
+      "event_sha256": "14e2d89e44400e81d9a97b226da040dd613e91de7bd6d0c23154305430c8f413"
+    },
+    {
+      "sequence": 17,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 8,
+      "provider_attempts": 8,
+      "previous_event_sha256": "14e2d89e44400e81d9a97b226da040dd613e91de7bd6d0c23154305430c8f413",
+      "event_sha256": "01423528106be3109b09a30207c39408eb880ad06d2763efc4947722dca865ac"
+    },
+    {
+      "sequence": 18,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 9,
+      "provider_attempts": 8,
+      "previous_event_sha256": "01423528106be3109b09a30207c39408eb880ad06d2763efc4947722dca865ac",
+      "event_sha256": "46e3a45058ef0ff81a4b8925af598d3c985da978c3734dc8368c2dd279801329"
+    },
+    {
+      "sequence": 19,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 9,
+      "provider_attempts": 9,
+      "previous_event_sha256": "46e3a45058ef0ff81a4b8925af598d3c985da978c3734dc8368c2dd279801329",
+      "event_sha256": "58c4459462d4c71ed3a56b76451d62ef96a500604c469c1390906f0d740646d6"
+    },
+    {
+      "sequence": 20,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 10,
+      "provider_attempts": 9,
+      "previous_event_sha256": "58c4459462d4c71ed3a56b76451d62ef96a500604c469c1390906f0d740646d6",
+      "event_sha256": "dc919fe5ef44a50d1294c7c43e8abc86d3a699c323139260a79187a8d2fd56f2"
+    },
+    {
+      "sequence": 21,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 10,
+      "provider_attempts": 10,
+      "previous_event_sha256": "dc919fe5ef44a50d1294c7c43e8abc86d3a699c323139260a79187a8d2fd56f2",
+      "event_sha256": "51db28bfd13d0a15e26046a85dda365ed9720e5ecb9c36c9c4180ae8848f9c02"
+    },
+    {
+      "sequence": 22,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 11,
+      "provider_attempts": 10,
+      "previous_event_sha256": "51db28bfd13d0a15e26046a85dda365ed9720e5ecb9c36c9c4180ae8848f9c02",
+      "event_sha256": "d9e3d9eb5b2ca92dce25b3c42975370c4ea1a3e6478ce3354e5e46708e3e5840"
+    },
+    {
+      "sequence": 23,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 11,
+      "provider_attempts": 11,
+      "previous_event_sha256": "d9e3d9eb5b2ca92dce25b3c42975370c4ea1a3e6478ce3354e5e46708e3e5840",
+      "event_sha256": "9aad9298c2d0844b04fa9ac93475d47ba50dfd1dedd7d22fb272faf816ec6513"
+    },
+    {
+      "sequence": 24,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 12,
+      "provider_attempts": 11,
+      "previous_event_sha256": "9aad9298c2d0844b04fa9ac93475d47ba50dfd1dedd7d22fb272faf816ec6513",
+      "event_sha256": "a9b0ceab58ce069bacdb91dac93cc8841d4d775fc16b10f38155b0d44e7e2c91"
+    },
+    {
+      "sequence": 25,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 12,
+      "provider_attempts": 12,
+      "previous_event_sha256": "a9b0ceab58ce069bacdb91dac93cc8841d4d775fc16b10f38155b0d44e7e2c91",
+      "event_sha256": "11f82a7e1b11cbc4d4aa9917a222560033303c93b32c03c39692d4d7b5f578c6"
+    },
+    {
+      "sequence": 26,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 13,
+      "provider_attempts": 12,
+      "previous_event_sha256": "11f82a7e1b11cbc4d4aa9917a222560033303c93b32c03c39692d4d7b5f578c6",
+      "event_sha256": "4af33490f4bc71233087c2d5c0a403a10c2459bf3ea2870720bc76a858d952a0"
+    },
+    {
+      "sequence": 27,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 13,
+      "provider_attempts": 13,
+      "previous_event_sha256": "4af33490f4bc71233087c2d5c0a403a10c2459bf3ea2870720bc76a858d952a0",
+      "event_sha256": "5d97c2378563412428b0e12c6e361978954fd5ffc42c086e1d539690cf1d155f"
+    },
+    {
+      "sequence": 28,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 14,
+      "provider_attempts": 13,
+      "previous_event_sha256": "5d97c2378563412428b0e12c6e361978954fd5ffc42c086e1d539690cf1d155f",
+      "event_sha256": "e3acc814649a2953c0a7ecb99c00164634ac3c6eeb887afd6304e41beeb1f726"
+    },
+    {
+      "sequence": 29,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 14,
+      "provider_attempts": 14,
+      "previous_event_sha256": "e3acc814649a2953c0a7ecb99c00164634ac3c6eeb887afd6304e41beeb1f726",
+      "event_sha256": "ea22345330062c88486b755c165a26e95005167e3968120ac2c274b167bab1f4"
+    },
+    {
+      "sequence": 30,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 15,
+      "provider_attempts": 14,
+      "previous_event_sha256": "ea22345330062c88486b755c165a26e95005167e3968120ac2c274b167bab1f4",
+      "event_sha256": "876117b5da6650316d0000ef4422acd4fba3ea51da08fa6cf043f4a667cecc6f"
+    },
+    {
+      "sequence": 31,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 15,
+      "provider_attempts": 15,
+      "previous_event_sha256": "876117b5da6650316d0000ef4422acd4fba3ea51da08fa6cf043f4a667cecc6f",
+      "event_sha256": "115bcb7c57255a3ba428b447fd3fdc3aa975e3fdcc4f063048f8f92ab77d4988"
+    },
+    {
+      "sequence": 32,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 16,
+      "provider_attempts": 15,
+      "previous_event_sha256": "115bcb7c57255a3ba428b447fd3fdc3aa975e3fdcc4f063048f8f92ab77d4988",
+      "event_sha256": "4a03869db9b18e900b6a5d7ddc69159838cbcd3167a801759b8b4896a2eba4e5"
+    },
+    {
+      "sequence": 33,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 16,
+      "provider_attempts": 16,
+      "previous_event_sha256": "4a03869db9b18e900b6a5d7ddc69159838cbcd3167a801759b8b4896a2eba4e5",
+      "event_sha256": "22a5bf0d9bf08490e861286ebfa9c73763a34a364a2f4ece1f72f93852297c9f"
+    },
+    {
+      "sequence": 34,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 17,
+      "provider_attempts": 16,
+      "previous_event_sha256": "22a5bf0d9bf08490e861286ebfa9c73763a34a364a2f4ece1f72f93852297c9f",
+      "event_sha256": "83967665c9cf71d4f60d2628b867ab82b41b39c8d7b7b7827522c979824630e7"
+    },
+    {
+      "sequence": 35,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 17,
+      "provider_attempts": 17,
+      "previous_event_sha256": "83967665c9cf71d4f60d2628b867ab82b41b39c8d7b7b7827522c979824630e7",
+      "event_sha256": "51f2e230ec6eb347a50897014860ac00a7ff9b64b6d15a0f1b5a0835aac0890e"
+    },
+    {
+      "sequence": 36,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 18,
+      "provider_attempts": 17,
+      "previous_event_sha256": "51f2e230ec6eb347a50897014860ac00a7ff9b64b6d15a0f1b5a0835aac0890e",
+      "event_sha256": "42b283d08648f55b72f75cf5488b115068bcf139ed18c116f4b275839fbfd1dd"
+    },
+    {
+      "sequence": 37,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 18,
+      "provider_attempts": 18,
+      "previous_event_sha256": "42b283d08648f55b72f75cf5488b115068bcf139ed18c116f4b275839fbfd1dd",
+      "event_sha256": "924b3d9e3548b9527b2fad20d8f79aa2108fc2e6146c5875e08d93e92cb67950"
+    },
+    {
+      "sequence": 38,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 18,
+      "provider_attempts": 19,
+      "previous_event_sha256": "924b3d9e3548b9527b2fad20d8f79aa2108fc2e6146c5875e08d93e92cb67950",
+      "event_sha256": "91c730b7d4d9103a9123b68d974992b5d62ec917750caab77fc699b6837be1da"
+    },
+    {
+      "sequence": 39,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 19,
+      "provider_attempts": 19,
+      "previous_event_sha256": "91c730b7d4d9103a9123b68d974992b5d62ec917750caab77fc699b6837be1da",
+      "event_sha256": "d3bc590992c5fd54c495aea13286b4a18ade6bc85ea99da2e0d1bdf711889e7d"
+    },
+    {
+      "sequence": 40,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 19,
+      "provider_attempts": 20,
+      "previous_event_sha256": "d3bc590992c5fd54c495aea13286b4a18ade6bc85ea99da2e0d1bdf711889e7d",
+      "event_sha256": "68d0a711d7bbae93b51772dddb5e712dddb3495daf49862fb08c6b6ce959b5e0"
+    },
+    {
+      "sequence": 41,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 20,
+      "provider_attempts": 20,
+      "previous_event_sha256": "68d0a711d7bbae93b51772dddb5e712dddb3495daf49862fb08c6b6ce959b5e0",
+      "event_sha256": "0a99b5f3e755f3b78627c11db4a7186af13924bd426a0acabae60879ec6f2647"
+    },
+    {
+      "sequence": 42,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 20,
+      "provider_attempts": 21,
+      "previous_event_sha256": "0a99b5f3e755f3b78627c11db4a7186af13924bd426a0acabae60879ec6f2647",
+      "event_sha256": "3cec88dff131573a58738c18c14a09ad26cdeaa809baa92e229da94f52797538"
+    },
+    {
+      "sequence": 43,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 21,
+      "provider_attempts": 21,
+      "previous_event_sha256": "3cec88dff131573a58738c18c14a09ad26cdeaa809baa92e229da94f52797538",
+      "event_sha256": "d3d03bd62bf07cc2b34b4bcb380dc66f31be74fd8669724c530df569eacd6944"
+    },
+    {
+      "sequence": 44,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 21,
+      "provider_attempts": 22,
+      "previous_event_sha256": "d3d03bd62bf07cc2b34b4bcb380dc66f31be74fd8669724c530df569eacd6944",
+      "event_sha256": "eef9c11c6eb3024b1638b3a398da5124c49eab998843ef02b893427aab026358"
+    },
+    {
+      "sequence": 45,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 22,
+      "provider_attempts": 22,
+      "previous_event_sha256": "eef9c11c6eb3024b1638b3a398da5124c49eab998843ef02b893427aab026358",
+      "event_sha256": "00175f2352f898a6134c82b01bfeec33d7b11e6f56b8fd7e21d414e0ba32967b"
+    },
+    {
+      "sequence": 46,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 22,
+      "provider_attempts": 23,
+      "previous_event_sha256": "00175f2352f898a6134c82b01bfeec33d7b11e6f56b8fd7e21d414e0ba32967b",
+      "event_sha256": "861c88ddb51b273e7762aad560f61ea0db155f5042bd5b0030b2158bcd7dfbd6"
+    },
+    {
+      "sequence": 47,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 22,
+      "provider_attempts": 24,
+      "previous_event_sha256": "861c88ddb51b273e7762aad560f61ea0db155f5042bd5b0030b2158bcd7dfbd6",
+      "event_sha256": "e1e57d3560706c489bd1414c89fef1eec9819ae8edbb6f357a29962ab917f065"
+    },
+    {
+      "sequence": 48,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 22,
+      "provider_attempts": 25,
+      "previous_event_sha256": "e1e57d3560706c489bd1414c89fef1eec9819ae8edbb6f357a29962ab917f065",
+      "event_sha256": "e14ede030f084c9c7ac0b2792e59869681706d905332d5fef7024810221ef62d"
+    },
+    {
+      "sequence": 49,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 23,
+      "provider_attempts": 25,
+      "previous_event_sha256": "e14ede030f084c9c7ac0b2792e59869681706d905332d5fef7024810221ef62d",
+      "event_sha256": "d5dc3efe949ae3aed5d77f0ed37bd736b5fe16745fb7ca43c873b1374c9081f9"
+    },
+    {
+      "sequence": 50,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 23,
+      "provider_attempts": 26,
+      "previous_event_sha256": "d5dc3efe949ae3aed5d77f0ed37bd736b5fe16745fb7ca43c873b1374c9081f9",
+      "event_sha256": "a79ce633219880b0e8a6562da75b78f27534728da8064099c0c434aa19d0aa2a"
+    },
+    {
+      "sequence": 51,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 24,
+      "provider_attempts": 26,
+      "previous_event_sha256": "a79ce633219880b0e8a6562da75b78f27534728da8064099c0c434aa19d0aa2a",
+      "event_sha256": "9836ed68a26287039a8043ae2dd603aac87142dff8e152f356c3f10797f4cd16"
+    },
+    {
+      "sequence": 52,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 24,
+      "provider_attempts": 27,
+      "previous_event_sha256": "9836ed68a26287039a8043ae2dd603aac87142dff8e152f356c3f10797f4cd16",
+      "event_sha256": "8c5fa151a05646ae80073da46a1112561f77c52cd4c995102e14066abd943240"
+    },
+    {
+      "sequence": 53,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 25,
+      "provider_attempts": 27,
+      "previous_event_sha256": "8c5fa151a05646ae80073da46a1112561f77c52cd4c995102e14066abd943240",
+      "event_sha256": "337ff9f1c787531b4ab3e0c55390764f0b9b978bf61e6857358d8b745e4fe331"
+    },
+    {
+      "sequence": 54,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 25,
+      "provider_attempts": 28,
+      "previous_event_sha256": "337ff9f1c787531b4ab3e0c55390764f0b9b978bf61e6857358d8b745e4fe331",
+      "event_sha256": "d89d9573ed55e024104703468637fa6c0b51856258c09de64703b2692209aefc"
+    },
+    {
+      "sequence": 55,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 26,
+      "provider_attempts": 28,
+      "previous_event_sha256": "d89d9573ed55e024104703468637fa6c0b51856258c09de64703b2692209aefc",
+      "event_sha256": "098627048e563a50554a3573bad1840fc2ae3a12045a807d95d4d33b5119c273"
+    },
+    {
+      "sequence": 56,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 26,
+      "provider_attempts": 29,
+      "previous_event_sha256": "098627048e563a50554a3573bad1840fc2ae3a12045a807d95d4d33b5119c273",
+      "event_sha256": "27c0f705a7795b03cde5a522d8d7b26d7f82992010d61ff229ae944f5b5f85d9"
+    },
+    {
+      "sequence": 57,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 27,
+      "provider_attempts": 29,
+      "previous_event_sha256": "27c0f705a7795b03cde5a522d8d7b26d7f82992010d61ff229ae944f5b5f85d9",
+      "event_sha256": "c8b68c4c7fcc7414df5a02b573d78d931a0076552bafabbcd834ebc92f640339"
+    },
+    {
+      "sequence": 58,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 27,
+      "provider_attempts": 30,
+      "previous_event_sha256": "c8b68c4c7fcc7414df5a02b573d78d931a0076552bafabbcd834ebc92f640339",
+      "event_sha256": "af93693c73d8c4955650b1e487a4863c140c1977f1adb67c2c6053680a42915e"
+    },
+    {
+      "sequence": 59,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 28,
+      "provider_attempts": 30,
+      "previous_event_sha256": "af93693c73d8c4955650b1e487a4863c140c1977f1adb67c2c6053680a42915e",
+      "event_sha256": "c8fc2ae60e72ac919df06bbc874c092561d255cc65ffce87a1cad0ee992860d9"
+    },
+    {
+      "sequence": 60,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 28,
+      "provider_attempts": 31,
+      "previous_event_sha256": "c8fc2ae60e72ac919df06bbc874c092561d255cc65ffce87a1cad0ee992860d9",
+      "event_sha256": "ee9a1d041fdd459168f8560e82b65b8ec63bba04bd9dac4b202cddf0f71de8df"
+    },
+    {
+      "sequence": 61,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 29,
+      "provider_attempts": 31,
+      "previous_event_sha256": "ee9a1d041fdd459168f8560e82b65b8ec63bba04bd9dac4b202cddf0f71de8df",
+      "event_sha256": "fd0edc295838ccabad82ca7d9943badb3ef49092170c4d72db8da56f981d76c1"
+    },
+    {
+      "sequence": 62,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 29,
+      "provider_attempts": 32,
+      "previous_event_sha256": "fd0edc295838ccabad82ca7d9943badb3ef49092170c4d72db8da56f981d76c1",
+      "event_sha256": "d602634becaad7265e0131d8fd42deca5bc1ad49d5045b0f017f38ddda1b101b"
+    },
+    {
+      "sequence": 63,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 30,
+      "provider_attempts": 32,
+      "previous_event_sha256": "d602634becaad7265e0131d8fd42deca5bc1ad49d5045b0f017f38ddda1b101b",
+      "event_sha256": "d72667ac535b7237b91a2ed740be27fce8418dd5916dce0120825fbfdaba4470"
+    },
+    {
+      "sequence": 64,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 30,
+      "provider_attempts": 33,
+      "previous_event_sha256": "d72667ac535b7237b91a2ed740be27fce8418dd5916dce0120825fbfdaba4470",
+      "event_sha256": "5531db92c1a6d377485f637c85e4ce3ad70d2a68c7459dd3cd936af1d465aecf"
+    },
+    {
+      "sequence": 65,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 31,
+      "provider_attempts": 33,
+      "previous_event_sha256": "5531db92c1a6d377485f637c85e4ce3ad70d2a68c7459dd3cd936af1d465aecf",
+      "event_sha256": "822c51656074ab1be8821ad79de7f033ca85b3d01f340dcfedf8c01f6d244ca8"
+    },
+    {
+      "sequence": 66,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 31,
+      "provider_attempts": 34,
+      "previous_event_sha256": "822c51656074ab1be8821ad79de7f033ca85b3d01f340dcfedf8c01f6d244ca8",
+      "event_sha256": "e24613e7d86b05d7be87133dc6f9e691f92c348a23678d20138b63493a148aeb"
+    },
+    {
+      "sequence": 67,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 32,
+      "provider_attempts": 34,
+      "previous_event_sha256": "e24613e7d86b05d7be87133dc6f9e691f92c348a23678d20138b63493a148aeb",
+      "event_sha256": "26311aa17f59cb1b5463d2f3138ea56ac9f671de29f3ad3e5e3835303f7ebcf4"
+    },
+    {
+      "sequence": 68,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 32,
+      "provider_attempts": 35,
+      "previous_event_sha256": "26311aa17f59cb1b5463d2f3138ea56ac9f671de29f3ad3e5e3835303f7ebcf4",
+      "event_sha256": "0abf7d0b388bbe1db08b4f5202fd3dd2e005e7926346945a0337eeb658bc16c3"
+    },
+    {
+      "sequence": 69,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 33,
+      "provider_attempts": 35,
+      "previous_event_sha256": "0abf7d0b388bbe1db08b4f5202fd3dd2e005e7926346945a0337eeb658bc16c3",
+      "event_sha256": "26f0f5f60f95af7c44d90eca9ca28ea3746c9c82acca0c277e0fc71df155466c"
+    },
+    {
+      "sequence": 70,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 33,
+      "provider_attempts": 36,
+      "previous_event_sha256": "26f0f5f60f95af7c44d90eca9ca28ea3746c9c82acca0c277e0fc71df155466c",
+      "event_sha256": "05b058d9063c60e5be5187ef6885afa8004c0ef9a45e1c4d68bd0c721182d4a0"
+    },
+    {
+      "sequence": 71,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 33,
+      "provider_attempts": 37,
+      "previous_event_sha256": "05b058d9063c60e5be5187ef6885afa8004c0ef9a45e1c4d68bd0c721182d4a0",
+      "event_sha256": "4a4d4fa90dcf27841a38c586a730e642c56c67c24b0251b38e2e883a0ccc6b77"
+    },
+    {
+      "sequence": 72,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 34,
+      "provider_attempts": 37,
+      "previous_event_sha256": "4a4d4fa90dcf27841a38c586a730e642c56c67c24b0251b38e2e883a0ccc6b77",
+      "event_sha256": "9a58d14c45bb35c09441169895c2b5a5366b9cb8fc09247538be0393ac8e178e"
+    },
+    {
+      "sequence": 73,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 34,
+      "provider_attempts": 38,
+      "previous_event_sha256": "9a58d14c45bb35c09441169895c2b5a5366b9cb8fc09247538be0393ac8e178e",
+      "event_sha256": "7295a07a72b99b4d5d23cbfa53fbdd0593c79df35aeb490c59b3dc00fa4b80b0"
+    },
+    {
+      "sequence": 74,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 35,
+      "provider_attempts": 38,
+      "previous_event_sha256": "7295a07a72b99b4d5d23cbfa53fbdd0593c79df35aeb490c59b3dc00fa4b80b0",
+      "event_sha256": "97186b5543b34616b8c89affa136c2a01eccd5985bdf322f44e446e866da8224"
+    },
+    {
+      "sequence": 75,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 35,
+      "provider_attempts": 39,
+      "previous_event_sha256": "97186b5543b34616b8c89affa136c2a01eccd5985bdf322f44e446e866da8224",
+      "event_sha256": "b3d085005afbf02b9cdfde2b315432d1bd4452efe3bc2132246a4e8f0673b29b"
+    },
+    {
+      "sequence": 76,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 36,
+      "provider_attempts": 39,
+      "previous_event_sha256": "b3d085005afbf02b9cdfde2b315432d1bd4452efe3bc2132246a4e8f0673b29b",
+      "event_sha256": "3b45f4b6b8a660b978480bcc8121901fec0523327e1948cdac37f223e138aca5"
+    },
+    {
+      "sequence": 77,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 36,
+      "provider_attempts": 40,
+      "previous_event_sha256": "3b45f4b6b8a660b978480bcc8121901fec0523327e1948cdac37f223e138aca5",
+      "event_sha256": "9dc36bc22d586c5c7d258d928629de4248461b0040c11e0074647171fc675d24"
+    },
+    {
+      "sequence": 78,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 37,
+      "provider_attempts": 40,
+      "previous_event_sha256": "9dc36bc22d586c5c7d258d928629de4248461b0040c11e0074647171fc675d24",
+      "event_sha256": "5a7c0f5d19925b1ea005c482ea1887d72e51cdd4b366e095b601530f5ebaaa5b"
+    },
+    {
+      "sequence": 79,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 37,
+      "provider_attempts": 41,
+      "previous_event_sha256": "5a7c0f5d19925b1ea005c482ea1887d72e51cdd4b366e095b601530f5ebaaa5b",
+      "event_sha256": "113ac03becd59dab61ca55aab404d83178ab1a5a050c247ade105cd15a3d60b3"
+    },
+    {
+      "sequence": 80,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 38,
+      "provider_attempts": 41,
+      "previous_event_sha256": "113ac03becd59dab61ca55aab404d83178ab1a5a050c247ade105cd15a3d60b3",
+      "event_sha256": "50f0d1cd40de935c78dcf15f51bcb9c5f0b5b5a78f3dc899d624f35b64f27ecf"
+    },
+    {
+      "sequence": 81,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 38,
+      "provider_attempts": 42,
+      "previous_event_sha256": "50f0d1cd40de935c78dcf15f51bcb9c5f0b5b5a78f3dc899d624f35b64f27ecf",
+      "event_sha256": "45b0c61c6d0be589a82bd66bfa937fd4939674e351bc4c71b5e813fe121425f9"
+    },
+    {
+      "sequence": 82,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 39,
+      "provider_attempts": 42,
+      "previous_event_sha256": "45b0c61c6d0be589a82bd66bfa937fd4939674e351bc4c71b5e813fe121425f9",
+      "event_sha256": "45fe178e9ea1b4eb3f2e2cc235607694347549f8065b03c42d13b925de4c5653"
+    },
+    {
+      "sequence": 83,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 39,
+      "provider_attempts": 43,
+      "previous_event_sha256": "45fe178e9ea1b4eb3f2e2cc235607694347549f8065b03c42d13b925de4c5653",
+      "event_sha256": "c725e4d0be754f398d0e00d3aef47c0bc82247abf9b06b715db312f9bb9e1494"
+    },
+    {
+      "sequence": 84,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 40,
+      "provider_attempts": 43,
+      "previous_event_sha256": "c725e4d0be754f398d0e00d3aef47c0bc82247abf9b06b715db312f9bb9e1494",
+      "event_sha256": "9cf672188b339094d9a6a6698aeaf539489c14a92a9d156de4efd7bf3511e4ef"
+    },
+    {
+      "sequence": 85,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 40,
+      "provider_attempts": 44,
+      "previous_event_sha256": "9cf672188b339094d9a6a6698aeaf539489c14a92a9d156de4efd7bf3511e4ef",
+      "event_sha256": "72ed3a41cafeb188aad610115bd9289ade602b34a7bab05d1a0a1ac5e0b8298d"
+    },
+    {
+      "sequence": 86,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 41,
+      "provider_attempts": 44,
+      "previous_event_sha256": "72ed3a41cafeb188aad610115bd9289ade602b34a7bab05d1a0a1ac5e0b8298d",
+      "event_sha256": "049ca5147e17525fb8260f68425eda82605b76ae99851d1699215eae05b76e86"
+    },
+    {
+      "sequence": 87,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 41,
+      "provider_attempts": 45,
+      "previous_event_sha256": "049ca5147e17525fb8260f68425eda82605b76ae99851d1699215eae05b76e86",
+      "event_sha256": "4b13424d0211b3efe04b078c7bdef5ea27e8ac7763f84fbd89c43a2d4541f941"
+    },
+    {
+      "sequence": 88,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 42,
+      "provider_attempts": 45,
+      "previous_event_sha256": "4b13424d0211b3efe04b078c7bdef5ea27e8ac7763f84fbd89c43a2d4541f941",
+      "event_sha256": "bd0b5b6fe5eaa8a787bffab6984e70a4994b32cd6b028822551ab5c5e7122e95"
+    },
+    {
+      "sequence": 89,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 42,
+      "provider_attempts": 46,
+      "previous_event_sha256": "bd0b5b6fe5eaa8a787bffab6984e70a4994b32cd6b028822551ab5c5e7122e95",
+      "event_sha256": "da737e9769f97019594fa0c987c2273cff2e4b33947661b845cc29a36ea0c9d6"
+    },
+    {
+      "sequence": 90,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 42,
+      "provider_attempts": 47,
+      "previous_event_sha256": "da737e9769f97019594fa0c987c2273cff2e4b33947661b845cc29a36ea0c9d6",
+      "event_sha256": "40c50b0b036a19c1eecc0e24349e5b9e48bd8feadfc4a85490fd596ac35550c9"
+    },
+    {
+      "sequence": 91,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 43,
+      "provider_attempts": 47,
+      "previous_event_sha256": "40c50b0b036a19c1eecc0e24349e5b9e48bd8feadfc4a85490fd596ac35550c9",
+      "event_sha256": "de972725ad273d04ed0917861d37cf38160d0a7591ffa2cdc66f3d0f08ec95f9"
+    },
+    {
+      "sequence": 92,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 43,
+      "provider_attempts": 48,
+      "previous_event_sha256": "de972725ad273d04ed0917861d37cf38160d0a7591ffa2cdc66f3d0f08ec95f9",
+      "event_sha256": "921e0d37cd52660d081419b49a114e056227a2610bc17749be301125539dcdd1"
+    },
+    {
+      "sequence": 93,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 44,
+      "provider_attempts": 48,
+      "previous_event_sha256": "921e0d37cd52660d081419b49a114e056227a2610bc17749be301125539dcdd1",
+      "event_sha256": "1a963a0b70c0f6297769b90e3e213a09f5ee2807b0e70b9264048e1d7d25aca5"
+    },
+    {
+      "sequence": 94,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 44,
+      "provider_attempts": 49,
+      "previous_event_sha256": "1a963a0b70c0f6297769b90e3e213a09f5ee2807b0e70b9264048e1d7d25aca5",
+      "event_sha256": "b34db425676310416d149ad62824e1f3184a0987aeaddb4f857389526c743fa4"
+    },
+    {
+      "sequence": 95,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 45,
+      "provider_attempts": 49,
+      "previous_event_sha256": "b34db425676310416d149ad62824e1f3184a0987aeaddb4f857389526c743fa4",
+      "event_sha256": "21de2fed32cb7ed945220354858d1f511a3abeee5527940d509a5cb31721c630"
+    },
+    {
+      "sequence": 96,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 45,
+      "provider_attempts": 50,
+      "previous_event_sha256": "21de2fed32cb7ed945220354858d1f511a3abeee5527940d509a5cb31721c630",
+      "event_sha256": "33e60581655749b12104678aeeb9a858f1c0cd14e59660c794b9eafbacabc38c"
+    },
+    {
+      "sequence": 97,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 46,
+      "provider_attempts": 50,
+      "previous_event_sha256": "33e60581655749b12104678aeeb9a858f1c0cd14e59660c794b9eafbacabc38c",
+      "event_sha256": "97f2f1851aaf9663f4276c28230bec84c5454cd9f1960a7f9ae5da85303a8675"
+    },
+    {
+      "sequence": 98,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 46,
+      "provider_attempts": 51,
+      "previous_event_sha256": "97f2f1851aaf9663f4276c28230bec84c5454cd9f1960a7f9ae5da85303a8675",
+      "event_sha256": "a5c07dfee85d85b642536c83e2e3e6f7ba2f29c6cc636bd61e844aedd6913a64"
+    },
+    {
+      "sequence": 99,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 47,
+      "provider_attempts": 51,
+      "previous_event_sha256": "a5c07dfee85d85b642536c83e2e3e6f7ba2f29c6cc636bd61e844aedd6913a64",
+      "event_sha256": "d7a1e8fcff90ba7eb117b76a3af716dd152111539be76ca1d9c7d9d4251bf488"
+    },
+    {
+      "sequence": 100,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 47,
+      "provider_attempts": 52,
+      "previous_event_sha256": "d7a1e8fcff90ba7eb117b76a3af716dd152111539be76ca1d9c7d9d4251bf488",
+      "event_sha256": "d88bf2072e34c6a1d866f486767c61d20f0048117a4e23667f62e3a8ad7c20fd"
+    },
+    {
+      "sequence": 101,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 48,
+      "provider_attempts": 52,
+      "previous_event_sha256": "d88bf2072e34c6a1d866f486767c61d20f0048117a4e23667f62e3a8ad7c20fd",
+      "event_sha256": "a7ba776ffa7d64cf9853a778fc872ab0de51979ecf19faf0b0915b293fbf94d3"
+    },
+    {
+      "sequence": 102,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 48,
+      "provider_attempts": 53,
+      "previous_event_sha256": "a7ba776ffa7d64cf9853a778fc872ab0de51979ecf19faf0b0915b293fbf94d3",
+      "event_sha256": "3dd8efbd860c7ae174143d11471db8d71a8acad0b3c7029d563ccb3fcb26933c"
+    },
+    {
+      "sequence": 103,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 49,
+      "provider_attempts": 53,
+      "previous_event_sha256": "3dd8efbd860c7ae174143d11471db8d71a8acad0b3c7029d563ccb3fcb26933c",
+      "event_sha256": "598b04988d85df22aa4b9e3659db898890b07eb61253336c73feb17306a440eb"
+    },
+    {
+      "sequence": 104,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_candidate",
+      "semantic_calls": 49,
+      "provider_attempts": 54,
+      "previous_event_sha256": "598b04988d85df22aa4b9e3659db898890b07eb61253336c73feb17306a440eb",
+      "event_sha256": "0b04fc9054b6eebaece976ccf191b7de9f357402b0f9d23e1c4df269ab087740"
+    },
+    {
+      "sequence": 105,
+      "event_type": "semantic_call_reserved",
+      "phase": "question_review",
+      "semantic_calls": 50,
+      "provider_attempts": 54,
+      "previous_event_sha256": "0b04fc9054b6eebaece976ccf191b7de9f357402b0f9d23e1c4df269ab087740",
+      "event_sha256": "f565b26e126deb4f7427e622ceafab6b52dcbb7af98149348e76fa26f43acb33"
+    },
+    {
+      "sequence": 106,
+      "event_type": "provider_attempt_reserved",
+      "phase": "question_review",
+      "semantic_calls": 50,
+      "provider_attempts": 55,
+      "previous_event_sha256": "f565b26e126deb4f7427e622ceafab6b52dcbb7af98149348e76fa26f43acb33",
+      "event_sha256": "6e7f917b21d83368484e1d946fd88359626688f2e290de39a67194fe95dcf0b8"
+    },
+    {
+      "sequence": 107,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 51,
+      "provider_attempts": 55,
+      "previous_event_sha256": "6e7f917b21d83368484e1d946fd88359626688f2e290de39a67194fe95dcf0b8",
+      "event_sha256": "699d9924d218d2eb99ff10dd86cd7a10ffb86c19084bab5a5a3d2f506678a199"
+    },
+    {
+      "sequence": 108,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 51,
+      "provider_attempts": 56,
+      "previous_event_sha256": "699d9924d218d2eb99ff10dd86cd7a10ffb86c19084bab5a5a3d2f506678a199",
+      "event_sha256": "09a336a2dd6459c4e5eb31709c6c451142525e5a5fbef00913f8e9bf2a561b3f"
+    },
+    {
+      "sequence": 109,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 52,
+      "provider_attempts": 56,
+      "previous_event_sha256": "09a336a2dd6459c4e5eb31709c6c451142525e5a5fbef00913f8e9bf2a561b3f",
+      "event_sha256": "7d304569388eb178363e7f7e0ab22299c8424e80b9d829c9daba6122c0399505"
+    },
+    {
+      "sequence": 110,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 52,
+      "provider_attempts": 57,
+      "previous_event_sha256": "7d304569388eb178363e7f7e0ab22299c8424e80b9d829c9daba6122c0399505",
+      "event_sha256": "03aa43f078a7696548c080561e0607cd6c68e9a1cf4f2521db2e9abc5a13d3f6"
+    },
+    {
+      "sequence": 111,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 53,
+      "provider_attempts": 57,
+      "previous_event_sha256": "03aa43f078a7696548c080561e0607cd6c68e9a1cf4f2521db2e9abc5a13d3f6",
+      "event_sha256": "efb3a7cc17ec9aa6a3758c83a98e337da43aaa72a7c434c3fa8da7996dd2a32f"
+    },
+    {
+      "sequence": 112,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 53,
+      "provider_attempts": 58,
+      "previous_event_sha256": "efb3a7cc17ec9aa6a3758c83a98e337da43aaa72a7c434c3fa8da7996dd2a32f",
+      "event_sha256": "bc96eccf7cb32005f419155b18ec03c3e53bfeb367accf0c889a42cdc51683f5"
+    },
+    {
+      "sequence": 113,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 54,
+      "provider_attempts": 58,
+      "previous_event_sha256": "bc96eccf7cb32005f419155b18ec03c3e53bfeb367accf0c889a42cdc51683f5",
+      "event_sha256": "92b5e6ac9f892afb78280531dd46352391d8b77c1349c23d98399a2ba21ef09e"
+    },
+    {
+      "sequence": 114,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 54,
+      "provider_attempts": 59,
+      "previous_event_sha256": "92b5e6ac9f892afb78280531dd46352391d8b77c1349c23d98399a2ba21ef09e",
+      "event_sha256": "7a081f37f1b512068305d261bbdf3b6b24d24659608b73f2a371aff6b12dc760"
+    },
+    {
+      "sequence": 115,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 54,
+      "provider_attempts": 60,
+      "previous_event_sha256": "7a081f37f1b512068305d261bbdf3b6b24d24659608b73f2a371aff6b12dc760",
+      "event_sha256": "cae6fa23c131d0ff017ebc485921b7a90448bb890a30438b74b6d5545c630a49"
+    },
+    {
+      "sequence": 116,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 55,
+      "provider_attempts": 60,
+      "previous_event_sha256": "cae6fa23c131d0ff017ebc485921b7a90448bb890a30438b74b6d5545c630a49",
+      "event_sha256": "41480410862e89ff163111673378834dad4c8f38aeb7f18edb28826ba30a990f"
+    },
+    {
+      "sequence": 117,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 55,
+      "provider_attempts": 61,
+      "previous_event_sha256": "41480410862e89ff163111673378834dad4c8f38aeb7f18edb28826ba30a990f",
+      "event_sha256": "2c84cdb0725b75208651156eb3dd6417b46ecc29c560fd9c62aac1ca0e708b49"
+    },
+    {
+      "sequence": 118,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 56,
+      "provider_attempts": 61,
+      "previous_event_sha256": "2c84cdb0725b75208651156eb3dd6417b46ecc29c560fd9c62aac1ca0e708b49",
+      "event_sha256": "f23a26d6aa1105b0a6eadcb0fcd1da4483e76a7a7719062729bf5aee9fe45bb5"
+    },
+    {
+      "sequence": 119,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 56,
+      "provider_attempts": 62,
+      "previous_event_sha256": "f23a26d6aa1105b0a6eadcb0fcd1da4483e76a7a7719062729bf5aee9fe45bb5",
+      "event_sha256": "a713a5b491d8187174841c6da2af4a337d8797d85cd08270bb97cfdeb4b8f908"
+    },
+    {
+      "sequence": 120,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 57,
+      "provider_attempts": 62,
+      "previous_event_sha256": "a713a5b491d8187174841c6da2af4a337d8797d85cd08270bb97cfdeb4b8f908",
+      "event_sha256": "b08828e8639ca2a9ce72ee078102179f6caf255a32e927a0204145d4b6a61259"
+    },
+    {
+      "sequence": 121,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 57,
+      "provider_attempts": 63,
+      "previous_event_sha256": "b08828e8639ca2a9ce72ee078102179f6caf255a32e927a0204145d4b6a61259",
+      "event_sha256": "dcd1d2511c80fe166a66d07255c32e9c74da799728388de35336b712131003f3"
+    },
+    {
+      "sequence": 122,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 58,
+      "provider_attempts": 63,
+      "previous_event_sha256": "dcd1d2511c80fe166a66d07255c32e9c74da799728388de35336b712131003f3",
+      "event_sha256": "af9d9d4503ab6b3097cd8b637880337697890aff3b4fafe2dd505f51bf3bfd00"
+    },
+    {
+      "sequence": 123,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 58,
+      "provider_attempts": 64,
+      "previous_event_sha256": "af9d9d4503ab6b3097cd8b637880337697890aff3b4fafe2dd505f51bf3bfd00",
+      "event_sha256": "fb97b7d5b0893a5e0cdaa850e0344530a741e7c9f6b10c3656cedae8f0345afb"
+    },
+    {
+      "sequence": 124,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 59,
+      "provider_attempts": 64,
+      "previous_event_sha256": "fb97b7d5b0893a5e0cdaa850e0344530a741e7c9f6b10c3656cedae8f0345afb",
+      "event_sha256": "3bf51370eeeb0a30800fab16350b0d14a95cc795cf92439bb1afd1a7e3d67662"
+    },
+    {
+      "sequence": 125,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 59,
+      "provider_attempts": 65,
+      "previous_event_sha256": "3bf51370eeeb0a30800fab16350b0d14a95cc795cf92439bb1afd1a7e3d67662",
+      "event_sha256": "2a0679e364bb1228d04bb6ad976c144d9085cf9758c386bca3685e0e2b6e9a93"
+    },
+    {
+      "sequence": 126,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 60,
+      "provider_attempts": 65,
+      "previous_event_sha256": "2a0679e364bb1228d04bb6ad976c144d9085cf9758c386bca3685e0e2b6e9a93",
+      "event_sha256": "371c52e2a7636b6078c05655efbdeb38334d103c488f2937cfffdf8f2c67a7fd"
+    },
+    {
+      "sequence": 127,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 60,
+      "provider_attempts": 66,
+      "previous_event_sha256": "371c52e2a7636b6078c05655efbdeb38334d103c488f2937cfffdf8f2c67a7fd",
+      "event_sha256": "f1a3b133950772474f7561031fd4bfbe998e76c6ffc005ca6a59e4d6d98c76db"
+    },
+    {
+      "sequence": 128,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 61,
+      "provider_attempts": 66,
+      "previous_event_sha256": "f1a3b133950772474f7561031fd4bfbe998e76c6ffc005ca6a59e4d6d98c76db",
+      "event_sha256": "98b6595f34468f1c43e2dbb9ccdcec2792bf83a124b6382afd734c8b7dfd0711"
+    },
+    {
+      "sequence": 129,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 61,
+      "provider_attempts": 67,
+      "previous_event_sha256": "98b6595f34468f1c43e2dbb9ccdcec2792bf83a124b6382afd734c8b7dfd0711",
+      "event_sha256": "36d478a6920043980fbeecaf57df12bb87cab3be89e6a585c3bb9ca1d1d880e6"
+    }
+  ],
+  "counter_chain_head_sha256": "36d478a6920043980fbeecaf57df12bb87cab3be89e6a585c3bb9ca1d1d880e6",
+  "migrations": [
+    {
+      "migration_id": "legacy_v1_budget_to_counter_ledger_v2",
+      "source_digests": [
+        "5d7008f758b8554818e168ae321e1cc5defb9f195d54259a5ee9eb1cb7d51587"
+      ]
+    }
+  ],
+  "updated_at": "2026-07-17T04:09:39Z",
+  "terminal_receipt_path": "data/question_banks/math/.v12_pilot_six_checkpoints/.run-state/M-G7-PARENTHESIS.model-budget.json",
+  "integrity_sha256": "c0e8a52a8f5d74792ca8213be4d69129b31e020d44c579692fac3b8d0fd54e8f"
+}

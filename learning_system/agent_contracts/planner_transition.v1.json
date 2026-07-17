@@ -1,0 +1,91 @@
+{
+  "agent_key": "planner_agent",
+  "contract_key": "planner_transition",
+  "contract_version": "2026-07-05.planner-transition.v1",
+  "prompt_version_id": "2026-07-05.planner-transition.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/planner_transition.v1.md",
+  "response_schema_version": "2026-07-09.planner-transition.schema.v2",
+  "minimum_confidence_to_apply": 0.8,
+  "engine_type": "hybrid",
+  "authority": "advisory",
+  "response_schema": {
+    "type": "object",
+    "required": [
+      "plan_policy_version",
+      "round_size",
+      "primary_target_node_id",
+      "round_structure",
+      "tasks",
+      "planning_signal_refs",
+      "quality_gates",
+      "confidence"
+    ],
+    "properties": {
+      "plan_policy_version": {"const": "2026-07-09.planner-signal-round.v1"},
+      "round_size": {"const": 10},
+      "primary_target_node_id": {"type": "string"},
+      "round_structure": {
+        "type": "object",
+        "required": ["repair_or_prerequisite_count", "consolidation_count", "stretch_count"],
+        "properties": {
+          "repair_or_prerequisite_count": {"type": "integer", "minimum": 0},
+          "consolidation_count": {"type": "integer", "minimum": 0},
+          "stretch_count": {"type": "integer", "minimum": 0}
+        }
+      },
+      "tasks": {
+        "type": "array",
+        "minItems": 10,
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "required": ["node_id", "question_id", "task_type", "planning_signal"],
+          "properties": {
+            "node_id": {"type": "string"},
+            "question_id": {"type": "string"},
+            "task_type": {
+              "enum": ["learn", "rollback", "prerequisite_probe", "remediate", "retest"]
+            },
+            "planning_signal": {"type": "object"}
+          }
+        }
+      },
+      "planning_signal_refs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["node_id", "evaluation_decision_id", "evidence_attempt_ids"],
+          "properties": {
+            "node_id": {"type": "string"},
+            "evaluation_decision_id": {"type": "string"},
+            "evidence_attempt_ids": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      },
+      "quality_gates": {
+        "type": "object",
+        "required": [
+          "current_active_question_bank",
+          "unique_questions",
+          "unique_prompt_surfaces",
+          "unique_semantic_cores",
+          "graph_bound_tasks",
+          "no_low_age_mechanical_padding",
+          "all_repair_tasks_trace_valid_evidence",
+          "planning_signal_refs_cover_source_nodes"
+        ],
+        "properties": {
+          "current_active_question_bank": {"const": true},
+          "unique_questions": {"const": true},
+          "unique_prompt_surfaces": {"const": true},
+          "unique_semantic_cores": {"const": true},
+          "graph_bound_tasks": {"const": true},
+          "no_low_age_mechanical_padding": {"const": true},
+          "all_repair_tasks_trace_valid_evidence": {"const": true},
+          "planning_signal_refs_cover_source_nodes": {"const": true}
+        }
+      },
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+    }
+  }
+}

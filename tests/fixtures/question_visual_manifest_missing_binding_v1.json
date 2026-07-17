@@ -1,0 +1,7 @@
+{
+  "schema_version": "question-visual-manifest.v1",
+  "manifest_version": "2026-07-15.test.missing-binding.v1",
+  "inventory_relative_path": "tests/fixtures/question_visual_inventory_v51.json",
+  "renderer_contract_version": "question-visual-renderer.v1",
+  "entries": []
+}

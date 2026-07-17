@@ -1,0 +1,3513 @@
+{
+  "metadata": {
+    "name": "小升初数学私人衔接知识图谱 v1",
+    "version": "2026-07-04.v1",
+    "learner_profile": {
+      "student": "即将升入初一",
+      "math_recent_score": 80,
+      "daily_time_minutes": 60,
+      "time_window": "2026-07-05 至 2026-08-23，约50天",
+      "textbook": "人教版七年级上册",
+      "goal": "小学关键漏洞补齐 + 七上数学主线预学 + 开学能跟住并具备一定中档题迁移能力"
+    },
+    "scope_policy": {
+      "not_full_primary_review": "不按小学三到六年级逐章复习，只保留会影响七上学习的前置知识。",
+      "not_full_competition": "不以奥数为主；拓展只用于打开思路，不压垮基础。",
+      "diagnosis_first": "诊断题必须绑定图谱节点，用错因决定回退或推进。"
+    },
+    "sources_basis": [
+      "人教版七年级上册数学2024常见目录：有理数、有理数的运算、代数式、整式的加减、一元一次方程、几何图形初步。",
+      "《义务教育数学课程标准（2022年版）》学习领域：数与代数、图形与几何、统计与概率、综合与实践。",
+      "学生现状：数学80分、每天1小时、暑假50天。"
+    ]
+  },
+  "schema": {
+    "priority": {
+      "P0": "必须解决，会直接影响初一跟课",
+      "P1": "重要，但可穿插补",
+      "P2": "拓展或局部场景，基础稳定后再做"
+    },
+    "stage": [
+      "小学关键前置",
+      "衔接桥梁",
+      "七上主线"
+    ],
+    "node_fields": [
+      "id",
+      "name",
+      "stage",
+      "domain",
+      "priority",
+      "suggested_minutes_if_weak",
+      "essence_for_child",
+      "prerequisites",
+      "unlocks",
+      "question_types",
+      "common_mistakes",
+      "diagnostic_probes",
+      "mastery_criteria",
+      "teaching_strategy",
+      "remediation_if_failed",
+      "controlled_extensions",
+      "tags"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "M-PRE-NUMBER-SENSE",
+      "name": "数感与估算",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 20,
+      "essence_for_child": "先判断答案大概范围，防止算出离谱结果。",
+      "prerequisites": [],
+      "unlocks": [],
+      "question_types": [
+        "估算乘除结果",
+        "判断小数点位置",
+        "比较结果大小"
+      ],
+      "common_mistakes": [
+        "只机械计算不估算",
+        "小数点位置离谱也不检查"
+      ],
+      "diagnostic_probes": [
+        "给3道估算题，要求先说范围再计算",
+        "给1道明显错误结果，让孩子判断是否合理"
+      ],
+      "mastery_criteria": [
+        "能在计算前说出结果大致范围",
+        "能主动用估算发现小数点或符号错误"
+      ],
+      "teaching_strategy": [
+        "先问‘结果应该比谁大/小’",
+        "每道小数乘除先估再算"
+      ],
+      "remediation_if_failed": [
+        "每天5分钟估算口算",
+        "所有计算题增加‘估算栏’"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-PRE-ORDER-OPS",
+      "name": "四则混合运算与括号",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "算式有交通规则：括号优先，先乘除后加减，同级从左到右。",
+      "prerequisites": [
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-MIXED",
+        "M-G7-EXPR-VALUE",
+        "M-G7-EQ-SOLVE"
+      ],
+      "question_types": [
+        "整数混合运算",
+        "小数/分数混合",
+        "含括号运算"
+      ],
+      "common_mistakes": [
+        "跳步导致顺序错",
+        "同级运算不从左到右",
+        "括号去掉后符号错"
+      ],
+      "diagnostic_probes": [
+        "4道混合运算，至少含一题括号和一题同级连算"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能说出每一步为什么先算它"
+      ],
+      "teaching_strategy": [
+        "用‘运算交通规则’解释",
+        "要求竖式/横式步骤不跳关键步"
+      ],
+      "remediation_if_failed": [
+        "回到只含整数的混合运算",
+        "再加入小数分数"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-PRE-INTEGER-OPS",
+      "name": "整数四则计算",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 20,
+      "essence_for_child": "整数计算是后面所有代数运算的底层肌肉。",
+      "prerequisites": [
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-ADD-SUB",
+        "M-G7-RATIONAL-MUL-DIV"
+      ],
+      "question_types": [
+        "多位数加减乘除",
+        "有余数除法验算",
+        "简便运算"
+      ],
+      "common_mistakes": [
+        "进退位错",
+        "乘法竖式漏位",
+        "余数大于除数",
+        "验算习惯差"
+      ],
+      "diagnostic_probes": [
+        "限时10题口算/竖式混合",
+        "1道有余数除法要求验算"
+      ],
+      "mastery_criteria": [
+        "基础计算正确率≥90%",
+        "有余数除法能写出验算"
+      ],
+      "teaching_strategy": [
+        "计算题少而准，必须验算错题",
+        "建立‘错因不是粗心，是流程漏洞’意识"
+      ],
+      "remediation_if_failed": [
+        "每天5分钟计算维护",
+        "错题隔天同类复测"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "maintenance"
+      ]
+    },
+    {
+      "id": "M-PRE-DECIMAL-OPS",
+      "name": "小数运算",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "小数运算本质上先按整数算，再处理小数点。",
+      "prerequisites": [
+        "M-PRE-INTEGER-OPS",
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-MIXED",
+        "M-G7-EQ-DENOM"
+      ],
+      "question_types": [
+        "小数加减",
+        "小数乘除",
+        "小数与分数互化"
+      ],
+      "common_mistakes": [
+        "小数点对齐错",
+        "除数是小数不会转化",
+        "结果不估算"
+      ],
+      "diagnostic_probes": [
+        "2道小数加减，2道小数乘除，1道小数分数互化"
+      ],
+      "mastery_criteria": [
+        "小数运算正确率≥85%",
+        "能解释小数除法为何移动小数点"
+      ],
+      "teaching_strategy": [
+        "把小数除法变成整数除法",
+        "每题先估答案范围"
+      ],
+      "remediation_if_failed": [
+        "先做一位小数",
+        "再做两位小数和混合题"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-PRE-FRACTION-MEANING",
+      "name": "分数意义与单位1",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "分数不是两个数叠在一起，而是‘把单位1平均分后取几份’。",
+      "prerequisites": [
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "unlocks": [
+        "M-PRE-FRACTION-OPS",
+        "M-PRE-PERCENT",
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "找单位1",
+        "分数表示具体量",
+        "分率与数量区分"
+      ],
+      "common_mistakes": [
+        "单位1找错",
+        "把分率当具体数量",
+        "看到分数就机械乘除"
+      ],
+      "diagnostic_probes": [
+        "3道找单位1题",
+        "2道判断分数表示分率还是数量"
+      ],
+      "mastery_criteria": [
+        "能圈出单位1",
+        "能说清‘谁是谁的几分之几’"
+      ],
+      "teaching_strategy": [
+        "用线段图讲单位1",
+        "先说关系再列式"
+      ],
+      "remediation_if_failed": [
+        "所有分数应用题先画线段图",
+        "错题归因到单位1"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-FRACTION-OPS",
+      "name": "分数运算",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "分数加减靠通分，分数乘除靠约分和倒数。",
+      "prerequisites": [
+        "M-PRE-FRACTION-MEANING",
+        "M-PRE-INTEGER-OPS"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-MIXED",
+        "M-G7-EQ-DENOM"
+      ],
+      "question_types": [
+        "通分加减",
+        "分数乘法",
+        "分数除法",
+        "分数混合运算"
+      ],
+      "common_mistakes": [
+        "通分只改分母不改分子",
+        "约分不彻底",
+        "除法忘记乘倒数",
+        "带分数处理错"
+      ],
+      "diagnostic_probes": [
+        "2道分数加减，2道乘除，2道混合运算"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能说明通分/倒数规则"
+      ],
+      "teaching_strategy": [
+        "先统一分母再加减",
+        "除法统一改写为乘倒数"
+      ],
+      "remediation_if_failed": [
+        "拆成通分、约分、倒数三个微技能分别补"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-PRE-PERCENT",
+      "name": "百分数与增长率",
+      "stage": "小学关键前置",
+      "domain": "数与运算",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "百分数本质是以100为标准的分率，关键仍是找单位1。",
+      "prerequisites": [
+        "M-PRE-FRACTION-MEANING",
+        "M-PRE-DECIMAL-OPS"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD",
+        "M-BRIDGE-PERCENT-MODEL"
+      ],
+      "question_types": [
+        "百分数互化",
+        "求百分率",
+        "折扣",
+        "增长/降低"
+      ],
+      "common_mistakes": [
+        "单位1找错",
+        "增长率和增长量混淆",
+        "百分号乱带单位"
+      ],
+      "diagnostic_probes": [
+        "常用互化5个",
+        "求正确率/增长率各1题"
+      ],
+      "mastery_criteria": [
+        "常用互化秒答",
+        "能写出比较量÷标准量"
+      ],
+      "teaching_strategy": [
+        "所有百分数题先翻译成‘谁是谁的百分之几’"
+      ],
+      "remediation_if_failed": [
+        "先回分数意义与单位1",
+        "再做百分率变式"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_secondary",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-RATIO-PROP",
+      "name": "比、比例与比例思想",
+      "stage": "小学关键前置",
+      "domain": "数与代数",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 40,
+      "essence_for_child": "比表示两个量的关系，比例表示两个比相等。",
+      "prerequisites": [
+        "M-PRE-FRACTION-MEANING",
+        "M-PRE-FRACTION-OPS"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD",
+        "M-BRIDGE-PROPORTION-MODEL"
+      ],
+      "question_types": [
+        "化简比",
+        "求比值",
+        "按比例分配",
+        "比例尺"
+      ],
+      "common_mistakes": [
+        "比和比值混淆",
+        "单位不统一",
+        "比例尺单位错"
+      ],
+      "diagnostic_probes": [
+        "1道化简比，1道按比例分配，1道比例尺"
+      ],
+      "mastery_criteria": [
+        "能区分比与比值",
+        "比例题能先统一单位"
+      ],
+      "teaching_strategy": [
+        "用‘关系’而不是‘数值’解释比",
+        "比例尺必须单位统一"
+      ],
+      "remediation_if_failed": [
+        "回到分数意义",
+        "用表格整理对应量"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_secondary",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-DISTRIBUTIVE",
+      "name": "运算律与去括号意识",
+      "stage": "小学关键前置",
+      "domain": "数与代数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "运算律不是为了炫技，而是后面整式去括号和合并的前身。",
+      "prerequisites": [
+        "M-PRE-INTEGER-OPS",
+        "M-PRE-ORDER-OPS"
+      ],
+      "unlocks": [
+        "M-G7-PARENTHESIS",
+        "M-G7-POLY-ADD-SUB"
+      ],
+      "question_types": [
+        "乘法分配律",
+        "凑整简算",
+        "括号前负号"
+      ],
+      "common_mistakes": [
+        "乱用简便运算",
+        "漏乘括号内每一项",
+        "负号分配错误"
+      ],
+      "diagnostic_probes": [
+        "2道乘法分配律简算",
+        "1道括号前负号判断"
+      ],
+      "mastery_criteria": [
+        "能说出为什么能简算",
+        "能把a(b+c)类比到数字题"
+      ],
+      "teaching_strategy": [
+        "从数字分配律过渡到字母分配律",
+        "强调‘每一项都要乘/变号’"
+      ],
+      "remediation_if_failed": [
+        "先用具体数字验证",
+        "再换成字母表达"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-LETTER-EXPR",
+      "name": "用字母表示数",
+      "stage": "小学关键前置",
+      "domain": "数与代数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "字母是会变化的数，用来表达一类情况。",
+      "prerequisites": [
+        "M-PRE-QUANTITY-RELATION"
+      ],
+      "unlocks": [
+        "M-G7-ALG-EXPR",
+        "M-G7-MONOMIAL"
+      ],
+      "question_types": [
+        "用字母表示数量",
+        "代入求值",
+        "省略乘号规范"
+      ],
+      "common_mistakes": [
+        "把字母当固定未知数",
+        "数量关系表达反",
+        "省略乘号不规范"
+      ],
+      "diagnostic_probes": [
+        "3道根据文字写代数式",
+        "2道代入求值"
+      ],
+      "mastery_criteria": [
+        "能用字母表达简单数量关系",
+        "知道2a表示2×a"
+      ],
+      "teaching_strategy": [
+        "从‘一个苹果a元，3个多少钱’入手",
+        "强调字母表示一类数"
+      ],
+      "remediation_if_failed": [
+        "回到数量关系语言翻译",
+        "先写乘号再省略"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-QUANTITY-RELATION",
+      "name": "等量关系与列式",
+      "stage": "小学关键前置",
+      "domain": "应用建模",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "应用题最关键不是算，而是找到两个相等的量。",
+      "prerequisites": [
+        "M-PRE-INTEGER-OPS"
+      ],
+      "unlocks": [
+        "M-PRE-EQUATION-BASIC",
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "根据文字找等量关系",
+        "线段图",
+        "表格整理条件"
+      ],
+      "common_mistakes": [
+        "只盯数字不看关系",
+        "把多/少/倍关系写反",
+        "未知量设错"
+      ],
+      "diagnostic_probes": [
+        "给3个文字情境，只要求写等量关系不求解"
+      ],
+      "mastery_criteria": [
+        "能用一句话写出等量关系",
+        "能解释每个量代表什么"
+      ],
+      "teaching_strategy": [
+        "先不算，专练‘翻译题意’",
+        "用线段图/表格辅助"
+      ],
+      "remediation_if_failed": [
+        "降级到和差倍模型",
+        "每题强制写‘等量关系：…’"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-EQUATION-BASIC",
+      "name": "小学简易方程",
+      "stage": "小学关键前置",
+      "domain": "数与代数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 40,
+      "essence_for_child": "方程是用等号把未知数和已知条件连接起来。",
+      "prerequisites": [
+        "M-PRE-QUANTITY-RELATION",
+        "M-PRE-ORDER-OPS"
+      ],
+      "unlocks": [
+        "M-G7-EQUALITY-PROP",
+        "M-G7-EQ-SOLVE"
+      ],
+      "question_types": [
+        "一步方程",
+        "两步方程",
+        "根据等量关系列方程"
+      ],
+      "common_mistakes": [
+        "等号两边不平衡",
+        "移项凭感觉",
+        "解完不检验"
+      ],
+      "diagnostic_probes": [
+        "2道一步方程，2道两步方程，1道列方程"
+      ],
+      "mastery_criteria": [
+        "基础方程正确率≥85%",
+        "能代回检验"
+      ],
+      "teaching_strategy": [
+        "用天平模型解释等式性质",
+        "不先讲移项口诀，先讲两边同操作"
+      ],
+      "remediation_if_failed": [
+        "退回等量关系",
+        "用天平图演示"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-UNIT-CONVERSION",
+      "name": "单位换算",
+      "stage": "小学关键前置",
+      "domain": "图形与量",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "单位不统一，公式再对也会错。",
+      "prerequisites": [
+        "M-PRE-DECIMAL-OPS"
+      ],
+      "unlocks": [
+        "M-G7-GEO-MEASURE",
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "长度/面积/体积单位",
+        "时间单位",
+        "人民币单位"
+      ],
+      "common_mistakes": [
+        "面积进率当10",
+        "体积进率当100",
+        "时间进率用十进制"
+      ],
+      "diagnostic_probes": [
+        "长度、面积、体积、时间各1题"
+      ],
+      "mastery_criteria": [
+        "能说出长度/面积/体积相邻进率",
+        "应用题会先统一单位"
+      ],
+      "teaching_strategy": [
+        "用维度解释：长度10，面积10×10，体积10×10×10"
+      ],
+      "remediation_if_failed": [
+        "制作常用单位表",
+        "几何题先写单位检查"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_secondary"
+      ]
+    },
+    {
+      "id": "M-PRE-ANGLE-BASIC",
+      "name": "角度基础",
+      "stage": "小学关键前置",
+      "domain": "图形与几何",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "角是旋转的大小，一圈360度。",
+      "prerequisites": [
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "unlocks": [
+        "M-G7-ANGLE",
+        "M-BRIDGE-CLOCK-ANGLE"
+      ],
+      "question_types": [
+        "角分类",
+        "角度加减",
+        "钟面角基础"
+      ],
+      "common_mistakes": [
+        "周角/平角/直角混淆",
+        "角度进位不是十进制",
+        "看图误读"
+      ],
+      "diagnostic_probes": [
+        "角分类2题，角度计算2题"
+      ],
+      "mastery_criteria": [
+        "能说出90/180/360度意义",
+        "能进行简单角度加减"
+      ],
+      "teaching_strategy": [
+        "用旋转和钟面讲角",
+        "先画图再计算"
+      ],
+      "remediation_if_failed": [
+        "回到钟面和量角器直观"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_secondary",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-PRE-GEO-AREA-VOLUME",
+      "name": "面积体积公式理解",
+      "stage": "小学关键前置",
+      "domain": "图形与几何",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "几何公式不是背出来的，是由切拼、转化和底面积×高来的。",
+      "prerequisites": [
+        "M-PRE-UNIT-CONVERSION",
+        "M-PRE-ORDER-OPS"
+      ],
+      "unlocks": [
+        "M-G7-GEO-SOLID-PLANE"
+      ],
+      "question_types": [
+        "平面面积",
+        "圆面积周长",
+        "长方体/圆柱圆锥体积"
+      ],
+      "common_mistakes": [
+        "周长面积混淆",
+        "三角形/圆锥忘除以2或乘1/3",
+        "半径直径混用"
+      ],
+      "diagnostic_probes": [
+        "平面面积2题，圆1题，立体体积1题"
+      ],
+      "mastery_criteria": [
+        "能说明公式中每个量是什么",
+        "单位写正确"
+      ],
+      "teaching_strategy": [
+        "强调公式来源与图形转化",
+        "不做大量难几何，只清基础"
+      ],
+      "remediation_if_failed": [
+        "回到图形标注",
+        "只做公式识别和单位统一"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_secondary"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-WORD-PROBLEM-READING",
+      "name": "应用题审题流程",
+      "stage": "衔接桥梁",
+      "domain": "应用建模",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "应用题先读关系，再列式；不是看到数字就算。",
+      "prerequisites": [
+        "M-PRE-QUANTITY-RELATION"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD",
+        "M-BRIDGE-MOTION-CHASE"
+      ],
+      "question_types": [
+        "圈关键词",
+        "找已知未知",
+        "写等量关系"
+      ],
+      "common_mistakes": [
+        "漏条件",
+        "问题看反",
+        "关键词机械套公式"
+      ],
+      "diagnostic_probes": [
+        "给2道应用题，只要求标已知、未知、等量关系"
+      ],
+      "mastery_criteria": [
+        "能在不计算时说出解题路径",
+        "能区分信息和问题"
+      ],
+      "teaching_strategy": [
+        "三步：问什么、有什么、怎么连",
+        "错题先复盘读题"
+      ],
+      "remediation_if_failed": [
+        "减少数字复杂度",
+        "用表格整理题意"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "diagnosis_core",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-SUM-DIFF-MULTIPLE",
+      "name": "和差倍模型",
+      "stage": "衔接桥梁",
+      "domain": "应用建模",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 40,
+      "essence_for_child": "和差倍题本质是把两个量转成同一个‘一倍量’。",
+      "prerequisites": [
+        "M-PRE-QUANTITY-RELATION",
+        "M-PRE-FRACTION-MEANING"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "和差",
+        "和倍",
+        "差倍",
+        "年龄差不变"
+      ],
+      "common_mistakes": [
+        "倍数关系写反",
+        "没有设一倍量",
+        "年龄差不变没抓住"
+      ],
+      "diagnostic_probes": [
+        "和差/和倍/差倍各1题"
+      ],
+      "mastery_criteria": [
+        "能画线段图",
+        "能用算术或方程两种方式解释"
+      ],
+      "teaching_strategy": [
+        "用线段图建立一倍量",
+        "逐步过渡到方程"
+      ],
+      "remediation_if_failed": [
+        "先回线段图，不急着列方程"
+      ],
+      "controlled_extensions": [
+        "一题两解：算术解法与方程解法对照"
+      ],
+      "tags": [
+        "model",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-MOTION-BASIC",
+      "name": "行程基础模型",
+      "stage": "衔接桥梁",
+      "domain": "应用建模",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 40,
+      "essence_for_child": "路程、速度、时间三者互相决定：路程=速度×时间。",
+      "prerequisites": [
+        "M-PRE-QUANTITY-RELATION",
+        "M-PRE-UNIT-CONVERSION"
+      ],
+      "unlocks": [
+        "M-BRIDGE-MOTION-CHASE",
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "求路程",
+        "求速度",
+        "求时间",
+        "单位换算干扰"
+      ],
+      "common_mistakes": [
+        "速度单位不统一",
+        "时间小时分钟混用",
+        "公式知道但题意对应错"
+      ],
+      "diagnostic_probes": [
+        "3道基本行程题，至少1题含单位换算"
+      ],
+      "mastery_criteria": [
+        "能先统一单位",
+        "能写出三量关系"
+      ],
+      "teaching_strategy": [
+        "用表格列路程/速度/时间",
+        "强调单位"
+      ],
+      "remediation_if_failed": [
+        "先做无干扰直算题",
+        "再加单位换算"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "model",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-MOTION-CHASE",
+      "name": "追及与相遇模型",
+      "stage": "衔接桥梁",
+      "domain": "应用建模",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 50,
+      "essence_for_child": "追及看速度差，相遇看速度和；本质是距离差/距离和如何变化。",
+      "prerequisites": [
+        "M-BRIDGE-MOTION-BASIC",
+        "M-PRE-QUANTITY-RELATION"
+      ],
+      "unlocks": [
+        "M-BRIDGE-CLOCK-ANGLE",
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "相向相遇",
+        "同向追及",
+        "先走后追",
+        "环形跑道"
+      ],
+      "common_mistakes": [
+        "速度和速度差混淆",
+        "先走时间没有转成距离差",
+        "环形追及不知道一圈差"
+      ],
+      "diagnostic_probes": [
+        "1道相遇，1道追及，1道先走后追"
+      ],
+      "mastery_criteria": [
+        "能说出为什么用速度和/速度差",
+        "能把先走时间转成距离差"
+      ],
+      "teaching_strategy": [
+        "用动态距离变化讲，而不是背公式",
+        "画时间线或线段图"
+      ],
+      "remediation_if_failed": [
+        "回到行程基础三量",
+        "只练识别相遇/追及，不先算复杂数"
+      ],
+      "controlled_extensions": [
+        "环形追及",
+        "多阶段行程"
+      ],
+      "tags": [
+        "model",
+        "high_value"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-CLOCK-ANGLE",
+      "name": "钟表角问题",
+      "stage": "衔接桥梁",
+      "domain": "应用建模/几何",
+      "priority": "P2",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "分针和时针在圆周上运动，本质是角度版环形追及。",
+      "prerequisites": [
+        "M-PRE-ANGLE-BASIC",
+        "M-BRIDGE-MOTION-CHASE"
+      ],
+      "unlocks": [
+        "M-G7-ANGLE-CALC"
+      ],
+      "question_types": [
+        "整点初始角",
+        "领先/落后角",
+        "夹角两个答案",
+        "重合/成直线"
+      ],
+      "common_mistakes": [
+        "不知道分针6°/分、时针0.5°/分",
+        "把夹角和方向角混淆",
+        "漏掉第二个答案"
+      ],
+      "diagnostic_probes": [
+        "1道落后角，1道夹角，要求写相对速度"
+      ],
+      "mastery_criteria": [
+        "能算初始角度",
+        "能列角度差方程",
+        "能说明是否有两个答案"
+      ],
+      "teaching_strategy": [
+        "先把钟面变成360°圆周",
+        "再类比追及问题"
+      ],
+      "remediation_if_failed": [
+        "回到角度基础与追及模型"
+      ],
+      "controlled_extensions": [
+        "模360思想",
+        "第几次重合"
+      ],
+      "tags": [
+        "extension",
+        "model"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-WORK-RATE",
+      "name": "工程问题",
+      "stage": "衔接桥梁",
+      "domain": "应用建模",
+      "priority": "P2",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "工程问题把工作总量看成1，合作就是效率相加。",
+      "prerequisites": [
+        "M-PRE-FRACTION-MEANING",
+        "M-PRE-QUANTITY-RELATION"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "单独完成",
+        "合作完成",
+        "先后合作"
+      ],
+      "common_mistakes": [
+        "工作效率不会表示",
+        "合作效率没相加",
+        "单位1理解弱"
+      ],
+      "diagnostic_probes": [
+        "1道单独+合作基础题"
+      ],
+      "mastery_criteria": [
+        "能把效率写成1/天数",
+        "能列出合作等量关系"
+      ],
+      "teaching_strategy": [
+        "用‘每天完成几分之一’解释",
+        "不追求难工程题"
+      ],
+      "remediation_if_failed": [
+        "回分数意义与单位1"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "model",
+        "optional"
+      ]
+    },
+    {
+      "id": "M-BRIDGE-PERCENT-MODEL",
+      "name": "百分数应用模型",
+      "stage": "衔接桥梁",
+      "domain": "应用建模",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "百分数应用题仍是比较量、标准量、变化量的关系。",
+      "prerequisites": [
+        "M-PRE-PERCENT",
+        "M-PRE-QUANTITY-RELATION"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "折扣",
+        "增长率",
+        "正确率",
+        "利润率"
+      ],
+      "common_mistakes": [
+        "标准量找错",
+        "增长量与现量混淆",
+        "百分率带单位"
+      ],
+      "diagnostic_probes": [
+        "折扣/增长率/正确率各1题"
+      ],
+      "mastery_criteria": [
+        "能写出百分率公式",
+        "能找单位1"
+      ],
+      "teaching_strategy": [
+        "全部翻译成‘谁÷谁’",
+        "用表格分清原来/现在/变化"
+      ],
+      "remediation_if_failed": [
+        "回分数意义和单位1"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "model",
+        "bridge"
+      ]
+    },
+    {
+      "id": "M-G7-POS-NEG",
+      "name": "正数和负数",
+      "stage": "七上主线",
+      "domain": "有理数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "负数不是更小的自然数，而是表示相反意义的量。",
+      "prerequisites": [
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-CLASSIFY",
+        "M-G7-NUMBER-LINE"
+      ],
+      "question_types": [
+        "相反意义量",
+        "用正负数表示",
+        "零的意义"
+      ],
+      "common_mistakes": [
+        "把0当正数或负数",
+        "不会用负数表示下降/亏损",
+        "语境方向看反"
+      ],
+      "diagnostic_probes": [
+        "5个生活情境写正负数",
+        "判断0的属性"
+      ],
+      "mastery_criteria": [
+        "能用正负数表示相反意义",
+        "知道0既不是正数也不是负数"
+      ],
+      "teaching_strategy": [
+        "从温度、海拔、收入支出切入"
+      ],
+      "remediation_if_failed": [
+        "回生活情境，不急着算"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-RATIONAL-CLASSIFY",
+      "name": "有理数分类",
+      "stage": "七上主线",
+      "domain": "有理数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "有理数包括整数和分数，正负只是另一个分类角度。",
+      "prerequisites": [
+        "M-G7-POS-NEG",
+        "M-PRE-FRACTION-MEANING"
+      ],
+      "unlocks": [
+        "M-G7-COMPARE"
+      ],
+      "question_types": [
+        "按整数/分数分类",
+        "按正/负/零分类",
+        "集合归类"
+      ],
+      "common_mistakes": [
+        "有限小数不知道是分数",
+        "负分数归类漏掉",
+        "0分类错"
+      ],
+      "diagnostic_probes": [
+        "给10个数分类"
+      ],
+      "mastery_criteria": [
+        "能用两种标准分类",
+        "能解释小数为什么可能是有理数"
+      ],
+      "teaching_strategy": [
+        "画分类树",
+        "强调分类标准不同"
+      ],
+      "remediation_if_failed": [
+        "回分数和小数互化"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-NUMBER-LINE",
+      "name": "数轴",
+      "stage": "七上主线",
+      "domain": "有理数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 40,
+      "essence_for_child": "数轴把数变成位置，越往右越大。",
+      "prerequisites": [
+        "M-G7-POS-NEG"
+      ],
+      "unlocks": [
+        "M-G7-OPPOSITE",
+        "M-G7-ABSOLUTE",
+        "M-G7-COMPARE"
+      ],
+      "question_types": [
+        "画数轴",
+        "在数轴上表示数",
+        "用数轴比较大小"
+      ],
+      "common_mistakes": [
+        "单位长度不一致",
+        "正负方向反",
+        "分数小数位置不准"
+      ],
+      "diagnostic_probes": [
+        "在数轴上标5个数",
+        "根据点写数"
+      ],
+      "mastery_criteria": [
+        "能画出三要素：原点、正方向、单位长度",
+        "能用位置比较大小"
+      ],
+      "teaching_strategy": [
+        "把数轴当温度计/尺子",
+        "先画再算"
+      ],
+      "remediation_if_failed": [
+        "只练整数点，再加入分数小数"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-OPPOSITE",
+      "name": "相反数",
+      "stage": "七上主线",
+      "domain": "有理数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 25,
+      "essence_for_child": "相反数是在数轴上到0距离相等、方向相反的两个数。",
+      "prerequisites": [
+        "M-G7-NUMBER-LINE"
+      ],
+      "unlocks": [
+        "M-G7-ABSOLUTE",
+        "M-G7-RATIONAL-ADD-SUB"
+      ],
+      "question_types": [
+        "求相反数",
+        "化简多重负号",
+        "数轴对称"
+      ],
+      "common_mistakes": [
+        "负数的相反数仍写负",
+        "-(-a)化简错",
+        "0的相反数不清楚"
+      ],
+      "diagnostic_probes": [
+        "求5个数相反数，含0和多重负号"
+      ],
+      "mastery_criteria": [
+        "能从数轴对称解释",
+        "多重负号正确率≥90%"
+      ],
+      "teaching_strategy": [
+        "用关于0对称讲"
+      ],
+      "remediation_if_failed": [
+        "回数轴位置"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-ABSOLUTE",
+      "name": "绝对值",
+      "stage": "七上主线",
+      "domain": "有理数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "绝对值是一个数到0的距离，距离永远不为负。",
+      "prerequisites": [
+        "M-G7-NUMBER-LINE",
+        "M-G7-OPPOSITE"
+      ],
+      "unlocks": [
+        "M-G7-COMPARE",
+        "M-G7-RATIONAL-ADD-SUB"
+      ],
+      "question_types": [
+        "求绝对值",
+        "绝对值方程雏形",
+        "用绝对值比较"
+      ],
+      "common_mistakes": [
+        "认为绝对值就是去负号",
+        "|0|不清楚",
+        "含字母绝对值乱去"
+      ],
+      "diagnostic_probes": [
+        "求6个绝对值，含正负分数和0",
+        "解释绝对值含义"
+      ],
+      "mastery_criteria": [
+        "能说出距离含义",
+        "知道绝对值非负"
+      ],
+      "teaching_strategy": [
+        "先距离，再符号",
+        "暂不深入含字母绝对值"
+      ],
+      "remediation_if_failed": [
+        "回数轴距离"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-COMPARE",
+      "name": "有理数大小比较",
+      "stage": "七上主线",
+      "domain": "有理数",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "数轴上右边的数大；两个负数绝对值大的反而小。",
+      "prerequisites": [
+        "M-G7-NUMBER-LINE",
+        "M-G7-ABSOLUTE"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-ADD-SUB"
+      ],
+      "question_types": [
+        "正负数比较",
+        "负数比较",
+        "分数小数混合比较"
+      ],
+      "common_mistakes": [
+        "负数比较按绝对值直接比",
+        "分数小数不互化",
+        "数轴方向错"
+      ],
+      "diagnostic_probes": [
+        "8个数排序，含负分数/小数"
+      ],
+      "mastery_criteria": [
+        "排序正确率≥85%",
+        "能解释负数比较规则"
+      ],
+      "teaching_strategy": [
+        "用数轴统一比较",
+        "再总结负数规则"
+      ],
+      "remediation_if_failed": [
+        "回绝对值和数轴"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-RATIONAL-ADD-SUB",
+      "name": "有理数加减",
+      "stage": "七上主线",
+      "domain": "有理数运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 60,
+      "essence_for_child": "加减本质是在数轴上移动；减法可以转化为加相反数。",
+      "prerequisites": [
+        "M-G7-COMPARE",
+        "M-G7-ABSOLUTE",
+        "M-PRE-INTEGER-OPS"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-MIXED"
+      ],
+      "question_types": [
+        "同号相加",
+        "异号相加",
+        "减法转加法",
+        "多项加减"
+      ],
+      "common_mistakes": [
+        "符号错",
+        "绝对值大的符号没保留",
+        "减法没有转加法",
+        "省略括号后符号乱"
+      ],
+      "diagnostic_probes": [
+        "10题覆盖同号/异号/减法/多项",
+        "要求说出2题规则"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能口述异号相加规则"
+      ],
+      "teaching_strategy": [
+        "数轴直观→规则总结→符号训练",
+        "少量高频复测"
+      ],
+      "remediation_if_failed": [
+        "回绝对值比较",
+        "把减法全部改写成加法"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-RATIONAL-MUL-DIV",
+      "name": "有理数乘除",
+      "stage": "七上主线",
+      "domain": "有理数运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 50,
+      "essence_for_child": "乘除先定符号，再算绝对值；除法可转化为乘倒数。",
+      "prerequisites": [
+        "M-G7-RATIONAL-ADD-SUB",
+        "M-PRE-FRACTION-OPS"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-MIXED",
+        "M-G7-POWER"
+      ],
+      "question_types": [
+        "两数乘除",
+        "多个因数符号",
+        "除法转倒数",
+        "含分数乘除"
+      ],
+      "common_mistakes": [
+        "负号个数判断错",
+        "除法忘倒数",
+        "分数约分错"
+      ],
+      "diagnostic_probes": [
+        "8题乘除，至少2题含分数，2题多个负号"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能先符号后数值"
+      ],
+      "teaching_strategy": [
+        "先数负号个数判断符号",
+        "分数除法回到小学倒数"
+      ],
+      "remediation_if_failed": [
+        "回分数运算",
+        "符号专项10题"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-POWER",
+      "name": "乘方",
+      "stage": "七上主线",
+      "domain": "有理数运算",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "乘方是相同因数连乘，底数和指数必须看清。",
+      "prerequisites": [
+        "M-G7-RATIONAL-MUL-DIV"
+      ],
+      "unlocks": [
+        "M-G7-RATIONAL-MIXED"
+      ],
+      "question_types": [
+        "正负数乘方",
+        "底数带括号",
+        "科学记数法前置"
+      ],
+      "common_mistakes": [
+        "-2²和(-2)²混淆",
+        "指数当乘数",
+        "0和1的乘方不熟"
+      ],
+      "diagnostic_probes": [
+        "6题乘方，重点含-2²与(-2)²"
+      ],
+      "mastery_criteria": [
+        "能解释底数是谁",
+        "符号判断正确率≥90%"
+      ],
+      "teaching_strategy": [
+        "把乘方展开成连乘",
+        "强调括号决定底数"
+      ],
+      "remediation_if_failed": [
+        "所有乘方先写展开式"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-RATIONAL-MIXED",
+      "name": "有理数混合运算",
+      "stage": "七上主线",
+      "domain": "有理数运算",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 60,
+      "essence_for_child": "混合运算是小学运算顺序 + 初一符号规则的组合。",
+      "prerequisites": [
+        "M-G7-RATIONAL-ADD-SUB",
+        "M-G7-RATIONAL-MUL-DIV",
+        "M-G7-POWER",
+        "M-PRE-ORDER-OPS"
+      ],
+      "unlocks": [
+        "M-G7-EXPR-VALUE",
+        "M-G7-EQ-SOLVE"
+      ],
+      "question_types": [
+        "含括号",
+        "含乘方",
+        "分数小数混合",
+        "简算"
+      ],
+      "common_mistakes": [
+        "运算顺序错",
+        "符号错",
+        "分数约分错",
+        "跳步"
+      ],
+      "diagnostic_probes": [
+        "6题混合运算，覆盖括号、乘方、分数"
+      ],
+      "mastery_criteria": [
+        "正确率≥80%",
+        "步骤清楚，不靠心算乱跳"
+      ],
+      "teaching_strategy": [
+        "每题先标运算顺序",
+        "错题按符号/顺序/计算分类"
+      ],
+      "remediation_if_failed": [
+        "拆回加减、乘除、乘方单项"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-ALG-EXPR",
+      "name": "代数式",
+      "stage": "七上主线",
+      "domain": "代数式与整式",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "代数式是用数字、字母和运算符号表达数量关系。",
+      "prerequisites": [
+        "M-PRE-LETTER-EXPR",
+        "M-PRE-QUANTITY-RELATION"
+      ],
+      "unlocks": [
+        "M-G7-EXPR-VALUE",
+        "M-G7-MONOMIAL"
+      ],
+      "question_types": [
+        "文字语言写代数式",
+        "代数式表示实际意义",
+        "规范书写"
+      ],
+      "common_mistakes": [
+        "数量关系反写",
+        "单位量和总量混淆",
+        "乘号省略不规范"
+      ],
+      "diagnostic_probes": [
+        "5道文字转代数式，含多/少/倍/平均"
+      ],
+      "mastery_criteria": [
+        "能把文字关系准确翻译成式子",
+        "书写规范"
+      ],
+      "teaching_strategy": [
+        "先用自然语言说关系，再符号化",
+        "强调代数式是表达，不一定要求解"
+      ],
+      "remediation_if_failed": [
+        "回用字母表示数和等量关系"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-EXPR-VALUE",
+      "name": "代数式求值",
+      "stage": "七上主线",
+      "domain": "代数式与整式",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "求值就是把字母换成给定数字，再按运算规则计算。",
+      "prerequisites": [
+        "M-G7-ALG-EXPR",
+        "M-G7-RATIONAL-MIXED"
+      ],
+      "unlocks": [
+        "M-G7-POLY-ADD-SUB"
+      ],
+      "question_types": [
+        "直接代入",
+        "含负数代入",
+        "含分数代入"
+      ],
+      "common_mistakes": [
+        "负数代入不加括号",
+        "运算顺序错",
+        "把字母值抄错"
+      ],
+      "diagnostic_probes": [
+        "4题代入求值，至少2题含负数"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "负数代入会加括号"
+      ],
+      "teaching_strategy": [
+        "代入先加括号，后计算",
+        "强调替换思想"
+      ],
+      "remediation_if_failed": [
+        "回有理数混合运算"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-MONOMIAL",
+      "name": "单项式",
+      "stage": "七上主线",
+      "domain": "代数式与整式",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "单项式是数字和字母乘积组成的一项。",
+      "prerequisites": [
+        "M-G7-ALG-EXPR"
+      ],
+      "unlocks": [
+        "M-G7-LIKE-TERMS",
+        "M-G7-POLYNOMIAL"
+      ],
+      "question_types": [
+        "识别单项式",
+        "系数",
+        "次数"
+      ],
+      "common_mistakes": [
+        "系数符号漏掉",
+        "次数把系数也算进去",
+        "π当字母"
+      ],
+      "diagnostic_probes": [
+        "给8个式子判断单项式并写系数次数"
+      ],
+      "mastery_criteria": [
+        "能准确识别系数和次数",
+        "负号不漏"
+      ],
+      "teaching_strategy": [
+        "把单项式看成‘一项乘积’",
+        "系数带符号"
+      ],
+      "remediation_if_failed": [
+        "先识别项，再谈系数次数"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-POLYNOMIAL",
+      "name": "多项式",
+      "stage": "七上主线",
+      "domain": "代数式与整式",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "多项式是几个单项式的和，每个部分叫一项。",
+      "prerequisites": [
+        "M-G7-MONOMIAL"
+      ],
+      "unlocks": [
+        "M-G7-LIKE-TERMS",
+        "M-G7-POLY-ADD-SUB"
+      ],
+      "question_types": [
+        "识别项",
+        "次数",
+        "常数项",
+        "几次几项式"
+      ],
+      "common_mistakes": [
+        "减号后面项的符号漏掉",
+        "次数取错",
+        "常数项漏写符号"
+      ],
+      "diagnostic_probes": [
+        "3个多项式写项、次数、常数项"
+      ],
+      "mastery_criteria": [
+        "能带符号分项",
+        "能判断多项式次数"
+      ],
+      "teaching_strategy": [
+        "先用竖线分项，符号跟着项走"
+      ],
+      "remediation_if_failed": [
+        "回单项式和带符号分项"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-LIKE-TERMS",
+      "name": "同类项",
+      "stage": "七上主线",
+      "domain": "整式加减",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "同类项看字母和字母指数是否完全相同，和系数无关。",
+      "prerequisites": [
+        "M-G7-MONOMIAL",
+        "M-G7-POLYNOMIAL"
+      ],
+      "unlocks": [
+        "M-G7-COMBINE-LIKE"
+      ],
+      "question_types": [
+        "识别同类项",
+        "根据同类项求指数",
+        "分类整理"
+      ],
+      "common_mistakes": [
+        "只看字母不看指数",
+        "受系数影响",
+        "字母顺序变化就不认"
+      ],
+      "diagnostic_probes": [
+        "8组项判断是否同类"
+      ],
+      "mastery_criteria": [
+        "正确率≥90%",
+        "能说出同类项标准"
+      ],
+      "teaching_strategy": [
+        "同类项=字母部分完全一样",
+        "把系数遮住看字母部分"
+      ],
+      "remediation_if_failed": [
+        "回单项式字母部分和次数"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-COMBINE-LIKE",
+      "name": "合并同类项",
+      "stage": "七上主线",
+      "domain": "整式加减",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "合并同类项只合并系数，字母部分不变。",
+      "prerequisites": [
+        "M-G7-LIKE-TERMS",
+        "M-G7-RATIONAL-ADD-SUB"
+      ],
+      "unlocks": [
+        "M-G7-POLY-ADD-SUB"
+      ],
+      "question_types": [
+        "直接合并",
+        "多项式整理",
+        "含负系数"
+      ],
+      "common_mistakes": [
+        "字母指数也相加",
+        "符号漏掉",
+        "非同类项硬合并"
+      ],
+      "diagnostic_probes": [
+        "6题合并同类项，含负系数"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能解释为什么字母部分不变"
+      ],
+      "teaching_strategy": [
+        "把x看作苹果：3个苹果+2个苹果=5个苹果",
+        "系数做有理数加减"
+      ],
+      "remediation_if_failed": [
+        "回同类项识别和有理数加减"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-PARENTHESIS",
+      "name": "去括号",
+      "stage": "七上主线",
+      "domain": "整式加减",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "括号前是正号不变，括号前是负号每一项都变号。",
+      "prerequisites": [
+        "M-PRE-DISTRIBUTIVE",
+        "M-G7-RATIONAL-ADD-SUB"
+      ],
+      "unlocks": [
+        "M-G7-POLY-ADD-SUB",
+        "M-G7-EQ-PAREN"
+      ],
+      "question_types": [
+        "正号去括号",
+        "负号去括号",
+        "括号前有系数",
+        "多重括号"
+      ],
+      "common_mistakes": [
+        "只变第一项",
+        "漏乘括号内某项",
+        "负号和系数同时出现就乱"
+      ],
+      "diagnostic_probes": [
+        "6题去括号，含负号和括号前系数"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能说出每一项如何变化"
+      ],
+      "teaching_strategy": [
+        "从数字分配律过渡",
+        "用箭头标每一项"
+      ],
+      "remediation_if_failed": [
+        "回运算律与符号专项"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-POLY-ADD-SUB",
+      "name": "整式加减",
+      "stage": "七上主线",
+      "domain": "整式加减",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 55,
+      "essence_for_child": "整式加减就是先去括号，再合并同类项。",
+      "prerequisites": [
+        "M-G7-COMBINE-LIKE",
+        "M-G7-PARENTHESIS"
+      ],
+      "unlocks": [
+        "M-G7-EQ-PAREN"
+      ],
+      "question_types": [
+        "整式加法",
+        "整式减法",
+        "先化简再求值",
+        "实际背景中的整式"
+      ],
+      "common_mistakes": [
+        "减去多项式忘变号",
+        "同类项合并错",
+        "先求值后化简导致复杂"
+      ],
+      "diagnostic_probes": [
+        "4题整式加减，1题先化简再求值"
+      ],
+      "mastery_criteria": [
+        "正确率≥80%",
+        "步骤固定：去括号→找同类→合并"
+      ],
+      "teaching_strategy": [
+        "建立流程卡",
+        "每题写出两步标题"
+      ],
+      "remediation_if_failed": [
+        "拆回去括号或合并同类项"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-EQUATION-CONCEPT",
+      "name": "方程与一元一次方程概念",
+      "stage": "七上主线",
+      "domain": "一元一次方程",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 30,
+      "essence_for_child": "方程是含未知数的等式；一元一次表示一个未知数且最高次数是1。",
+      "prerequisites": [
+        "M-PRE-EQUATION-BASIC",
+        "M-G7-ALG-EXPR"
+      ],
+      "unlocks": [
+        "M-G7-EQUALITY-PROP",
+        "M-G7-EQ-SOLVE"
+      ],
+      "question_types": [
+        "判断方程",
+        "判断一元一次方程",
+        "方程的解"
+      ],
+      "common_mistakes": [
+        "把代数式当方程",
+        "未知数个数/次数判断错",
+        "方程的解不代入检验"
+      ],
+      "diagnostic_probes": [
+        "给8个式子判断是否一元一次方程"
+      ],
+      "mastery_criteria": [
+        "能说出方程、一元、一次三个关键词"
+      ],
+      "teaching_strategy": [
+        "先区分‘式子’和‘等式’",
+        "用代入检验理解方程的解"
+      ],
+      "remediation_if_failed": [
+        "回代数式和等式概念"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-EQUALITY-PROP",
+      "name": "等式性质",
+      "stage": "七上主线",
+      "domain": "一元一次方程",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "等式像天平，两边做同样的事，平衡不变。",
+      "prerequisites": [
+        "M-PRE-EQUATION-BASIC"
+      ],
+      "unlocks": [
+        "M-G7-EQ-SOLVE"
+      ],
+      "question_types": [
+        "两边同加减",
+        "两边同乘除",
+        "等式变形判断"
+      ],
+      "common_mistakes": [
+        "只对一边操作",
+        "除以含0可能性忽略",
+        "移项口诀代替理解"
+      ],
+      "diagnostic_probes": [
+        "4道等式变形判断，2道说明理由"
+      ],
+      "mastery_criteria": [
+        "能用天平解释解方程步骤",
+        "知道每步两边同操作"
+      ],
+      "teaching_strategy": [
+        "先不用移项，全部写两边同操作",
+        "再压缩成移项"
+      ],
+      "remediation_if_failed": [
+        "回小学简易方程"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-EQ-SOLVE",
+      "name": "解一元一次方程基础",
+      "stage": "七上主线",
+      "domain": "一元一次方程",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 55,
+      "essence_for_child": "解方程的目标是把未知数单独留下。",
+      "prerequisites": [
+        "M-G7-EQUALITY-PROP",
+        "M-G7-RATIONAL-MIXED"
+      ],
+      "unlocks": [
+        "M-G7-EQ-PAREN",
+        "M-G7-EQ-DENOM",
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "一步方程",
+        "两步方程",
+        "移项合并",
+        "系数化为1"
+      ],
+      "common_mistakes": [
+        "移项不变号",
+        "系数化1除错",
+        "负系数处理错",
+        "不检验"
+      ],
+      "diagnostic_probes": [
+        "6道基础方程，含负系数和分数系数"
+      ],
+      "mastery_criteria": [
+        "正确率≥85%",
+        "能代回检验"
+      ],
+      "teaching_strategy": [
+        "目标导向：让x单独",
+        "每步写依据"
+      ],
+      "remediation_if_failed": [
+        "回等式性质和有理数运算"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-EQ-PAREN",
+      "name": "含括号方程",
+      "stage": "七上主线",
+      "domain": "一元一次方程",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "含括号方程先正确去括号，再按基础方程流程解。",
+      "prerequisites": [
+        "M-G7-EQ-SOLVE",
+        "M-G7-PARENTHESIS"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "括号前正负号",
+        "括号前系数",
+        "两边都有括号"
+      ],
+      "common_mistakes": [
+        "去括号漏乘",
+        "负号变号漏项",
+        "移项再错一次"
+      ],
+      "diagnostic_probes": [
+        "4道含括号方程"
+      ],
+      "mastery_criteria": [
+        "去括号正确率≥90%",
+        "方程整体正确率≥80%"
+      ],
+      "teaching_strategy": [
+        "把去括号和解方程分成两阶段",
+        "先验去括号再继续"
+      ],
+      "remediation_if_failed": [
+        "回去括号专项"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-EQ-DENOM",
+      "name": "含分母方程",
+      "stage": "七上主线",
+      "domain": "一元一次方程",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 50,
+      "essence_for_child": "去分母是为了把分数方程变成整数方程，但每一项都要乘最小公倍数。",
+      "prerequisites": [
+        "M-G7-EQ-SOLVE",
+        "M-PRE-FRACTION-OPS"
+      ],
+      "unlocks": [
+        "M-G7-EQ-WORD"
+      ],
+      "question_types": [
+        "去分母",
+        "含括号与分母",
+        "分数系数"
+      ],
+      "common_mistakes": [
+        "漏乘没有分母的项",
+        "最小公倍数找错",
+        "去分母后括号漏加"
+      ],
+      "diagnostic_probes": [
+        "3道含分母方程"
+      ],
+      "mastery_criteria": [
+        "能找公分母",
+        "每一项都乘不漏项"
+      ],
+      "teaching_strategy": [
+        "用颜色标出每一项都乘",
+        "先写括号保护分子"
+      ],
+      "remediation_if_failed": [
+        "回分数通分和基础方程"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-EQ-WORD",
+      "name": "一元一次方程应用题",
+      "stage": "七上主线",
+      "domain": "一元一次方程",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 60,
+      "essence_for_child": "方程应用题的核心是设未知数、找等量关系、解方程、检验答案。",
+      "prerequisites": [
+        "M-BRIDGE-WORD-PROBLEM-READING",
+        "M-G7-EQ-SOLVE",
+        "M-BRIDGE-SUM-DIFF-MULTIPLE",
+        "M-BRIDGE-MOTION-BASIC",
+        "M-BRIDGE-PERCENT-MODEL"
+      ],
+      "unlocks": [],
+      "question_types": [
+        "和差倍",
+        "行程",
+        "销售/打折",
+        "工程",
+        "配套/调配"
+      ],
+      "common_mistakes": [
+        "未知数设得不利于表达",
+        "等量关系找错",
+        "单位不统一",
+        "解出来不符合题意"
+      ],
+      "diagnostic_probes": [
+        "3道基础方程应用题，要求写设、列、解、答",
+        "1道只写等量关系"
+      ],
+      "mastery_criteria": [
+        "能完整写出设列解答",
+        "中档应用题正确率≥70%"
+      ],
+      "teaching_strategy": [
+        "先讲模型，再讲方程",
+        "每题都写等量关系句子"
+      ],
+      "remediation_if_failed": [
+        "回应用题审题流程",
+        "按具体模型回退"
+      ],
+      "controlled_extensions": [
+        "一题多解",
+        "从算术解法过渡到方程解法"
+      ],
+      "tags": [
+        "g7_core",
+        "high_value",
+        "diagnosis_core"
+      ]
+    },
+    {
+      "id": "M-G7-GEO-SOLID-PLANE",
+      "name": "立体图形与平面图形",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "复杂图形可以从点、线、面、体这些基本元素看。",
+      "prerequisites": [
+        "M-PRE-GEO-AREA-VOLUME"
+      ],
+      "unlocks": [
+        "M-G7-POINT-LINE-PLANE",
+        "M-G7-GEO-VIEWS"
+      ],
+      "question_types": [
+        "识别立体和平面",
+        "展开图",
+        "从不同方向看"
+      ],
+      "common_mistakes": [
+        "展开图想象弱",
+        "立体和平面关系不清",
+        "看图只凭感觉"
+      ],
+      "diagnostic_probes": [
+        "3道图形识别，2道展开图判断"
+      ],
+      "mastery_criteria": [
+        "能区分体/面/线/点",
+        "简单展开图判断正确"
+      ],
+      "teaching_strategy": [
+        "用实物和展开图",
+        "强调空间想象不靠背"
+      ],
+      "remediation_if_failed": [
+        "动手折纸/画图"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-GEO-VIEWS",
+      "name": "展开图与视图",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P2",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "三维图形可以通过展开或从不同方向观察变成二维信息。",
+      "prerequisites": [
+        "M-G7-GEO-SOLID-PLANE"
+      ],
+      "unlocks": [],
+      "question_types": [
+        "正方体展开图",
+        "从正面/左面/上面看",
+        "小正方体组合"
+      ],
+      "common_mistakes": [
+        "11种正方体展开图不熟",
+        "左右方向看反",
+        "遮挡关系想错"
+      ],
+      "diagnostic_probes": [
+        "2道展开图，2道三视图"
+      ],
+      "mastery_criteria": [
+        "简单展开图和视图正确率≥75%"
+      ],
+      "teaching_strategy": [
+        "先实物搭建，再画图",
+        "不做过难竞赛空间题"
+      ],
+      "remediation_if_failed": [
+        "回立体和平面图形"
+      ],
+      "controlled_extensions": [
+        "正方体展开图归类"
+      ],
+      "tags": [
+        "g7_optional"
+      ]
+    },
+    {
+      "id": "M-G7-POINT-LINE-PLANE",
+      "name": "点线面体",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 25,
+      "essence_for_child": "体由面围成，面与面相交成线，线与线相交成点。",
+      "prerequisites": [
+        "M-G7-GEO-SOLID-PLANE"
+      ],
+      "unlocks": [
+        "M-G7-LINE-RAY-SEGMENT",
+        "M-G7-ANGLE"
+      ],
+      "question_types": [
+        "点动成线",
+        "线动成面",
+        "面动成体",
+        "元素关系"
+      ],
+      "common_mistakes": [
+        "概念背诵但不会举例",
+        "点线面体关系混乱"
+      ],
+      "diagnostic_probes": [
+        "用生活例子说明点线面体关系"
+      ],
+      "mastery_criteria": [
+        "能举例解释四者关系"
+      ],
+      "teaching_strategy": [
+        "用运动观点讲几何元素"
+      ],
+      "remediation_if_failed": [
+        "回实物观察"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-LINE-RAY-SEGMENT",
+      "name": "直线、射线、线段",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "直线无端点，射线一个端点，线段两个端点且可度量。",
+      "prerequisites": [
+        "M-G7-POINT-LINE-PLANE"
+      ],
+      "unlocks": [
+        "M-G7-SEGMENT-MEASURE",
+        "M-G7-ANGLE"
+      ],
+      "question_types": [
+        "概念辨析",
+        "表示方法",
+        "线段计数"
+      ],
+      "common_mistakes": [
+        "端点数量混淆",
+        "表示方法不规范",
+        "线段数量漏数"
+      ],
+      "diagnostic_probes": [
+        "概念判断5题，线段计数1题"
+      ],
+      "mastery_criteria": [
+        "能准确说出端点特征",
+        "表示方法规范"
+      ],
+      "teaching_strategy": [
+        "用端点数量一眼判断",
+        "画图标字母"
+      ],
+      "remediation_if_failed": [
+        "回点线关系"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-SEGMENT-MEASURE",
+      "name": "线段比较与计算",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "线段计算本质是部分与整体的关系。",
+      "prerequisites": [
+        "M-G7-LINE-RAY-SEGMENT",
+        "M-PRE-UNIT-CONVERSION"
+      ],
+      "unlocks": [
+        "M-G7-ANGLE-CALC"
+      ],
+      "question_types": [
+        "中点",
+        "线段和差",
+        "尺规作线段"
+      ],
+      "common_mistakes": [
+        "中点关系只会背",
+        "图上相邻线段关系看错",
+        "单位不统一"
+      ],
+      "diagnostic_probes": [
+        "2道中点，2道线段和差"
+      ],
+      "mastery_criteria": [
+        "能写出AB=AC+CB等关系",
+        "中点能转化为相等线段"
+      ],
+      "teaching_strategy": [
+        "用整体=部分+部分",
+        "先标图再列式"
+      ],
+      "remediation_if_failed": [
+        "回小学线段图"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-ANGLE",
+      "name": "角的概念与表示",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P0",
+      "suggested_minutes_if_weak": 35,
+      "essence_for_child": "角由两条有公共端点的射线组成，也可以看作旋转形成。",
+      "prerequisites": [
+        "M-PRE-ANGLE-BASIC",
+        "M-G7-LINE-RAY-SEGMENT"
+      ],
+      "unlocks": [
+        "M-G7-ANGLE-CALC",
+        "M-BRIDGE-CLOCK-ANGLE"
+      ],
+      "question_types": [
+        "角的表示",
+        "角分类",
+        "角的度量"
+      ],
+      "common_mistakes": [
+        "顶点没放中间",
+        "同一图中角表示不唯一",
+        "度分秒换算弱"
+      ],
+      "diagnostic_probes": [
+        "在图中写角的表示，角分类3题"
+      ],
+      "mastery_criteria": [
+        "角表示规范",
+        "能从旋转理解角"
+      ],
+      "teaching_strategy": [
+        "先公共端点，再两边",
+        "用旋转动态理解"
+      ],
+      "remediation_if_failed": [
+        "回角度基础"
+      ],
+      "controlled_extensions": [],
+      "tags": [
+        "g7_core"
+      ]
+    },
+    {
+      "id": "M-G7-ANGLE-CALC",
+      "name": "角度计算",
+      "stage": "七上主线",
+      "domain": "几何图形初步",
+      "priority": "P1",
+      "suggested_minutes_if_weak": 45,
+      "essence_for_child": "角度计算和线段计算一样，抓整体与部分、相等与互补互余关系。",
+      "prerequisites": [
+        "M-G7-ANGLE",
+        "M-G7-SEGMENT-MEASURE"
+      ],
+      "unlocks": [
+        "M-BRIDGE-CLOCK-ANGLE"
+      ],
+      "question_types": [
+        "角的和差",
+        "余角补角",
+        "角平分线",
+        "钟表角拓展"
+      ],
+      "common_mistakes": [
+        "余角补角混淆",
+        "角平分线只分一个角",
+        "图形关系没标清"
+      ],
+      "diagnostic_probes": [
+        "2道余补角，2道角平分线，1道综合角度"
+      ],
+      "mastery_criteria": [
+        "能标图列关系",
+        "基础角度题正确率≥80%"
+      ],
+      "teaching_strategy": [
+        "把角度题当‘几何方程’",
+        "先标等量关系再算"
+      ],
+      "remediation_if_failed": [
+        "回角概念和线段计算类比"
+      ],
+      "controlled_extensions": [
+        "钟表角",
+        "方位角"
+      ],
+      "tags": [
+        "g7_core",
+        "bridge"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "M-PRE-NUMBER-SENSE",
+      "to": "M-PRE-ORDER-OPS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-G7-EXPR-VALUE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-NUMBER-SENSE",
+      "to": "M-PRE-INTEGER-OPS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-G7-RATIONAL-MUL-DIV",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-PRE-DECIMAL-OPS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-NUMBER-SENSE",
+      "to": "M-PRE-DECIMAL-OPS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-DECIMAL-OPS",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-DECIMAL-OPS",
+      "to": "M-G7-EQ-DENOM",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-NUMBER-SENSE",
+      "to": "M-PRE-FRACTION-MEANING",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-PRE-FRACTION-OPS",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-PRE-PERCENT",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-PRE-FRACTION-OPS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-PRE-FRACTION-OPS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-OPS",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-OPS",
+      "to": "M-G7-EQ-DENOM",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-PRE-PERCENT",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-DECIMAL-OPS",
+      "to": "M-PRE-PERCENT",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-PERCENT",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-PERCENT",
+      "to": "M-BRIDGE-PERCENT-MODEL",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-PRE-RATIO-PROP",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-OPS",
+      "to": "M-PRE-RATIO-PROP",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-RATIO-PROP",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-RATIO-PROP",
+      "to": "M-BRIDGE-PROPORTION-MODEL",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-PRE-DISTRIBUTIVE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-PRE-DISTRIBUTIVE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-DISTRIBUTIVE",
+      "to": "M-G7-PARENTHESIS",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-DISTRIBUTIVE",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-PRE-LETTER-EXPR",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-LETTER-EXPR",
+      "to": "M-G7-ALG-EXPR",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-LETTER-EXPR",
+      "to": "M-G7-MONOMIAL",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-PRE-QUANTITY-RELATION",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-PRE-EQUATION-BASIC",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-PRE-EQUATION-BASIC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-PRE-EQUATION-BASIC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-EQUATION-BASIC",
+      "to": "M-G7-EQUALITY-PROP",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-EQUATION-BASIC",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-DECIMAL-OPS",
+      "to": "M-PRE-UNIT-CONVERSION",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-UNIT-CONVERSION",
+      "to": "M-G7-GEO-MEASURE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-UNIT-CONVERSION",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-NUMBER-SENSE",
+      "to": "M-PRE-ANGLE-BASIC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-ANGLE-BASIC",
+      "to": "M-G7-ANGLE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-ANGLE-BASIC",
+      "to": "M-BRIDGE-CLOCK-ANGLE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-UNIT-CONVERSION",
+      "to": "M-PRE-GEO-AREA-VOLUME",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-PRE-GEO-AREA-VOLUME",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-GEO-AREA-VOLUME",
+      "to": "M-G7-GEO-SOLID-PLANE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-BRIDGE-WORD-PROBLEM-READING",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-WORD-PROBLEM-READING",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-BRIDGE-WORD-PROBLEM-READING",
+      "to": "M-BRIDGE-MOTION-CHASE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-BRIDGE-SUM-DIFF-MULTIPLE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-BRIDGE-SUM-DIFF-MULTIPLE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-SUM-DIFF-MULTIPLE",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-BRIDGE-MOTION-BASIC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-UNIT-CONVERSION",
+      "to": "M-BRIDGE-MOTION-BASIC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-BASIC",
+      "to": "M-BRIDGE-MOTION-CHASE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-BASIC",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-BASIC",
+      "to": "M-BRIDGE-MOTION-CHASE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-BRIDGE-MOTION-CHASE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-CHASE",
+      "to": "M-BRIDGE-CLOCK-ANGLE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-CHASE",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-ANGLE-BASIC",
+      "to": "M-BRIDGE-CLOCK-ANGLE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-CHASE",
+      "to": "M-BRIDGE-CLOCK-ANGLE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-CLOCK-ANGLE",
+      "to": "M-G7-ANGLE-CALC",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-BRIDGE-WORK-RATE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-BRIDGE-WORK-RATE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-WORK-RATE",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-PERCENT",
+      "to": "M-BRIDGE-PERCENT-MODEL",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-BRIDGE-PERCENT-MODEL",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-PERCENT-MODEL",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-NUMBER-SENSE",
+      "to": "M-G7-POS-NEG",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POS-NEG",
+      "to": "M-G7-RATIONAL-CLASSIFY",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-POS-NEG",
+      "to": "M-G7-NUMBER-LINE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-POS-NEG",
+      "to": "M-G7-RATIONAL-CLASSIFY",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-MEANING",
+      "to": "M-G7-RATIONAL-CLASSIFY",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-CLASSIFY",
+      "to": "M-G7-COMPARE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-POS-NEG",
+      "to": "M-G7-NUMBER-LINE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-NUMBER-LINE",
+      "to": "M-G7-OPPOSITE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-NUMBER-LINE",
+      "to": "M-G7-ABSOLUTE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-NUMBER-LINE",
+      "to": "M-G7-COMPARE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-NUMBER-LINE",
+      "to": "M-G7-OPPOSITE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-OPPOSITE",
+      "to": "M-G7-ABSOLUTE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-OPPOSITE",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-NUMBER-LINE",
+      "to": "M-G7-ABSOLUTE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-OPPOSITE",
+      "to": "M-G7-ABSOLUTE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ABSOLUTE",
+      "to": "M-G7-COMPARE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-ABSOLUTE",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-NUMBER-LINE",
+      "to": "M-G7-COMPARE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ABSOLUTE",
+      "to": "M-G7-COMPARE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-COMPARE",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-COMPARE",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ABSOLUTE",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-INTEGER-OPS",
+      "to": "M-G7-RATIONAL-ADD-SUB",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-ADD-SUB",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-RATIONAL-ADD-SUB",
+      "to": "M-G7-RATIONAL-MUL-DIV",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-OPS",
+      "to": "M-G7-RATIONAL-MUL-DIV",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-MUL-DIV",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-RATIONAL-MUL-DIV",
+      "to": "M-G7-POWER",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-RATIONAL-MUL-DIV",
+      "to": "M-G7-POWER",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POWER",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-RATIONAL-ADD-SUB",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-MUL-DIV",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POWER",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-ORDER-OPS",
+      "to": "M-G7-RATIONAL-MIXED",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-MIXED",
+      "to": "M-G7-EXPR-VALUE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-RATIONAL-MIXED",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-LETTER-EXPR",
+      "to": "M-G7-ALG-EXPR",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-QUANTITY-RELATION",
+      "to": "M-G7-ALG-EXPR",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ALG-EXPR",
+      "to": "M-G7-EXPR-VALUE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-ALG-EXPR",
+      "to": "M-G7-MONOMIAL",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-ALG-EXPR",
+      "to": "M-G7-EXPR-VALUE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-MIXED",
+      "to": "M-G7-EXPR-VALUE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EXPR-VALUE",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-ALG-EXPR",
+      "to": "M-G7-MONOMIAL",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-MONOMIAL",
+      "to": "M-G7-LIKE-TERMS",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-MONOMIAL",
+      "to": "M-G7-POLYNOMIAL",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-MONOMIAL",
+      "to": "M-G7-POLYNOMIAL",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POLYNOMIAL",
+      "to": "M-G7-LIKE-TERMS",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-POLYNOMIAL",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-MONOMIAL",
+      "to": "M-G7-LIKE-TERMS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POLYNOMIAL",
+      "to": "M-G7-LIKE-TERMS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-LIKE-TERMS",
+      "to": "M-G7-COMBINE-LIKE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-LIKE-TERMS",
+      "to": "M-G7-COMBINE-LIKE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-ADD-SUB",
+      "to": "M-G7-COMBINE-LIKE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-COMBINE-LIKE",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-DISTRIBUTIVE",
+      "to": "M-G7-PARENTHESIS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-ADD-SUB",
+      "to": "M-G7-PARENTHESIS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-PARENTHESIS",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-PARENTHESIS",
+      "to": "M-G7-EQ-PAREN",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-COMBINE-LIKE",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-PARENTHESIS",
+      "to": "M-G7-POLY-ADD-SUB",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POLY-ADD-SUB",
+      "to": "M-G7-EQ-PAREN",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-EQUATION-BASIC",
+      "to": "M-G7-EQUATION-CONCEPT",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ALG-EXPR",
+      "to": "M-G7-EQUATION-CONCEPT",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EQUATION-CONCEPT",
+      "to": "M-G7-EQUALITY-PROP",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-EQUATION-CONCEPT",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-EQUATION-BASIC",
+      "to": "M-G7-EQUALITY-PROP",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EQUALITY-PROP",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-EQUALITY-PROP",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-RATIONAL-MIXED",
+      "to": "M-G7-EQ-SOLVE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EQ-SOLVE",
+      "to": "M-G7-EQ-PAREN",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-EQ-SOLVE",
+      "to": "M-G7-EQ-DENOM",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-EQ-SOLVE",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-EQ-SOLVE",
+      "to": "M-G7-EQ-PAREN",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-PARENTHESIS",
+      "to": "M-G7-EQ-PAREN",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EQ-PAREN",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-EQ-SOLVE",
+      "to": "M-G7-EQ-DENOM",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-FRACTION-OPS",
+      "to": "M-G7-EQ-DENOM",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EQ-DENOM",
+      "to": "M-G7-EQ-WORD",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-BRIDGE-WORD-PROBLEM-READING",
+      "to": "M-G7-EQ-WORD",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-EQ-SOLVE",
+      "to": "M-G7-EQ-WORD",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-SUM-DIFF-MULTIPLE",
+      "to": "M-G7-EQ-WORD",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-MOTION-BASIC",
+      "to": "M-G7-EQ-WORD",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-BRIDGE-PERCENT-MODEL",
+      "to": "M-G7-EQ-WORD",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-GEO-AREA-VOLUME",
+      "to": "M-G7-GEO-SOLID-PLANE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-GEO-SOLID-PLANE",
+      "to": "M-G7-POINT-LINE-PLANE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-GEO-SOLID-PLANE",
+      "to": "M-G7-GEO-VIEWS",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-GEO-SOLID-PLANE",
+      "to": "M-G7-GEO-VIEWS",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-GEO-SOLID-PLANE",
+      "to": "M-G7-POINT-LINE-PLANE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-POINT-LINE-PLANE",
+      "to": "M-G7-LINE-RAY-SEGMENT",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-POINT-LINE-PLANE",
+      "to": "M-G7-ANGLE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-POINT-LINE-PLANE",
+      "to": "M-G7-LINE-RAY-SEGMENT",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-LINE-RAY-SEGMENT",
+      "to": "M-G7-SEGMENT-MEASURE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-LINE-RAY-SEGMENT",
+      "to": "M-G7-ANGLE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-LINE-RAY-SEGMENT",
+      "to": "M-G7-SEGMENT-MEASURE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-PRE-UNIT-CONVERSION",
+      "to": "M-G7-SEGMENT-MEASURE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-SEGMENT-MEASURE",
+      "to": "M-G7-ANGLE-CALC",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-PRE-ANGLE-BASIC",
+      "to": "M-G7-ANGLE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-LINE-RAY-SEGMENT",
+      "to": "M-G7-ANGLE",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ANGLE",
+      "to": "M-G7-ANGLE-CALC",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-ANGLE",
+      "to": "M-BRIDGE-CLOCK-ANGLE",
+      "type": "unlocks"
+    },
+    {
+      "from": "M-G7-ANGLE",
+      "to": "M-G7-ANGLE-CALC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-SEGMENT-MEASURE",
+      "to": "M-G7-ANGLE-CALC",
+      "type": "prerequisite"
+    },
+    {
+      "from": "M-G7-ANGLE-CALC",
+      "to": "M-BRIDGE-CLOCK-ANGLE",
+      "type": "unlocks"
+    }
+  ],
+  "diagnostic_blueprint": {
+    "purpose": "用少量题定位小学前置漏洞和七上预学入口，不追求考试分数。",
+    "total_recommended_minutes": 60,
+    "blocks": [
+      {
+        "name": "计算与运算规则",
+        "minutes": 12,
+        "nodes": [
+          "M-PRE-INTEGER-OPS",
+          "M-PRE-DECIMAL-OPS",
+          "M-PRE-FRACTION-OPS",
+          "M-PRE-ORDER-OPS"
+        ],
+        "items": 12
+      },
+      {
+        "name": "分数百分数与单位1",
+        "minutes": 10,
+        "nodes": [
+          "M-PRE-FRACTION-MEANING",
+          "M-PRE-PERCENT",
+          "M-PRE-RATIO-PROP"
+        ],
+        "items": 8
+      },
+      {
+        "name": "等量关系与小学方程",
+        "minutes": 10,
+        "nodes": [
+          "M-PRE-QUANTITY-RELATION",
+          "M-PRE-EQUATION-BASIC",
+          "M-PRE-LETTER-EXPR"
+        ],
+        "items": 8
+      },
+      {
+        "name": "应用题模型",
+        "minutes": 12,
+        "nodes": [
+          "M-BRIDGE-WORD-PROBLEM-READING",
+          "M-BRIDGE-SUM-DIFF-MULTIPLE",
+          "M-BRIDGE-MOTION-BASIC",
+          "M-BRIDGE-MOTION-CHASE"
+        ],
+        "items": 8
+      },
+      {
+        "name": "七上入门探针",
+        "minutes": 16,
+        "nodes": [
+          "M-G7-POS-NEG",
+          "M-G7-NUMBER-LINE",
+          "M-G7-ABSOLUTE",
+          "M-G7-RATIONAL-ADD-SUB",
+          "M-G7-ALG-EXPR",
+          "M-G7-LIKE-TERMS"
+        ],
+        "items": 12
+      }
+    ],
+    "decision_rules": [
+      {
+        "condition": "某节点诊断正确率≥85%且能说出方法",
+        "action": "标记为已掌握，只安排间隔复测。"
+      },
+      {
+        "condition": "正确率60%-85%",
+        "action": "标记为不稳，安排微课+3道变式+隔天复测。"
+      },
+      {
+        "condition": "正确率<60%",
+        "action": "标记为薄弱，回退前置节点，进入专题补漏。"
+      },
+      {
+        "condition": "七上节点错但前置节点也错",
+        "action": "不直接刷七上题，先修前置节点。"
+      }
+    ]
+  },
+  "learning_path": {
+    "daily_time_minutes": 60,
+    "math_priority": "数学当前80分，暑假数学在总学习时间中优先级高；但本文件只覆盖数学。",
+    "phase_strategy": [
+      {
+        "phase": "第1-3天",
+        "name": "数学诊断与建档",
+        "goal": "完成图谱诊断，给节点打A/B/C/D状态。"
+      },
+      {
+        "phase": "第4-12天",
+        "name": "小学前置快补",
+        "goal": "只补P0薄弱前置：分数、小数、混合运算、等量关系、方程、应用题审题。"
+      },
+      {
+        "phase": "第13-35天",
+        "name": "七上主线预学",
+        "goal": "有理数→代数式→整式→方程，几何穿插。"
+      },
+      {
+        "phase": "第36-44天",
+        "name": "混合迁移",
+        "goal": "七上主线混合题 + 方程应用题 + 易错回炉。"
+      },
+      {
+        "phase": "第45-50天",
+        "name": "开学前收口",
+        "goal": "两次综合检测，形成开学首月跟踪清单。"
+      }
+    ],
+    "session_template": [
+      {
+        "minutes": 5,
+        "activity": "旧错题复测"
+      },
+      {
+        "minutes": 15,
+        "activity": "讲一个知识点本质/模型"
+      },
+      {
+        "minutes": 25,
+        "activity": "3-5道高质量变式题"
+      },
+      {
+        "minutes": 10,
+        "activity": "错因归类与回退判断"
+      },
+      {
+        "minutes": 5,
+        "activity": "记录明天复测点"
+      }
+    ]
+  }
+}

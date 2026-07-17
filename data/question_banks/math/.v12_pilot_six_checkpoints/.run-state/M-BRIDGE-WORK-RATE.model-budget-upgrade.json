@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-BRIDGE-WORK-RATE",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 74,
+  "minimum_provider_attempts": 80,
+  "counter_chain_head_sha256": "018227a6fb76e25c27d22aa639b3e234d3c787bb070c046680adf65145db97bf",
+  "budget_integrity_sha256": "a7a8ef4ff3c57e3a56e1be320f1c8822f6a16ce2b46a92483dc4208300bd9c09",
+  "legacy_source_digests": [
+    "0a7838ddd33593d11b2e6ee9aad5459e018c5ef39a677afd1c49f8f928e0750d",
+    "7c1c4653c0727061c45b0a3683fe2f219cedf9ac9d38692a2fe7a798546360e0"
+  ],
+  "updated_at": "2026-07-17T04:09:28Z",
+  "integrity_sha256": "0ec0e5a17eafd706aa305fb61a6b89dbab8620928a3ad121db89a7821b2de6b0"
+}

@@ -1,0 +1,149 @@
+{
+  "agent_key": "question_reviewer_agent",
+  "contract_key": "math_question_bank_v12_reviewer_batch",
+  "contract_version": "2026-07-12.math-qb-v12.reviewer-batch.v2",
+  "prompt_version_id": "2026-07-12.math-qb-v12.reviewer.prompt.v2",
+  "prompt_template_path": "learning_system/prompts/math_question_bank_v12_reviewer_batch.v2.md",
+  "response_schema_version": "2026-07-12.math-qb-v12.reviewer.schema.v2",
+  "minimum_confidence_to_apply": 0.88,
+  "engine_type": "model",
+  "authority": "semantic_review_verdict_only",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_generate_replacement_question",
+    "does_not_mutate_sqlite",
+    "does_not_activate_question",
+    "does_not_self-certify_manifest"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema_version", "node_id", "graph_version", "question_bank_version", "item_reviews", "batch_verdict", "batch_reason"],
+    "properties": {
+      "schema_version": {"const": "2026-07-12.math-qb-v12.reviewer.schema.v2"},
+      "node_id": {"type": "string"},
+      "graph_version": {"type": "string"},
+      "question_bank_version": {"const": "2026-07-12.bank.v12"},
+      "batch_verdict": {"type": "string", "enum": ["approved", "needs_repair", "blocked"]},
+      "batch_reason": {"type": "string"},
+      "item_reviews": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["item_id", "candidate_sha256", "verdict", "scores", "reasons", "repair_instructions", "reviewer_evidence", "semantic_evidence", "confidence"],
+          "properties": {
+            "item_id": {"type": "string"},
+            "candidate_sha256": {"type": "string"},
+            "verdict": {"type": "string", "enum": ["approved", "rejected", "needs_repair"]},
+            "scores": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["node_alignment", "mathematical_correctness", "reasoning_signal", "age_fit", "non_mechanical", "answer_alignment", "natural_task_quality", "child_surface_readiness", "response_burden_fit", "unprompted_process_integrity"],
+              "properties": {
+                "node_alignment": {"type": "number", "minimum": 0, "maximum": 1},
+                "mathematical_correctness": {"type": "number", "minimum": 0, "maximum": 1},
+                "reasoning_signal": {"type": "number", "minimum": 0, "maximum": 1},
+                "age_fit": {"type": "number", "minimum": 0, "maximum": 1},
+                "non_mechanical": {"type": "number", "minimum": 0, "maximum": 1},
+                "answer_alignment": {"type": "number", "minimum": 0, "maximum": 1},
+                "natural_task_quality": {"type": "number", "minimum": 0, "maximum": 1},
+                "child_surface_readiness": {"type": "number", "minimum": 0, "maximum": 1},
+                "response_burden_fit": {"type": "number", "minimum": 0, "maximum": 1},
+                "unprompted_process_integrity": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            },
+            "reasons": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 8},
+            "repair_instructions": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
+            "reviewer_evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "agent_key",
+                "provenance_type",
+                "graph_bound",
+                "incoming_grade_7_ready",
+                "diagnostic_structure",
+                "process_evidence_required",
+                "not_mechanical_drill",
+                "child_prompt_self_contained",
+                "specific_expected_answer",
+                "review_rationale"
+              ],
+              "properties": {
+                "agent_key": {"const": "question_reviewer_agent"},
+                "provenance_type": {"const": "v12_independent_semantic_review"},
+                "graph_bound": {"type": "boolean"},
+                "incoming_grade_7_ready": {"type": "boolean"},
+                "diagnostic_structure": {"type": "boolean"},
+                "process_evidence_required": {"type": "boolean"},
+                "not_mechanical_drill": {"type": "boolean"},
+                "child_prompt_self_contained": {"type": "boolean"},
+                "specific_expected_answer": {"type": "boolean"},
+                "review_rationale": {"type": "string"}
+              }
+            },
+            "semantic_evidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "version",
+                "natural_self_contained_task",
+                "child_surface_readiness",
+                "single_coherent_response_burden",
+                "unprompted_process_evidence"
+              ],
+              "properties": {
+                "version": {"const": "2026-07-12.math-qb-v12.item-review-semantic-evidence.v2"},
+                "natural_self_contained_task": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verdict", "score", "reason"],
+                  "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "child_surface_readiness": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verdict", "score", "reason"],
+                  "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "single_coherent_response_burden": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["verdict", "score", "reason"],
+                  "properties": {
+                    "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "unprompted_process_evidence": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["applicability", "verdict", "score", "reason"],
+                  "properties": {
+                    "applicability": {"type": "string", "enum": ["required", "not_applicable"]},
+                    "verdict": {"type": "string", "enum": ["satisfied", "violated", "not_applicable"]},
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"}
+                  }
+                }
+              }
+            },
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      }
+    }
+  }
+}

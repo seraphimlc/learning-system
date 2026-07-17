@@ -1,0 +1,45 @@
+{
+  "schema_version": "2026-07-11.v5.teaching-ux-contract.v1",
+  "worked_example": {
+    "schema_version": "2026-07-11.teaching-step.v5.schema.v3",
+    "target_node_id": "${TARGET_NODE_ID}",
+    "teaching_step_type": "worked_example",
+    "child_title": "先看清这个新知识的核心",
+    "child_explanation": "先理解本质和核心模型，再跟着例题检查每一步。",
+    "teaching_sections": {
+      "essence": {
+        "title": "本质",
+        "body": "${ESSENCE}"
+      },
+      "core_model": {
+        "title": "核心模型",
+        "body": "${CORE_MODEL}"
+      },
+      "worked_example": {
+        "title": "例题",
+        "problem": "${EXAMPLE_PROMPT}",
+        "steps": [
+          "先指出题目对应的核心关系。",
+          "按核心关系完成关键变换。",
+          "用代回或反向关系检查结果。"
+        ],
+        "check": "检查答案是否仍满足题目中的原关系。"
+      },
+      "why_it_works": {
+        "title": "为什么这样做",
+        "body": "每一步都保持同一个核心关系，所以得到的结果仍符合原题。"
+      },
+      "next_micro_check": {
+        "title": "下一步",
+        "body": "下一题只检查你能不能独立写出第一步核心关系。"
+      }
+    },
+    "next_child_action": "看完后继续做一题只检查第一步模型的小互动。",
+    "allowed_response_modes": [
+      "continue",
+      "stuck"
+    ],
+    "confidence": 0.91,
+    "source_reason": "recorded_structured_new_knowledge_teaching"
+  }
+}

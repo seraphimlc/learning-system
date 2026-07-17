@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-ANGLE-CALC",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "f15a51d9a10fcc6cbad5853effb9384fc6748e47bd7f73f2fd2d0dce7cf581f3",
+  "budget_integrity_sha256": "f724886f9f28ea2529e9529b875a7dbcd7f0a6b5149975634b9c2255d0d9db9c",
+  "legacy_source_digests": [
+    "42fc571bd3f1508bc02d9851d0e4e03101ef051bcbea01b28384f0e887d7bcd0"
+  ],
+  "updated_at": "2026-07-17T03:04:17Z",
+  "integrity_sha256": "813dfd81be6e24ff1ffb4a4af45272a6a48e688a53c6e620d9cd4ea04e0e40c4"
+}

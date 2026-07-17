@@ -1,0 +1,108 @@
+{
+  "schema_version": "2026-07-11.v5.msg004-recorded-contracts.v1",
+  "answer_analysis": {
+    "schema_version": "2026-07-11.answer-review.v5.schema.v2",
+    "result": "correct",
+    "score_points": 2,
+    "max_points": 2,
+    "confidence": 0.94,
+    "error_tags": [],
+    "blocking_evidence": false,
+    "answer_analysis": {
+      "optimal_answer": "按题目关系完成计算并检验。",
+      "optimal_solution_steps": [
+        "写出题目中的核心关系。",
+        "按关系完成必要计算。",
+        "代回或反向检查结论。"
+      ],
+      "child_answer_summary": "孩子写出了关系、步骤和检查。",
+      "comparison": [
+        {
+          "dimension": "final_answer",
+          "status": "matched",
+          "detail": "最终答案与参考结论一致。"
+        },
+        {
+          "dimension": "model_or_relation",
+          "status": "matched",
+          "detail": "核心关系成立。"
+        },
+        {
+          "dimension": "steps",
+          "status": "matched",
+          "detail": "关键步骤可复盘。"
+        },
+        {
+          "dimension": "symbols_units",
+          "status": "matched",
+          "detail": "符号、单位或表达格式没有影响结论的问题。"
+        },
+        {
+          "dimension": "check_or_explanation",
+          "status": "matched",
+          "detail": "包含有效检查。"
+        }
+      ],
+      "alternative_solutions": [],
+      "process_gap": "",
+      "teaching_explanation": "保持先写关系、再计算、最后检查的顺序。",
+      "next_child_prompt": "换一个近迁移情境，再独立写出关系和检查。"
+    },
+    "evaluation_support": {
+      "usable_for_evaluation": true,
+      "evidence_strength": "strong",
+      "reasoning_soundness": "sound",
+      "dominant_gap_dimensions": []
+    },
+    "next_evidence_need": "near_transfer_confirmation"
+  },
+  "new_knowledge_teaching": {
+    "schema_version": "2026-07-11.teaching-step.v5.schema.v3-red",
+    "target_node_id": "${TARGET_NODE_ID}",
+    "teaching_step_type": "worked_example",
+    "child_title": "先抓住这个新知识的核心",
+    "child_explanation": "先看本质和模型，再跟一遍例题。",
+    "teaching_sections": {
+      "essence": {
+        "title": "本质",
+        "body": "${ESSENCE}"
+      },
+      "core_model": {
+        "title": "核心模型",
+        "body": "${CORE_MODEL}"
+      },
+      "worked_example": {
+        "title": "例题",
+        "problem": "${EXAMPLE_PROMPT}",
+        "steps": [
+          "先指出本题对应的核心关系。",
+          "按核心关系完成关键变换。",
+          "用代回或反例检查结论。"
+        ],
+        "check": "检查每一步都保持原关系成立。"
+      }
+    },
+    "next_child_action": "看完后做一题只检查第一步模型的小互动。",
+    "allowed_response_modes": [
+      "continue",
+      "stuck"
+    ],
+    "confidence": 0.91,
+    "source_reason": "recorded_new_knowledge_teaching_contract"
+  },
+  "active_bank_ledger": {
+    "table": "question_bank_version_ledger",
+    "api": {
+      "stage": "stage_question_bank_version",
+      "activate": "activate_question_bank_version",
+      "rollback": "rollback_question_bank_version",
+      "current": "get_active_question_bank_version"
+    },
+    "required_states": [
+      "staged",
+      "active",
+      "rolled_back",
+      "superseded"
+    ]
+  }
+}

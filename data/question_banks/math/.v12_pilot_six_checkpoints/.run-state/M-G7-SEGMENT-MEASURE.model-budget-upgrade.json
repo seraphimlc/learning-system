@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-SEGMENT-MEASURE",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "ec2b58ecdf00214dfa78a20ba0dc24253b8a2da9dd1ebede07611955a5b2175a",
+  "budget_integrity_sha256": "c4e169222f4c4b4ed773b5296616b7354405b424a0668fb8d74c26f8e92021e4",
+  "legacy_source_digests": [
+    "f30e16d42c78f328a63ca8ac58914fa975a3d69f8b429ad5f50691f3c262170c"
+  ],
+  "updated_at": "2026-07-17T03:04:17Z",
+  "integrity_sha256": "072f78556bb8bfbbe0e2316018ecc020d3f9760f691beb0eca5dab9c19eda84f"
+}

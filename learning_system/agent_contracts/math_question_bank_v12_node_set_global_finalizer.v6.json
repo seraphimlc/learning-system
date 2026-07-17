@@ -1,0 +1,185 @@
+{
+  "agent_key": "question_reviewer_agent",
+  "contract_key": "math_question_bank_v12_node_set_global_finalizer",
+  "contract_version": "2026-07-17.math-qb-v12.node-set-global-finalizer.v6",
+  "prompt_version_id": "2026-07-17.math-qb-v12.node-set-global-finalizer.prompt.v6",
+  "prompt_template_path": "learning_system/prompts/math_question_bank_v12_node_set_global_finalizer.v6.md",
+  "response_schema_version": "2026-07-17.math-qb-v12.node-set-global-model-judgment.schema.v6",
+  "minimum_confidence_to_apply": 0.88,
+  "engine_type": "model",
+  "authority": "one_node_global_semantic_judgment_delta_with_bound_item_classifications",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_author_runtime_identity_or_hashes",
+    "does_not_recompute_deterministic_child_surface_validation",
+    "does_not_generate_replacement_question",
+    "does_not_mutate_sqlite",
+    "does_not_activate_question"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "node_id",
+      "graph_version",
+      "question_bank_version",
+      "semantic_evidence_version",
+      "item_classifications",
+      "homogeneous_clusters",
+      "distribution_scores",
+      "repetitive_instruction_clusters",
+      "duplicate_groups",
+      "confidence",
+      "reasons",
+      "repair_plan"
+    ],
+    "properties": {
+      "schema_version": {"const": "2026-07-17.math-qb-v12.node-set-global-model-judgment.schema.v6"},
+      "node_id": {"type": "string"},
+      "graph_version": {"type": "string"},
+      "question_bank_version": {"const": "2026-07-12.bank.v12"},
+      "semantic_evidence_version": {"const": "2026-07-17.math-qb-v12.node-set-global-model-judgment.v6"},
+      "item_classifications": {
+        "type": "array",
+        "minItems": 20,
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "node_id",
+            "item_id",
+            "candidate_sha256",
+            "child_surface_sha256",
+            "item_review_request_sha256",
+            "item_review_semantic_evidence_sha256",
+            "ownership_mode",
+            "current_node_indispensable",
+            "primary_evidence_move",
+            "answer_path_family",
+            "representation_family",
+            "difficulty_verdict",
+            "difficulty_features",
+            "prompt_interaction_verdict",
+            "reason"
+          ],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+            "node_id": {"type": "string"},
+            "item_id": {"type": "string"},
+            "candidate_sha256": {"type": "string"},
+            "child_surface_sha256": {"type": "string"},
+            "item_review_request_sha256": {"type": "string"},
+            "item_review_semantic_evidence_sha256": {"type": "string"},
+            "ownership_mode": {"enum": ["current_node_mainline", "current_node_with_prerequisite_support", "prerequisite_only", "controlled_stretch"]},
+            "current_node_indispensable": {"enum": ["yes", "no"]},
+            "primary_evidence_move": {"enum": ["compute_and_interpret", "represent_or_translate", "classify_by_definition", "compare_or_select", "diagnose_or_repair", "justify_or_prove", "construct", "reverse_reason", "validate_or_counterexample", "parameter_case_analysis", "multiple_constraint_reasoning", "explain_relationship"]},
+            "answer_path_family": {"enum": ["direct_calculation", "equation_or_expression", "representation_translation", "classification", "comparison_selection", "error_diagnosis", "parameter_cases", "construction", "proof", "counterexample", "multiple_constraints"]},
+            "representation_family": {"enum": ["numeric_symbolic", "verbal_symbolic", "labeled_lines", "number_line", "diagram_spatial", "equation_model", "algebraic_structure", "multiple_representations", "contextual_quantity"]},
+            "difficulty_verdict": {"enum": ["L1", "L2", "L3", "L4", "stretch"]},
+            "difficulty_features": {"type": "array", "maxItems": 5, "items": {"enum": ["parameter_cases", "construction", "proof", "counterexample", "multiple_constraints"]}},
+            "prompt_interaction_verdict": {"enum": ["aligned", "mismatch"]},
+            "reason": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "homogeneous_clusters": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {"$ref": "#/$defs/homogeneousCluster"}
+      },
+      "distribution_scores": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["semantic_diversity", "slot_fit", "difficulty_distribution", "problem_family_distribution", "age_context_fit", "instruction_voice_variety"],
+        "properties": {
+          "semantic_diversity": {"type": "number", "minimum": 0, "maximum": 1},
+          "slot_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "difficulty_distribution": {"type": "number", "minimum": 0, "maximum": 1},
+          "problem_family_distribution": {"type": "number", "minimum": 0, "maximum": 1},
+          "age_context_fit": {"type": "number", "minimum": 0, "maximum": 1},
+          "instruction_voice_variety": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "repetitive_instruction_clusters": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/repetitiveCluster"}},
+      "duplicate_groups": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/duplicateGroup"}},
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+      "reasons": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string"}},
+      "repair_plan": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/repairDirective"}}
+    },
+    "$defs": {
+      "slotGroupBase": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slots", "reason", "subject_sha256s"],
+        "properties": {
+          "slots": {"type": "array", "minItems": 2, "maxItems": 20, "items": {"type": "integer", "minimum": 1, "maximum": 20}},
+          "reason": {"type": "string", "minLength": 1},
+          "subject_sha256s": {"type": "array", "maxItems": 20, "items": {"type": "string"}}
+        }
+      },
+      "homogeneousCluster": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["cluster_id", "slots", "reason", "subject_sha256s"],
+        "properties": {
+          "cluster_id": {"type": "string", "minLength": 1},
+          "slots": {"type": "array", "minItems": 2, "maxItems": 20, "items": {"type": "integer", "minimum": 1, "maximum": 20}},
+          "reason": {"type": "string", "minLength": 1},
+          "subject_sha256s": {"type": "array", "maxItems": 20, "items": {"type": "string"}}
+        }
+      },
+      "repetitiveCluster": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["cluster_id", "slots", "cluster_summary", "reason", "evidence_refs", "subject_sha256s"],
+        "properties": {
+          "cluster_id": {"type": "string", "minLength": 1},
+          "slots": {"type": "array", "minItems": 2, "maxItems": 20, "items": {"type": "integer", "minimum": 1, "maximum": 20}},
+          "cluster_summary": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string"}},
+          "subject_sha256s": {"type": "array", "maxItems": 20, "items": {"type": "string"}}
+        }
+      },
+      "duplicateGroup": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["group_id", "slots", "reason", "evidence_refs", "subject_sha256s"],
+        "properties": {
+          "group_id": {"type": "string", "minLength": 1},
+          "slots": {"type": "array", "minItems": 2, "maxItems": 20, "items": {"type": "integer", "minimum": 1, "maximum": 20}},
+          "reason": {"type": "string", "minLength": 1},
+          "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string"}},
+          "subject_sha256s": {"type": "array", "maxItems": 20, "items": {"type": "string"}}
+        }
+      },
+      "repairDirective": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot", "repair_scope", "preserved_role", "preserve_or_replace_math_core", "required_voice_family", "avoided_voice_families", "exact_target_delta", "evidence_refs"],
+        "properties": {
+          "slot": {"type": "integer", "minimum": 1, "maximum": 20},
+          "repair_scope": {"enum": ["global_duplicate", "global_voice_distribution", "global_response_burden", "global_notation", "global_dignity", "global_process_disclosure", "global_slot_fit", "global_ownership", "global_evidence_diversity", "global_homogeneous_cluster", "global_difficulty", "global_prompt_interaction"]},
+          "preserved_role": {"type": "string"},
+          "preserve_or_replace_math_core": {"enum": ["preserve_math_core", "replace_math_core"]},
+          "required_voice_family": {"enum": ["solve_and_interpret", "compare_and_choose", "diagnose_and_repair", "represent_and_translate", "classify_and_justify", "estimate_and_predict", "construct_or_complete", "reverse_reasoning", "validate_a_claim", "explain_a_relationship"]},
+          "avoided_voice_families": {"type": "array", "maxItems": 10, "items": {"type": "string"}},
+          "exact_target_delta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dimension", "from_value", "to_value"],
+            "properties": {
+              "dimension": {"enum": ["instruction_voice_family", "mathematical_core", "context_semantics", "prompt_answer_alignment", "notation_readiness", "response_burden", "age_dignity", "process_disclosure", "slot_fit", "ownership_mode", "primary_evidence_move", "answer_path_family", "representation_family", "difficulty_verdict", "prompt_interaction_verdict"]},
+              "from_value": {"type": "string"},
+              "to_value": {"type": "string"}
+            }
+          },
+          "evidence_refs": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}

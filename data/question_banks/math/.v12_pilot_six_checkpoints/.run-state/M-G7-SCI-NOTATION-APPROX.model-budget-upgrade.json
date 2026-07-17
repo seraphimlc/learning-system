@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-SCI-NOTATION-APPROX",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 72,
+  "minimum_provider_attempts": 80,
+  "counter_chain_head_sha256": "ac09f63251fcca5d60bdad0d60678e57ddcb6c76f442a76b8b39a5328dd51908",
+  "budget_integrity_sha256": "16c3302539269009244e77ff161bb12726e2aa2bea25b1b5bc993dfa9831e83b",
+  "legacy_source_digests": [
+    "4248b86c4cc90f41b8e5d148bf65f17bba9ab97fd78f32c7475855557c90ed09",
+    "9c7494cf03496e1464f02852eec9b235ef75d983fcf1d3c3917fe1f461a0a959"
+  ],
+  "updated_at": "2026-07-17T04:09:35Z",
+  "integrity_sha256": "99c8ceacc8c3c6a0e06a845c0dc610cbd335fe7283d83346eefffb2d6607b544"
+}

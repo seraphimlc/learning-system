@@ -1,0 +1,62 @@
+{
+  "agent_key": "answer_contract_designer_agent",
+  "contract_key": "answer_contract_design",
+  "contract_version": "2026-07-14.answer-contract-design.v1",
+  "prompt_version_id": "2026-07-14.answer-contract-design.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/answer_contract_design.v1.md",
+  "response_schema_version": "2026-07-14.answer-contract-design.schema.v1",
+  "minimum_confidence_to_apply": 0.8,
+  "engine_type": "model",
+  "authority": "semantic_criteria_only",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_assign_points",
+    "does_not_assign_dimensions",
+    "does_not_set_required_for_pass",
+    "does_not_bind_question_or_node",
+    "does_not_version_or_activate_contracts"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema_version", "items"],
+    "properties": {
+      "schema_version": {
+        "const": "2026-07-14.answer-contract-design.schema.v1"
+      },
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "item_handle",
+            "slot_key",
+            "criterion",
+            "reference_component_keys",
+            "confidence"
+          ],
+          "properties": {
+            "item_handle": {"type": "string", "minLength": 1, "maxLength": 120},
+            "slot_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "criterion": {"type": "string", "minLength": 1, "maxLength": 1200},
+            "reference_component_keys": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {"type": "string", "minLength": 1, "maxLength": 120}
+            },
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      }
+    }
+  }
+}

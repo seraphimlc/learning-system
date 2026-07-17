@@ -1,0 +1,937 @@
+{
+  "schema_version": "knowledge-views.v1",
+  "config_version": "2026-07-14.v5.1",
+  "graph_lineage": "2026-07-04.v2+sha256:1067b9c318efb116f6463fb7dd3db1a3888b440b6d33384c81313f79711a2971",
+  "root": {
+    "label": "我的数学知识体系",
+    "module_order": [
+      "Z_LEARNING_PROCESS",
+      "A_FOUNDATION",
+      "B_FRACTION_RATIO",
+      "C_ALGEBRA_BRIDGE",
+      "D_WORD_MODELS",
+      "E_RATIONAL_NUMBERS",
+      "F_EXPRESSIONS",
+      "G_LINEAR_EQUATION",
+      "H_GEOMETRY_INTRO"
+    ]
+  },
+  "mind_map": {
+    "modules": {
+    "Z_LEARNING_PROCESS": {
+      "order": 10,
+      "collapsed_by_default": true
+    },
+      "A_FOUNDATION": {
+        "order": 20,
+        "collapsed_by_default": true
+      },
+      "B_FRACTION_RATIO": {
+        "order": 30,
+        "collapsed_by_default": true
+      },
+      "C_ALGEBRA_BRIDGE": {
+        "order": 40,
+        "collapsed_by_default": true
+      },
+      "D_WORD_MODELS": {
+        "order": 50,
+        "collapsed_by_default": true
+      },
+      "E_RATIONAL_NUMBERS": {
+        "order": 60,
+        "collapsed_by_default": true
+      },
+      "F_EXPRESSIONS": {
+        "order": 70,
+        "collapsed_by_default": true
+      },
+      "G_LINEAR_EQUATION": {
+        "order": 80,
+        "collapsed_by_default": true
+      },
+      "H_GEOMETRY_INTRO": {
+        "order": 90,
+        "collapsed_by_default": true
+      }
+    },
+    "nodes": {
+      "M-BRIDGE-CLOCK-ANGLE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-BRIDGE-MOTION-CHASE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-MOTION-BASIC": {
+        "primary_parent": {
+          "type": "module",
+          "id": "D_WORD_MODELS"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-MOTION-CHASE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-BRIDGE-MOTION-BASIC"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-PERCENT-MODEL": {
+        "primary_parent": {
+          "type": "module",
+          "id": "D_WORD_MODELS"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-PROPORTION-MODEL": {
+        "primary_parent": {
+          "type": "module",
+          "id": "D_WORD_MODELS"
+        },
+        "order": 30,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-SOLUTION-HABIT": {
+        "primary_parent": {
+          "type": "module",
+          "id": "Z_LEARNING_PROCESS"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-SUM-DIFF-MULTIPLE": {
+        "primary_parent": {
+          "type": "module",
+          "id": "D_WORD_MODELS"
+        },
+        "order": 40,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-WORD-PROBLEM-READING": {
+        "primary_parent": {
+          "type": "module",
+          "id": "D_WORD_MODELS"
+        },
+        "order": 50,
+        "collapsed_by_default": false
+      },
+      "M-BRIDGE-WORK-RATE": {
+        "primary_parent": {
+          "type": "module",
+          "id": "D_WORD_MODELS"
+        },
+        "order": 60,
+        "collapsed_by_default": false
+      },
+      "M-G7-ABSOLUTE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-NUMBER-LINE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-ALG-EXPR": {
+        "primary_parent": {
+          "type": "module",
+          "id": "F_EXPRESSIONS"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-ANGLE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-LINE-RAY-SEGMENT"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-ANGLE-CALC": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-ANGLE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-COMBINE-LIKE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-LIKE-TERMS"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-COMPARE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-ABSOLUTE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-EQ-DENOM": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-EQ-SOLVE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-EQ-PAREN": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-EQ-SOLVE"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-EQ-SOLVE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-EQUALITY-PROP"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-EQ-WORD": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-EQ-SOLVE"
+        },
+        "order": 30,
+        "collapsed_by_default": true
+      },
+      "M-G7-EQUALITY-PROP": {
+        "primary_parent": {
+          "type": "module",
+          "id": "G_LINEAR_EQUATION"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-EQUATION-CONCEPT": {
+        "primary_parent": {
+          "type": "module",
+          "id": "G_LINEAR_EQUATION"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-EXPR-VALUE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-ALG-EXPR"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-GEO-SOLID-PLANE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-GEO-AREA-VOLUME"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-GEO-VIEWS": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-GEO-SOLID-PLANE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-LIKE-TERMS": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-MONOMIAL"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-LINE-RAY-SEGMENT": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-POINT-LINE-PLANE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-MONOMIAL": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-ALG-EXPR"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-NUMBER-LINE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-POS-NEG"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-OPPOSITE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-NUMBER-LINE"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-PARENTHESIS": {
+        "primary_parent": {
+          "type": "module",
+          "id": "F_EXPRESSIONS"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-POINT-LINE-PLANE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-GEO-SOLID-PLANE"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-POLY-ADD-SUB": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-COMBINE-LIKE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-POLYNOMIAL": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-MONOMIAL"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-POS-NEG": {
+        "primary_parent": {
+          "type": "module",
+          "id": "E_RATIONAL_NUMBERS"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-POWER": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-RATIONAL-MUL-DIV"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-RATIONAL-ADD-SUB": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-ABSOLUTE"
+        },
+        "order": 20,
+        "collapsed_by_default": true
+      },
+      "M-G7-RATIONAL-CLASSIFY": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-POS-NEG"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-RATIONAL-MIXED": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-POWER"
+        },
+        "order": 10,
+        "collapsed_by_default": true
+      },
+      "M-G7-RATIONAL-MUL-DIV": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-RATIONAL-ADD-SUB"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-G7-SCI-NOTATION-APPROX": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-POWER"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-G7-SEGMENT-MEASURE": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-G7-LINE-RAY-SEGMENT"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-PRE-ANGLE-BASIC": {
+        "primary_parent": {
+          "type": "module",
+          "id": "H_GEOMETRY_INTRO"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-DECIMAL-OPS": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-INTEGER-OPS"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-DISTRIBUTIVE": {
+        "primary_parent": {
+          "type": "module",
+          "id": "C_ALGEBRA_BRIDGE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-EQUATION-BASIC": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-QUANTITY-RELATION"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-FRACTION-MEANING": {
+        "primary_parent": {
+          "type": "module",
+          "id": "B_FRACTION_RATIO"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-FRACTION-OPS": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-FRACTION-MEANING"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-GEO-AREA-VOLUME": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-UNIT-CONVERSION"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-INTEGER-OPS": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-NUMBER-SENSE"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-LETTER-EXPR": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-QUANTITY-RELATION"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-PRE-NUMBER-SENSE": {
+        "primary_parent": {
+          "type": "module",
+          "id": "A_FOUNDATION"
+        },
+        "order": 10,
+        "collapsed_by_default": false
+      },
+      "M-PRE-ORDER-OPS": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-NUMBER-SENSE"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-PRE-PERCENT": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-FRACTION-MEANING"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-PRE-QUANTITY-RELATION": {
+        "primary_parent": {
+          "type": "module",
+          "id": "C_ALGEBRA_BRIDGE"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      },
+      "M-PRE-RATIO-PROP": {
+        "primary_parent": {
+          "type": "node",
+          "id": "M-PRE-FRACTION-MEANING"
+        },
+        "order": 30,
+        "collapsed_by_default": false
+      },
+      "M-PRE-UNIT-CONVERSION": {
+        "primary_parent": {
+          "type": "module",
+          "id": "H_GEOMETRY_INTRO"
+        },
+        "order": 20,
+        "collapsed_by_default": false
+      }
+    }
+  },
+  "graph": {
+    "lanes": [
+      {
+        "id": "Z_LEARNING_PROCESS",
+        "label": "学习流程与错因",
+        "order": 10
+      },
+      {
+        "id": "A_FOUNDATION",
+        "label": "底层计算与数感",
+        "order": 20
+      },
+      {
+        "id": "B_FRACTION_RATIO",
+        "label": "分数百分数与比例",
+        "order": 30
+      },
+      {
+        "id": "C_ALGEBRA_BRIDGE",
+        "label": "算术到代数桥梁",
+        "order": 40
+      },
+      {
+        "id": "D_WORD_MODELS",
+        "label": "应用题模型",
+        "order": 50
+      },
+      {
+        "id": "E_RATIONAL_NUMBERS",
+        "label": "有理数概念与运算",
+        "order": 60
+      },
+      {
+        "id": "F_EXPRESSIONS",
+        "label": "代数式与整式",
+        "order": 70
+      },
+      {
+        "id": "G_LINEAR_EQUATION",
+        "label": "一元一次方程",
+        "order": 80
+      },
+      {
+        "id": "H_GEOMETRY_INTRO",
+        "label": "几何图形初步",
+        "order": 90
+      }
+    ],
+    "nodes": {
+      "M-BRIDGE-CLOCK-ANGLE": {
+        "rank": 6,
+        "lane": "D_WORD_MODELS",
+        "order": 10
+      },
+      "M-BRIDGE-MOTION-BASIC": {
+        "rank": 4,
+        "lane": "D_WORD_MODELS",
+        "order": 10
+      },
+      "M-BRIDGE-MOTION-CHASE": {
+        "rank": 5,
+        "lane": "D_WORD_MODELS",
+        "order": 10
+      },
+      "M-BRIDGE-PERCENT-MODEL": {
+        "rank": 4,
+        "lane": "D_WORD_MODELS",
+        "order": 20
+      },
+      "M-BRIDGE-PROPORTION-MODEL": {
+        "rank": 4,
+        "lane": "D_WORD_MODELS",
+        "order": 30
+      },
+      "M-BRIDGE-SOLUTION-HABIT": {
+        "rank": 0,
+        "lane": "Z_LEARNING_PROCESS",
+        "order": 10
+      },
+      "M-BRIDGE-SUM-DIFF-MULTIPLE": {
+        "rank": 3,
+        "lane": "D_WORD_MODELS",
+        "order": 10
+      },
+      "M-BRIDGE-WORD-PROBLEM-READING": {
+        "rank": 3,
+        "lane": "D_WORD_MODELS",
+        "order": 20
+      },
+      "M-BRIDGE-WORK-RATE": {
+        "rank": 3,
+        "lane": "D_WORD_MODELS",
+        "order": 30
+      },
+      "M-G7-ABSOLUTE": {
+        "rank": 4,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-ALG-EXPR": {
+        "rank": 4,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-ANGLE": {
+        "rank": 8,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-G7-ANGLE-CALC": {
+        "rank": 9,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-G7-COMBINE-LIKE": {
+        "rank": 8,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-COMPARE": {
+        "rank": 5,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-EQ-DENOM": {
+        "rank": 11,
+        "lane": "G_LINEAR_EQUATION",
+        "order": 10
+      },
+      "M-G7-EQ-PAREN": {
+        "rank": 11,
+        "lane": "G_LINEAR_EQUATION",
+        "order": 20
+      },
+      "M-G7-EQ-SOLVE": {
+        "rank": 10,
+        "lane": "G_LINEAR_EQUATION",
+        "order": 10
+      },
+      "M-G7-EQ-WORD": {
+        "rank": 11,
+        "lane": "G_LINEAR_EQUATION",
+        "order": 30
+      },
+      "M-G7-EQUALITY-PROP": {
+        "rank": 4,
+        "lane": "G_LINEAR_EQUATION",
+        "order": 10
+      },
+      "M-G7-EQUATION-CONCEPT": {
+        "rank": 5,
+        "lane": "G_LINEAR_EQUATION",
+        "order": 10
+      },
+      "M-G7-EXPR-VALUE": {
+        "rank": 10,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-GEO-SOLID-PLANE": {
+        "rank": 5,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-G7-GEO-VIEWS": {
+        "rank": 6,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-G7-LIKE-TERMS": {
+        "rank": 7,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-LINE-RAY-SEGMENT": {
+        "rank": 7,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-G7-MONOMIAL": {
+        "rank": 5,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-NUMBER-LINE": {
+        "rank": 2,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-OPPOSITE": {
+        "rank": 3,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-PARENTHESIS": {
+        "rank": 7,
+        "lane": "F_EXPRESSIONS",
+        "order": 20
+      },
+      "M-G7-POINT-LINE-PLANE": {
+        "rank": 6,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 20
+      },
+      "M-G7-POLY-ADD-SUB": {
+        "rank": 9,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-POLYNOMIAL": {
+        "rank": 6,
+        "lane": "F_EXPRESSIONS",
+        "order": 10
+      },
+      "M-G7-POS-NEG": {
+        "rank": 1,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-POWER": {
+        "rank": 8,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-RATIONAL-ADD-SUB": {
+        "rank": 6,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-RATIONAL-CLASSIFY": {
+        "rank": 2,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 20
+      },
+      "M-G7-RATIONAL-MIXED": {
+        "rank": 9,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-RATIONAL-MUL-DIV": {
+        "rank": 7,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 10
+      },
+      "M-G7-SCI-NOTATION-APPROX": {
+        "rank": 9,
+        "lane": "E_RATIONAL_NUMBERS",
+        "order": 20
+      },
+      "M-G7-SEGMENT-MEASURE": {
+        "rank": 8,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 20
+      },
+      "M-PRE-ANGLE-BASIC": {
+        "rank": 1,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-PRE-DECIMAL-OPS": {
+        "rank": 2,
+        "lane": "A_FOUNDATION",
+        "order": 10
+      },
+      "M-PRE-DISTRIBUTIVE": {
+        "rank": 2,
+        "lane": "C_ALGEBRA_BRIDGE",
+        "order": 10
+      },
+      "M-PRE-EQUATION-BASIC": {
+        "rank": 3,
+        "lane": "C_ALGEBRA_BRIDGE",
+        "order": 10
+      },
+      "M-PRE-FRACTION-MEANING": {
+        "rank": 1,
+        "lane": "B_FRACTION_RATIO",
+        "order": 10
+      },
+      "M-PRE-FRACTION-OPS": {
+        "rank": 2,
+        "lane": "B_FRACTION_RATIO",
+        "order": 10
+      },
+      "M-PRE-GEO-AREA-VOLUME": {
+        "rank": 4,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      },
+      "M-PRE-INTEGER-OPS": {
+        "rank": 1,
+        "lane": "A_FOUNDATION",
+        "order": 10
+      },
+      "M-PRE-LETTER-EXPR": {
+        "rank": 3,
+        "lane": "C_ALGEBRA_BRIDGE",
+        "order": 20
+      },
+      "M-PRE-NUMBER-SENSE": {
+        "rank": 0,
+        "lane": "A_FOUNDATION",
+        "order": 10
+      },
+      "M-PRE-ORDER-OPS": {
+        "rank": 1,
+        "lane": "A_FOUNDATION",
+        "order": 20
+      },
+      "M-PRE-PERCENT": {
+        "rank": 3,
+        "lane": "B_FRACTION_RATIO",
+        "order": 10
+      },
+      "M-PRE-QUANTITY-RELATION": {
+        "rank": 2,
+        "lane": "C_ALGEBRA_BRIDGE",
+        "order": 20
+      },
+      "M-PRE-RATIO-PROP": {
+        "rank": 3,
+        "lane": "B_FRACTION_RATIO",
+        "order": 20
+      },
+      "M-PRE-UNIT-CONVERSION": {
+        "rank": 3,
+        "lane": "H_GEOMETRY_INTRO",
+        "order": 10
+      }
+    },
+    "overview_edge_visibility": {
+      "M-PRE-INTEGER-OPS->M-PRE-DECIMAL-OPS": true,
+      "M-PRE-NUMBER-SENSE->M-PRE-DECIMAL-OPS": true,
+      "M-PRE-NUMBER-SENSE->M-PRE-INTEGER-OPS": true,
+      "M-PRE-NUMBER-SENSE->M-PRE-ORDER-OPS": true,
+      "M-PRE-NUMBER-SENSE->M-PRE-FRACTION-MEANING": true,
+      "M-PRE-FRACTION-MEANING->M-PRE-FRACTION-OPS": true,
+      "M-PRE-INTEGER-OPS->M-PRE-FRACTION-OPS": true,
+      "M-PRE-DECIMAL-OPS->M-PRE-PERCENT": true,
+      "M-PRE-FRACTION-MEANING->M-PRE-PERCENT": true,
+      "M-PRE-FRACTION-MEANING->M-PRE-RATIO-PROP": true,
+      "M-PRE-FRACTION-OPS->M-PRE-RATIO-PROP": true,
+      "M-PRE-INTEGER-OPS->M-PRE-DISTRIBUTIVE": true,
+      "M-PRE-ORDER-OPS->M-PRE-DISTRIBUTIVE": true,
+      "M-PRE-ORDER-OPS->M-PRE-EQUATION-BASIC": true,
+      "M-PRE-QUANTITY-RELATION->M-PRE-EQUATION-BASIC": true,
+      "M-PRE-QUANTITY-RELATION->M-PRE-LETTER-EXPR": true,
+      "M-PRE-INTEGER-OPS->M-PRE-QUANTITY-RELATION": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-WORD-PROBLEM-READING": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-MOTION-BASIC": true,
+      "M-PRE-UNIT-CONVERSION->M-BRIDGE-MOTION-BASIC": true,
+      "M-BRIDGE-MOTION-BASIC->M-BRIDGE-MOTION-CHASE": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-MOTION-CHASE": true,
+      "M-PRE-PERCENT->M-BRIDGE-PERCENT-MODEL": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-PERCENT-MODEL": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-PROPORTION-MODEL": true,
+      "M-PRE-RATIO-PROP->M-BRIDGE-PROPORTION-MODEL": true,
+      "M-PRE-FRACTION-MEANING->M-BRIDGE-SUM-DIFF-MULTIPLE": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-SUM-DIFF-MULTIPLE": true,
+      "M-BRIDGE-MOTION-CHASE->M-BRIDGE-CLOCK-ANGLE": true,
+      "M-PRE-ANGLE-BASIC->M-BRIDGE-CLOCK-ANGLE": true,
+      "M-PRE-FRACTION-MEANING->M-BRIDGE-WORK-RATE": true,
+      "M-PRE-QUANTITY-RELATION->M-BRIDGE-WORK-RATE": true,
+      "M-G7-NUMBER-LINE->M-G7-ABSOLUTE": true,
+      "M-G7-OPPOSITE->M-G7-ABSOLUTE": true,
+      "M-G7-ABSOLUTE->M-G7-COMPARE": true,
+      "M-G7-NUMBER-LINE->M-G7-COMPARE": true,
+      "M-G7-POS-NEG->M-G7-NUMBER-LINE": true,
+      "M-G7-NUMBER-LINE->M-G7-OPPOSITE": true,
+      "M-PRE-NUMBER-SENSE->M-G7-POS-NEG": true,
+      "M-G7-ABSOLUTE->M-G7-RATIONAL-ADD-SUB": true,
+      "M-G7-COMPARE->M-G7-RATIONAL-ADD-SUB": true,
+      "M-PRE-INTEGER-OPS->M-G7-RATIONAL-ADD-SUB": true,
+      "M-G7-POS-NEG->M-G7-RATIONAL-CLASSIFY": true,
+      "M-PRE-FRACTION-MEANING->M-G7-RATIONAL-CLASSIFY": true,
+      "M-G7-POWER->M-G7-RATIONAL-MIXED": true,
+      "M-G7-RATIONAL-ADD-SUB->M-G7-RATIONAL-MIXED": true,
+      "M-G7-RATIONAL-MUL-DIV->M-G7-RATIONAL-MIXED": true,
+      "M-PRE-ORDER-OPS->M-G7-RATIONAL-MIXED": true,
+      "M-G7-RATIONAL-ADD-SUB->M-G7-RATIONAL-MUL-DIV": true,
+      "M-PRE-FRACTION-OPS->M-G7-RATIONAL-MUL-DIV": true,
+      "M-G7-RATIONAL-MUL-DIV->M-G7-POWER": true,
+      "M-G7-POWER->M-G7-SCI-NOTATION-APPROX": true,
+      "M-PRE-NUMBER-SENSE->M-G7-SCI-NOTATION-APPROX": true,
+      "M-PRE-LETTER-EXPR->M-G7-ALG-EXPR": true,
+      "M-PRE-QUANTITY-RELATION->M-G7-ALG-EXPR": true,
+      "M-G7-LIKE-TERMS->M-G7-COMBINE-LIKE": true,
+      "M-G7-RATIONAL-ADD-SUB->M-G7-COMBINE-LIKE": true,
+      "M-G7-ALG-EXPR->M-G7-EXPR-VALUE": true,
+      "M-G7-RATIONAL-MIXED->M-G7-EXPR-VALUE": true,
+      "M-G7-MONOMIAL->M-G7-LIKE-TERMS": true,
+      "M-G7-POLYNOMIAL->M-G7-LIKE-TERMS": true,
+      "M-G7-RATIONAL-ADD-SUB->M-G7-PARENTHESIS": true,
+      "M-PRE-DISTRIBUTIVE->M-G7-PARENTHESIS": true,
+      "M-G7-COMBINE-LIKE->M-G7-POLY-ADD-SUB": true,
+      "M-G7-PARENTHESIS->M-G7-POLY-ADD-SUB": true,
+      "M-G7-ALG-EXPR->M-G7-MONOMIAL": true,
+      "M-G7-MONOMIAL->M-G7-POLYNOMIAL": true,
+      "M-G7-EQ-SOLVE->M-G7-EQ-PAREN": true,
+      "M-G7-PARENTHESIS->M-G7-EQ-PAREN": true,
+      "M-G7-EQUALITY-PROP->M-G7-EQ-SOLVE": true,
+      "M-G7-RATIONAL-MIXED->M-G7-EQ-SOLVE": true,
+      "M-BRIDGE-MOTION-BASIC->M-G7-EQ-WORD": true,
+      "M-BRIDGE-PERCENT-MODEL->M-G7-EQ-WORD": true,
+      "M-BRIDGE-SUM-DIFF-MULTIPLE->M-G7-EQ-WORD": true,
+      "M-BRIDGE-WORD-PROBLEM-READING->M-G7-EQ-WORD": true,
+      "M-G7-EQ-SOLVE->M-G7-EQ-WORD": true,
+      "M-PRE-EQUATION-BASIC->M-G7-EQUALITY-PROP": true,
+      "M-G7-ALG-EXPR->M-G7-EQUATION-CONCEPT": true,
+      "M-PRE-EQUATION-BASIC->M-G7-EQUATION-CONCEPT": true,
+      "M-G7-EQ-SOLVE->M-G7-EQ-DENOM": true,
+      "M-PRE-FRACTION-OPS->M-G7-EQ-DENOM": true,
+      "M-G7-LINE-RAY-SEGMENT->M-G7-ANGLE": true,
+      "M-PRE-ANGLE-BASIC->M-G7-ANGLE": true,
+      "M-G7-POINT-LINE-PLANE->M-G7-LINE-RAY-SEGMENT": true,
+      "M-G7-ANGLE->M-G7-ANGLE-CALC": true,
+      "M-G7-SEGMENT-MEASURE->M-G7-ANGLE-CALC": true,
+      "M-PRE-GEO-AREA-VOLUME->M-G7-GEO-SOLID-PLANE": true,
+      "M-G7-GEO-SOLID-PLANE->M-G7-POINT-LINE-PLANE": true,
+      "M-G7-LINE-RAY-SEGMENT->M-G7-SEGMENT-MEASURE": true,
+      "M-PRE-UNIT-CONVERSION->M-G7-SEGMENT-MEASURE": true,
+      "M-G7-GEO-SOLID-PLANE->M-G7-GEO-VIEWS": true,
+      "M-PRE-NUMBER-SENSE->M-PRE-ANGLE-BASIC": true,
+      "M-PRE-ORDER-OPS->M-PRE-GEO-AREA-VOLUME": true,
+      "M-PRE-UNIT-CONVERSION->M-PRE-GEO-AREA-VOLUME": true,
+      "M-PRE-DECIMAL-OPS->M-PRE-UNIT-CONVERSION": true
+    }
+  }
+}

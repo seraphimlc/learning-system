@@ -1,0 +1,11 @@
+{
+  "agent_key": "teaching_agent",
+  "contract_key": "teaching_step",
+  "contract_version": "2026-07-05.teaching-step.v1",
+  "prompt_version_id": "2026-07-05.teaching-step.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/teaching_step.v1.md",
+  "response_schema_version": "2026-07-05.teaching-step.schema.v1",
+  "minimum_confidence_to_apply": 0.75,
+  "engine_type": "model",
+  "authority": "child_message_candidate"
+}

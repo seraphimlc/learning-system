@@ -1,0 +1,306 @@
+{
+  "schema_version": "question-visual-inventory.v1",
+  "inventory_version": "2026-07-15.number-line-geo-views.v2",
+  "allowed_scene_types": [
+    "number_line",
+    "cube_net",
+    "orthographic_view",
+    "simple_geometry"
+  ],
+  "groups": [
+    {
+      "node_id": "M-G7-NUMBER-LINE",
+      "checkpoint_status": "complete",
+      "item_version": "2026-07-12.bank.v12",
+      "items": [
+        {
+          "slot": 1,
+          "question_id": "QB12-M-G7-NUMBER-LINE-01",
+          "question_digest_sha256": "df56a6439949ee29b186ba8eafe4dc0de279e322aabcba311fcde254baec47e9",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 2,
+          "question_id": "QB12-M-G7-NUMBER-LINE-02",
+          "question_digest_sha256": "b56d78f699ab8c8aa424f818e22aea0b296ddc9aa4b6e52afc521785a96e214c",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 3,
+          "question_id": "QB12-M-G7-NUMBER-LINE-03",
+          "question_digest_sha256": "5d75040d11f8bd635b5bff779778cabf6ec80ee1b86c43f5017440ccc695ccf7",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 4,
+          "question_id": "QB12-M-G7-NUMBER-LINE-04",
+          "question_digest_sha256": "a5d242d1c44f8612827184cfcf9b685e5aa1c9d4d623bdce70b88b20d309f01b",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 5,
+          "question_id": "QB12-M-G7-NUMBER-LINE-05",
+          "question_digest_sha256": "da1ba259449930d75d9aea55ccce5071fe9f37bb6e2b2f9765b1a85379748eed",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 6,
+          "question_id": "QB12-M-G7-NUMBER-LINE-06",
+          "question_digest_sha256": "69b684c5cf9df63d67bda4ce79cdb7dd5a1cd5ec4fe2f2a7e9cfdd75d61c7e65",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 7,
+          "question_id": "QB12-M-G7-NUMBER-LINE-07",
+          "question_digest_sha256": "5a88da6ead22eba6e253507b93a5c55f773c51497fd9d57146a8e90bd7a3161b",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 8,
+          "question_id": "QB12-M-G7-NUMBER-LINE-08",
+          "question_digest_sha256": "49cdc62c3a723a3cb8f430545a765eb157971ca0cd30ec17692014f11b22b2ba",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 9,
+          "question_id": "QB12-M-G7-NUMBER-LINE-09",
+          "question_digest_sha256": "7d0429b3ffc1188c8c37a6054d9856e51e26c70f3bab1a36eea3caeb52a07c73",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 10,
+          "question_id": "QB12-M-G7-NUMBER-LINE-10",
+          "question_digest_sha256": "2d79f21ce5e2f315d9a46f43378bba36b5cc66c80f6f85469760292572589c18",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 11,
+          "question_id": "QB12-M-G7-NUMBER-LINE-11",
+          "question_digest_sha256": "38d70689c151aa795647bf370211499022c15102a65e6ecf52f6b75d60ac1cdb",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 12,
+          "question_id": "QB12-M-G7-NUMBER-LINE-12",
+          "question_digest_sha256": "989abf77dc6861f6aa931b8fb0b6d8ce694130b056c53913223bd6fd340da9cd",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 13,
+          "question_id": "QB12-M-G7-NUMBER-LINE-13",
+          "question_digest_sha256": "39447dc3b5cd2ef21855a272cff7ffe7e0f12e02d0ad34b61bd5702d767cfd9d",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 14,
+          "question_id": "QB12-M-G7-NUMBER-LINE-14",
+          "question_digest_sha256": "67b5b3361db180325bde8cbacacdd3284a620f5103b089a8824230062b34f6cd",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 15,
+          "question_id": "QB12-M-G7-NUMBER-LINE-15",
+          "question_digest_sha256": "d3e204da20ba935a81c4ef0d1a84eb6c062deea0083e90f5e1515f87600257d7",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 16,
+          "question_id": "QB12-M-G7-NUMBER-LINE-16",
+          "question_digest_sha256": "b7eab348f9486a9ae8f3ce8dca6d699c263fabfb9e3014036eb248f61fd73842",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 17,
+          "question_id": "QB12-M-G7-NUMBER-LINE-17",
+          "question_digest_sha256": "3270e9de99592276249897ea1416d532919f85eacb29ecfde9d802a1b937661c",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 18,
+          "question_id": "QB12-M-G7-NUMBER-LINE-18",
+          "question_digest_sha256": "b004dbf79c43a9e3bc583d5173e9b82dc135136f25d5b99b9fd207f353a04906",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 19,
+          "question_id": "QB12-M-G7-NUMBER-LINE-19",
+          "question_digest_sha256": "2719126398b05af60a1fbca2f1dfdfa37f09ec87cd2d5728139c8d2809ac25ff",
+          "required": true,
+          "scene_type": "number_line"
+        },
+        {
+          "slot": 20,
+          "question_id": "QB12-M-G7-NUMBER-LINE-20",
+          "question_digest_sha256": "ef4ffadd086d14673c860dcf85ca8445ca22509d3703e30f2b2e8fba5961e512",
+          "required": true,
+          "scene_type": "number_line"
+        }
+      ]
+    },
+    {
+      "node_id": "M-G7-GEO-VIEWS",
+      "checkpoint_status": "complete",
+      "item_version": "2026-07-12.bank.v12",
+      "items": [
+        {
+          "slot": 1,
+          "question_id": "QB12-M-G7-GEO-VIEWS-01",
+          "question_digest_sha256": "8e419f9070493b3b4a9b4abdbc322253892dfab0dddf49f6b25896a3917f39ac",
+          "required": true,
+          "scene_type": "cube_net"
+        },
+        {
+          "slot": 2,
+          "question_id": "QB12-M-G7-GEO-VIEWS-02",
+          "question_digest_sha256": "7ed18f7cc0ff7254f77ede23f49274d35298308859ace225011c571231fd6748",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 3,
+          "question_id": "QB12-M-G7-GEO-VIEWS-03",
+          "question_digest_sha256": "0f0129d93e78dd7b0459f3a2412e5760b8baf468e6735a55c4df55caf08e886b",
+          "required": true,
+          "scene_type": "cube_net"
+        },
+        {
+          "slot": 4,
+          "question_id": "QB12-M-G7-GEO-VIEWS-04",
+          "question_digest_sha256": "7d7229f01d46307c43e178d0d236e1252daf92bb65988cff98a83f36dc05a2e9",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 5,
+          "question_id": "QB12-M-G7-GEO-VIEWS-05",
+          "question_digest_sha256": "6bdb5f6e8d62276cb504f8636c50def9ed9c8c11181df62653777cfbfc5970f1",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 6,
+          "question_id": "QB12-M-G7-GEO-VIEWS-06",
+          "question_digest_sha256": "d721fe619c8a381db7127292806df94ee9937dbc9af3a479c8b9c09037101d48",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 7,
+          "question_id": "QB12-M-G7-GEO-VIEWS-07",
+          "question_digest_sha256": "0893f9b14b972df121b59a66665ede0d5eb153060200d44b0452cad564af3a08",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 8,
+          "question_id": "QB12-M-G7-GEO-VIEWS-08",
+          "question_digest_sha256": "4ee633f8b0780cd51eeba8333a392c0b30db24625cc9be4466e00eb1f0c3c38f",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 9,
+          "question_id": "QB12-M-G7-GEO-VIEWS-09",
+          "question_digest_sha256": "68b61a66f2d7bf7f44c81c0bab6089308aeefb93c6a6d77cfe5624d2b02a21ff",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 10,
+          "question_id": "QB12-M-G7-GEO-VIEWS-10",
+          "question_digest_sha256": "4b79b4541d909204a9adc3119c032ebc7b7302ec8ef80deff3b4997487c0c90a",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 11,
+          "question_id": "QB12-M-G7-GEO-VIEWS-11",
+          "question_digest_sha256": "c9cbbd575246562b656edbeb1ffecaa6ac0cf169acfb3b6980326ecdfe16b2c9",
+          "required": true,
+          "scene_type": "cube_net"
+        },
+        {
+          "slot": 12,
+          "question_id": "QB12-M-G7-GEO-VIEWS-12",
+          "question_digest_sha256": "dd25bfcc6ebcdfd9f39f87da90c7155b5a580b7705130d8e02dc66b8b5f97d27",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 13,
+          "question_id": "QB12-M-G7-GEO-VIEWS-13",
+          "question_digest_sha256": "2e16a283eb084bb680bb4ed0dc79c601df4ffaa85082e07014b9b33ebf4e3ebe",
+          "required": true,
+          "scene_type": "simple_geometry"
+        },
+        {
+          "slot": 14,
+          "question_id": "QB12-M-G7-GEO-VIEWS-14",
+          "question_digest_sha256": "d7cde838660654f9f976bebe34a37f54ca20f63f5754df4560b4a87fb1a004aa",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 15,
+          "question_id": "QB12-M-G7-GEO-VIEWS-15",
+          "question_digest_sha256": "c67a3494e140b1ec93327f439ac278223d517d6258045b39cd339aafaaccf781",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 16,
+          "question_id": "QB12-M-G7-GEO-VIEWS-16",
+          "question_digest_sha256": "390ef4c00d047ed260aae09ca90f808b008251b447d9e4a144119f6e1eabfe20",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 17,
+          "question_id": "QB12-M-G7-GEO-VIEWS-17",
+          "question_digest_sha256": "5644a10f17a354339a55b5f32d755d2240c9817c24078522d8b48201653c85d1",
+          "required": true,
+          "scene_type": "cube_net"
+        },
+        {
+          "slot": 18,
+          "question_id": "QB12-M-G7-GEO-VIEWS-18",
+          "question_digest_sha256": "f4c65834ec67a3de43d16f84b8615b4e15921dd14d01374c016c052659461228",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 19,
+          "question_id": "QB12-M-G7-GEO-VIEWS-19",
+          "question_digest_sha256": "9a933d7c1d0bc77805f44a2d631f9a1cfb1057019513af7577922166327e3308",
+          "required": true,
+          "scene_type": "orthographic_view"
+        },
+        {
+          "slot": 20,
+          "question_id": "QB12-M-G7-GEO-VIEWS-20",
+          "question_digest_sha256": "c54ed7f6854eecf559a154784c60450c18ca45840d83ac16cfa0d0266e3c6cc0",
+          "required": true,
+          "scene_type": "orthographic_view"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "agent_key": "answer_analysis_agent",
+  "contract_key": "answer_review",
+  "contract_version": "2026-07-14.answer-review.v5.1.v3",
+  "prompt_version_id": "2026-07-14.answer-review.v5.prompt.v3",
+  "prompt_template_path": "learning_system/prompts/answer_review.v3.md",
+  "response_schema_version": "2026-07-14.answer-review.v5.schema.v3",
+  "minimum_confidence_to_apply": 0.68,
+  "engine_type": "model",
+  "authority": "criterion_semantic_judgments_only",
+  "provider_trust_modes": ["live_model", "recorded_model", "mock_only", "not_configured"],
+  "non_authority": [
+    "does_not_calculate_score",
+    "does_not_update_mastery_state",
+    "does_not_choose_next_action",
+    "does_not_generate_assessment_authority"
+  ],
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema_version",
+      "criteria",
+      "answer_gap",
+      "improvement_direction",
+      "expression_judgment",
+      "teaching_explanation",
+      "confidence"
+    ],
+    "properties": {
+      "schema_version": {
+        "const": "2026-07-14.answer-review.v5.schema.v3"
+      },
+      "criteria": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["criterion_key", "status", "child_evidence", "reason"],
+          "properties": {
+            "criterion_key": {"type": "string", "minLength": 1, "maxLength": 120},
+            "status": {
+              "type": "string",
+              "enum": ["met", "not_met", "contradicted", "unclear"]
+            },
+            "child_evidence": {"type": "string", "maxLength": 1200},
+            "reason": {"type": "string", "minLength": 1, "maxLength": 1200}
+          }
+        }
+      },
+      "answer_gap": {"type": "string", "minLength": 1, "maxLength": 1200},
+      "improvement_direction": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {"type": "string", "minLength": 1, "maxLength": 400}
+      },
+      "expression_judgment": {"type": "string", "minLength": 1, "maxLength": 800},
+      "teaching_explanation": {"type": "string", "minLength": 1, "maxLength": 1600},
+      "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+    }
+  }
+}

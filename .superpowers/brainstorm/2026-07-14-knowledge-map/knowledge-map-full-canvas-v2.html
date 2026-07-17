@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>完整数学知识图谱 · 大画布方案</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #66717d;
+      --line: #d8dde3;
+      --paper: #f5f7f9;
+      --white: #fff;
+      --blue: #2463eb;
+      --green: #238456;
+      --amber: #a96600;
+      --red: #c24049;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); letter-spacing: 0; }
+    button, input { font: inherit; }
+    .app { display: grid; grid-template-rows: 58px 1fr; height: 100%; }
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--line); z-index: 5; }
+    .brand { min-width: 186px; }
+    .brand strong { display: block; font-size: 15px; }
+    .brand span { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .search { position: relative; width: min(360px, 32vw); }
+    .search input { width: 100%; height: 34px; border: 1px solid var(--line); border-radius: 5px; padding: 0 10px 0 31px; background: #f9fafb; color: var(--ink); }
+    .search::before { content: "⌕"; position: absolute; left: 10px; top: 6px; color: var(--muted); font-size: 18px; }
+    .filters { display: flex; gap: 5px; margin-left: auto; }
+    .filter { height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--muted); font-size: 11px; }
+    .filter.active { color: #fff; border-color: var(--ink); background: var(--ink); }
+    .tool { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); font-size: 17px; line-height: 1; }
+    .workspace { position: relative; min-height: 0; overflow: hidden; }
+    #graphCanvas { width: 100%; height: 100%; display: block; background: #f8fafb; cursor: grab; touch-action: none; }
+    #graphCanvas.dragging { cursor: grabbing; }
+    .module-index { position: absolute; left: 14px; top: 14px; width: 172px; max-height: calc(100% - 28px); overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.96); box-shadow: 0 7px 22px rgba(25,33,42,.08); z-index: 3; }
+    .module-index h2 { margin: 0; padding: 12px 12px 8px; font-size: 12px; border-bottom: 1px solid var(--line); }
+    .module-button { display: block; width: 100%; border: 0; border-bottom: 1px solid #edf0f2; background: #fff; text-align: left; padding: 9px 12px; color: var(--ink); cursor: pointer; }
+    .module-button:hover { background: #f4f7fb; }
+    .module-button strong { display: block; font-size: 11px; }
+    .module-button span { display: block; color: var(--muted); font-size: 9px; margin-top: 2px; }
+    .detail { position: absolute; right: 14px; top: 14px; bottom: 14px; width: 310px; border: 1px solid var(--line); border-radius: 6px; background: #fff; box-shadow: 0 7px 22px rgba(25,33,42,.1); z-index: 4; transform: translateX(calc(100% + 28px)); transition: transform .22s ease; overflow: auto; }
+    .detail.open { transform: translateX(0); }
+    .detail-head { position: sticky; top: 0; padding: 16px; border-bottom: 1px solid var(--line); background: #fff; z-index: 2; }
+    .detail-title-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .detail h2 { margin: 0; font-size: 20px; line-height: 1.25; }
+    .detail-close { width: 28px; height: 28px; border: 1px solid var(--line); background: #fff; border-radius: 4px; }
+    .status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+    .status i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .detail-body { padding: 15px 16px 18px; }
+    .section { padding: 13px 0; border-bottom: 1px solid #edf0f2; }
+    .section:first-child { padding-top: 0; }
+    .section:last-child { border-bottom: 0; }
+    .section h3 { margin: 0 0 7px; font-size: 12px; }
+    .section p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .meter { margin-top: 9px; }
+    .meter-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; margin-bottom: 5px; }
+    .track { height: 7px; background: #e8ebef; border-radius: 4px; overflow: hidden; }
+    .fill { height: 100%; background: var(--blue); }
+    .fill.mastery { background: var(--amber); }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip { border: 1px solid var(--line); border-radius: 4px; background: #f8fafb; padding: 5px 6px; color: var(--muted); font-size: 9px; }
+    .actions { display: grid; gap: 7px; margin-top: 14px; }
+    .primary { border: 0; border-radius: 5px; background: var(--blue); color: #fff; padding: 10px; font-weight: 700; font-size: 12px; }
+    .secondary { border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); padding: 9px; font-size: 12px; }
+    .helper { position: absolute; left: 202px; bottom: 14px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.95); color: var(--muted); font-size: 10px; z-index: 3; }
+    .legend { position: absolute; left: 202px; top: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.95); color: var(--muted); font-size: 10px; z-index: 3; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .minimap-wrap { position: absolute; right: 14px; bottom: 14px; width: 190px; height: 120px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.94); overflow: hidden; z-index: 3; }
+    #miniCanvas { width: 100%; height: 100%; display: block; }
+    .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; z-index: 2; pointer-events: none; }
+    .loading.hidden { display: none; }
+    .prototype-note { position: absolute; right: 14px; top: 14px; color: var(--muted); font-size: 9px; z-index: 2; }
+    @media (max-width: 800px) {
+      .brand span, .filters { display: none; }
+      .brand { min-width: 120px; }
+      .search { width: auto; flex: 1; }
+      .module-index { width: 132px; }
+      .module-button { padding: 8px; }
+      .detail { left: 10px; right: 10px; top: auto; width: auto; height: 45%; bottom: 10px; transform: translateY(calc(100% + 20px)); }
+      .detail.open { transform: translateY(0); }
+      .legend { left: 152px; right: 10px; top: 10px; }
+      .helper { left: 152px; bottom: 10px; }
+      .minimap-wrap { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><strong>我的数学知识图谱</strong><span>56 个知识点 · 点击节点聚焦学习</span></div>
+      <label class="search"><input id="searchInput" placeholder="搜索知识点，例如：数轴、方程"></label>
+      <div class="filters" aria-label="节点筛选">
+        <button class="filter active" data-filter="all">全部</button>
+        <button class="filter" data-filter="recorded">有记录</button>
+        <button class="filter" data-filter="weak">待巩固</button>
+        <button class="filter" data-filter="untested">未测试</button>
+      </div>
+      <button class="tool" id="zoomOut" title="缩小" aria-label="缩小">−</button>
+      <button class="tool" id="zoomIn" title="放大" aria-label="放大">＋</button>
+      <button class="tool" id="fitAll" title="查看完整图谱" aria-label="查看完整图谱">⌂</button>
+    </header>
+    <main class="workspace">
+      <canvas id="graphCanvas" aria-label="可缩放数学知识图谱"></canvas>
+      <div class="loading" id="loading">正在加载完整知识图谱…</div>
+      <aside class="module-index" id="moduleIndex"><h2>知识模块</h2></aside>
+      <div class="legend">
+        <span><i style="background:#238456"></i>已掌握</span>
+        <span><i style="background:#2463eb"></i>学习中</span>
+        <span><i style="background:#a96600"></i>待巩固</span>
+        <span><i style="background:#aab2bb"></i>未测试</span>
+      </div>
+      <div class="helper">拖动浏览 · 滚轮缩放 · 点击节点自动聚焦 · 双击空白返回全图</div>
+      <aside class="detail" id="detailPanel" aria-live="polite">
+        <div class="detail-head">
+          <div class="detail-title-row"><div><h2 id="detailTitle">知识点</h2><span class="status"><i id="detailStatusDot"></i><span id="detailStatus">未测试</span></span></div><button class="detail-close" id="detailClose" aria-label="关闭详情">×</button></div>
+        </div>
+        <div class="detail-body">
+          <section class="section"><h3>一句话本质</h3><p id="detailEssence"></p></section>
+          <section class="section"><h3>我的进度</h3><div class="meter"><div class="meter-label"><span>学习进度</span><b id="learningLabel">0/4</b></div><div class="track"><div class="fill" id="learningFill"></div></div></div><div class="meter"><div class="meter-label"><span>掌握证据</span><b id="masteryLabel">未测试</b></div><div class="track"><div class="fill mastery" id="masteryFill"></div></div></div></section>
+          <section class="section"><h3>前置知识</h3><div class="chips" id="prereqChips"></div></section>
+          <section class="section"><h3>学会后可以继续</h3><div class="chips" id="unlockChips"></div></section>
+          <div class="actions"><button class="primary">进入这个知识点</button><button class="secondary">先做一次检测</button></div>
+        </div>
+      </aside>
+      <div class="minimap-wrap"><canvas id="miniCanvas" aria-label="图谱缩略图"></canvas></div>
+    </main>
+  </div>
+  <script>
+    const moduleColors = {
+      A_FOUNDATION: '#2b6cb0', B_FRACTION_RATIO: '#25856a', C_ALGEBRA_BRIDGE: '#7450a1',
+      D_WORD_MODELS: '#b35f37', E_RATIONAL_NUMBERS: '#b47700', F_EXPRESSIONS: '#9c405d',
+      G_LINEAR_EQUATION: '#356d7d', H_GEOMETRY_INTRO: '#527a36', Z_LEARNING_PROCESS: '#59636e'
+    };
+    const moduleOrder = ['A_FOUNDATION','B_FRACTION_RATIO','C_ALGEBRA_BRIDGE','D_WORD_MODELS','E_RATIONAL_NUMBERS','F_EXPRESSIONS','G_LINEAR_EQUATION','H_GEOMETRY_INTRO','Z_LEARNING_PROCESS'];
+    const moduleCenters = {
+      A_FOUNDATION:[360,300], B_FRACTION_RATIO:[1100,300], C_ALGEBRA_BRIDGE:[1840,300],
+      D_WORD_MODELS:[360,860], E_RATIONAL_NUMBERS:[1100,860], F_EXPRESSIONS:[1840,860],
+      G_LINEAR_EQUATION:[360,1420], H_GEOMETRY_INTRO:[1100,1420], Z_LEARNING_PROCESS:[1840,1420]
+    };
+    const sampleProgress = {
+      'M-PRE-NUMBER-SENSE': {status:'weak',learning:100,mastery:62,label:'待巩固',records:4},
+      'M-G7-POS-NEG': {status:'learning',learning:55,mastery:34,label:'学习中',records:2},
+      'M-G7-NUMBER-LINE': {status:'weak',learning:75,mastery:58,label:'待巩固',records:3},
+      'M-G7-ABSOLUTE': {status:'weak',learning:40,mastery:22,label:'待巩固',records:2}
+    };
+    const statusColors = {mastered:'#238456',learning:'#2463eb',weak:'#a96600',untested:'#aab2bb'};
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    const mini = document.getElementById('miniCanvas');
+    const mctx = mini.getContext('2d');
+    const loading = document.getElementById('loading');
+    let graph = null;
+    let nodes = [];
+    let nodeById = new Map();
+    let edges = [];
+    let scale = .42;
+    let offsetX = 205;
+    let offsetY = 55;
+    let dragging = false;
+    let dragStart = null;
+    let selectedId = null;
+    let hoveredId = null;
+    let activeFilter = 'all';
+    let searchTerm = '';
+    let animation = null;
+    const nodeW = 164, nodeH = 58;
+    const worldBounds = {x:80,y:80,w:2140,h:1600};
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width*dpr); canvas.height = Math.round(rect.height*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      const mr = mini.getBoundingClientRect(); mini.width = Math.round(mr.width*dpr); mini.height = Math.round(mr.height*dpr);
+      mctx.setTransform(dpr,0,0,dpr,0,0);
+      draw();
+    }
+    function screenToWorld(x,y){ return {x:(x-offsetX)/scale,y:(y-offsetY)/scale}; }
+    function worldToScreen(x,y){ return {x:x*scale+offsetX,y:y*scale+offsetY}; }
+    function statusOf(id){ return sampleProgress[id] || {status:'untested',learning:0,mastery:0,label:'未测试',records:0}; }
+    function visibleNode(node){
+      const s=statusOf(node.id);
+      const filterOk=activeFilter==='all'||(activeFilter==='recorded'&&s.records>0)||(activeFilter==='weak'&&s.status==='weak')||(activeFilter==='untested'&&s.status==='untested');
+      const searchOk=!searchTerm||node.name.includes(searchTerm)||node.domain.includes(searchTerm)||(node.taxonomy?.module_name||'').includes(searchTerm);
+      return filterOk&&searchOk;
+    }
+    function layoutGraph(data){
+      graph=data;
+      const grouped={}; moduleOrder.forEach(id=>grouped[id]=[]);
+      data.nodes.forEach(n=>{ const mid=n.taxonomy?.module_id||'Z_LEARNING_PROCESS'; (grouped[mid]||(grouped[mid]=[])).push(n); });
+      nodes=[];
+      moduleOrder.forEach(mid=>{
+        const list=grouped[mid]||[]; const [cx,cy]=moduleCenters[mid];
+        const cols=3; const gapX=190; const gapY=92;
+        const rows=Math.ceil(list.length/cols);
+        list.forEach((n,i)=>{
+          const col=i%cols,row=Math.floor(i/cols);
+          nodes.push({...n,moduleId:mid,x:cx+(col-1)*gapX-nodeW/2,y:cy+(row-(rows-1)/2)*gapY-nodeH/2});
+        });
+      });
+      nodeById=new Map(nodes.map(n=>[n.id,n]));
+      edges=[];
+      nodes.forEach(n=>(n.prerequisites||[]).forEach(pid=>{if(nodeById.has(pid)) edges.push({from:pid,to:n.id});}));
+      buildModuleIndex(data.modules||{});
+      fitAll(false);
+    }
+    function roundedRect(c,x,y,w,h,r){ c.beginPath(); c.roundRect(x,y,w,h,r); }
+    function draw(){
+      if(!graph)return;
+      const rect=canvas.getBoundingClientRect();
+      ctx.clearRect(0,0,rect.width,rect.height);
+      ctx.save(); ctx.translate(offsetX,offsetY); ctx.scale(scale,scale);
+      moduleOrder.forEach(mid=>{
+        const list=nodes.filter(n=>n.moduleId===mid); if(!list.length)return;
+        const minX=Math.min(...list.map(n=>n.x))-36,maxX=Math.max(...list.map(n=>n.x+nodeW))+36;
+        const minY=Math.min(...list.map(n=>n.y))-62,maxY=Math.max(...list.map(n=>n.y+nodeH))+36;
+        ctx.fillStyle=moduleColors[mid]+'0D';ctx.strokeStyle=moduleColors[mid]+'38';ctx.lineWidth=2;
+        roundedRect(ctx,minX,minY,maxX-minX,maxY-minY,16);ctx.fill();ctx.stroke();
+        ctx.fillStyle=moduleColors[mid];ctx.font='700 22px -apple-system, BlinkMacSystemFont, Segoe UI';ctx.fillText(graph.modules[mid]?.name||mid,minX+18,minY+32);
+      });
+      const selected=selectedId?nodeById.get(selectedId):null;
+      const related=new Set(); if(selected){(selected.prerequisites||[]).forEach(x=>related.add(x));(selected.unlocks||[]).forEach(x=>related.add(x));}
+      edges.forEach(e=>{
+        const a=nodeById.get(e.from),b=nodeById.get(e.to); if(!a||!b)return;
+        const highlight=selectedId&&(e.from===selectedId||e.to===selectedId);
+        ctx.strokeStyle=highlight?'#2463eb':selectedId?'#dfe3e7':'#c7ced5';ctx.lineWidth=highlight?4:1.4;ctx.globalAlpha=selectedId?(highlight?1:.23):.62;
+        ctx.beginPath();ctx.moveTo(a.x+nodeW/2,a.y+nodeH/2);ctx.bezierCurveTo(a.x+nodeW/2+70,a.y+nodeH/2,b.x+nodeW/2-70,b.y+nodeH/2,b.x+nodeW/2,b.y+nodeH/2);ctx.stroke();
+      });ctx.globalAlpha=1;
+      nodes.forEach(n=>{
+        if(!visibleNode(n))return;
+        const s=statusOf(n.id); const selected=n.id===selectedId,relatedNode=related.has(n.id),hovered=n.id===hoveredId;
+        ctx.globalAlpha=selectedId&&!selected&&!relatedNode?.34:1;
+        ctx.fillStyle='#fff';ctx.strokeStyle=selected?'#17202a':statusColors[s.status];ctx.lineWidth=selected?5:hovered?3:2.4;
+        roundedRect(ctx,n.x,n.y,nodeW,nodeH,8);ctx.fill();ctx.stroke();
+        ctx.fillStyle=statusColors[s.status];ctx.beginPath();ctx.arc(n.x+15,n.y+16,6,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#17202a';ctx.font='700 16px -apple-system, BlinkMacSystemFont, Segoe UI';
+        const label=n.name.length>10?n.name.slice(0,10)+'…':n.name;ctx.fillText(label,n.x+28,n.y+21);
+        ctx.fillStyle='#68727d';ctx.font='12px -apple-system, BlinkMacSystemFont, Segoe UI';ctx.fillText(s.label+' · '+(n.priority||''),n.x+14,n.y+43);
+      });ctx.globalAlpha=1;ctx.restore();
+      drawMini();
+    }
+    function drawMini(){
+      const rect=mini.getBoundingClientRect();mctx.clearRect(0,0,rect.width,rect.height);mctx.fillStyle='#fff';mctx.fillRect(0,0,rect.width,rect.height);
+      const sx=rect.width/worldBounds.w,sy=rect.height/worldBounds.h,k=Math.min(sx,sy)*.92,ox=(rect.width-worldBounds.w*k)/2,oy=(rect.height-worldBounds.h*k)/2;
+      nodes.forEach(n=>{mctx.fillStyle=moduleColors[n.moduleId]||'#888';mctx.fillRect(ox+(n.x-worldBounds.x)*k,oy+(n.y-worldBounds.y)*k,Math.max(2,nodeW*k),Math.max(2,nodeH*k));});
+      const main=canvas.getBoundingClientRect();const tl=screenToWorld(0,0),br=screenToWorld(main.width,main.height);mctx.strokeStyle='#2463eb';mctx.lineWidth=1.5;mctx.strokeRect(ox+(tl.x-worldBounds.x)*k,oy+(tl.y-worldBounds.y)*k,(br.x-tl.x)*k,(br.y-tl.y)*k);
+    }
+    function hitNode(sx,sy){const p=screenToWorld(sx,sy);for(let i=nodes.length-1;i>=0;i--){const n=nodes[i];if(visibleNode(n)&&p.x>=n.x&&p.x<=n.x+nodeW&&p.y>=n.y&&p.y<=n.y+nodeH)return n;}return null;}
+    function animateView(targetScale,targetX,targetY){
+      if(animation)cancelAnimationFrame(animation);const start={s:scale,x:offsetX,y:offsetY,t:performance.now()};
+      function frame(now){const p=Math.min(1,(now-start.t)/260),e=1-Math.pow(1-p,3);scale=start.s+(targetScale-start.s)*e;offsetX=start.x+(targetX-start.x)*e;offsetY=start.y+(targetY-start.y)*e;draw();if(p<1)animation=requestAnimationFrame(frame);}
+      animation=requestAnimationFrame(frame);
+    }
+    function fitAll(animated=true){const rect=canvas.getBoundingClientRect();const rightPad=document.getElementById('detailPanel').classList.contains('open')?340:20;const availableW=rect.width-205-rightPad,availableH=rect.height-40;const s=Math.min(availableW/worldBounds.w,availableH/worldBounds.h);const x=205+(availableW-worldBounds.w*s)/2-worldBounds.x*s;const y=20+(availableH-worldBounds.h*s)/2-worldBounds.y*s;animated?animateView(s,x,y):(scale=s,offsetX=x,offsetY=y,draw());}
+    function focusNode(n){selectedId=n.id;const rect=canvas.getBoundingClientRect();const targetScale=Math.max(.9,Math.min(1.35,rect.width/1050));const cx=rect.width*.48,cy=rect.height*.46;showDetail(n);animateView(targetScale,cx-(n.x+nodeW/2)*targetScale,cy-(n.y+nodeH/2)*targetScale);}
+    function showDetail(n){
+      const s=statusOf(n.id);document.getElementById('detailPanel').classList.add('open');document.getElementById('detailTitle').textContent=n.name;document.getElementById('detailStatus').textContent=s.label;document.getElementById('detailStatusDot').style.background=statusColors[s.status];document.getElementById('detailEssence').textContent=n.essence_for_child||'这个知识点还没有一句话说明。';
+      document.getElementById('learningLabel').textContent=s.records?s.records+'次记录':'未开始';document.getElementById('learningFill').style.width=s.learning+'%';document.getElementById('masteryLabel').textContent=s.label;document.getElementById('masteryFill').style.width=s.mastery+'%';
+      fillChips('prereqChips',n.prerequisites||[],'没有前置限制');fillChips('unlockChips',n.unlocks||[],'后续节点待整理');
+    }
+    function fillChips(id,ids,empty){const el=document.getElementById(id);el.innerHTML='';if(!ids.length){el.innerHTML='<span class="chip">'+empty+'</span>';return;}ids.slice(0,7).forEach(x=>{const b=document.createElement('button');b.className='chip';b.textContent=nodeById.get(x)?.name||x;b.onclick=()=>{const n=nodeById.get(x);if(n)focusNode(n);};el.appendChild(b);});}
+    function buildModuleIndex(modules){const root=document.getElementById('moduleIndex');root.querySelectorAll('.module-button').forEach(x=>x.remove());moduleOrder.forEach(mid=>{const count=nodes.filter(n=>n.moduleId===mid).length;const b=document.createElement('button');b.className='module-button';b.innerHTML='<strong>'+modules[mid].name+'</strong><span>'+count+' 个知识点</span>';b.onclick=()=>focusModule(mid);root.appendChild(b);});}
+    function focusModule(mid){selectedId=null;document.getElementById('detailPanel').classList.remove('open');const list=nodes.filter(n=>n.moduleId===mid);const minX=Math.min(...list.map(n=>n.x))-80,maxX=Math.max(...list.map(n=>n.x+nodeW))+80,minY=Math.min(...list.map(n=>n.y))-100,maxY=Math.max(...list.map(n=>n.y+nodeH))+80;const rect=canvas.getBoundingClientRect(),w=maxX-minX,h=maxY-minY,s=Math.min((rect.width-240)/w,(rect.height-60)/h,1.15);animateView(s,215+(rect.width-230-w*s)/2-minX*s,30+(rect.height-60-h*s)/2-minY*s);}
+    canvas.addEventListener('pointerdown',e=>{dragging=true;dragStart={x:e.clientX,y:e.clientY,ox:offsetX,oy:offsetY};canvas.classList.add('dragging');canvas.setPointerCapture(e.pointerId);});
+    canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();const n=hitNode(e.clientX-r.left,e.clientY-r.top);hoveredId=n?.id||null;if(dragging){offsetX=dragStart.ox+e.clientX-dragStart.x;offsetY=dragStart.oy+e.clientY-dragStart.y;}draw();});
+    canvas.addEventListener('pointerup',e=>{const moved=Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y);dragging=false;canvas.classList.remove('dragging');if(moved<5){const r=canvas.getBoundingClientRect(),n=hitNode(e.clientX-r.left,e.clientY-r.top);if(n)focusNode(n);}});
+    canvas.addEventListener('pointerleave',()=>{hoveredId=null;if(!dragging)draw();});
+    canvas.addEventListener('dblclick',e=>{const r=canvas.getBoundingClientRect();if(!hitNode(e.clientX-r.left,e.clientY-r.top)){selectedId=null;document.getElementById('detailPanel').classList.remove('open');fitAll();}});
+    canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,before=screenToWorld(mx,my);const ns=Math.max(.18,Math.min(1.8,scale*(e.deltaY<0?1.13:.885)));scale=ns;offsetX=mx-before.x*scale;offsetY=my-before.y*scale;draw();},{passive:false});
+    document.getElementById('zoomIn').onclick=()=>{const r=canvas.getBoundingClientRect();const p=screenToWorld(r.width/2,r.height/2);const ns=Math.min(1.8,scale*1.22);animateView(ns,r.width/2-p.x*ns,r.height/2-p.y*ns);};
+    document.getElementById('zoomOut').onclick=()=>{const r=canvas.getBoundingClientRect();const p=screenToWorld(r.width/2,r.height/2);const ns=Math.max(.18,scale/1.22);animateView(ns,r.width/2-p.x*ns,r.height/2-p.y*ns);};
+    document.getElementById('fitAll').onclick=()=>{selectedId=null;document.getElementById('detailPanel').classList.remove('open');fitAll();};
+    document.getElementById('detailClose').onclick=()=>{selectedId=null;document.getElementById('detailPanel').classList.remove('open');fitAll();};
+    document.getElementById('searchInput').addEventListener('input',e=>{searchTerm=e.target.value.trim();draw();if(searchTerm){const n=nodes.find(visibleNode);if(n)focusNode(n);}});
+    document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');activeFilter=b.dataset.filter;selectedId=null;document.getElementById('detailPanel').classList.remove('open');draw();});
+    window.addEventListener('resize',resize);
+    fetch('graph.json').then(r=>r.json()).then(data=>{layoutGraph(data);loading.classList.add('hidden');resize();}).catch(err=>{loading.textContent='图谱加载失败：'+err.message;});
+  </script>
+</body>
+</html>

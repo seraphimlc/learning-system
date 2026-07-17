@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-BRIDGE-CLOCK-ANGLE",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 96,
+  "minimum_provider_attempts": 119,
+  "counter_chain_head_sha256": "edf887d9ce892bd75dfd03649cad8fd408347cdeb925e06b960439ce1e577c89",
+  "budget_integrity_sha256": "6705ff379f5642f84cfc706c2a4557855b23193003ac6ed333a72af4392d32ea",
+  "legacy_source_digests": [
+    "4fe65ac6b88e7e45a4448b9b13a5d0b001551ccb422c4743f297aacf539a2f47",
+    "bf054bcdd94d369facaa89acff51c5dc5e12d934e53a5dfeb010cd21db4ea98f"
+  ],
+  "updated_at": "2026-07-17T04:09:27Z",
+  "integrity_sha256": "ae21b312a1b785d83d7412af34ca09e76b812e9e38c10e228f95cdb168985fed"
+}

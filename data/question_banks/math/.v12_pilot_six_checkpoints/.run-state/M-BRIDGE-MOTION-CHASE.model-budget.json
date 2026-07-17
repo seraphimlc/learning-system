@@ -1,0 +1,1852 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget.v2",
+  "node_id": "M-BRIDGE-MOTION-CHASE",
+  "run_ids": [
+    "V12-RUN-966b8c6fc46345088e0ae39cc257d724",
+    "V12-RUN-bbd5f8dba7f244dda7362f8254887beb",
+    "V12-RUN-e1a6e75bd43d490b8d61761c07f22d40",
+    "V12-RUN-0ccc48d5b99f48e889d7f092c3eed7a4",
+    "V12-RUN-d28b1506130b4b34893cefc1389b6fd2",
+    "V12-RUN-bd85654f6c744803b215e5f9f7c55f1a",
+    "V12-RUN-d7cd5bb1399c487cac23bd7ca0ed3aaa",
+    "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+    "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+    "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+    "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+    "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+    "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+    "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+    "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+    "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+    "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+    "V12-RUN-4ea53ce22421407b97b236727eff7436",
+    "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+    "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+    "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+    "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+    "V12-RUN-929248881e034015bae2e360f46cb11f",
+    "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+    "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+    "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+    "V12-RUN-70afe1c390de4f799d35f40549264aba",
+    "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+    "V12-RUN-27d174e3197943198253316ecd304ce1",
+    "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+    "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+    "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+    "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+    "V12-RUN-684d68c7a90141ed85b173927c097e99",
+    "V12-RUN-02ced42d767b456c915566edd00b364b",
+    "V12-RUN-af8f70c196e4424bbb9331045897326d",
+    "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+    "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+    "V12-RUN-2d683a71cff246e09531054261852a71",
+    "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+    "V12-RUN-ccef9020a53746c48804f057997ae646",
+    "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+    "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+    "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+    "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+    "V12-RUN-c889e02eabee434da770844d8ea3462f",
+    "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+    "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+    "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+    "V12-RUN-96e372b68eba4916b4909138943030ec",
+    "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+    "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+    "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+    "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+    "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+    "V12-RUN-6a1c0f53434943a898653c4f80347621",
+    "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+    "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+    "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+    "V12-RUN-99012ac48e11479483ff49846943b80c",
+    "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+    "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+    "V12-RUN-45ba13e552614d05be561d96edfab655",
+    "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+    "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+    "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+    "V12-RUN-416e648f87a2400ca83610fc734b161e",
+    "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+    "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+    "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+    "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+    "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+    "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+    "V12-RUN-11f0712d40c94890a7605034516f4b26",
+    "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+    "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+    "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+    "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+    "V12-RUN-3139466b050c495fbfbf657f64797f93",
+    "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+    "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+    "V12-RUN-5fe75ec1489643a8af664d739654a742",
+    "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+    "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+    "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+    "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+    "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+    "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+    "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+    "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+    "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+    "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+    "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+    "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+    "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+    "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+    "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+    "V12-RUN-a0fc28967b0d40ec9f24b7a3d6fc62bc",
+    "V12-RUN-0dd591ad86dc4344a6e7373d1474fbc8",
+    "V12-RUN-8575a023ebf34aef839578c85e2936ee",
+    "V12-RUN-fb2acd3497524a04a39f1a1553302391",
+    "V12-RUN-9c035038cb1f481ca13f3be1d8ed25bd",
+    "V12-RUN-e594bcdc6805432d8abed23c2d84db56",
+    "V12-RUN-e95af84509d7478b883fb9574be27d74",
+    "V12-RUN-13d13aee0f554ce5b6dfc35fbdc6eda4",
+    "V12-RUN-ee6e9384d7d04d37a021630468769891",
+    "V12-RUN-9f4b2aec31e2451dae37a93d0146c036",
+    "V12-RUN-bec394ef7d7a4b359c6b532ad5cfa519",
+    "V12-RUN-fa2e94a777be4dcf9bbe87ca4e138fc6",
+    "V12-RUN-4b2d7133b76745a3a4941e598f271bf8",
+    "V12-RUN-1280fd46bb144ccc8ba91d0abe7f3e24",
+    "V12-RUN-522e03ff228e43678c72de3f81632e02",
+    "V12-RUN-433009fd3724479d8791b876760f553e",
+    "V12-RUN-b46b2734ddac4450bb3e1f23d81362b0"
+  ],
+  "pid": 60540,
+  "semantic_calls": 75,
+  "provider_attempts": 87,
+  "max_semantic_calls": 120,
+  "max_provider_attempts": 300,
+  "status": "completed",
+  "reason": "",
+  "last_error_class": "KeyboardInterrupt",
+  "last_error_at": "2026-07-15T13:47:59Z",
+  "interruptions": [
+    {
+      "run_id": "V12-RUN-966b8c6fc46345088e0ae39cc257d724",
+      "pid": 65618,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-14T20:20:44Z"
+    },
+    {
+      "run_id": "V12-RUN-bbd5f8dba7f244dda7362f8254887beb",
+      "pid": 17808,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-14T20:26:24Z"
+    },
+    {
+      "run_id": "V12-RUN-e1a6e75bd43d490b8d61761c07f22d40",
+      "pid": 41303,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-14T20:30:00Z"
+    },
+    {
+      "run_id": "V12-RUN-0ccc48d5b99f48e889d7f092c3eed7a4",
+      "pid": 50869,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-14T20:48:58Z"
+    },
+    {
+      "run_id": "V12-RUN-d28b1506130b4b34893cefc1389b6fd2",
+      "pid": 11070,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-MOTION-CHASE slots: [14]",
+      "failed_at": "2026-07-14T20:51:51Z"
+    },
+    {
+      "run_id": "V12-RUN-d28b1506130b4b34893cefc1389b6fd2",
+      "pid": 11070,
+      "error_class": "UncleanPreviousRun",
+      "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+      "failed_at": "2026-07-14T20:57:49Z"
+    },
+    {
+      "run_id": "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+      "pid": 71569,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-SOLUTION-HABIT slots: [20]",
+      "failed_at": "2026-07-14T22:52:09Z"
+    },
+    {
+      "run_id": "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+      "pid": 33052,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-PRE-ORDER-OPS slots: [19]",
+      "failed_at": "2026-07-15T01:11:23Z"
+    },
+    {
+      "run_id": "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+      "pid": 28819,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13, 17]; normalization={}",
+      "failed_at": "2026-07-15T01:45:55Z"
+    },
+    {
+      "run_id": "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+      "pid": 69983,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.24s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:55:20Z"
+    },
+    {
+      "run_id": "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+      "pid": 7038,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=123.04s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T01:57:46Z"
+    },
+    {
+      "run_id": "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+      "pid": 9677,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.88s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T02:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+      "pid": 12990,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:27:09Z"
+    },
+    {
+      "run_id": "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+      "pid": 56323,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T03:35:05Z"
+    },
+    {
+      "run_id": "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+      "pid": 838,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:37:22Z"
+    },
+    {
+      "run_id": "V12-RUN-4ea53ce22421407b97b236727eff7436",
+      "pid": 96857,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=116.97s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T04:43:41Z"
+    },
+    {
+      "run_id": "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+      "pid": 19589,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.28s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:03:20Z"
+    },
+    {
+      "run_id": "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+      "pid": 49266,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.93s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:19:03Z"
+    },
+    {
+      "run_id": "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+      "pid": 63008,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.75s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:21:50Z"
+    },
+    {
+      "run_id": "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+      "pid": 71836,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.10s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:27:46Z"
+    },
+    {
+      "run_id": "V12-RUN-929248881e034015bae2e360f46cb11f",
+      "pid": 76175,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.05s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:30:01Z"
+    },
+    {
+      "run_id": "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+      "pid": 79450,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.53s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:32:20Z"
+    },
+    {
+      "run_id": "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+      "pid": 81527,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.86s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T05:34:41Z"
+    },
+    {
+      "run_id": "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+      "pid": 83676,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T05:35:34Z"
+    },
+    {
+      "run_id": "V12-RUN-70afe1c390de4f799d35f40549264aba",
+      "pid": 30351,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T06:05:08Z"
+    },
+    {
+      "run_id": "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+      "pid": 13960,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:20Z"
+    },
+    {
+      "run_id": "V12-RUN-27d174e3197943198253316ecd304ce1",
+      "pid": 44755,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:30:40Z"
+    },
+    {
+      "run_id": "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+      "pid": 45913,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:06Z"
+    },
+    {
+      "run_id": "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+      "pid": 48845,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:26Z"
+    },
+    {
+      "run_id": "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+      "pid": 49299,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:31:46Z"
+    },
+    {
+      "run_id": "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+      "pid": 49694,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:05Z"
+    },
+    {
+      "run_id": "V12-RUN-684d68c7a90141ed85b173927c097e99",
+      "pid": 50605,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:25Z"
+    },
+    {
+      "run_id": "V12-RUN-02ced42d767b456c915566edd00b364b",
+      "pid": 51454,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:32:45Z"
+    },
+    {
+      "run_id": "V12-RUN-af8f70c196e4424bbb9331045897326d",
+      "pid": 52700,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:05Z"
+    },
+    {
+      "run_id": "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+      "pid": 53007,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:25Z"
+    },
+    {
+      "run_id": "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+      "pid": 53750,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:33:44Z"
+    },
+    {
+      "run_id": "V12-RUN-2d683a71cff246e09531054261852a71",
+      "pid": 54217,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+      "failed_at": "2026-07-15T07:34:04Z"
+    },
+    {
+      "run_id": "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+      "pid": 95732,
+      "error_class": "ModelJSONParseError",
+      "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13]; normalization={}",
+      "failed_at": "2026-07-15T08:12:36Z"
+    },
+    {
+      "run_id": "V12-RUN-ccef9020a53746c48804f057997ae646",
+      "pid": 18748,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.25s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:34:10Z"
+    },
+    {
+      "run_id": "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+      "pid": 60260,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.32s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:36:30Z"
+    },
+    {
+      "run_id": "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+      "pid": 69639,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:40:06Z"
+    },
+    {
+      "run_id": "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+      "pid": 87882,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.63s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T08:53:03Z"
+    },
+    {
+      "run_id": "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+      "pid": 27685,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.09s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+      "failed_at": "2026-07-15T09:15:21Z"
+    },
+    {
+      "run_id": "V12-RUN-c889e02eabee434da770844d8ea3462f",
+      "pid": 98654,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:41:16Z"
+    },
+    {
+      "run_id": "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+      "pid": 95730,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:42:17Z"
+    },
+    {
+      "run_id": "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+      "pid": 2750,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:43:11Z"
+    },
+    {
+      "run_id": "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+      "pid": 5501,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:44:48Z"
+    },
+    {
+      "run_id": "V12-RUN-96e372b68eba4916b4909138943030ec",
+      "pid": 8814,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:45:48Z"
+    },
+    {
+      "run_id": "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+      "pid": 9848,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T09:46:46Z"
+    },
+    {
+      "run_id": "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+      "pid": 68083,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:06:16Z"
+    },
+    {
+      "run_id": "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+      "pid": 73288,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:07:15Z"
+    },
+    {
+      "run_id": "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+      "pid": 77062,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:08:12Z"
+    },
+    {
+      "run_id": "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+      "pid": 80427,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:09:09Z"
+    },
+    {
+      "run_id": "V12-RUN-6a1c0f53434943a898653c4f80347621",
+      "pid": 82481,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:10:07Z"
+    },
+    {
+      "run_id": "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+      "pid": 84402,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:11:06Z"
+    },
+    {
+      "run_id": "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+      "pid": 88436,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:12:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+      "pid": 94438,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:13:15Z"
+    },
+    {
+      "run_id": "V12-RUN-99012ac48e11479483ff49846943b80c",
+      "pid": 418,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:14:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+      "pid": 4096,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:15:20Z"
+    },
+    {
+      "run_id": "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+      "pid": 8172,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:16:18Z"
+    },
+    {
+      "run_id": "V12-RUN-45ba13e552614d05be561d96edfab655",
+      "pid": 12488,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:17:50Z"
+    },
+    {
+      "run_id": "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+      "pid": 2614,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:57:23Z"
+    },
+    {
+      "run_id": "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+      "pid": 5051,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:58:28Z"
+    },
+    {
+      "run_id": "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+      "pid": 5957,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T10:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-416e648f87a2400ca83610fc734b161e",
+      "pid": 6538,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:00:25Z"
+    },
+    {
+      "run_id": "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+      "pid": 8210,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:01:27Z"
+    },
+    {
+      "run_id": "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+      "pid": 8822,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:02:23Z"
+    },
+    {
+      "run_id": "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+      "pid": 9206,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:04:09Z"
+    },
+    {
+      "run_id": "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+      "pid": 12019,
+      "error_class": "NodeSetReviewShardError",
+      "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+      "failed_at": "2026-07-15T11:05:12Z"
+    },
+    {
+      "run_id": "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+      "pid": 13233,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T11:06:09Z"
+    },
+    {
+      "run_id": "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+      "pid": 56011,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:16Z"
+    },
+    {
+      "run_id": "V12-RUN-11f0712d40c94890a7605034516f4b26",
+      "pid": 73081,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:18:43Z"
+    },
+    {
+      "run_id": "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+      "pid": 73152,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:10Z"
+    },
+    {
+      "run_id": "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+      "pid": 73229,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:19:37Z"
+    },
+    {
+      "run_id": "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+      "pid": 73463,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:04Z"
+    },
+    {
+      "run_id": "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+      "pid": 73560,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:31Z"
+    },
+    {
+      "run_id": "V12-RUN-3139466b050c495fbfbf657f64797f93",
+      "pid": 73769,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:20:59Z"
+    },
+    {
+      "run_id": "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+      "pid": 74049,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:24Z"
+    },
+    {
+      "run_id": "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+      "pid": 74119,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:21:52Z"
+    },
+    {
+      "run_id": "V12-RUN-5fe75ec1489643a8af664d739654a742",
+      "pid": 74227,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:18Z"
+    },
+    {
+      "run_id": "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+      "pid": 74301,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:22:45Z"
+    },
+    {
+      "run_id": "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+      "pid": 74358,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+      "failed_at": "2026-07-15T12:23:12Z"
+    },
+    {
+      "run_id": "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+      "pid": 83636,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:55:49Z"
+    },
+    {
+      "run_id": "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+      "pid": 88457,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:17Z"
+    },
+    {
+      "run_id": "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+      "pid": 88944,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:56:45Z"
+    },
+    {
+      "run_id": "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+      "pid": 89547,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:11Z"
+    },
+    {
+      "run_id": "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+      "pid": 89861,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:57:38Z"
+    },
+    {
+      "run_id": "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+      "pid": 90116,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:05Z"
+    },
+    {
+      "run_id": "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+      "pid": 90212,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:58:33Z"
+    },
+    {
+      "run_id": "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+      "pid": 90316,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:01Z"
+    },
+    {
+      "run_id": "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+      "pid": 90414,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:29Z"
+    },
+    {
+      "run_id": "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+      "pid": 90486,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T12:59:57Z"
+    },
+    {
+      "run_id": "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+      "pid": 90573,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:26Z"
+    },
+    {
+      "run_id": "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+      "pid": 90647,
+      "error_class": "ValueError",
+      "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+      "failed_at": "2026-07-15T13:00:53Z"
+    },
+    {
+      "run_id": "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+      "pid": 472,
+      "error_class": "KeyboardInterrupt",
+      "error_message": "KeyboardInterrupt",
+      "failed_at": "2026-07-15T13:47:59Z"
+    }
+  ],
+  "counter_events": [
+    {
+      "sequence": 1,
+      "event_type": "legacy_baseline_import",
+      "phase": "legacy_v1_budget_migration",
+      "semantic_calls": 64,
+      "provider_attempts": 75,
+      "previous_event_sha256": "",
+      "legacy_source_digests": [
+        "a314419ef4c363b126ea6235996f9b3e7ad7a1867a0d572aa87c1e2acd8c7322",
+        "51213c4aa5c868e58e7dba039153a65ec9fb6b995840975b64ca7fd441edddec"
+      ],
+      "legacy_cap_reconciliation_commitment_sha256": "1dfcf827095006e659585c1be6a010dff03e8e7ebf18707707ab93e5aa1d520b",
+      "legacy_cap_source_state_payload_sha256": "c195b1b5297cd3dea8bf226fbff366d4834271c33488ea5b0dab10aa45dee7b4",
+      "legacy_cap_source_checkpoint_payload_sha256": "a3a1a0ab408380f06e379450dd4fad526db9142faef5b694f6bb83621ee28da9",
+      "event_sha256": "55b72992d55185301cb49c6bc9e9505f1966b8949f0416491f963f630856db38"
+    },
+    {
+      "sequence": 2,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 65,
+      "provider_attempts": 75,
+      "previous_event_sha256": "55b72992d55185301cb49c6bc9e9505f1966b8949f0416491f963f630856db38",
+      "event_sha256": "c558f232f52e2fb8c913f377cc60338cf3a0956bf6f6c8e510ca58650258d3a7"
+    },
+    {
+      "sequence": 3,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 65,
+      "provider_attempts": 76,
+      "previous_event_sha256": "c558f232f52e2fb8c913f377cc60338cf3a0956bf6f6c8e510ca58650258d3a7",
+      "event_sha256": "92794a2bd39fb0c2c055b9716ee4a9cfaeae8872dc0caddb4da491beac690381"
+    },
+    {
+      "sequence": 4,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 76,
+      "previous_event_sha256": "92794a2bd39fb0c2c055b9716ee4a9cfaeae8872dc0caddb4da491beac690381",
+      "event_sha256": "dae1c765d6745d77954a052d02dba22abce96e292d7a89f927ccf9f6e568eae9"
+    },
+    {
+      "sequence": 5,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 66,
+      "provider_attempts": 77,
+      "previous_event_sha256": "dae1c765d6745d77954a052d02dba22abce96e292d7a89f927ccf9f6e568eae9",
+      "event_sha256": "e06abfd85d74b8f2baea82adaa60ab4c9307fa0304587c246bf029c0bb1126e1"
+    },
+    {
+      "sequence": 6,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 77,
+      "previous_event_sha256": "e06abfd85d74b8f2baea82adaa60ab4c9307fa0304587c246bf029c0bb1126e1",
+      "event_sha256": "77a08adf5974e2775c7f3814264f106f7c57f7b69a632d70ce0f89157a0555c5"
+    },
+    {
+      "sequence": 7,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 67,
+      "provider_attempts": 78,
+      "previous_event_sha256": "77a08adf5974e2775c7f3814264f106f7c57f7b69a632d70ce0f89157a0555c5",
+      "event_sha256": "2d3333f49aae6efebfea8af0c14bf824da01de48e9b019b4c8fa0ea4f5102579"
+    },
+    {
+      "sequence": 8,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 78,
+      "previous_event_sha256": "2d3333f49aae6efebfea8af0c14bf824da01de48e9b019b4c8fa0ea4f5102579",
+      "event_sha256": "567acf41ac146617ac203d88674fb078a57e669cb61e419a8d744cab562b3d7e"
+    },
+    {
+      "sequence": 9,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 68,
+      "provider_attempts": 79,
+      "previous_event_sha256": "567acf41ac146617ac203d88674fb078a57e669cb61e419a8d744cab562b3d7e",
+      "event_sha256": "6e8abdfb011c0b6697329ab59d5c38900758310d1f0fe271c2716c75faa77e6e"
+    },
+    {
+      "sequence": 10,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 69,
+      "provider_attempts": 79,
+      "previous_event_sha256": "6e8abdfb011c0b6697329ab59d5c38900758310d1f0fe271c2716c75faa77e6e",
+      "event_sha256": "714d511f7a12bca1177228f2c852acd0da88d2bae83eaddf8e571fe93dc07e0f"
+    },
+    {
+      "sequence": 11,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 69,
+      "provider_attempts": 80,
+      "previous_event_sha256": "714d511f7a12bca1177228f2c852acd0da88d2bae83eaddf8e571fe93dc07e0f",
+      "event_sha256": "94dedf264fa4164039a7a0d3891c31421092dfe2726120b603bb0223b8cc73de"
+    },
+    {
+      "sequence": 12,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 70,
+      "provider_attempts": 80,
+      "previous_event_sha256": "94dedf264fa4164039a7a0d3891c31421092dfe2726120b603bb0223b8cc73de",
+      "event_sha256": "d5fa14a5d5d423e6f04de6fbc615e7971573a804d41ceb3c2d15f5d21ce3dbc9"
+    },
+    {
+      "sequence": 13,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 70,
+      "provider_attempts": 81,
+      "previous_event_sha256": "d5fa14a5d5d423e6f04de6fbc615e7971573a804d41ceb3c2d15f5d21ce3dbc9",
+      "event_sha256": "5ab736159a8adb3715148e288561bf27f64cff3a06f3ad8261067cae93e32566"
+    },
+    {
+      "sequence": 14,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 71,
+      "provider_attempts": 81,
+      "previous_event_sha256": "5ab736159a8adb3715148e288561bf27f64cff3a06f3ad8261067cae93e32566",
+      "event_sha256": "45cfc81e0c343bda712784f00365d703936913ea72ffd69e1b18e1d7cfda9be1"
+    },
+    {
+      "sequence": 15,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 71,
+      "provider_attempts": 82,
+      "previous_event_sha256": "45cfc81e0c343bda712784f00365d703936913ea72ffd69e1b18e1d7cfda9be1",
+      "event_sha256": "8696428d174aa8f44951dd9e7aef30d540f329f377547b3afae50e675ac3e637"
+    },
+    {
+      "sequence": 16,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 72,
+      "provider_attempts": 82,
+      "previous_event_sha256": "8696428d174aa8f44951dd9e7aef30d540f329f377547b3afae50e675ac3e637",
+      "event_sha256": "43be8d58794798adb945e415ca80f8bcb4dee6d7ceb7e506d757e278f77bec6e"
+    },
+    {
+      "sequence": 17,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 72,
+      "provider_attempts": 83,
+      "previous_event_sha256": "43be8d58794798adb945e415ca80f8bcb4dee6d7ceb7e506d757e278f77bec6e",
+      "event_sha256": "4a748be8c5b741e0bd5e189d4cc3be417e81e9bcc4e21a42ce1d2de71b5767a8"
+    },
+    {
+      "sequence": 18,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 72,
+      "provider_attempts": 84,
+      "previous_event_sha256": "4a748be8c5b741e0bd5e189d4cc3be417e81e9bcc4e21a42ce1d2de71b5767a8",
+      "event_sha256": "e7d749e249ea967e56b25a82562bb226415b25b1eb898229b2ddf808b64f826d"
+    },
+    {
+      "sequence": 19,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 73,
+      "provider_attempts": 84,
+      "previous_event_sha256": "e7d749e249ea967e56b25a82562bb226415b25b1eb898229b2ddf808b64f826d",
+      "event_sha256": "eb2ad8a38d4b934685eca17d35b63444b9aa656b102ccbf82bbc6e4c46574f49"
+    },
+    {
+      "sequence": 20,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 73,
+      "provider_attempts": 85,
+      "previous_event_sha256": "eb2ad8a38d4b934685eca17d35b63444b9aa656b102ccbf82bbc6e4c46574f49",
+      "event_sha256": "25caf25ebe46430ac111e8494d773cfa88716bf8fa4944969586574af0c7689e"
+    },
+    {
+      "sequence": 21,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 74,
+      "provider_attempts": 85,
+      "previous_event_sha256": "25caf25ebe46430ac111e8494d773cfa88716bf8fa4944969586574af0c7689e",
+      "event_sha256": "493dfefbbbe2400355124347c93de7b594ec5c25bf3d824d03dbf2fef79ef8af"
+    },
+    {
+      "sequence": 22,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_set_review",
+      "semantic_calls": 74,
+      "provider_attempts": 86,
+      "previous_event_sha256": "493dfefbbbe2400355124347c93de7b594ec5c25bf3d824d03dbf2fef79ef8af",
+      "event_sha256": "008f25320e1bc5229a8108bf5c496406e9608d4106cefe0aaccf05fe0817748b"
+    },
+    {
+      "sequence": 23,
+      "event_type": "semantic_call_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 75,
+      "provider_attempts": 86,
+      "previous_event_sha256": "008f25320e1bc5229a8108bf5c496406e9608d4106cefe0aaccf05fe0817748b",
+      "event_sha256": "203cd86d0984e08fecadba03d6591756c713775276b46c576f3ba0166ef2c5dd"
+    },
+    {
+      "sequence": 24,
+      "event_type": "provider_attempt_reserved",
+      "phase": "node_global_finalizer",
+      "semantic_calls": 75,
+      "provider_attempts": 87,
+      "previous_event_sha256": "203cd86d0984e08fecadba03d6591756c713775276b46c576f3ba0166ef2c5dd",
+      "event_sha256": "a02053f35f4282ae9346477127767139d1db00c3922376e3344050d068b1220a"
+    }
+  ],
+  "counter_chain_head_sha256": "a02053f35f4282ae9346477127767139d1db00c3922376e3344050d068b1220a",
+  "migrations": [
+    {
+      "migration_id": "legacy_v1_budget_to_counter_ledger_v2",
+      "source_digests": [
+        "a314419ef4c363b126ea6235996f9b3e7ad7a1867a0d572aa87c1e2acd8c7322",
+        "51213c4aa5c868e58e7dba039153a65ec9fb6b995840975b64ca7fd441edddec"
+      ]
+    },
+    {
+      "migration_id": "legacy_state_cap_pollution_reconciliation_v1",
+      "migration_reason": "legacy_state_cap_pollution_reconciled_to_sealed_checkpoint",
+      "node_id": "M-BRIDGE-MOTION-CHASE",
+      "completed_receipt_schema_version": "2026-07-12.math-qb-v12.completed-node-receipt.v4",
+      "completed_receipt_budget_commitment_mode": "schema_v4_uncommitted",
+      "source_state_payload": {
+        "schema_version": "2026-07-15.v12-model-budget.v1",
+        "node_id": "M-BRIDGE-MOTION-CHASE",
+        "run_ids": [
+          "V12-RUN-966b8c6fc46345088e0ae39cc257d724",
+          "V12-RUN-bbd5f8dba7f244dda7362f8254887beb",
+          "V12-RUN-e1a6e75bd43d490b8d61761c07f22d40",
+          "V12-RUN-0ccc48d5b99f48e889d7f092c3eed7a4",
+          "V12-RUN-d28b1506130b4b34893cefc1389b6fd2",
+          "V12-RUN-bd85654f6c744803b215e5f9f7c55f1a",
+          "V12-RUN-d7cd5bb1399c487cac23bd7ca0ed3aaa",
+          "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+          "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+          "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+          "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+          "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+          "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+          "V12-RUN-5f627dc281654d399d942d1a5984d5c7",
+          "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+          "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+          "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+          "V12-RUN-4ea53ce22421407b97b236727eff7436",
+          "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+          "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+          "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+          "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+          "V12-RUN-929248881e034015bae2e360f46cb11f",
+          "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+          "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+          "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+          "V12-RUN-70afe1c390de4f799d35f40549264aba",
+          "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+          "V12-RUN-27d174e3197943198253316ecd304ce1",
+          "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+          "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+          "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+          "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+          "V12-RUN-684d68c7a90141ed85b173927c097e99",
+          "V12-RUN-02ced42d767b456c915566edd00b364b",
+          "V12-RUN-af8f70c196e4424bbb9331045897326d",
+          "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+          "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+          "V12-RUN-2d683a71cff246e09531054261852a71",
+          "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+          "V12-RUN-ccef9020a53746c48804f057997ae646",
+          "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+          "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+          "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+          "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+          "V12-RUN-c889e02eabee434da770844d8ea3462f",
+          "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+          "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+          "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+          "V12-RUN-96e372b68eba4916b4909138943030ec",
+          "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+          "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+          "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+          "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+          "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+          "V12-RUN-6a1c0f53434943a898653c4f80347621",
+          "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+          "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+          "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+          "V12-RUN-99012ac48e11479483ff49846943b80c",
+          "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+          "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+          "V12-RUN-45ba13e552614d05be561d96edfab655",
+          "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+          "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+          "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+          "V12-RUN-416e648f87a2400ca83610fc734b161e",
+          "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+          "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+          "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+          "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+          "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+          "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+          "V12-RUN-11f0712d40c94890a7605034516f4b26",
+          "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+          "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+          "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+          "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+          "V12-RUN-3139466b050c495fbfbf657f64797f93",
+          "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+          "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+          "V12-RUN-5fe75ec1489643a8af664d739654a742",
+          "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+          "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+          "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+          "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+          "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+          "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+          "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+          "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+          "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+          "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+          "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+          "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+          "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+          "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+          "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+          "V12-RUN-a0fc28967b0d40ec9f24b7a3d6fc62bc"
+        ],
+        "pid": 94726,
+        "semantic_calls": 64,
+        "provider_attempts": 75,
+        "max_semantic_calls": 512,
+        "max_provider_attempts": 1536,
+        "status": "completed",
+        "reason": "",
+        "last_error_class": "KeyboardInterrupt",
+        "last_error_at": "2026-07-15T13:47:59Z",
+        "interruptions": [
+          {
+            "run_id": "V12-RUN-966b8c6fc46345088e0ae39cc257d724",
+            "pid": 65618,
+            "error_class": "UncleanPreviousRun",
+            "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+            "failed_at": "2026-07-14T20:20:44Z"
+          },
+          {
+            "run_id": "V12-RUN-bbd5f8dba7f244dda7362f8254887beb",
+            "pid": 17808,
+            "error_class": "UncleanPreviousRun",
+            "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+            "failed_at": "2026-07-14T20:26:24Z"
+          },
+          {
+            "run_id": "V12-RUN-e1a6e75bd43d490b8d61761c07f22d40",
+            "pid": 41303,
+            "error_class": "UncleanPreviousRun",
+            "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+            "failed_at": "2026-07-14T20:30:00Z"
+          },
+          {
+            "run_id": "V12-RUN-0ccc48d5b99f48e889d7f092c3eed7a4",
+            "pid": 50869,
+            "error_class": "UncleanPreviousRun",
+            "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+            "failed_at": "2026-07-14T20:48:58Z"
+          },
+          {
+            "run_id": "V12-RUN-d28b1506130b4b34893cefc1389b6fd2",
+            "pid": 11070,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-MOTION-CHASE slots: [14]",
+            "failed_at": "2026-07-14T20:51:51Z"
+          },
+          {
+            "run_id": "V12-RUN-d28b1506130b4b34893cefc1389b6fd2",
+            "pid": 11070,
+            "error_class": "UncleanPreviousRun",
+            "error_message": "previous run ended without a completed, interrupted, or terminal budget receipt",
+            "failed_at": "2026-07-14T20:57:49Z"
+          },
+          {
+            "run_id": "V12-RUN-f07d5eb243de4a28aeb067ef32398383",
+            "pid": 71569,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-SOLUTION-HABIT slots: [20]",
+            "failed_at": "2026-07-14T22:52:09Z"
+          },
+          {
+            "run_id": "V12-RUN-c30e83eca3394cc19420c7ca3c74adfe",
+            "pid": 33052,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-PRE-ORDER-OPS slots: [19]",
+            "failed_at": "2026-07-15T01:11:23Z"
+          },
+          {
+            "run_id": "V12-RUN-a143d7a0711b40fa8e9792cc23e50f30",
+            "pid": 28819,
+            "error_class": "ModelJSONParseError",
+            "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13, 17]; normalization={}",
+            "failed_at": "2026-07-15T01:45:55Z"
+          },
+          {
+            "run_id": "V12-RUN-acd2d57cf3a34563b08995894fde816f",
+            "pid": 69983,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.24s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T01:55:20Z"
+          },
+          {
+            "run_id": "V12-RUN-9f9a0c474dfe4112a06e595cbe10874e",
+            "pid": 7038,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=123.04s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T01:57:46Z"
+          },
+          {
+            "run_id": "V12-RUN-b7ce572f96f543f18c72ffc5b0adceb8",
+            "pid": 9677,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.88s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T02:01:27Z"
+          },
+          {
+            "run_id": "V12-RUN-d78427cf57c1460eb11ccaad742527ed",
+            "pid": 12990,
+            "error_class": "KeyboardInterrupt",
+            "error_message": "KeyboardInterrupt",
+            "failed_at": "2026-07-15T03:27:09Z"
+          },
+          {
+            "run_id": "V12-RUN-dac50319fd0b4073a2412dab0763708c",
+            "pid": 56323,
+            "error_class": "KeyboardInterrupt",
+            "error_message": "KeyboardInterrupt",
+            "failed_at": "2026-07-15T03:35:05Z"
+          },
+          {
+            "run_id": "V12-RUN-270e639803a74e4284bfdb6378bb6a98",
+            "pid": 838,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T04:37:22Z"
+          },
+          {
+            "run_id": "V12-RUN-4ea53ce22421407b97b236727eff7436",
+            "pid": 96857,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=116.97s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T04:43:41Z"
+          },
+          {
+            "run_id": "V12-RUN-5b75e64a45e04c3f924be6701893fa3e",
+            "pid": 19589,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.28s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:03:20Z"
+          },
+          {
+            "run_id": "V12-RUN-417d39f8722145a3a659e9b3c9875e2e",
+            "pid": 49266,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.93s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:19:03Z"
+          },
+          {
+            "run_id": "V12-RUN-14eb7076e37c4fc6ba49c505963f24b6",
+            "pid": 63008,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.75s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:21:50Z"
+          },
+          {
+            "run_id": "V12-RUN-371fbca639ca4dacbca5c66730a80a19",
+            "pid": 71836,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.10s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:27:46Z"
+          },
+          {
+            "run_id": "V12-RUN-929248881e034015bae2e360f46cb11f",
+            "pid": 76175,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.05s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:30:01Z"
+          },
+          {
+            "run_id": "V12-RUN-b580d3497b624c87b763eeeabe94cc0a",
+            "pid": 79450,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=120.53s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:32:20Z"
+          },
+          {
+            "run_id": "V12-RUN-da41dbb7db1b4c26aaa03c420186df00",
+            "pid": 81527,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.86s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T05:34:41Z"
+          },
+          {
+            "run_id": "V12-RUN-282526ad26eb4d07b158faeba59c56fb",
+            "pid": 83676,
+            "error_class": "KeyboardInterrupt",
+            "error_message": "KeyboardInterrupt",
+            "failed_at": "2026-07-15T05:35:34Z"
+          },
+          {
+            "run_id": "V12-RUN-70afe1c390de4f799d35f40549264aba",
+            "pid": 30351,
+            "error_class": "KeyboardInterrupt",
+            "error_message": "KeyboardInterrupt",
+            "failed_at": "2026-07-15T06:05:08Z"
+          },
+          {
+            "run_id": "V12-RUN-f6590c89d640474f8b71c7eaf3172e03",
+            "pid": 13960,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:30:20Z"
+          },
+          {
+            "run_id": "V12-RUN-27d174e3197943198253316ecd304ce1",
+            "pid": 44755,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:30:40Z"
+          },
+          {
+            "run_id": "V12-RUN-8098d33e2dde4db3bf3175225ce5e029",
+            "pid": 45913,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:31:06Z"
+          },
+          {
+            "run_id": "V12-RUN-7a448df7ff0942528115e1ac0cb83f15",
+            "pid": 48845,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:31:26Z"
+          },
+          {
+            "run_id": "V12-RUN-c02b60a8e8f34969a59bc0cb9f5a4206",
+            "pid": 49299,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:31:46Z"
+          },
+          {
+            "run_id": "V12-RUN-a81223c0e106441189ac90a02c71d56a",
+            "pid": 49694,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:32:05Z"
+          },
+          {
+            "run_id": "V12-RUN-684d68c7a90141ed85b173927c097e99",
+            "pid": 50605,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:32:25Z"
+          },
+          {
+            "run_id": "V12-RUN-02ced42d767b456c915566edd00b364b",
+            "pid": 51454,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:32:45Z"
+          },
+          {
+            "run_id": "V12-RUN-af8f70c196e4424bbb9331045897326d",
+            "pid": 52700,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:33:05Z"
+          },
+          {
+            "run_id": "V12-RUN-ac65e109f7904ed0b8cfb856c6353b07",
+            "pid": 53007,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:33:25Z"
+          },
+          {
+            "run_id": "V12-RUN-79d91a7bd1fa4cb9b12b458f9d23d34c",
+            "pid": 53750,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:33:44Z"
+          },
+          {
+            "run_id": "V12-RUN-2d683a71cff246e09531054261852a71",
+            "pid": 54217,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-BRIDGE-PROPORTION-MODEL slots: [19]",
+            "failed_at": "2026-07-15T07:34:04Z"
+          },
+          {
+            "run_id": "V12-RUN-f07294938e5c43c6aa5eb5494899f93a",
+            "pid": 95732,
+            "error_class": "ModelJSONParseError",
+            "error_message": "node-set global finalizer failed semantic validation: global.failure_without_repair_plan; global.repair_plan:not_canonical_minimal_set; model_repair_slots=[]; runtime_canonical_slots=[13]; normalization={}",
+            "failed_at": "2026-07-15T08:12:36Z"
+          },
+          {
+            "run_id": "V12-RUN-ccef9020a53746c48804f057997ae646",
+            "pid": 18748,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=117.25s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T08:34:10Z"
+          },
+          {
+            "run_id": "V12-RUN-a6e7b1d00d0a418192eb0e6d7c12aa56",
+            "pid": 60260,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=118.32s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T08:36:30Z"
+          },
+          {
+            "run_id": "V12-RUN-91395a9f60214b0ba4df5ffb7cfcab5f",
+            "pid": 69639,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=119.49s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T08:40:06Z"
+          },
+          {
+            "run_id": "V12-RUN-e6cdfaae47194d7d801e885eebd5cc00",
+            "pid": 87882,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=122.63s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T08:53:03Z"
+          },
+          {
+            "run_id": "V12-RUN-a328d7c4ec9f4a8a823331506e4ba784",
+            "pid": 27685,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "V12 live batch retry budget exhausted: error_class=ModelCallError attempt=3 elapsed=121.09s last_error=HTTP 504 {\"error\":{\"message\":\"openai_error\",\"type\":\"bad_response_status_code\",\"param\":\"\",\"code\":\"bad_response_status_code\"}}",
+            "failed_at": "2026-07-15T09:15:21Z"
+          },
+          {
+            "run_id": "V12-RUN-c889e02eabee434da770844d8ea3462f",
+            "pid": 98654,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T09:41:16Z"
+          },
+          {
+            "run_id": "V12-RUN-21c8a28d477a404ebf490b4c1bc5e1fe",
+            "pid": 95730,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T09:42:17Z"
+          },
+          {
+            "run_id": "V12-RUN-88a1a91a1b4f46a2a00c80788d591082",
+            "pid": 2750,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T09:43:11Z"
+          },
+          {
+            "run_id": "V12-RUN-1caad6c046864f4ea4a371e342db7c12",
+            "pid": 5501,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T09:44:48Z"
+          },
+          {
+            "run_id": "V12-RUN-96e372b68eba4916b4909138943030ec",
+            "pid": 8814,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T09:45:48Z"
+          },
+          {
+            "run_id": "V12-RUN-f5e2f099223e4ccb9cecb7f37b7e2530",
+            "pid": 9848,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T09:46:46Z"
+          },
+          {
+            "run_id": "V12-RUN-7172fa8256594d6f86e40605b0d766dd",
+            "pid": 68083,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:06:16Z"
+          },
+          {
+            "run_id": "V12-RUN-0bb209aae7ec45cb90998889a16c87a1",
+            "pid": 73288,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:07:15Z"
+          },
+          {
+            "run_id": "V12-RUN-635dba72904542c3b888e88c40ea6f79",
+            "pid": 77062,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:08:12Z"
+          },
+          {
+            "run_id": "V12-RUN-27ed6cc45b004bed876802d61b4ccaa6",
+            "pid": 80427,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:09:09Z"
+          },
+          {
+            "run_id": "V12-RUN-6a1c0f53434943a898653c4f80347621",
+            "pid": 82481,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:10:07Z"
+          },
+          {
+            "run_id": "V12-RUN-e1ef021e365a47ebbb80eff54ef174e5",
+            "pid": 84402,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:11:06Z"
+          },
+          {
+            "run_id": "V12-RUN-4fa930e7c8d940a7b1bc692fcea71702",
+            "pid": 88436,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:12:17Z"
+          },
+          {
+            "run_id": "V12-RUN-7482f0b108e646aaa4d29c7cedd0afd2",
+            "pid": 94438,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:13:15Z"
+          },
+          {
+            "run_id": "V12-RUN-99012ac48e11479483ff49846943b80c",
+            "pid": 418,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:14:18Z"
+          },
+          {
+            "run_id": "V12-RUN-e843345ee6574c75b00a9d3d7b3c4feb",
+            "pid": 4096,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:15:20Z"
+          },
+          {
+            "run_id": "V12-RUN-e01d0a84a3124ceab3fa93361d7dc4fe",
+            "pid": 8172,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:16:18Z"
+          },
+          {
+            "run_id": "V12-RUN-45ba13e552614d05be561d96edfab655",
+            "pid": 12488,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:17:50Z"
+          },
+          {
+            "run_id": "V12-RUN-36419dc85e1d48f8ae759b4af1187321",
+            "pid": 2614,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:57:23Z"
+          },
+          {
+            "run_id": "V12-RUN-488f0a36d2c24fb680ed1919ab20ced6",
+            "pid": 5051,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:58:28Z"
+          },
+          {
+            "run_id": "V12-RUN-e7081c6ada314fc7bfea8a6424177c4d",
+            "pid": 5957,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T10:59:29Z"
+          },
+          {
+            "run_id": "V12-RUN-416e648f87a2400ca83610fc734b161e",
+            "pid": 6538,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T11:00:25Z"
+          },
+          {
+            "run_id": "V12-RUN-4353abdd7a9040ac97e00de1b89e9b41",
+            "pid": 8210,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T11:01:27Z"
+          },
+          {
+            "run_id": "V12-RUN-c2eab46e74bd49edbaae60b7ed02078e",
+            "pid": 8822,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T11:02:23Z"
+          },
+          {
+            "run_id": "V12-RUN-3536d9e787cc43a5aebb1550418877e0",
+            "pid": 9206,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T11:04:09Z"
+          },
+          {
+            "run_id": "V12-RUN-b53468938acf4e0f89bbdee0973716ab",
+            "pid": 12019,
+            "error_class": "NodeSetReviewShardError",
+            "error_message": "node-set focal review failed semantic validation: slot=8:focal_slot_review:candidate_sha256_mismatch",
+            "failed_at": "2026-07-15T11:05:12Z"
+          },
+          {
+            "run_id": "V12-RUN-473c6f4d03d749dcaf8c66324418d8e8",
+            "pid": 13233,
+            "error_class": "KeyboardInterrupt",
+            "error_message": "KeyboardInterrupt",
+            "failed_at": "2026-07-15T11:06:09Z"
+          },
+          {
+            "run_id": "V12-RUN-278ff7bb7c2c44a380bd82303574f844",
+            "pid": 56011,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:18:16Z"
+          },
+          {
+            "run_id": "V12-RUN-11f0712d40c94890a7605034516f4b26",
+            "pid": 73081,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:18:43Z"
+          },
+          {
+            "run_id": "V12-RUN-a15141f9ec584a4a840086b9ca0f7e3d",
+            "pid": 73152,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:19:10Z"
+          },
+          {
+            "run_id": "V12-RUN-f995ead7dd8b4e49891945b4daa1ecf9",
+            "pid": 73229,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:19:37Z"
+          },
+          {
+            "run_id": "V12-RUN-ed6f11af1b984230889d7836a81a408f",
+            "pid": 73463,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:20:04Z"
+          },
+          {
+            "run_id": "V12-RUN-0d9c8a67ed2a4590aa6a442b55dd636a",
+            "pid": 73560,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:20:31Z"
+          },
+          {
+            "run_id": "V12-RUN-3139466b050c495fbfbf657f64797f93",
+            "pid": 73769,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:20:59Z"
+          },
+          {
+            "run_id": "V12-RUN-cc6178771e1842beab20aaace08b8b71",
+            "pid": 74049,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:21:24Z"
+          },
+          {
+            "run_id": "V12-RUN-695f5c182d834b28b3914e915c65faf1",
+            "pid": 74119,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:21:52Z"
+          },
+          {
+            "run_id": "V12-RUN-5fe75ec1489643a8af664d739654a742",
+            "pid": 74227,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:22:18Z"
+          },
+          {
+            "run_id": "V12-RUN-e656f63c45af479292c5785ba3519dcb",
+            "pid": 74301,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:22:45Z"
+          },
+          {
+            "run_id": "V12-RUN-e77bd7da7c7e47e8b74737c3830a591f",
+            "pid": 74358,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-CLASSIFY slots: [4]",
+            "failed_at": "2026-07-15T12:23:12Z"
+          },
+          {
+            "run_id": "V12-RUN-65fbb46d7f304b66ba50d8bec7c31900",
+            "pid": 83636,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:55:49Z"
+          },
+          {
+            "run_id": "V12-RUN-8ccbdc35d86e4580a62af864620bc6d3",
+            "pid": 88457,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:56:17Z"
+          },
+          {
+            "run_id": "V12-RUN-7ae94268be484101beb5378c202f1a0c",
+            "pid": 88944,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:56:45Z"
+          },
+          {
+            "run_id": "V12-RUN-09cfa115970d411bba594d8ffb8c9dee",
+            "pid": 89547,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:57:11Z"
+          },
+          {
+            "run_id": "V12-RUN-e5987f13791448b3be9308a83f9c95f3",
+            "pid": 89861,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:57:38Z"
+          },
+          {
+            "run_id": "V12-RUN-d04fdc7913f84a73abb130262ea69d80",
+            "pid": 90116,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:58:05Z"
+          },
+          {
+            "run_id": "V12-RUN-5c7ac8f8a1154eab9361e8fd590a1c1f",
+            "pid": 90212,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:58:33Z"
+          },
+          {
+            "run_id": "V12-RUN-8de1ddc6101f45f5a59c092a64541d4f",
+            "pid": 90316,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:59:01Z"
+          },
+          {
+            "run_id": "V12-RUN-175f3b6b2d184673b67503a279e9493c",
+            "pid": 90414,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:59:29Z"
+          },
+          {
+            "run_id": "V12-RUN-d9f25cd0efac468dae0c9595d64258f1",
+            "pid": 90486,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T12:59:57Z"
+          },
+          {
+            "run_id": "V12-RUN-9f7e70d7b3af42d79c411ccba18a66dc",
+            "pid": 90573,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T13:00:26Z"
+          },
+          {
+            "run_id": "V12-RUN-81ae325ada4d4074ad8916e37afad6e0",
+            "pid": 90647,
+            "error_class": "ValueError",
+            "error_message": "Live v12 generation exhausted repair rounds for M-G7-RATIONAL-MIXED slots: [14]",
+            "failed_at": "2026-07-15T13:00:53Z"
+          },
+          {
+            "run_id": "V12-RUN-986e98fa593646048f00ba9d0ecc7990",
+            "pid": 472,
+            "error_class": "KeyboardInterrupt",
+            "error_message": "KeyboardInterrupt",
+            "failed_at": "2026-07-15T13:47:59Z"
+          }
+        ],
+        "updated_at": "2026-07-16T03:06:54Z",
+        "terminal_receipt_path": "data/question_banks/math/.v12_pilot_six_checkpoints/.run-state/M-BRIDGE-MOTION-CHASE.model-budget.json"
+      },
+      "source_evidence": {
+        "state_payload_sha256": "c195b1b5297cd3dea8bf226fbff366d4834271c33488ea5b0dab10aa45dee7b4",
+        "checkpoint_payload_sha256": "a3a1a0ab408380f06e379450dd4fad526db9142faef5b694f6bb83621ee28da9",
+        "checkpoint_budget_sha256": "69fe4b65cde7c01cc4602a1ddce9dde6455f1fdd826a6ec8d603aa8dd0f7ef65",
+        "completed_node_receipt_sha256": "4c20c35db602a306f73cefba149131d98d02c679a9037e78b02e672e2b8d36b8",
+        "completed_model_budget_commitment_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "checkpoint_integrity_sha256": "fbc2e18ee3b2e34d7864a0fd11cd87a421196a41f3618582ba526a82a02aa57f",
+        "semantic_evidence_commitment_sha256": "50eb1c653908a94fb9b186d3f75a2a51f2e8b512c2663b2d637c7ecf674a2036"
+      },
+      "state_payload_sha256": "c195b1b5297cd3dea8bf226fbff366d4834271c33488ea5b0dab10aa45dee7b4",
+      "checkpoint_payload_sha256": "a3a1a0ab408380f06e379450dd4fad526db9142faef5b694f6bb83621ee28da9",
+      "checkpoint_budget_sha256": "69fe4b65cde7c01cc4602a1ddce9dde6455f1fdd826a6ec8d603aa8dd0f7ef65",
+      "completed_node_receipt_sha256": "4c20c35db602a306f73cefba149131d98d02c679a9037e78b02e672e2b8d36b8",
+      "completed_model_budget_commitment_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "checkpoint_integrity_sha256": "fbc2e18ee3b2e34d7864a0fd11cd87a421196a41f3618582ba526a82a02aa57f",
+      "semantic_evidence_commitment_sha256": "50eb1c653908a94fb9b186d3f75a2a51f2e8b512c2663b2d637c7ecf674a2036",
+      "original_state_caps": {
+        "max_semantic_calls": 512,
+        "max_provider_attempts": 1536
+      },
+      "target_checkpoint_caps": {
+        "max_semantic_calls": 120,
+        "max_provider_attempts": 300
+      },
+      "equal_counts": {
+        "semantic_calls": 64,
+        "provider_attempts": 75
+      },
+      "migration_commitment_sha256": "1dfcf827095006e659585c1be6a010dff03e8e7ebf18707707ab93e5aa1d520b"
+    }
+  ],
+  "updated_at": "2026-07-17T04:09:24Z",
+  "terminal_receipt_path": "data/question_banks/math/.v12_pilot_six_checkpoints/.run-state/M-BRIDGE-MOTION-CHASE.model-budget.json",
+  "integrity_sha256": "1e7e520988d2de897868cd75a4e57c18a1de328204a0f47ccf350a4c13b17798"
+}

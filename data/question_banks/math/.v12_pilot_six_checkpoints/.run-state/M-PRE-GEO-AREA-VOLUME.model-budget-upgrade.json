@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-PRE-GEO-AREA-VOLUME",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "162c387293a7816f5d0851b8d1356fa88e96ee4a3a61b6a9efe6c06741b4931c",
+  "budget_integrity_sha256": "fe051c5ee0fd2998bc803ae35b24a5eb6267c199d77332ed3a1aaa4c5f7b5bb4",
+  "legacy_source_digests": [
+    "7f1fb102e379ecf5cef7997a494e7b3dcb2f7dd94eecc4d97d94cf3466eb86fb"
+  ],
+  "updated_at": "2026-07-17T03:21:40Z",
+  "integrity_sha256": "772456285f744a741d8ce3c4c7ef6e875aa88e682622377fd0b78c117d187c34"
+}

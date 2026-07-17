@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-EQUATION-CONCEPT",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "0491267642b3421e4c26e22b896731680ead1907f6d5d1b13f67c4ae4a0dfe0f",
+  "budget_integrity_sha256": "64c0dc7f252a5933db80e969a2053d30dac0194ffc37f0c8887c916bc3de9001",
+  "legacy_source_digests": [
+    "76b75315d15bbc3f7ebb7980896d99ff20147a357ac1968e81b6f2c2c6e00528"
+  ],
+  "updated_at": "2026-07-17T03:04:17Z",
+  "integrity_sha256": "8c98122c35233497ec20743a9f75f62b97b9bedc50f976bee4bcf6802d39b84f"
+}

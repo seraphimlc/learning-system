@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-PARENTHESIS",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 61,
+  "minimum_provider_attempts": 67,
+  "counter_chain_head_sha256": "36d478a6920043980fbeecaf57df12bb87cab3be89e6a585c3bb9ca1d1d880e6",
+  "budget_integrity_sha256": "c0e8a52a8f5d74792ca8213be4d69129b31e020d44c579692fac3b8d0fd54e8f",
+  "legacy_source_digests": [
+    "5d7008f758b8554818e168ae321e1cc5defb9f195d54259a5ee9eb1cb7d51587"
+  ],
+  "updated_at": "2026-07-17T04:09:39Z",
+  "integrity_sha256": "7ab27b9538e150aba5480a2b6c3c1f10e2ebb7a5bc39ef37c8b186c10206d05d"
+}

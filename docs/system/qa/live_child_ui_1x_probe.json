@@ -1,0 +1,554 @@
+{
+  "base_url": "http://127.0.0.1:8765",
+  "db_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/local_learning_system.sqlite",
+  "lessons_requested": 1,
+  "lessons": [
+    {
+      "lesson": 1,
+      "session_id": "S-0089b0b660e8",
+      "plan_id_at_start": "P-5b4fa9447488",
+      "scenarios": [
+        "correct_full",
+        "answer_only",
+        "stuck",
+        "photo_correct"
+      ],
+      "conclusion_visible": true,
+      "refresh_clicked": true,
+      "visible_state": {
+        "heading": {
+          "hidden": false,
+          "text": "先补一块前置"
+        },
+        "handoff": {
+          "hidden": false,
+          "text": "先补一块前置\n这一组已经复盘完成。这一组显示有一块准备知识不够稳，下一组先补这一小步。 先看下面的复盘提示；准备好了点“看讲解，开始下一组”。\n下一题先照这个格式写\n\n规则 + 关键步骤 + 答案 + 错因提醒\n\n你可以这样想\n\n这题的第一步不是画图，而是先找有余数除法的固定关系。普通除法中，被除数=除数×商；有余数时，还要加上剩下的余数，所以是被除数=除数×商+余数。题目给出商是120、余数是1，因此可以直接代入成：被除数=除数×120+1。接着要补限制条件：余数必须比除数小。原因是余数表示分完120组后剩下的量，如果剩下的量还大于或等于一个除数，就还能再分出一组，商就应该增加，不会停在120。\n\n下一题前先提醒自己\n\n请先套用模板“被除数=除数×商+余数”，把商120、余数1代进去，你能写出等式吗？\n\n看讲解，开始下一组"
+        },
+        "handoffTitle": {
+          "hidden": false,
+          "text": "先补一块前置"
+        },
+        "handoffText": {
+          "hidden": false,
+          "text": "这一组已经复盘完成。这一组显示有一块准备知识不够稳，下一组先补这一小步。 先看下面的复盘提示；准备好了点“看讲解，开始下一组”。"
+        },
+        "button": {
+          "hidden": false,
+          "text": "看讲解，开始下一组"
+        },
+        "form": {
+          "hidden": true,
+          "text": "我的答案和步骤\n            \n\n            \n              拍纸面答案\n              \n                \n                拍照或选择图片\n                可选：拍纸面步骤\n              \n              \n                \n                \n                  \n                  照片会和文字答案一起保存，由系统分析。\n                  移除照片\n                \n              \n            \n\n            \n              正在保存..."
+        },
+        "coach": [
+          "下一题先照这个格式写\n\n规则 + 关键步骤 + 答案 + 错因提醒",
+          "你可以这样想\n\n这题的第一步不是画图，而是先找有余数除法的固定关系。普通除法中，被除数=除数×商；有余数时，还要加上剩下的余数，所以是被除数=除数×商+余数。题目给出商是120、余数是1，因此可以直接代入成：被除数=除数×120+1。接着要补限制条件：余数必须比除数小。原因是余数表示分完120组后剩下的量，如果剩下的量还大于或等于一个除数，就还能再分出一组，商就应该增加，不会停在120。",
+          "下一题前先提醒自己\n\n请先套用模板“被除数=除数×商+余数”，把商120、余数1代进去，你能写出等式吗？"
+        ]
+      },
+      "detail": {
+        "session": {
+          "id": "S-0089b0b660e8",
+          "status": "closed",
+          "closure_status": "planned",
+          "next_plan_id": "P-ce17aee4b978",
+          "created_at": "2026-07-07T04:49:57.572985+00:00",
+          "closed_at": "2026-07-07T04:51:19.463323+00:00"
+        },
+        "attempt_summary": {
+          "session_id": "S-0089b0b660e8",
+          "expected": 4,
+          "submitted": 4,
+          "attempt_count": 4,
+          "graded": 4,
+          "pending": 0,
+          "analyzed": 4,
+          "missing_question_ids": [],
+          "pending_attempt_ids": [],
+          "missing_analysis_attempt_ids": [],
+          "graded_attempt_ids": [
+            "A-842e6d05b5ed",
+            "A-937ab8c90d0f",
+            "A-eb73494f2f2d",
+            "A-8d1b184c861a"
+          ],
+          "analyzed_attempt_ids": [
+            "A-842e6d05b5ed",
+            "A-937ab8c90d0f",
+            "A-eb73494f2f2d",
+            "A-8d1b184c861a"
+          ]
+        },
+        "jobs": {
+          "succeeded": 4
+        },
+        "child_message": {
+          "child_title": "先补一块前置",
+          "child_feedback": "这一组已经复盘完成。这一组显示有一块准备知识不够稳，下一组先补这一小步。",
+          "coach_points": [
+            {
+              "title": "下一题先照这个格式写",
+              "text": "规则 + 关键步骤 + 答案 + 错因提醒"
+            },
+            {
+              "title": "你可以这样想",
+              "text": "这题的第一步不是画图，而是先找有余数除法的固定关系。普通除法中，被除数=除数×商；有余数时，还要加上剩下的余数，所以是被除数=除数×商+余数。题目给出商是120、余数是1，因此可以直接代入成：被除数=除数×120+1。接着要补限制条件：余数必须比除数小。原因是余数表示分完120组后剩下的量，如果剩下的量还大于或等于一个除数，就还能再分出一组，商就应该增加，不会停在120。"
+            },
+            {
+              "title": "下一题前先提醒自己",
+              "text": "请先套用模板“被除数=除数×商+余数”，把商120、余数1代进去，你能写出等式吗？"
+            }
+          ],
+          "child_action": "先看下面的复盘提示；准备好了点“看讲解，开始下一组”。",
+          "next_action_label": "看讲解，开始下一组",
+          "next_task_count": 5
+        },
+        "next_plan": {
+          "id": "P-ce17aee4b978",
+          "title": "本组后下一轮学习",
+          "tasks": [
+            {
+              "position": 1,
+              "task_type": "rollback",
+              "node_id": "M-PRE-NUMBER-SENSE",
+              "node_name": "数感与估算",
+              "question_id": "QB6-M-PRE-NUMBER-SENSE-01",
+              "question_type": "核心模型：估算乘除结果",
+              "prompt": "先写出本题用到的关键规则，再完成： 先不精算，判断 398×51 更接近 2000、20000 还是 200000，再说明理由。 请写出关键规则，完成解答，并用 400×50=20000 检验。 最后用检验、错因或模型说明关键一步为什么成立。 最后用一句话说明为什么这个规则适用。 作答时请特别写清“数感与估算：估算乘除结果”的关键关系。",
+              "planning_signal": {
+                "node_id": "M-PRE-INTEGER-OPS",
+                "evidence_attempt_ids": [
+                  "A-eb73494f2f2d"
+                ],
+                "dominant_error_tags": [
+                  "concept_confusion",
+                  "process_habit"
+                ],
+                "unstable_dimensions": [
+                  "final_answer",
+                  "model_or_relation",
+                  "steps",
+                  "symbols_units",
+                  "check_or_explanation"
+                ],
+                "process_gaps": [
+                  "没有建立有余数除法的基本验算模型：被除数=除数×商+余数，并且余数<除数。"
+                ],
+                "rollback_candidates": [
+                  "M-PRE-NUMBER-SENSE"
+                ],
+                "created_question_ids": [
+                  "EV-M-BRIDGE-WORD-PROBLEM-READING-2c4d628f",
+                  "EV-M-PRE-INTEGER-OPS-2c4d628f"
+                ],
+                "blocking_evidence": true
+              },
+              "selected_question_reason": "kind:standard_example;error_tag_match:concept_confusion,process_habit;dimension_match:calculation_or_symbol,concept_confusion,process_habit"
+            },
+            {
+              "position": 2,
+              "task_type": "rollback",
+              "node_id": "M-PRE-INTEGER-OPS",
+              "node_name": "整数四则计算",
+              "question_id": "EV-M-PRE-INTEGER-OPS-61dd6794",
+              "question_type": "真实错因回炉：整数四则计算",
+              "prompt": "某同学做有余数除法，只写了“商是120，余数是1”。请写出必须满足的验算关系，并说明余数为什么必须小于除数。 最后用检验、错因或模型说明关键一步为什么成立。",
+              "planning_signal": {
+                "node_id": "M-PRE-QUANTITY-RELATION",
+                "evidence_attempt_ids": [
+                  "A-06f91d3465a6"
+                ],
+                "dominant_error_tags": [
+                  "modeling_or_reading",
+                  "process_habit"
+                ],
+                "unstable_dimensions": [
+                  "final_answer",
+                  "model_or_relation",
+                  "steps",
+                  "symbols_units",
+                  "check_or_explanation"
+                ],
+                "process_gaps": [
+                  "不能把“男生比女生多8人”转化为“女生+8=男生”的等量关系。"
+                ],
+                "rollback_candidates": [
+                  "M-PRE-INTEGER-OPS"
+                ],
+                "created_question_ids": [
+                  "EV-M-BRIDGE-SOLUTION-HABIT-61dd6794",
+                  "EV-M-PRE-INTEGER-OPS-61dd6794",
+                  "EV-M-PRE-NUMBER-SENSE-61dd6794",
+                  "EV-M-PRE-QUANTITY-RELATION-61dd6794"
+                ],
+                "blocking_evidence": true
+              },
+              "selected_question_reason": "created_or_preferred_question;recently_attempted_penalty;prefer_evolved;error_tag_match:process_habit;dimension_match:concept_confusion,process_habit"
+            },
+            {
+              "position": 3,
+              "task_type": "remediate",
+              "node_id": "M-PRE-DECIMAL-OPS",
+              "node_name": "小数运算",
+              "question_id": "EV-M-PRE-DECIMAL-OPS-847bf315",
+              "question_type": "真实错因回炉：小数运算",
+              "prompt": "先写规则或题意拆解，再完成：一张购物小票把 7.2 元/千克、0.48 千克的金额写成 34.56 元。请先用估算判断数量级，再指出小数点错在哪里，并写出合理金额；最后说明小数乘法位数规则为什么必须配合估算。 最后用检验、错因或模型说明关键一步为什么成立。",
+              "planning_signal": {
+                "node_id": "M-PRE-DECIMAL-OPS",
+                "evidence_attempt_ids": [
+                  "A-f6a9916751af"
+                ],
+                "dominant_error_tags": [
+                  "general"
+                ],
+                "unstable_dimensions": [
+                  "steps"
+                ],
+                "process_gaps": [
+                  "未按要求完成估算和解释位数规则与估算的关系，导致回答不完整。"
+                ],
+                "rollback_candidates": [
+                  "M-PRE-INTEGER-OPS",
+                  "M-PRE-NUMBER-SENSE"
+                ],
+                "created_question_ids": [
+                  "EV-M-BRIDGE-SOLUTION-HABIT-847bf315",
+                  "EV-M-PRE-DECIMAL-OPS-847bf315",
+                  "EV-M-PRE-INTEGER-OPS-847bf315",
+                  "EV-M-PRE-NUMBER-SENSE-847bf315"
+                ],
+                "blocking_evidence": false
+              },
+              "selected_question_reason": "created_or_preferred_question;prefer_evolved;kind:evidence_driven_retest;error_tag_match:general;evolved_evidence_tag:general"
+            },
+            {
+              "position": 4,
+              "task_type": "prerequisite_probe",
+              "node_id": "M-PRE-QUANTITY-RELATION",
+              "node_name": "等量关系与列式",
+              "question_id": "EV-M-PRE-QUANTITY-RELATION-61dd6794",
+              "question_type": "真实错因回炉：等量关系与列式",
+              "prompt": "男生比女生多 8 人，男生有 26 人。某同学列 26+8。请先写等量关系，再判断这个列式错在哪里。 最后用检验、错因或模型说明关键一步为什么成立。",
+              "planning_signal": {
+                "node_id": "M-BRIDGE-WORD-PROBLEM-READING",
+                "evidence_attempt_ids": [
+                  "A-8d1b184c861a"
+                ],
+                "dominant_error_tags": [
+                  "modeling_or_reading",
+                  "process_habit"
+                ],
+                "unstable_dimensions": [
+                  "steps",
+                  "check_or_explanation",
+                  "other"
+                ],
+                "process_gaps": [
+                  "没有把题目中的迁移要求具体化：缺少改数字、改条件后的不变规则说明，也没有明确写出总价等量关系。"
+                ],
+                "rollback_candidates": [
+                  "M-PRE-QUANTITY-RELATION"
+                ],
+                "created_question_ids": [
+                  "EV-M-BRIDGE-WORD-PROBLEM-READING-2c4d628f",
+                  "EV-M-PRE-INTEGER-OPS-2c4d628f"
+                ],
+                "blocking_evidence": false
+              },
+              "selected_question_reason": "prefer_evolved;error_tag_match:modeling_or_reading,process_habit;dimension_match:process_habit;evolved_evidence_tag:modeling_or_reading"
+            },
+            {
+              "position": 5,
+              "task_type": "remediate",
+              "node_id": "M-BRIDGE-WORD-PROBLEM-READING",
+              "node_name": "应用题审题流程",
+              "question_id": "EV-M-BRIDGE-WORD-PROBLEM-READING-2c4d628f",
+              "question_type": "真实错因回炉：应用题审题流程",
+              "prompt": "小林买 3 支笔和 2 本本子共 28 元，本子单价比笔贵 5 元。请先圈出已知量和未知量，再设笔的单价为 x，列方程，并解释 2(x+5) 表示什么。 最后用检验、错因或模型说明关键一步为什么成立。",
+              "planning_signal": {
+                "node_id": "M-BRIDGE-WORD-PROBLEM-READING",
+                "evidence_attempt_ids": [
+                  "A-8d1b184c861a"
+                ],
+                "dominant_error_tags": [
+                  "modeling_or_reading",
+                  "process_habit"
+                ],
+                "unstable_dimensions": [
+                  "steps",
+                  "check_or_explanation",
+                  "other"
+                ],
+                "process_gaps": [
+                  "没有把题目中的迁移要求具体化：缺少改数字、改条件后的不变规则说明，也没有明确写出总价等量关系。"
+                ],
+                "rollback_candidates": [
+                  "M-PRE-QUANTITY-RELATION"
+                ],
+                "created_question_ids": [
+                  "EV-M-BRIDGE-WORD-PROBLEM-READING-2c4d628f",
+                  "EV-M-PRE-INTEGER-OPS-2c4d628f"
+                ],
+                "blocking_evidence": false
+              },
+              "selected_question_reason": "created_or_preferred_question;prefer_evolved;kind:evidence_driven_retest;error_tag_match:modeling_or_reading,process_habit;dimension_match:process_habit;evolved_evidence_tag:modeling_or_reading"
+            }
+          ]
+        },
+        "attempts": [
+          {
+            "position": 1,
+            "scenario": "correct_full",
+            "question_id": "EV-M-BRIDGE-SOLUTION-HABIT-b2df7762",
+            "node_id": "M-BRIDGE-SOLUTION-HABIT",
+            "node_name": "解题步骤与检验习惯",
+            "prompt": "先写一句：这题要我做哪三件事？再看这段过程：小明解题时直接写答案，没有写规则，也没有检验。请指出这样做的问题，并补一个完整答题框架：规则、关键步骤、检验。 最后用检验、错因或模型说明关键一步为什么成立。",
+            "answer_raw": "我按完整步骤写：\n规则/关系：先把题目要求拆成三件事。；说明只写答案的问题。；补出规则、关键步骤和一种检验方法。\n答案：这题要指出跳步问题，并补全规则、关键步骤和检验。问题是只写答案不能证明方法可靠，也不方便发现符号、单位或等量关系错误。完整框架应包括：先写用到的规则/关系，再写关键步骤，最后用代回、估算、单位或反向检查做检验。\n检验：把结论代回题意，检查符号、单位、括号和数量关系都一致。",
+            "result": "correct",
+            "score_points": 2.0,
+            "max_points": 2.0,
+            "explanation_score": 2,
+            "blocking_evidence": false,
+            "error_tags": [],
+            "review_status": "graded",
+            "review_model": "gpt-5.5",
+            "review_confidence": 0.95,
+            "vision": null,
+            "answer_analysis": {
+              "optimal_answer": "这题要我做三件事：指出小明直接写答案的问题，补出完整答题框架，并说明关键一步为什么成立。问题是只写答案不能证明方法可靠，也不方便发现符号、单位或等量关系错误。完整框架：规则/关系：先写用到的公式、等量关系或运算规则；关键步骤：按规则列式、变形或计算，并写清关键推理；答案：写出结论；检验/错因提醒：用代回、反向检查、估算、单位或符号检查验证答案，提醒不要漏写规则和检验。",
+              "child_answer_summary": "孩子写了规则/关系、答案和检验三部分，说明了只写答案的问题，并给出先写规则、再写关键步骤、最后检验的答题框架。",
+              "comparison": [
+                {
+                  "dimension": "final_answer",
+                  "status": "matched",
+                  "detail": "答案明确指出了跳步问题，并给出完整框架，符合题目要求。"
+                },
+                {
+                  "dimension": "model_or_relation",
+                  "status": "matched",
+                  "detail": "能把本题理解为答题习惯与过程完整性的要求，而不是单纯写结论。"
+                },
+                {
+                  "dimension": "steps",
+                  "status": "matched",
+                  "detail": "列出了拆题、说明问题、补框架、检验等关键步骤，过程可复盘。"
+                },
+                {
+                  "dimension": "symbols_units",
+                  "status": "matched",
+                  "detail": "虽本题不是数值题，但孩子提到符号、单位、括号和数量关系检查，表达合适。"
+                },
+                {
+                  "dimension": "check_or_explanation",
+                  "status": "matched",
+                  "detail": "检验部分写了代回题意并检查符号、单位、括号和数量关系，能支撑关键步骤的可靠性。"
+                }
+              ],
+              "process_gap": "",
+              "teaching_explanation": "这份作答完整覆盖了题目的核心要求：先拆解任务，再指出直接写答案的危害，最后补出“规则/关系—关键步骤—答案—检验”的答题框架。尤其是检验部分写到代回题意，并检查符号、单位、括号和数量关系，说明孩子理解了为什么不能只写答案。后续可以提升的是把这个框架迁移到具体数学题中，例如方程题、应用题或几何题，真正做到每一步有依据、最后有检验。",
+              "next_child_prompt": "请你任选一道做过的计算题，用“规则/关系—关键步骤—答案—检验”四栏重新写一遍。"
+            }
+          },
+          {
+            "position": 2,
+            "scenario": "answer_only",
+            "question_id": "QB6-M-PRE-NUMBER-SENSE-13",
+            "node_id": "M-PRE-NUMBER-SENSE",
+            "node_name": "数感与估算",
+            "prompt": "先写出这题依赖的前一个基础规则，再完成： 先判断考点，再作答：先不精算，判断 398×51 更接近 2000、20000 还是 200000，再说明理由。 请专门检查符号、单位、括号或维度，并指出最容易丢分的地方。 如果这里卡住，请写清楚是读题、概念、符号还是步骤卡住。 作答时请特别写清“数感与估算：估算乘除结果”的关键关系。",
+            "answer_raw": "只写答案：结论：更接近20000。398≈400，51≈50，400×50=20000；数量级应是两万左右。 需要检查：只需要判断范围，不需要精算。最容易丢分：数量级少一个0或多一个0",
+            "result": "correct",
+            "score_points": 2.0,
+            "max_points": 2.0,
+            "explanation_score": 2,
+            "blocking_evidence": false,
+            "error_tags": [],
+            "review_status": "graded",
+            "review_model": "gpt-5.5",
+            "review_confidence": 0.95,
+            "vision": null,
+            "answer_analysis": {
+              "optimal_answer": "前置规则：估算乘法时，可把因数看成接近的整十、整百数，再比较结果的数量级。解答：398≈400，51≈50，400×50=20000，所以398×51更接近20000。易错点：不用精算，注意数量级不要少写或多写0。",
+              "child_answer_summary": "孩子写出结论更接近20000，并通过398≈400、51≈50、400×50=20000说明数量级约为两万；还写到不需要精算和易错点是数量级少一个0或多一个0。",
+              "comparison": [
+                {
+                  "dimension": "final_answer",
+                  "status": "matched",
+                  "detail": "最终选择20000，符合题意。"
+                },
+                {
+                  "dimension": "model_or_relation",
+                  "status": "matched",
+                  "detail": "使用近似数估算乘积的关系：398≈400，51≈50，400×50=20000。"
+                },
+                {
+                  "dimension": "steps",
+                  "status": "matched",
+                  "detail": "从近似到估算乘积再到判断数量级，步骤可复盘。"
+                },
+                {
+                  "dimension": "symbols_units",
+                  "status": "matched",
+                  "detail": "约等号、乘号和数值表达基本正确；本题无实际单位要求。"
+                },
+                {
+                  "dimension": "check_or_explanation",
+                  "status": "matched",
+                  "detail": "说明了只需判断范围、不需精算，并指出数量级0的个数是易错点。"
+                },
+                {
+                  "dimension": "other",
+                  "status": "alternative_valid",
+                  "detail": "虽然没有单独用“前置规则”标签展开，但内容已经体现了前置规则和关键关系。"
+                }
+              ],
+              "process_gap": "",
+              "teaching_explanation": "这道题的核心不是算出398×51的精确值，而是用数感估算数量级。398非常接近400，51非常接近50，所以398×51可以看作大约400×50。计算400×50时，可以先算4×5=20，再补上三个0，得到20000。因此原式在两万左右，和20000最接近。孩子的答案覆盖了结论、估算过程和易错点，数学关系清楚。",
+              "next_child_prompt": "如果把51改成49，你还能不用精算判断398×49更接近哪个数吗？"
+            }
+          },
+          {
+            "position": 3,
+            "scenario": "stuck",
+            "question_id": "EV-M-PRE-INTEGER-OPS-61dd6794",
+            "node_id": "M-PRE-INTEGER-OPS",
+            "node_name": "整数四则计算",
+            "prompt": "某同学做有余数除法，只写了“商是120，余数是1”。请写出必须满足的验算关系，并说明余数为什么必须小于除数。 最后用检验、错因或模型说明关键一步为什么成立。",
+            "answer_raw": "我卡住了：题目能读完，但不知道第一步应该找哪个关系，也不知道该列式还是先画图。",
+            "result": "wrong",
+            "score_points": 0.0,
+            "max_points": 2.0,
+            "explanation_score": 0,
+            "blocking_evidence": true,
+            "error_tags": [
+              "concept_confusion",
+              "process_habit"
+            ],
+            "review_status": "graded",
+            "review_model": "gpt-5.5",
+            "review_confidence": 0.98,
+            "vision": null,
+            "answer_analysis": {
+              "optimal_answer": "必须满足：被除数=除数×120+1，并且1<除数。一般关系是：被除数=除数×商+余数，且0≤余数<除数；因为如果余数大于或等于除数，就还能再分出1个除数，商还可以继续增加，原来的商就不是正确的商。",
+              "child_answer_summary": "孩子只写了自己卡住了，能读题但不知道第一步找哪个关系，也不知道列式还是画图，没有形成解答。",
+              "comparison": [
+                {
+                  "dimension": "final_answer",
+                  "status": "missing",
+                  "detail": "没有给出必须满足的验算关系，也没有写出余数小于除数的结论。"
+                },
+                {
+                  "dimension": "model_or_relation",
+                  "status": "missing",
+                  "detail": "未能调用有余数除法模型“被除数=除数×商+余数”。"
+                },
+                {
+                  "dimension": "steps",
+                  "status": "missing",
+                  "detail": "没有代入商120、余数1，也没有进一步判断除数条件。"
+                },
+                {
+                  "dimension": "symbols_units",
+                  "status": "missing",
+                  "detail": "没有使用被除数、除数、商、余数之间的符号关系。"
+                },
+                {
+                  "dimension": "check_or_explanation",
+                  "status": "missing",
+                  "detail": "没有说明为什么余数必须小于除数，也没有用错因或模型解释关键一步。"
+                }
+              ],
+              "process_gap": "没有建立有余数除法的基本验算模型：被除数=除数×商+余数，并且余数<除数。",
+              "teaching_explanation": "这题的第一步不是画图，而是先找有余数除法的固定关系。普通除法中，被除数=除数×商；有余数时，还要加上剩下的余数，所以是被除数=除数×商+余数。题目给出商是120、余数是1，因此可以直接代入成：被除数=除数×120+1。接着要补限制条件：余数必须比除数小。原因是余数表示分完120组后剩下的量，如果剩下的量还大于或等于一个除数，就还能再分出一组，商就应该增加，不会停在120。",
+              "next_child_prompt": "请先套用模板“被除数=除数×商+余数”，把商120、余数1代进去，你能写出等式吗？"
+            }
+          },
+          {
+            "position": 4,
+            "scenario": "photo_correct",
+            "question_id": "QB6-M-BRIDGE-WORD-PROBLEM-READING-06",
+            "node_id": "M-BRIDGE-WORD-PROBLEM-READING",
+            "node_name": "应用题审题流程",
+            "prompt": "不要急着套模板，先判断结构是否相同，再完成： 小林买 3 支笔和 2 本本子共 28 元，本子单价比笔贵 5 元。设笔的单价为 x，列方程并解释 2(x+5) 表示什么。 如果少看“每一本本子都比笔贵5元”，会得到什么错误判断？请说明必要条件并完成。 再改一个数字，说明哪条规则不变。 再改一个条件，说明方法中哪一部分保持不变。 作答时请特别写清“应用题审题流程：写等量关系”的关键关系。",
+            "answer_raw": "见照片。我在纸面写了规则、关键步骤、答案和检验。",
+            "result": "partial",
+            "score_points": 1.0,
+            "max_points": 2.0,
+            "explanation_score": 1,
+            "blocking_evidence": false,
+            "error_tags": [
+              "modeling_or_reading",
+              "process_habit"
+            ],
+            "review_status": "graded",
+            "review_model": "gpt-5.5",
+            "review_confidence": 0.98,
+            "vision": {
+              "status": "usable",
+              "confidence": 1.0,
+              "provider": "doubao",
+              "model": "doubao-seed-2-0-pro-260215",
+              "model_alias": "doubao-seed-2-0-pro-260215",
+              "has_transcript": true,
+              "transcript": "纸面答案\n题意关键词：不要急着套模板，先判断结构是否相同，再完成：小林买3支笔和2本本子共28元，本子单价比笔贵5元。设笔的单价为x，列方程并解释2(x+5)\n步骤：判断情境改变后规则是否仍成立。；圈出必要条件。；说明少看条件的后果。\n答案：必要条件：每一本本子都比笔贵5元。少看它会导致：只给一本本子加了5元，没有给2本本子都加差价。正确结论：设笔x元，本子x+5元，方程3x+2(x+5)=28；2(x+5)表示2本本子的总价。\n检验：代回原题成立。",
+              "math_objects": [
+                "x = 笔的单价",
+                "x+5 = 本子的单价",
+                "2(x+5)",
+                "3x+2(x+5)=28"
+              ],
+              "notes": "All visible content is fully legible. The visible answer does not include the responses to the parts of the prompt asking to modify a number to show an unchanged rule, modify a condition to show an unchanged part of the solving method, nor does it explicitly state the requested '应用题审题流程：写等量关系' key content."
+            },
+            "answer_analysis": {
+              "optimal_answer": "必要条件：每一本本子的单价都比笔贵5元。设笔的单价为x元，则本子单价为x+5元，等量关系是：3支笔总价+2本本子总价=28元，所以方程为3x+2(x+5)=28；2(x+5)表示2本本子的总价。若少看“每一本本子都比笔贵5元”，可能错误地只给一本本子加5元，而没有给2本本子都加差价。改数字如把总价28改成33，单价差仍是5元，则“每本本子单价=x+5、2本本子总价=2(x+5)”这条规则不变，只是方程右边变为33。改条件如把“2本本子”改成“4本本子”，方法中“先设笔价x，再根据差价表示本子单价，最后写总价等量关系”保持不变。",
+              "child_answer_summary": "孩子写出了题目关键词和部分步骤，给出必要条件，说明了少看条件会导致只给一本本子加5元；列出设笔x元、本子x+5元、方程3x+2(x+5)=28，并解释2(x+5)是2本本子的总价，还写了“代回原题成立”。但没有具体回答两个迁移要求，也没有明确写出“应用题审题流程：写等量关系”的关键关系句。",
+              "comparison": [
+                {
+                  "dimension": "final_answer",
+                  "status": "matched",
+                  "detail": "核心方程3x+2(x+5)=28和2(x+5)的含义正确。"
+                },
+                {
+                  "dimension": "model_or_relation",
+                  "status": "matched",
+                  "detail": "能用x表示笔价，用x+5表示本子单价，说明了每一本本子都比笔贵5元这一必要条件。"
+                },
+                {
+                  "dimension": "steps",
+                  "status": "missing",
+                  "detail": "只列了部分审题步骤和原题答案，未完成“改一个数字”和“改一个条件”的具体迁移说明。"
+                },
+                {
+                  "dimension": "symbols_units",
+                  "status": "matched",
+                  "detail": "x元、x+5元、3x+2(x+5)=28等符号基本正确，单位表达基本清楚。"
+                },
+                {
+                  "dimension": "check_or_explanation",
+                  "status": "missing",
+                  "detail": "“检验：代回原题成立”过于笼统，未展示代回或说明等量关系；且题目要求的“写等量关系”没有明确成句。"
+                },
+                {
+                  "dimension": "other",
+                  "status": "missing",
+                  "detail": "缺少对“哪条规则不变”和“方法中哪一部分保持不变”的具体回答。"
+                }
+              ],
+              "process_gap": "没有把题目中的迁移要求具体化：缺少改数字、改条件后的不变规则说明，也没有明确写出总价等量关系。",
+              "teaching_explanation": "这道题不仅考列方程，还考审题流程和结构迁移。你已经抓住原题的核心：每一本本子都比笔贵5元，所以本子单价是x+5，2本本子总价必须写成2(x+5)。下一步要补上题目后半部分：当只改数字时，比如总价从28变成33，数量关系“笔总价+本子总价=总价”和“本子单价=x+5”仍不变；当改条件时，比如把2本本子改成4本本子，方法中的“设未知数—表示另一个单价—写总价等量关系”仍不变，但方程中的本子数量会变。",
+              "next_child_prompt": "请你补写一句：如果把28元改成33元，方程变成什么？其中哪一条规则没有变？"
+            }
+          }
+        ]
+      },
+      "elapsed_seconds": 87.492
+    }
+  ],
+  "json_report": "docs/system/qa/live_child_ui_1x_probe.json",
+  "screenshot": "docs/system/qa/live_child_ui_1x_probe.png",
+  "elapsed_seconds": 90.766,
+  "issues": [
+    "lesson 1: session S-0089b0b660e8 needed manual refresh click before conclusion became visible",
+    "lesson 1: task 2 scenario `answer_only` was graded full correct"
+  ]
+}

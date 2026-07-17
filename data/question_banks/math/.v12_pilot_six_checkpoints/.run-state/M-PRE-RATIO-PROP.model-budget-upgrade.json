@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-PRE-RATIO-PROP",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 82,
+  "minimum_provider_attempts": 83,
+  "counter_chain_head_sha256": "a8c2feba6ff55d1905d64c70f27c3d4e598ff873604001482dee1d74b38f20b3",
+  "budget_integrity_sha256": "9c8e0f55d09ad3a1b471db7b0d254f9bc21b4f6cc20f43d4a1441286f34ecc6c",
+  "legacy_source_digests": [
+    "94574f915f49bc45c4daea677664ab2110b99f1cd5e55e80d77ff57e99d29a51",
+    "db0603c8f66a5125b660de806d8c59f2d9c82f47dae2404201e3ce6a1e46c58f"
+  ],
+  "updated_at": "2026-07-17T04:09:19Z",
+  "integrity_sha256": "2cc7e04d8f30124158c2735e817985a70ac7354c62670a63857a0f471162378f"
+}

@@ -1,0 +1,462 @@
+{
+  "schema_version": "2026-07-11.v5.10-lesson-harness-contract.v2",
+  "harness_script": "scripts/live_child_v5_10_lessons.py",
+  "legacy_harness": {
+    "script": "scripts/live_child_ui_10x.py",
+    "classification": "legacy_fixed_group_only",
+    "eligible_for_v5_pass": false
+  },
+  "route_family": [
+    "/api/child-bootstrap",
+    "/api/daily-flow/review/start",
+    "/api/current-step/submit",
+    "/api/current-step/continue",
+    "/api/daily-flow/new-knowledge/start",
+    "/api/daily-flow/finish"
+  ],
+  "forbidden_legacy_dependencies": [
+    "generated_plans",
+    "learning_sessions",
+    "learning_group",
+    "today_plan",
+    "/api/child-submissions",
+    "planner.LEARNING_ROUND_TASK_COUNT",
+    "fixed_task_count"
+  ],
+  "execution_contract": {
+    "lesson_count": 10,
+    "independent_temp_db_per_lesson": true,
+    "independent_upload_root_per_lesson": true,
+    "browser_entry_state": "start_resume",
+    "adaptive_current_step_only": true,
+    "pre_read_fixed_question_list": false,
+    "interaction_budget": {
+      "minimum": 10,
+      "maximum": 20,
+      "unit": "child_action_advancing_or_committing_the_current_visible_step",
+      "counted_actions": [
+        "start_resume",
+        "submit_text",
+        "submit_photo",
+        "submit_text_photo",
+        "submit_stuck",
+        "continue_teaching",
+        "still_stuck_after_teaching",
+        "submit_clarification",
+        "retry_blocked_origin_stage",
+        "start_new_knowledge",
+        "finish_to_summary"
+      ]
+    },
+    "condition_waiting": {
+      "strategy": "poll_observed_browser_and_durable_state",
+      "forbidden_workflow_waits": [
+        "time.sleep",
+        "fixed_delay_before_next_interaction"
+      ],
+      "required_conclusions": [
+        "current_step",
+        "analyzing_pending",
+        "feedback_teaching",
+        "clarify_evidence",
+        "ready_for_new_knowledge",
+        "blocked",
+        "summary"
+      ]
+    }
+  },
+  "model_contract": {
+    "default_mode": "recorded_model",
+    "live_flag": "--live-model",
+    "recorded_fixture_required": true,
+    "patched_outputs_may_be_labeled_live": false,
+    "allowed_non_live_modes": [
+      "recorded_model"
+    ],
+    "live_providers": [
+      "gpt",
+      "doubao"
+    ],
+    "live_semantic_pass_requires": [
+      "--live-model",
+      "unpatched_external_model_calls",
+      "provider_mode=live_model",
+      "schema_valid_agent_outputs",
+      "oracle_comparison"
+    ]
+  },
+  "live_fault_injection_contract": {
+    "lesson_id": "L09-model-recovery",
+    "enabled_only_in_mode": "live_model",
+    "inject_after_durable_attempt_and_job_save": true,
+    "workflow_evidence_only": true,
+    "excluded_from_live_semantic_verdict": true,
+    "other_live_lessons_external_model_calls_unpatched": true,
+    "stages": [
+      {
+        "ordinal": 1,
+        "answer_class": "model_missing",
+        "fault_type": "not_configured",
+        "expected_job_status": "blocked"
+      },
+      {
+        "ordinal": 2,
+        "answer_class": "model_failing",
+        "fault_type": "controlled_retryable_failure",
+        "expected_job_status": "retry"
+      }
+    ],
+    "recovery_requires": {
+      "answer_analysis_provider_mode": "live_model",
+      "accepted_real_provider_agent_run_per_faulted_attempt": true,
+      "forbidden_semantic_recovery_providers": [
+        "recorded_model",
+        "mock_only",
+        "deterministic_runtime"
+      ]
+    }
+  },
+  "photo_fixture_contract": {
+    "readable_photo": "clear expected answer plus a real solution step and check",
+    "text_photo_conflict": "clear photo answer differs from typed expected answer",
+    "unclear_photo": "meaningful expected-answer source image blurred after rendering",
+    "ocr_hallucination": "same meaningful expected-answer source image blurred after rendering",
+    "required_trace_fields": [
+      "source_text",
+      "source_content_sha256",
+      "source_image_sha256",
+      "rendered_image_sha256",
+      "file_sha256",
+      "byte_size"
+    ]
+  },
+  "required_browser_actions": [
+    "click",
+    "text_input",
+    "photo_upload",
+    "stuck",
+    "wait_for_analyzing_conclusion",
+    "continue_teaching",
+    "submit_clarification",
+    "finish_summary"
+  ],
+  "required_coverage": [
+    "all_correct",
+    "all_wrong",
+    "all_partial",
+    "mixed",
+    "answer_only",
+    "right_answer_wrong_reason",
+    "repeated_stuck",
+    "readable_photo",
+    "unclear_photo",
+    "text_photo_conflict",
+    "ocr_hallucination",
+    "model_missing",
+    "model_failing",
+    "restart",
+    "double_submit",
+    "prerequisite_rollback_1",
+    "prerequisite_rollback_2",
+    "prerequisite_rollback_3",
+    "prerequisite_rollback_4",
+    "feedback_teaching",
+    "clarify_evidence",
+    "blocked",
+    "summary"
+  ],
+  "prerequisite_rollback_oracles": [
+    {
+      "id": "prerequisite_rollback_1",
+      "chain": [
+        "M-G7-EQ-WORD",
+        "M-BRIDGE-WORD-PROBLEM-READING",
+        "M-PRE-QUANTITY-RELATION",
+        "M-PRE-INTEGER-OPS",
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "required_depth": 4,
+      "safe_stop_allowed": false
+    },
+    {
+      "id": "prerequisite_rollback_2",
+      "chain": [
+        "M-G7-RATIONAL-MIXED",
+        "M-G7-RATIONAL-ADD-SUB",
+        "M-G7-COMPARE",
+        "M-G7-NUMBER-LINE",
+        "M-G7-POS-NEG",
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "required_depth": 4,
+      "safe_stop_allowed": true
+    },
+    {
+      "id": "prerequisite_rollback_3",
+      "chain": [
+        "M-G7-EQ-DENOM",
+        "M-G7-EQ-SOLVE",
+        "M-G7-EQUALITY-PROP",
+        "M-PRE-EQUATION-BASIC",
+        "M-PRE-QUANTITY-RELATION",
+        "M-PRE-INTEGER-OPS",
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "required_depth": 4,
+      "safe_stop_allowed": true
+    },
+    {
+      "id": "prerequisite_rollback_4",
+      "chain": [
+        "M-G7-ANGLE-CALC",
+        "M-G7-ANGLE",
+        "M-PRE-ANGLE-BASIC",
+        "M-PRE-NUMBER-SENSE"
+      ],
+      "required_depth": 3,
+      "safe_stop_allowed": false
+    }
+  ],
+  "required_evidence_per_lesson": [
+    "screenshots",
+    "browser_state_trace",
+    "browser_request_trace",
+    "daily_flows",
+    "flow_steps",
+    "attempts",
+    "attempt_attachments",
+    "background_jobs",
+    "agent_runs",
+    "agent_output_schema_validations",
+    "evidence_validations",
+    "mastery_decisions",
+    "next_step_decisions",
+    "daily_summaries",
+    "lineage_audit",
+    "expected_oracle",
+    "actual_outcomes",
+    "trust_labels",
+    "photo_fixture_trace",
+    "photo_fixture_audit",
+    "fault_injection_workflow_evidence",
+    "live_semantic_evidence",
+    "model_mode",
+    "child_dom_forbidden_leak_scan",
+    "verdicts"
+  ],
+  "verdict_contract": {
+    "dimensions": [
+      "workflow",
+      "semantic_quality",
+      "teaching_quality"
+    ],
+    "recorded_model": {
+      "workflow_allowed": [
+        "PASS",
+        "NEEDS_FIX"
+      ],
+      "semantic_quality_allowed": [
+        "PASS_WITH_RECORDED_ORACLE_SCOPE",
+        "PASS_WITH_MIXED_TRUST_SCOPE",
+        "NEEDS_FIX"
+      ],
+      "teaching_quality_allowed": [
+        "PASS_WITH_RECORDED_ORACLE_SCOPE",
+        "PASS_WITH_MIXED_TRUST_SCOPE",
+        "NEEDS_FIX"
+      ]
+    },
+    "live_model": {
+      "workflow_allowed": [
+        "PASS",
+        "NEEDS_FIX"
+      ],
+      "semantic_quality_allowed": [
+        "PASS",
+        "PASS_WITH_MIXED_TRUST_SCOPE",
+        "NEEDS_FIX"
+      ],
+      "teaching_quality_allowed": [
+        "PASS",
+        "PASS_WITH_MIXED_TRUST_SCOPE",
+        "NEEDS_FIX"
+      ]
+    }
+  },
+  "lessons": [
+    {
+      "id": "L01-all-correct",
+      "local_date": "2037-07-01",
+      "profile": "all_correct",
+      "target_node_id": "M-G7-POS-NEG",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 12,
+        "target": 10
+      },
+      "coverage": [
+        "all_correct",
+        "summary"
+      ],
+      "adaptive_stop": "summarize_at_or_after_target_once_current_step_has_a_child_visible_conclusion"
+    },
+    {
+      "id": "L02-all-wrong-rollback",
+      "local_date": "2037-07-02",
+      "profile": "all_wrong",
+      "target_node_id": "M-G7-EQ-WORD",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 14,
+        "target": 10
+      },
+      "coverage": [
+        "all_wrong",
+        "prerequisite_rollback_1",
+        "summary"
+      ],
+      "adaptive_stop": "follow_current_prerequisite_probe_until_target_then_summary"
+    },
+    {
+      "id": "L03-all-partial-rollback",
+      "local_date": "2037-07-03",
+      "profile": "all_partial",
+      "target_node_id": "M-G7-RATIONAL-ADD-SUB",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 14,
+        "target": 10
+      },
+      "coverage": [
+        "all_partial",
+        "feedback_teaching",
+        "summary"
+      ],
+      "adaptive_stop": "alternate_current_step_retest_and_teaching_without_fixed_questions"
+    },
+    {
+      "id": "L04-mixed-reasoning-rollback",
+      "local_date": "2037-07-04",
+      "profile": "mixed",
+      "target_node_id": "M-G7-RATIONAL-MIXED",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 16,
+        "target": 13
+      },
+      "coverage": [
+        "mixed",
+        "right_answer_wrong_reason",
+        "prerequisite_rollback_2",
+        "summary"
+      ],
+      "adaptive_stop": "choose_response_from_current_step_and_mixed_oracle_sequence"
+    },
+    {
+      "id": "L05-answer-only-repeated-stuck",
+      "local_date": "2037-07-05",
+      "profile": "answer_only_stuck",
+      "target_node_id": "M-G7-EQ-DENOM",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 18,
+        "target": 16
+      },
+      "coverage": [
+        "answer_only",
+        "repeated_stuck",
+        "feedback_teaching",
+        "prerequisite_rollback_3",
+        "summary"
+      ],
+      "adaptive_stop": "repeat_stuck_and_teaching_recovery_then_end_honestly"
+    },
+    {
+      "id": "L06-readable-photo",
+      "local_date": "2037-07-06",
+      "profile": "readable_photo",
+      "target_node_id": "M-G7-RATIONAL-ADD-SUB",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 12,
+        "target": 10
+      },
+      "coverage": [
+        "readable_photo",
+        "summary"
+      ],
+      "adaptive_stop": "upload_current_answer_photo_and_follow_materialized_step"
+    },
+    {
+      "id": "L07-unclear-photo-clarify",
+      "local_date": "2037-07-07",
+      "profile": "unclear_photo",
+      "target_node_id": "M-G7-ALG-EXPR",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 14,
+        "target": 10
+      },
+      "coverage": [
+        "unclear_photo",
+        "clarify_evidence",
+        "summary"
+      ],
+      "adaptive_stop": "alternate_unclear_photo_and_child_clarification_then_exit_without_false_mastery"
+    },
+    {
+      "id": "L08-photo-conflict-hallucination",
+      "local_date": "2037-07-08",
+      "profile": "photo_conflict_hallucination",
+      "target_node_id": "M-G7-EQ-SOLVE",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 15,
+        "target": 11
+      },
+      "coverage": [
+        "text_photo_conflict",
+        "ocr_hallucination",
+        "clarify_evidence",
+        "summary"
+      ],
+      "adaptive_stop": "never_promote_conflicting_or_unreadable_photo_evidence_to_mastery"
+    },
+    {
+      "id": "L09-model-recovery",
+      "local_date": "2037-07-09",
+      "profile": "model_recovery",
+      "target_node_id": "M-G7-COMPARE",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 16,
+        "target": 10
+      },
+      "coverage": [
+        "model_missing",
+        "model_failing",
+        "blocked",
+        "summary"
+      ],
+      "adaptive_stop": "retry_the_actual_blocked_origin_stage_with_saved_evidence_visible"
+    },
+    {
+      "id": "L10-restart-double-submit",
+      "local_date": "2037-07-10",
+      "profile": "restart_double_submit",
+      "target_node_id": "M-G7-ANGLE-CALC",
+      "interaction_budget": {
+        "minimum": 10,
+        "maximum": 14,
+        "target": 10
+      },
+      "coverage": [
+        "restart",
+        "double_submit",
+        "prerequisite_rollback_4",
+        "summary"
+      ],
+      "adaptive_stop": "restart_same_temp_database_during_analyzing_and_verify_idempotent_resume"
+    }
+  ]
+}

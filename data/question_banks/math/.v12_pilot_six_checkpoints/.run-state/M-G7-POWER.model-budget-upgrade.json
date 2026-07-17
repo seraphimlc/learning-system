@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-POWER",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 107,
+  "minimum_provider_attempts": 113,
+  "counter_chain_head_sha256": "a91a392b9679fe537feffe85c31f4d17af7ba81ed815dd65eb4b6b833a8a7a9c",
+  "budget_integrity_sha256": "2cb5510468f608f30c73c7b994e310dcb5f3e6200cdb27a49aa4a4e19ee0fafa",
+  "legacy_source_digests": [
+    "361a11e939c3988bbfe6d40b2e901221f22e9a61d7747d86e531dd0b3782845d",
+    "a89d28547f381f8afeca78279f2bf02445f43753c360f45b93de2b426ff2cd1d"
+  ],
+  "updated_at": "2026-07-17T04:09:35Z",
+  "integrity_sha256": "79b0ba0c43b7094c7b5bef4ee1152d5b004520515543eba365283e452b29ce06"
+}

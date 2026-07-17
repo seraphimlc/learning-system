@@ -1,0 +1,172 @@
+# Domain Index: Math Learning System
+
+## Scope
+
+This domain covers the private AI-native math learning loop for one incoming Grade 7 student: knowledge graph, diagnosis, teaching design, question generation, error rollback, and dynamic planning.
+
+It excludes generic multi-user product features, unrelated English expansion, and any claim to private textbook or commercial question-bank data.
+
+## Current Contract
+
+- Project purpose:小学关键漏洞补齐 + 人教版七年级上册数学预学.
+- Current local system: v1.4 runnable SQLite + stdlib HTTP server + vanilla child UI.
+- Every diagnosis, lesson, question, attempt, and plan item must bind to a knowledge graph node id.
+- Wrong answers roll back along prerequisite chains before generating more same-type practice.
+- Child-facing pages stay simple and child-only; complex teaching logic stays in
+  Codex/API surfaces and internal docs.
+- Questions should be few and diagnostic, not a drill bank.
+- Active graph-generated/evolved questions must pass the built-in two-agent
+  production gate: `question_designer_agent` creates graph-bound diagnostic
+  candidates, and `question_reviewer_agent` rejects low-age mechanical drills,
+  answer-only prompts, child-facing generator/meta language, and items without
+  process evidence. Calculation weakness is treated through structure, rule
+  explanation, wrong-method diagnosis, unit checks, or transfer variants.
+- Practice-bank releases are versioned. When older question rows remain because
+  attempts reference them, the planner must select the newest `item_version`
+  through `db.find_question_for_node` rather than direct row reads.
+- Reference answers are rubric context only; child answers must be judged by an
+  AI evaluator or left pending for system AI/API processing.
+- Evaluation must use process evidence, not final answer matching. A right final
+  answer with missing or invalid reasoning is not mastery and should be partial
+  or wrong depending on the model/step evidence.
+- Processed attempts should carry `answer_analysis` from
+  `answer_analysis_agent`: optimal answer, solution steps, child-answer summary,
+  comparison against valid approaches, process gap, detailed explanation, and
+  next child prompt. Missing structured analysis keeps AI output from being
+  treated as complete.
+- Child submissions with photos or low confidence stay as pending evidence;
+  system/API processing promotes them to processed evidence.
+- Current product baseline is clean-slate PRD v5: one child Web surface, parent
+  interaction through Codex only, and a deterministic loop: select step ->
+  answer -> AI judge -> teach/repair -> select next step -> summary.
+- Historical PRDs v2/v3/v4 are not current product sources for v5 planning.
+- The daily review budget is normally 10-20 questions/interactions, selected
+  step by step from untested, unpassed, weak-confirmation, prerequisite, or
+  new-learning graph nodes. Mastered nodes are skipped unless spaced
+  confirmation is due.
+- Child-facing APIs should use current-step handles/positions; question ids,
+  attempt ids, session ids, graph ids, model/provider status, rubrics, and
+  internal workflow states stay on Codex/operator surfaces.
+- Mistakenly recorded evidence must be marked `invalidated`, not silently reused:
+  invalidated attempts remain auditable but cannot drive reports, evolution, or
+  plans. Evolved questions whose source evidence is invalidated are also
+  rejected by the active scheduling gate.
+- Self-evolution is paused as an automatic mainline changer in v3. It may archive
+  evidence and propose improvements, but cannot directly change active bank,
+  graph, mastery, or next plan.
+
+## Key Entrypoints
+
+- Blueprint: `docs/00_PROJECT_BLUEPRINT.md`
+- Math graph data: `data/knowledge_graphs/math/math_knowledge_graph_v2.json`
+- Math graph notes: `data/knowledge_graphs/math/math_knowledge_graph_v2.md`
+- Math diagnostic v1 data: `data/questions/math_diagnostic_v1.json`
+- Math diagnostic v1 student page: `app/student/math_diagnostic_v1.html`
+- Math diagnostic v1 parent guide: `docs/diagnostics/math_diagnostic_v1.md`
+- Math diagnostic v1 generator: `scripts/generate_math_diagnostic_v1.mjs`
+- Math diagnostic v1 validators: `scripts/validate_math_diagnostic_v1.mjs`, `scripts/verify_math_diagnostic_page_export.mjs`
+- Local learning system backend: `learning_system/db.py`, `learning_system/question_bank.py`, `learning_system/evolution.py`, `learning_system/planner.py`, `learning_system/agents.py`, `learning_system/server.py`
+- v3 daily runtime skeleton: `learning_system/daily_runtime.py`, `learning_system/graph_runtime.py`, `learning_system/evidence_gate.py`, `learning_system/job_queue.py`
+- Local learning system UI: `app/local_learning_system/index.html`, `app/local_learning_system/styles.css`, `app/local_learning_system/app.js`
+- Local learning system DB initializer: `scripts/init_learning_system_db.py`
+- Local daily report generator: `scripts/generate_daily_report.py`
+- Local learning system runbook: `docs/system/local_learning_system.md`
+- Local daily report: `docs/system/daily_reports/latest.md`
+- Local DB: `data/local_learning_system.sqlite`
+- Upload evidence: `data/uploads/answers/`; v3 upload recovery lives in
+  `learning_system/daily_runtime.py` `reconcile_answer_uploads()`
+- Legacy archived outputs: `archive/chat_outputs/`
+- Future student app root: `app/student/`
+- Parent interaction surface: Codex. Do not add a web parent dashboard unless the
+  product boundary is explicitly changed.
+- Future generated questions: `data/questions/`
+- Future learning attempts: `data/attempts/`
+- Future plans: `data/plans/`
+
+## Key Flows
+
+- Knowledge graph -> learner node state -> daily adaptive targets -> current
+  step selection.
+- Current step -> child response -> answer analysis / teaching check -> node
+  evaluation -> planner next-step decision -> next step or daily summary.
+- Processed attempt -> node status reducer -> weak evidence creates evolved retest
+  question; correct-only evidence can update mastery without creating a question.
+- Built-in graph/evaluation/answer-analysis/session-closure reports -> graph
+  coverage/reference audit, internal stage/action recommendations, and
+  answer-reasoning coverage.
+- Error diagnosis -> prerequisite rollback or progression -> next task generation.
+- Real learning data -> graph/question/plan/agent iteration when current structure is too coarse or wrong.
+- Weak real evidence ->命题 Agent candidate ->审题 Agent gate -> approved evolved
+  question or status-only update when the candidate is rejected.
+
+## Related Docs
+
+- `AGENTS.md`
+- `docs/00_PROJECT_BLUEPRINT.md`
+- `docs/collaboration.md`
+- `docs/product/ai_native_math_learning_prd_v5.md`
+- `docs/collaboration/reviews/prd_v5_clean_slate_review_2026-07-11.md`
+- `docs/architecture/ai_native_learning_system_architecture_v3.md`
+- `docs/architecture/daily_learning_runtime_contract_v1.md`
+- `docs/architecture/technical_plan_v3.md`
+- `docs/architecture/code_skeleton_pass_v3.md`
+- `docs/collaboration/reviews/2026-07-10-jinghua-technical-plan-v3-rereview.md`
+- `docs/collaboration/reviews/2026-07-10-guanzhi-technical-plan-v3-qa-rereview.md`
+
+## Validation Entrypoints
+
+```bash
+jq empty data/knowledge_graphs/math/math_knowledge_graph_v2.json
+jq '.nodes | length' data/knowledge_graphs/math/math_knowledge_graph_v2.json
+node scripts/generate_math_diagnostic_v1.mjs
+node scripts/validate_math_diagnostic_v1.mjs
+node scripts/verify_math_diagnostic_page_export.mjs
+python3 scripts/init_learning_system_db.py
+python3 scripts/generate_daily_report.py --db data/local_learning_system.sqlite
+python3 -m unittest tests/test_learning_system.py -v
+python3 - <<'PY'
+import re, subprocess, sys
+from pathlib import Path
+text = Path("tests/test_learning_system.py").read_text()
+names = [
+    "tests.test_learning_system.LearningSystemTest." + name
+    for name in re.findall(r"def (test_v3_[^(]+)\(", text)
+]
+raise SystemExit(subprocess.call([sys.executable, "-m", "unittest", *names, "-v"]))
+PY
+/Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node tests/browser_smoke_learning_system.mjs
+python3 -m learning_system.server --db data/local_learning_system.sqlite --port 8765
+```
+
+For generated student pages, validate with browser screenshots and human review before treating visual/taste decisions as final.
+
+## Search Hints
+
+- Graph node fields: `id`, `prerequisites`, `unlocks`, `diagnosis_contract`, `teaching_contract`, `question_generation`, `error_diagnosis`
+- Core documents: `00_PROJECT_BLUEPRINT`, `math_knowledge_graph_v2`
+- Key modes: `core`, `selective_core`, `controlled_extension`, `diagnose_only`
+- Error tags: `calculation_or_symbol`, `concept_confusion`, `modeling_or_reading`, `process_habit`, `visual_spatial`
+- Question production keys: `quality.review_status`, `design_intent`,
+  `cognitive_level`, `age_floor`, `requires_reasoning`,
+  `source.production_pipeline`, `question_designer_agent`,
+  `question_reviewer_agent`
+- Current/legacy API routes to inspect while migrating toward v3 current-step
+  flow: `/api/bootstrap`, `/api/child-bootstrap`, `/api/learning-sessions`,
+  `/api/learning-sessions/current-learning-group/complete`,
+  `/api/operator/learning-sessions`, `/api/operator/learning-sessions/{id}/complete`,
+  `/api/child-submissions`, `/api/operator/child-submissions`, `/api/attempts`,
+  `/api/attempts/{id}/grade`, `/api/attempts/{id}/analysis`,
+  `/api/attempts/{id}/invalidate`, `/api/evolve`, `/api/agent-reports`,
+  `/api/attachments/{id}`
+- v3 skeleton API routes: `/api/child-bootstrap` with
+  `V3_DAILY_RUNTIME_ENABLED=1`, `/api/daily-flow/review/start`,
+  `/api/current-step/submit`, `/api/operator/daily-flow/today`
+- DB statuses: `pending_review`, `graded`, `submitted`, `correct`, `partial`, `wrong`,
+  `A`, `B`, `C`, `D`, `state_updated`, `evolved`, `no_action`
+- v3 DB tables: `daily_flows`, `flow_steps`, `review_targets`,
+  `evidence_validations`, `next_step_decisions`,
+  `late_evidence_reconciliations`, `daily_summaries`
+
+## Maintenance Rules
+
+Update this index when adding a student page, parent Codex workflow, generated diagnostic set, data schema, validation command, local API, self-evolution contract, or new stable domain document.

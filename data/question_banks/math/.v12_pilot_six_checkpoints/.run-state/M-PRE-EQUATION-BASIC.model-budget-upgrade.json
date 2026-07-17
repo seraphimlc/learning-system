@@ -1,0 +1,16 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-PRE-EQUATION-BASIC",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 98,
+  "minimum_provider_attempts": 99,
+  "counter_chain_head_sha256": "94977ae3b1a30096d6aada0cee749076a04106dd21180b3545a4dbc0012302d3",
+  "budget_integrity_sha256": "73ae5ccae0aa25299e7ae1ae10c44e3beaf365544788764ddc0087fc7c7a25df",
+  "legacy_source_digests": [
+    "5ea22a524f3ab8664e3485d330209ad0d670bdb7f32a9f33bbca8a7627aebea3",
+    "c59c8594468f80c06cd8c7e4bbe2a77979eb83c2f5371efae33ca75a0f07144f"
+  ],
+  "updated_at": "2026-07-17T04:09:20Z",
+  "integrity_sha256": "b55e5c76ed1599eaf4239bb9bdd8e93fd46071416a92a90195fa684d394d81f1"
+}

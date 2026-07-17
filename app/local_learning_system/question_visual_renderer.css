@@ -1,0 +1,112 @@
+.question-visual {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  min-height: 180px;
+  margin: 14px auto;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid #cfd8d2;
+  border-radius: 8px;
+  background: #fbfcfa;
+  color: #17201b;
+}
+
+.question-visual svg {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+}
+
+.question-visual-description {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.qv-axis,
+.qv-axis-arrow,
+.qv-tick,
+.qv-segment,
+.qv-marker,
+.qv-grid-line {
+  fill: none;
+  stroke: #2d5f55;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.qv-grid-line { stroke: #809089; stroke-width: 1.5; }
+.qv-point,
+.qv-geometry-point {
+  fill: #fff;
+  stroke: #176b5b;
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
+}
+.qv-cell {
+  fill: #eaf1f8;
+  stroke: #315f88;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.qv-filled-cell {
+  fill: #dcece6;
+  stroke: #2d5f55;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.qv-label,
+.qv-point-label,
+.qv-cell-label,
+.qv-view-label {
+  fill: #17201b;
+  font-family: system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+.qv-view-label { font-size: 20px; }
+
+.question-visual-error {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #a16a16;
+  border-radius: 8px;
+  background: #fff9ee;
+  color: #6c470d;
+  line-height: 1.55;
+}
+
+@media (max-width: 480px) {
+  .question-visual {
+    min-height: 140px;
+    padding: 8px;
+  }
+  .qv-label,
+  .qv-point-label,
+  .qv-cell-label,
+  .qv-view-label { font-size: 20px; }
+}
+
+@media print {
+  .question-visual,
+  .question-visual * {
+    color: #000;
+    border-color: #000;
+    background: #fff;
+    fill: #fff;
+    stroke: #000;
+  }
+  .question-visual text { fill: #000; }
+  .qv-point,
+  .qv-geometry-point,
+  .qv-cell,
+  .qv-filled-cell { fill: #fff; stroke: #000; }
+}

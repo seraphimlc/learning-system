@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026-07-16.v12-model-budget-upgrade-marker.v1",
+  "node_id": "M-G7-POINT-LINE-PLANE",
+  "max_semantic_calls": 512,
+  "max_provider_attempts": 1536,
+  "minimum_semantic_calls": 0,
+  "minimum_provider_attempts": 0,
+  "counter_chain_head_sha256": "246fd7673eea40b638c0102b6ee0d3848feed1ab56e515a4f4addbd8a7da3a85",
+  "budget_integrity_sha256": "5592ba758f7095f4ed8ab97b7510bb332d813ca45dc90d12aad016e89a5a6495",
+  "legacy_source_digests": [
+    "b3f58dbb176346b5febd0937fc35493548dd718bd64ef25645de7d1ed0f71e16"
+  ],
+  "updated_at": "2026-07-17T03:04:17Z",
+  "integrity_sha256": "641e79d6b3991eea3a461b57d746027c662adb5d76ace2d2557a8d3e6c6748e1"
+}
