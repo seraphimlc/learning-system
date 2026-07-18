@@ -26,7 +26,7 @@ For process nodes and designated `unprompted_process_evidence` slots, the prompt
 
 ## Interaction Schema Contract
 
-Every item must include `interaction_schema` with schema version `2026-07-13.question-interaction.v1`. It describes the child input UI only; it must never contain the correct answer, expected answer, rubric, scores, solution steps, reviewer notes, model/provider names, internal ids, or hidden evidence goals.
+Every newly generated item must include `interaction_schema` with current schema version `2026-07-17.question-interaction.v2`. Version `2026-07-13.question-interaction.v1` is legacy input only and must never be emitted or recommended for a new or repaired candidate. The v2 schema must include explicit boolean `requires_explanation`. The schema describes the child input UI only; it must never contain the correct answer, expected answer, rubric, scores, solution steps, reviewer notes, model/provider names, internal ids, or hidden evidence goals.
 
 Use the smallest interaction that collects the intended evidence:
 

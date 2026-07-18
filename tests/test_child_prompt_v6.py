@@ -269,6 +269,36 @@ class ChildPromptV6Tests(unittest.TestCase):
         self.assertEqual("y^k 与 x^2", legacy["prompt"])
         self.assertTrue(legacy["legacy_compatibility_applied"])
 
+    def test_legacy_v1_explanation_requirement_is_derived_into_v2(self):
+        legacy_schema = _schema(
+            "single_choice",
+            choices=[
+                {"id": "A", "label": "第一种关系"},
+                {"id": "B", "label": "第二种关系"},
+            ],
+        )
+        legacy_schema["schema_version"] = child_prompt.QUESTION_INTERACTION_SCHEMA_V1
+        legacy_schema.pop("requires_explanation")
+
+        projected = child_prompt.project_child_surface(
+            prompt="请选择更合适的关系，并说明理由。",
+            interaction_schema=legacy_schema,
+            allow_legacy=True,
+        )
+
+        self.assertEqual(
+            child_prompt.QUESTION_INTERACTION_SCHEMA_V2,
+            projected["interaction_schema"]["schema_version"],
+        )
+        self.assertTrue(projected["interaction_schema"]["requires_explanation"])
+
+        answer_only = child_prompt.project_child_surface(
+            prompt="请选择更合适的关系。",
+            interaction_schema=legacy_schema,
+            allow_legacy=True,
+        )
+        self.assertFalse(answer_only["interaction_schema"]["requires_explanation"])
+
     def test_real_browser_app_gate(self):
         fixture = _browser_fixture()
         with tempfile.TemporaryDirectory() as tmp:

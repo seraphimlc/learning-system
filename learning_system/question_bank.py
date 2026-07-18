@@ -231,14 +231,19 @@ V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION = "2026-07-17.math-qb-v12.
 V12_NODE_SET_GLOBAL_FINALIZER_MODEL_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-model-judgment.v6"
 V12_NODE_SET_GLOBAL_FINALIZER_PROMPT_TEMPLATE_SHA256 = "99bc460a9de41096afef67b262a26d4a5a639969570da877df243233326fb672"
 V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_SHA256 = "1a3a971c176f8fe1f359008a2cf4cfa20ae74375fe36063e06902978fdd66428"
-V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION = "2026-07-17.math-qb-v12.node-set-global-finalizer-request.v2"
-V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier.v1"
-V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID = "2026-07-17.math-qb-v12.node-set-global-verifier.prompt.v1"
-V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION = V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION
-V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-evidence.v1"
-V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256 = "75fb59780b2f5af4137bc3dd67d32d90323b160e21e7072c139b7bd6d16f4e83"
-V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256 = V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_SHA256
-V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-request.v1"
+V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION = "2026-07-17.math-qb-v12.node-set-global-finalizer-request.v3"
+V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID = "2026-07-17.math-qb-v12.node-set-global-verifier.prompt.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-shard.schema.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-shard-judgment.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-evidence.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SEMANTIC_EVIDENCE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-shard-evidence.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_AGGREGATE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-aggregate.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_SHARD_POLICY_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-shards.v2"
+V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SIZE = 5
+V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256 = "10e29d25461be6d4cb23e9e645b77be90788359cfa2267bd7ddc40550339c53b"
+V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256 = "88182911c8ec079379c2d63d8e13935432178f444bc8caeafff0daa87ed14e38"
+V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION = "2026-07-17.math-qb-v12.node-set-global-verifier-shard-request.v2"
 V12_NODE_SET_GLOBAL_FINALIZER_MODEL_FIELDS = frozenset({
     "schema_version",
     "node_id",
@@ -333,7 +338,7 @@ V12_CROSS_NODE_SUMMARY_CONTEXT_SCHEMA_VERSION = "2026-07-16.math-qb-v12.cross-no
 V12_CROSS_NODE_SUMMARY_SELECTOR_POLICY_VERSION = "2026-07-16.math-qb-v12.cross-node-summary-selector.v1"
 V12_CROSS_NODE_SUMMARY_MAX_SELECTED = 80
 V12_MODEL_BUDGET_SCHEMA_VERSION = "2026-07-16.v12-model-budget.v2"
-QUESTION_INTERACTION_SCHEMA_VERSION = child_prompt.QUESTION_INTERACTION_SCHEMA_V1
+QUESTION_INTERACTION_SCHEMA_VERSION = child_prompt.QUESTION_INTERACTION_SCHEMA_V2
 QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION = child_prompt.QUESTION_INTERACTION_SCHEMA_V2
 QUESTION_INTERACTION_LEGACY_SCHEMA_VERSION = child_prompt.QUESTION_INTERACTION_SCHEMA_V1
 QUESTION_INTERACTION_TYPES = set(child_prompt.INTERACTION_TYPES)
@@ -779,6 +784,160 @@ def v12_global_model_judgment_binding_errors(
     return sorted(set(errors))
 
 
+def _v12_merge_overlapping_global_verifier_clusters(
+    node_entry: dict[str, Any],
+    clusters: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    components: list[dict[str, Any]] = []
+    for cluster in clusters:
+        if not isinstance(cluster, dict):
+            continue
+        slots = {
+            int(slot)
+            for slot in cluster.get("slots") or []
+            if isinstance(slot, int) and 1 <= slot <= QUESTIONS_PER_GRAPH_NODE
+        }
+        if not slots:
+            continue
+        overlapping = [entry for entry in components if entry["slots"] & slots]
+        if overlapping:
+            merged_slots = set(slots)
+            reasons = {str(cluster.get("reason") or "")}
+            for entry in overlapping:
+                merged_slots.update(entry["slots"])
+                reasons.update(entry["reasons"])
+                components.remove(entry)
+            components.append({"slots": merged_slots, "reasons": reasons})
+        else:
+            components.append({
+                "slots": slots,
+                "reasons": {str(cluster.get("reason") or "")},
+            })
+    item_by_slot = _v12_item_by_slot(node_entry)
+    merged: list[dict[str, Any]] = []
+    for component in components:
+        slots = sorted(component["slots"])
+        merged.append({
+            "cluster_id": "verifier-homogeneous-" + _v12_digest_json(slots)[:12],
+            "slots": slots,
+            "reason": " | ".join(sorted(reason for reason in component["reasons"] if reason)),
+            "subject_sha256s": sorted(
+                v12_item_review_subject_binding(item_by_slot[slot])["subject_sha256"]
+                for slot in slots
+                if slot in item_by_slot
+            ),
+        })
+    return sorted(merged, key=lambda value: (value["slots"], value["cluster_id"]))
+
+
+def v12_aggregate_global_verifier_shard_judgments(
+    node_entry: dict[str, Any],
+    shard_artifacts: list[dict[str, Any]],
+    *,
+    graph_version: str,
+) -> dict[str, Any]:
+    expected_shards = v12_expected_global_verifier_shards()
+    actual_shards = [
+        list(artifact.get("reviewed_slots") or [])
+        for artifact in shard_artifacts
+        if isinstance(artifact, dict)
+    ]
+    if actual_shards != expected_shards:
+        raise ValueError(f"global verifier shard coverage mismatch: {actual_shards}")
+    judgments = [
+        artifact.get("model_judgment_output")
+        for artifact in shard_artifacts
+        if isinstance(artifact.get("model_judgment_output"), dict)
+    ]
+    if len(judgments) != len(expected_shards):
+        raise ValueError("global verifier shard judgment missing")
+    classifications = sorted(
+        [
+            copy.deepcopy(entry)
+            for judgment in judgments
+            for entry in judgment.get("item_classifications") or []
+            if isinstance(entry, dict)
+        ],
+        key=lambda value: int(value.get("slot") or 0),
+    )
+    slots = [int(entry.get("slot") or 0) for entry in classifications]
+    if slots != list(range(1, QUESTIONS_PER_GRAPH_NODE + 1)):
+        raise ValueError(f"global verifier classification coverage mismatch: {slots}")
+
+    def unique_entries(key: str) -> list[dict[str, Any]]:
+        entries: dict[str, dict[str, Any]] = {}
+        for judgment in judgments:
+            for entry in judgment.get(key) or []:
+                if isinstance(entry, dict):
+                    entries.setdefault(_v12_digest_json(entry), copy.deepcopy(entry))
+        return sorted(
+            entries.values(),
+            key=lambda value: (
+                list(value.get("slots") or [int(value.get("slot") or 0)]),
+                _v12_digest_json(value),
+            ),
+        )
+
+    aggregate = {
+        "schema_version": V12_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION,
+        "node_id": node_entry.get("node_id"),
+        "graph_version": graph_version,
+        "question_bank_version": QUESTION_BANK_V12_VERSION,
+        "semantic_evidence_version": V12_NODE_SET_GLOBAL_FINALIZER_MODEL_EVIDENCE_VERSION,
+        "item_classifications": classifications,
+        "homogeneous_clusters": _v12_merge_overlapping_global_verifier_clusters(
+            node_entry,
+            [
+                copy.deepcopy(group)
+                for judgment in judgments
+                for group in judgment.get("homogeneous_clusters") or []
+                if isinstance(group, dict)
+            ],
+        ),
+        "distribution_scores": {
+            key: min(
+                float((judgment.get("distribution_scores") or {}).get(key) or 0.0)
+                for judgment in judgments
+            )
+            for key in V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+        },
+        "repetitive_instruction_clusters": unique_entries("repetitive_instruction_clusters"),
+        "duplicate_groups": unique_entries("duplicate_groups"),
+        "confidence": min(float(judgment.get("confidence") or 0.0) for judgment in judgments),
+        "reasons": sorted({
+            str(reason)
+            for judgment in judgments
+            for reason in judgment.get("reasons") or []
+            if str(reason)
+        }),
+        "repair_plan": unique_entries("repair_plan"),
+    }
+    errors = v12_global_model_judgment_errors(
+        aggregate,
+        node_id=str(node_entry.get("node_id") or ""),
+        graph_version=graph_version,
+    )
+    errors.extend(v12_global_model_judgment_binding_errors(node_entry, aggregate))
+    if errors:
+        raise ValueError("global verifier aggregate failed validation: " + "; ".join(errors[:8]))
+    return aggregate
+
+
+def v12_global_verifier_shard_route_tuples(
+    shard_artifacts: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "model_provider": str(shard.get("model_provider") or ""),
+            "model_name": str(shard.get("model_name") or ""),
+            "model_alias": str(shard.get("model_alias") or ""),
+            "structured_json_mode": str(shard.get("structured_json_mode") or ""),
+        }
+        for shard in shard_artifacts
+        if isinstance(shard, dict)
+    ]
+
+
 def v12_expand_global_model_judgment(
     node_entry: dict[str, Any],
     constituent_reviews: list[dict[str, Any]],
@@ -1127,6 +1286,14 @@ def v12_expected_node_set_review_shards() -> list[list[int]]:
     ]
 
 
+def v12_expected_global_verifier_shards() -> list[list[int]]:
+    slots = list(range(1, QUESTIONS_PER_GRAPH_NODE + 1))
+    return [
+        slots[index:index + V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SIZE]
+        for index in range(0, len(slots), V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SIZE)
+    ]
+
+
 def v12_node_set_review_shard_id(slots: list[int]) -> str:
     return f"slots-{slots[0]:02d}-{slots[-1]:02d}" if slots else ""
 
@@ -1171,6 +1338,11 @@ def v12_item_policy_errors(node: dict[str, Any], item: dict[str, Any]) -> list[s
     if v12_item_requires_interaction_schema(item) and not isinstance(interaction_schema, dict):
         errors.append("interaction_schema:missing_for_current_designer_contract")
     if isinstance(interaction_schema, dict):
+        if (
+            interaction_schema.get("schema_version")
+            != QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION
+        ):
+            errors.append("interaction_schema:current_v2_required")
         errors.extend(question_interaction_schema_errors(interaction_schema))
     for detail in canonical_child_surface_errors(item):
         errors.append(f"child_surface:{detail}")
@@ -2471,6 +2643,8 @@ def v12_node_set_review_semantic_evidence_sha256(
             "semantic_evidence_version": global_verifier_artifact.get("semantic_evidence_version") or "",
             "semantic_evidence_sha256": global_verifier_artifact.get("semantic_evidence_sha256") or "",
             "model_judgment_output_sha256": global_verifier_artifact.get("model_judgment_output_sha256") or "",
+            "shard_artifacts_sha256": global_verifier_artifact.get("shard_artifacts_sha256") or "",
+            "aggregate_commitment_sha256": global_verifier_artifact.get("aggregate_commitment_sha256") or "",
         },
         "global_finalizer": {
             "semantic_evidence_version": global_review_artifact.get("semantic_evidence_version") or "",
@@ -2870,6 +3044,11 @@ def v12_node_semantic_evidence_commitment(node_entry: dict[str, Any]) -> dict[st
             "semantic_evidence_version": global_verifier.get("semantic_evidence_version") or "",
             "semantic_evidence_sha256": global_verifier.get("semantic_evidence_sha256") or "",
             "model_judgment_output_sha256": global_verifier.get("model_judgment_output_sha256") or "",
+            "shard_policy_version": global_verifier.get("shard_policy_version") or "",
+            "expected_shards": global_verifier.get("expected_shards") or [],
+            "shard_artifacts_sha256": global_verifier.get("shard_artifacts_sha256") or "",
+            "shard_semantic_evidence_sha256s": global_verifier.get("shard_semantic_evidence_sha256s") or [],
+            "aggregate_commitment_sha256": global_verifier.get("aggregate_commitment_sha256") or "",
         },
         "global_finalizer": {
             "contract_version": global_finalizer.get("contract_version") or "",
@@ -3369,6 +3548,138 @@ def _validate_v12_node_review_artifact(
         issues.append(_v12_issue("P1", "v12_node_set_global_verifier_candidate_hash_mismatch", node_id, "node_candidate_sha256"))
     if global_verifier.get("constituent_semantic_evidence_sha256") != expected_constituent_semantic_hashes:
         issues.append(_v12_issue("P1", "v12_node_set_global_verifier_constituent_mismatch", node_id, "constituent hashes"))
+    verifier_shards = (
+        global_verifier.get("shard_artifacts")
+        if isinstance(global_verifier.get("shard_artifacts"), list)
+        else []
+    )
+    expected_verifier_shards = v12_expected_global_verifier_shards()
+    top_level_verifier_route = {
+        "model_provider": str(global_verifier.get("model_provider") or ""),
+        "model_name": str(global_verifier.get("model_name") or ""),
+        "model_alias": str(global_verifier.get("model_alias") or ""),
+        "structured_json_mode": str(global_verifier.get("structured_json_mode") or ""),
+    }
+    if [
+        list(shard.get("reviewed_slots") or [])
+        for shard in verifier_shards
+        if isinstance(shard, dict)
+    ] != expected_verifier_shards:
+        issues.append(_v12_issue(
+            "P1",
+            "v12_node_set_global_verifier_shard_coverage_mismatch",
+            node_id,
+            "shard coverage",
+        ))
+    verifier_shard_semantic_hashes: list[str] = []
+    for index, shard in enumerate(verifier_shards):
+        if not isinstance(shard, dict):
+            issues.append(_v12_issue(
+                "P1",
+                "v12_node_set_global_verifier_shard_invalid",
+                node_id,
+                f"{index}:not_object",
+            ))
+            continue
+        reviewed_slots = list(shard.get("reviewed_slots") or [])
+        expected_identity = {
+            "agent_key": QUESTION_REVIEWER_AGENT_KEY,
+            "phase": "node_global_verifier",
+            "artifact_role": "node_set_global_verifier_shard",
+            "contract_key": "math_question_bank_v12_node_set_global_verifier",
+            "contract_version": V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION,
+            "prompt_version_id": V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID,
+            "response_schema_version": V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+            "semantic_evidence_version": V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SEMANTIC_EVIDENCE_VERSION,
+            "provider_mode": "live_model",
+            "prompt_template_sha256": V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256,
+            "response_schema_sha256": V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256,
+            "request_lineage_version": V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION,
+            "shard_id": v12_node_set_review_shard_id(reviewed_slots),
+        }
+        for field, expected in top_level_verifier_route.items():
+            if shard.get(field) != expected:
+                issues.append(_v12_issue(
+                    "P1",
+                    "v12_node_set_global_verifier_shard_route_mismatch",
+                    node_id,
+                    f"{index}:{field}",
+                ))
+        for field, expected in expected_identity.items():
+            if shard.get(field) != expected:
+                issues.append(_v12_issue(
+                    "P1",
+                    "v12_node_set_global_verifier_shard_invalid",
+                    node_id,
+                    f"{index}:{field}",
+                ))
+        shard_judgment = (
+            shard.get("model_judgment_output")
+            if isinstance(shard.get("model_judgment_output"), dict)
+            else {}
+        )
+        classification_slots = [
+            int(entry.get("slot") or 0)
+            for entry in shard_judgment.get("item_classifications") or []
+            if isinstance(entry, dict)
+        ]
+        if (
+            shard_judgment.get("reviewed_slots") != reviewed_slots
+            or classification_slots != reviewed_slots
+            or len(classification_slots) != len(set(classification_slots))
+            or shard.get("model_judgment_output_sha256")
+            != _v12_digest_json(shard_judgment)
+        ):
+            issues.append(_v12_issue(
+                "P1",
+                "v12_node_set_global_verifier_shard_invalid",
+                node_id,
+                f"{index}:judgment",
+            ))
+        for detail in v12_global_model_judgment_binding_errors(node_entry, shard_judgment):
+            issues.append(_v12_issue(
+                "P1",
+                "v12_node_set_global_verifier_shard_binding_invalid",
+                node_id,
+                f"{index}:{detail}",
+            ))
+        expected_shard_semantic = _v12_digest_json({
+            "semantic_evidence_version": V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SEMANTIC_EVIDENCE_VERSION,
+            "node_candidate_sha256": v12_node_candidate_sha256(node_entry),
+            "constituent_semantic_evidence_sha256": expected_constituent_semantic_hashes,
+            "reviewed_slots": reviewed_slots,
+            "compact_index_sha256": shard.get("compact_index_sha256") or "",
+            "model_judgment_output_sha256": shard.get("model_judgment_output_sha256") or "",
+        })
+        if shard.get("semantic_evidence_sha256") != expected_shard_semantic:
+            issues.append(_v12_issue(
+                "P1",
+                "v12_node_set_global_verifier_shard_invalid",
+                node_id,
+                f"{index}:semantic_evidence_sha256",
+            ))
+        verifier_shard_semantic_hashes.append(
+            str(shard.get("semantic_evidence_sha256") or "")
+        )
+    if (
+        global_verifier.get("shard_policy_version")
+        != V12_NODE_SET_GLOBAL_VERIFIER_SHARD_POLICY_VERSION
+        or global_verifier.get("expected_shards") != expected_verifier_shards
+        or global_verifier.get("shard_artifacts_sha256")
+        != _v12_digest_json(verifier_shards)
+        or global_verifier.get("shard_semantic_evidence_sha256s")
+        != verifier_shard_semantic_hashes
+        or global_verifier.get("shard_route_tuples")
+        != v12_global_verifier_shard_route_tuples(verifier_shards)
+        or global_verifier.get("shard_route_tuples_sha256")
+        != _v12_digest_json(v12_global_verifier_shard_route_tuples(verifier_shards))
+    ):
+        issues.append(_v12_issue(
+            "P1",
+            "v12_node_set_global_verifier_shard_commitment_mismatch",
+            node_id,
+            "aggregate shard commitment",
+        ))
     verifier_judgment = global_verifier.get("model_judgment_output") if isinstance(
         global_verifier.get("model_judgment_output"), dict
     ) else {}
@@ -3382,10 +3693,56 @@ def _validate_v12_node_review_artifact(
         issues.append(_v12_issue("P1", "v12_node_set_global_verifier_invalid", node_id, detail))
     for detail in v12_global_model_judgment_binding_errors(node_entry, verifier_judgment):
         issues.append(_v12_issue("P1", "v12_node_set_global_verifier_binding_invalid", node_id, detail))
+    try:
+        expected_verifier_judgment = v12_aggregate_global_verifier_shard_judgments(
+            node_entry,
+            verifier_shards,
+            graph_version=str(verifier_judgment.get("graph_version") or ""),
+        )
+    except ValueError as exc:
+        issues.append(_v12_issue(
+            "P1",
+            "v12_node_set_global_verifier_aggregate_invalid",
+            node_id,
+            str(exc),
+        ))
+        expected_verifier_judgment = None
+    if (
+        expected_verifier_judgment is not None
+        and verifier_judgment != expected_verifier_judgment
+    ):
+        issues.append(_v12_issue(
+            "P1",
+            "v12_node_set_global_verifier_aggregate_mismatch",
+            node_id,
+            "model_judgment_output",
+        ))
+    expected_verifier_aggregate_commitment = _v12_digest_json({
+        "version": V12_NODE_SET_GLOBAL_VERIFIER_AGGREGATE_VERSION,
+        "node_candidate_sha256": v12_node_candidate_sha256(node_entry),
+        "expected_shards": expected_verifier_shards,
+        "shard_semantic_evidence_sha256s": verifier_shard_semantic_hashes,
+        "shard_artifacts_sha256": global_verifier.get("shard_artifacts_sha256") or "",
+        "shard_route_tuples_sha256": global_verifier.get("shard_route_tuples_sha256") or "",
+        "model_judgment_output_sha256": global_verifier.get("model_judgment_output_sha256") or "",
+        "request_lineage_sha256": global_verifier.get("request_lineage_sha256") or "",
+    })
+    if (
+        global_verifier.get("aggregate_commitment_sha256")
+        != expected_verifier_aggregate_commitment
+    ):
+        issues.append(_v12_issue(
+            "P1",
+            "v12_node_set_global_verifier_shard_commitment_mismatch",
+            node_id,
+            "aggregate_commitment_sha256",
+        ))
     expected_verifier_semantic_sha256 = _v12_digest_json({
         "semantic_evidence_version": V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
         "node_candidate_sha256": v12_node_candidate_sha256(node_entry),
         "constituent_semantic_evidence_sha256": expected_constituent_semantic_hashes,
+        "shard_semantic_evidence_sha256s": verifier_shard_semantic_hashes,
+        "aggregate_commitment_sha256": global_verifier.get("aggregate_commitment_sha256") or "",
         "model_judgment_output_sha256": global_verifier.get("model_judgment_output_sha256") or "",
     })
     if global_verifier.get("semantic_evidence_sha256") != expected_verifier_semantic_sha256:

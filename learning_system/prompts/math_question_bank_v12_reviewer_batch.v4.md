@@ -31,7 +31,8 @@ Your `semantic_evidence` is the sole per-item UX semantic authority carried into
 
 Treat `child_visible.interaction_schema` as part of the child surface. Approval requires it to be safe, coherent, and evidence-aligned:
 
-- It must use schema version `2026-07-13.question-interaction.v1`.
+- It must use current schema version `2026-07-17.question-interaction.v2`. Version `2026-07-13.question-interaction.v1` is legacy input only; never recommend changing a newly reviewed or repaired candidate back to v1.
+- Read `requires_explanation` from the canonical v2 interaction committed in trusted context. Do not infer it from stale legacy answer-format or elicitation metadata.
 - It must not contain correct answers, expected answers, rubric, scores, solution steps, reviewer notes, model/provider names, internal ids, or hidden evidence goals.
 - `short_text` is appropriate for open reasoning, diagnosis, proof, and multi-step explanation.
 - `fill_blank` is appropriate only when each blank is a clearly named intermediate quantity/expression and ambiguity is not hidden in the prompt.

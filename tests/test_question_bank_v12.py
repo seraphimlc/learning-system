@@ -20,6 +20,10 @@ V12_REAL_LEGACY_V5_CHECKPOINT = (
     PROJECT_ROOT
     / "data/question_banks/math/.v12_pilot_six_checkpoints/M-BRIDGE-CLOCK-ANGLE.json"
 )
+V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT = (
+    PROJECT_ROOT
+    / "data/question_banks/math/.v12_pilot_six_checkpoints/M-G7-PARENTHESIS.json"
+)
 V12_RECORDED_BLOCKER_UNION_FIXTURE = (
     PROJECT_ROOT / "tests/fixtures/v12_recorded_semantic_blocker_union_v1.json"
 )
@@ -235,6 +239,19 @@ def _sha256_json(value: object) -> str:
     ).hexdigest()
 
 
+def _sync_test_interaction_explanation_requirement(item: dict) -> None:
+    schema = item.get("interaction_schema")
+    if not isinstance(schema, dict):
+        return
+    if schema.get("schema_version") != question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION:
+        return
+    prompt = str(item.get("prompt") or "")
+    schema["requires_explanation"] = any(
+        marker in prompt
+        for marker in ("说明", "解释", "理由", "依据", "为什么", "论证", "证明", "反驳", "检查")
+    )
+
+
 def _core_item(
     node: dict,
     slot: int,
@@ -276,6 +293,7 @@ def _core_item(
             "type": "short_text",
             "title": "写出关系、结果和检验",
             "allow_explanation": True,
+            "requires_explanation": not unprompted_process,
             "explanation_label": "补充说明",
             "fields": [],
             "choices": [],
@@ -379,6 +397,7 @@ def _core_item(
 
 
 def _refresh_v3_item_review_commitment(item: dict, *, reset_semantic_evidence: bool = False) -> None:
+    _sync_test_interaction_explanation_requirement(item)
     review = item.get("review_artifact") if isinstance(item.get("review_artifact"), dict) else {}
     if reset_semantic_evidence:
         review["semantic_evidence_version"] = question_bank.V12_ITEM_REVIEW_SEMANTIC_EVIDENCE_VERSION
@@ -457,6 +476,9 @@ def _node_review_artifact(
     duplicate_groups: list[dict] | None = None,
     rejected_slots: set[int] | None = None,
 ) -> dict:
+    for item in node_entry.get("items") or []:
+        if isinstance(item, dict):
+            _sync_test_interaction_explanation_requirement(item)
     node_candidate_sha256 = question_bank.v12_node_candidate_sha256(node_entry)
     constituent_reviews = []
     duplicate_groups = json.loads(json.dumps(duplicate_groups or []))
@@ -881,6 +903,22 @@ def _reviewer_batch_response_for_payload(
     )
 
 
+def _designer_batch_response_from_item(
+    node_id: str,
+    graph_version: str,
+    item: dict,
+) -> dict:
+    return {
+        "schema_version": question_bank.V12_DESIGNER_RESPONSE_SCHEMA_VERSION,
+        "node_id": node_id,
+        "graph_version": graph_version,
+        "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
+        "items": [item],
+        "batch_confidence": 0.94,
+        "design_notes": ["deterministic repaired legacy candidate"],
+    }
+
+
 def _node_set_review_response(
     node_entry: dict,
     graph_version: str,
@@ -1013,10 +1051,12 @@ def _node_set_global_finalizer_output(
             "reason": "fixture classification follows the actual child surface",
         })
     bound_duplicate_groups = []
-    for group in duplicate_groups:
+    for index, group in enumerate(duplicate_groups):
         slots = sorted(set(group.get("slots") or []))
         bound_duplicate_groups.append({
             **group,
+            "group_id": str(group.get("group_id") or f"fixture-duplicate-{index + 1}"),
+            "evidence_refs": list(group.get("evidence_refs") or [f"fixture:duplicate:{index + 1}"]),
             "subject_sha256s": sorted(
                 question_bank.v12_item_review_subject_binding(item_by_slot[slot])["subject_sha256"]
                 for slot in slots
@@ -1168,52 +1208,88 @@ def _node_set_global_verifier_artifact(
     output: dict,
 ) -> dict:
     module = _load_v12_build_module()
-    lineage = module._global_verifier_expected_lineage(node_entry, constituent_reviews)
-    judgment = _global_model_judgment_from_output(output)
-    artifact = {
-        "model_judgment_output": judgment,
-        "model_judgment_output_sha256": _sha256_json(judgment),
-        "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
-        "constituent_semantic_evidence_sha256": [
-            review.get("semantic_evidence_sha256", "") for review in constituent_reviews
-        ],
-        **_model_audit_artifact(
-            provider_mode="live_model",
-            artifact_role="node_set_global_verifier",
-            agent_key=question_bank.QUESTION_REVIEWER_AGENT_KEY,
-            phase="node_global_verifier",
-            model_name="gpt-5.5",
-            contract_key="math_question_bank_v12_node_set_global_verifier",
-            contract_version=question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION,
-            prompt_version_id=question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID,
-            response_schema_version=question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
-        ),
-        "review_phase": "global_verifier",
-        "pipeline_stage": "node_set_global_verifier",
-        "stage_attempt": 1,
-        "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
-        **{
-            key: lineage[key]
-            for key in (
-                "prompt_template_sha256",
-                "rendered_prompt_sha256",
-                "response_schema_sha256",
-                "request_lineage_version",
-                "trusted_context_sha256",
-                "untrusted_payload_sha256",
-                "request_options_sha256",
-                "request_input_sha256",
-                "request_lineage_sha256",
-            )
-        },
-    }
-    artifact["semantic_evidence_sha256"] = _sha256_json({
-        "semantic_evidence_version": artifact["semantic_evidence_version"],
-        "node_candidate_sha256": artifact["node_candidate_sha256"],
-        "constituent_semantic_evidence_sha256": artifact["constituent_semantic_evidence_sha256"],
-        "model_judgment_output_sha256": artifact["model_judgment_output_sha256"],
-    })
-    return artifact
+    contract = module._load_global_verifier_contract()
+    prompt = module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8")
+    route = module.model_router.question_node_global_verifier_route()
+    full_judgment = _global_model_judgment_from_output(output)
+    full_judgment["homogeneous_clusters"] = [
+        {
+            **cluster,
+            "cluster_id": str(cluster.get("cluster_id") or f"fixture-homogeneous-{index + 1}"),
+            "subject_sha256s": list(cluster.get("subject_sha256s") or []),
+        }
+        for index, cluster in enumerate(full_judgment.get("homogeneous_clusters") or [])
+        if isinstance(cluster, dict)
+    ]
+    full_judgment["repetitive_instruction_clusters"] = [
+        {
+            **cluster,
+            "cluster_id": str(cluster.get("cluster_id") or f"fixture-repetitive-{index + 1}"),
+            "cluster_summary": str(cluster.get("cluster_summary") or cluster.get("reason") or "repetitive fixture cluster"),
+            "evidence_refs": list(cluster.get("evidence_refs") or [f"fixture:repetitive:{index + 1}"]),
+            "subject_sha256s": list(cluster.get("subject_sha256s") or []),
+        }
+        for index, cluster in enumerate(full_judgment.get("repetitive_instruction_clusters") or [])
+        if isinstance(cluster, dict)
+    ]
+    full_judgment["duplicate_groups"] = [
+        {
+            **group,
+            "group_id": str(group.get("group_id") or f"fixture-duplicate-{index + 1}"),
+            "evidence_refs": list(group.get("evidence_refs") or [f"fixture:duplicate:{index + 1}"]),
+            "subject_sha256s": list(group.get("subject_sha256s") or []),
+        }
+        for index, group in enumerate(full_judgment.get("duplicate_groups") or [])
+        if isinstance(group, dict)
+    ]
+    shard_artifacts = []
+    for reviewed_slots in question_bank.v12_expected_global_verifier_shards():
+        shard_output = {
+            **full_judgment,
+            "schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION,
+            "reviewed_slots": reviewed_slots,
+            "item_classifications": [
+                copy.deepcopy(entry)
+                for entry in full_judgment["item_classifications"]
+                if int(entry.get("slot") or 0) in reviewed_slots
+            ],
+        }
+        shard_output = module._bind_global_verifier_shard_judgment(
+            node_entry,
+            shard_output,
+            graph_version=str(output.get("graph_version") or _graph_version()),
+            reviewed_slots=reviewed_slots,
+        )
+        lineage = module._global_verifier_shard_expected_lineage(
+            node_entry,
+            constituent_reviews,
+            reviewed_slots,
+        )
+        result = module.model_router.StructuredJSONResult(
+            value=shard_output,
+            mode="json_schema",
+            raw_response={"fixture_verifier_shard": reviewed_slots},
+        )
+        shard_artifacts.append(module._node_set_global_verifier_shard_artifact(
+            node_entry=node_entry,
+            constituent_reviews=constituent_reviews,
+            reviewed_slots=reviewed_slots,
+            model_judgment=shard_output,
+            contract=contract,
+            prompt_template=prompt,
+            rendered_prompt=lineage["rendered_prompt"],
+            result=result,
+            route=route,
+            stage_attempt=1,
+        ))
+    return module._node_set_global_verifier_artifact(
+        node_entry=node_entry,
+        constituent_reviews=constituent_reviews,
+        shard_artifacts=shard_artifacts,
+        route=route,
+        stage_attempt=1,
+    )
 
 
 def _v4_duplicate_node_set_aggregate(
@@ -1506,6 +1582,110 @@ def _node_set_global_finalizer_response_for_payload(payload: dict, *, confidence
     }
 
 
+def _node_set_global_verifier_shard_response_for_payload(
+    payload: dict,
+    *,
+    confidence: float = 0.95,
+) -> dict:
+    trusted = _json_section_from_payload(payload, "Trusted Context")
+    untrusted = _json_section_from_payload(
+        payload,
+        "Untrusted Verifier Shard Packet",
+    )
+    reviewed_slots = [int(slot) for slot in trusted.get("reviewed_slots") or []]
+    item_by_slot = {
+        int(item.get("slot") or 0): item
+        for item in untrusted.get("full_items") or []
+        if isinstance(item, dict) and int(item.get("slot") or 0)
+    }
+    compact_by_slot = {
+        int(item.get("slot") or 0): item
+        for item in untrusted.get("whole_node_compact_index") or []
+        if isinstance(item, dict) and int(item.get("slot") or 0)
+    }
+    focal_rejected_slots = sorted({
+        int(slot)
+        for summary in untrusted.get("focal_review_summaries") or []
+        if isinstance(summary, dict)
+        for slot in summary.get("rejected_slots") or []
+        if isinstance(slot, int) and 1 <= slot <= 20
+    })
+    classifications = []
+    evidence_moves = list(question_bank.V12_PRIMARY_EVIDENCE_MOVES)
+    answer_paths = list(question_bank.V12_ANSWER_PATH_FAMILIES)
+    representations = list(question_bank.V12_REPRESENTATION_FAMILIES)
+    for index, slot in enumerate(reviewed_slots):
+        item = item_by_slot[slot]
+        subject = item["review_subject"]
+        classifications.append({
+            **{
+                key: subject[key]
+                for key in (
+                    "node_id",
+                    "slot",
+                    "item_id",
+                    "candidate_sha256",
+                    "child_surface_sha256",
+                    "item_review_request_sha256",
+                    "item_review_semantic_evidence_sha256",
+                )
+            },
+            "ownership_mode": "current_node_mainline",
+            "current_node_indispensable": "yes",
+            "primary_evidence_move": evidence_moves[(slot - 1) % len(evidence_moves)],
+            "answer_path_family": answer_paths[(slot - 1) % len(answer_paths)],
+            "representation_family": representations[(slot - 1) % len(representations)],
+            "difficulty_verdict": "L2" if slot <= 14 else "L3",
+            "difficulty_features": [],
+            "prompt_interaction_verdict": "aligned",
+            "reason": f"fixture verifier shard classification for slot {slot}",
+        })
+    return {
+        "schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+        "node_id": trusted.get("node", {}).get("id"),
+        "graph_version": trusted.get("graph_version"),
+        "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
+        "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION,
+        "reviewed_slots": reviewed_slots,
+        "item_classifications": classifications,
+        "homogeneous_clusters": [],
+        "distribution_scores": {
+            key: 0.95 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+        },
+        "repetitive_instruction_clusters": [],
+        "duplicate_groups": [],
+        "confidence": confidence,
+        "reasons": [
+            f"verifier shard {reviewed_slots} completed",
+            *(
+                [f"focal blockers retained for slots {focal_rejected_slots}"]
+                if focal_rejected_slots
+                else []
+            ),
+        ],
+        "repair_plan": [
+            {
+                "slot": slot,
+                "repair_scope": "global_slot_fit",
+                "preserved_role": str((compact_by_slot.get(slot) or {}).get("slot_role") or ""),
+                "preserve_or_replace_math_core": "replace_math_core",
+                "required_voice_family": str(
+                    (compact_by_slot.get(slot) or {}).get("instruction_voice_family")
+                    or "solve_and_interpret"
+                ),
+                "avoided_voice_families": [],
+                "exact_target_delta": {
+                    "dimension": "slot_fit",
+                    "from_value": "focal_review_rejected",
+                    "to_value": "role_compatible_distinct_evidence",
+                },
+                "evidence_refs": [f"focal_review:slot:{slot}"],
+            }
+            for slot in focal_rejected_slots
+        ],
+    }
+
+
 def _fake_v6_model_router_result(
     module,
     route,
@@ -1550,7 +1730,9 @@ def _fake_v6_model_router_result(
             payload,
             rejected_slots=sorted(focal_reject_slots.intersection(reviewed_slots)),
         )
-    elif task in {"node_global_verifier", "node_global_finalizer"}:
+    elif task == "node_global_verifier":
+        value = _node_set_global_verifier_shard_response_for_payload(payload)
+    elif task == "node_global_finalizer":
         value = _node_set_global_finalizer_response_for_payload(payload)
     else:
         raise AssertionError(f"unexpected v6 model route: {route.agent_key}:{task}")
@@ -1565,6 +1747,7 @@ def _designer_batch_items(items: list[dict]) -> list[dict]:
     sanitized = []
     for item in items:
         copied = json.loads(json.dumps(item))
+        _sync_test_interaction_explanation_requirement(copied)
         copied.pop("review_artifact", None)
         copied.pop("rollback_candidate_relations", None)
         copied.setdefault("child_surface_design", json.loads(json.dumps(question_bank.V12_CHILD_SURFACE_DESIGN)))
@@ -1841,6 +2024,9 @@ def _seal_v12_incomplete_checkpoint(checkpoint: dict) -> dict:
 def _reseal_v12_completed_checkpoint(module, checkpoint: dict) -> dict:
     node_entry = checkpoint.get("node") if isinstance(checkpoint.get("node"), dict) else {}
     checkpoint["semantic_evidence_commitment"] = question_bank.v12_node_semantic_evidence_commitment(node_entry)
+    checkpoint["child_surface_projection_commitment"] = (
+        question_bank.v12_child_surface_projection_commitment(node_entry)
+    )
     checkpoint["completed_node_receipt"] = module._completed_checkpoint_node_receipt(
         node_entry=node_entry,
         graph_version=str(checkpoint.get("graph_version") or ""),
@@ -1943,6 +2129,9 @@ def _v12_completed_checkpoint_with_repair_chain(module, node_entry: dict, graph_
         "repair_chain_hash": chain_sha256,
         "model_budget": model_budget,
         "semantic_evidence_commitment": question_bank.v12_node_semantic_evidence_commitment(node_entry),
+        "child_surface_projection_commitment": (
+            question_bank.v12_child_surface_projection_commitment(node_entry)
+        ),
         "completed_node_receipt": module._completed_checkpoint_node_receipt(
             node_entry=node_entry,
             graph_version=graph_version,
@@ -3005,6 +3194,26 @@ class QuestionBankV12Test(unittest.TestCase):
                     graph_version=manifest["graph_version"],
                 )
 
+    def test_v12_current_completed_checkpoint_requires_child_surface_projection_commitment(self):
+        module = _load_v12_build_module()
+        manifest = _manifest(provider_mode="live_model", status="draft_live_model")
+        node_entry = manifest["nodes"][0]
+        checkpoint = _v12_completed_checkpoint_with_repair_chain(
+            module,
+            node_entry,
+            manifest["graph_version"],
+        )
+        checkpoint.pop("child_surface_projection_commitment")
+        checkpoint["checkpoint_integrity_sha256"] = module._checkpoint_integrity_sha256(
+            checkpoint
+        )
+
+        with self.assertRaisesRegex(
+            module.model_router.ModelCallError,
+            "current completed checkpoint requires child-surface projection commitment",
+        ):
+            module._validate_live_checkpoint_integrity(checkpoint)
+
     def test_v12_incomplete_checkpoint_integrity_tamper_is_rejected_on_resume(self):
         module = _load_v12_build_module()
         manifest = _manifest(provider_mode="live_model", status="draft_live_model")
@@ -3106,6 +3315,7 @@ class QuestionBankV12Test(unittest.TestCase):
                 graph=graph,
                 graph_version=source["graph_version"],
             ))
+
             migrated = module._read_live_node_checkpoint(
                 checkpoint_dir,
                 node_id=source["node_id"],
@@ -3138,6 +3348,71 @@ class QuestionBankV12Test(unittest.TestCase):
                 graph_version=source["graph_version"],
             ))
 
+    def test_v12_legacy_invalid_child_surface_enters_candidate_only_and_routes_slot_to_designer(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        source = json.loads(
+            V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.read_text(encoding="utf-8")
+        )
+        node = next(item for item in graph["nodes"] if item["id"] == source["node_id"])
+        calls: list[tuple[str, list[int]]] = []
+
+        def fake_batch_call(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            calls.append((route.task, requested_slots))
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "question_candidate":
+                raise RuntimeError("stop at invalid child-surface designer repair")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp) / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT, target)
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=fake_batch_call), \
+                 self.assertRaisesRegex(RuntimeError, "invalid child-surface designer repair"):
+                module._build_live_node(**_legacy_v5_build_kwargs(
+                    module,
+                    node=node,
+                    graph=graph,
+                    graph_version=source["graph_version"],
+                    checkpoint_dir=checkpoint_dir,
+                ))
+            persisted = json.loads(target.read_text(encoding="utf-8"))
+
+        reviewer_slots = [slots[0] for task, slots in calls if task == "question_review"]
+        designer_slots = [slots for task, slots in calls if task == "question_candidate"]
+        self.assertEqual([slot for slot in range(1, 21) if slot != 5], reviewer_slots)
+        self.assertEqual([[5]], designer_slots)
+        self.assertNotIn("child_surface_projection_commitment", persisted)
+        commitment = persisted["candidate_only_surface_commitment"]
+        slot_state = next(entry for entry in commitment["slots"] if entry["slot"] == 5)
+        self.assertEqual("legacy_rejected", slot_state["legacy_review_state"])
+        self.assertEqual("pending", slot_state["canonical_binding_state"])
+        self.assertEqual("", slot_state["active_candidate_sha256"])
+        self.assertEqual("incomplete", persisted["status"])
+        self.assertEqual(
+            module.V12_LEGACY_CANDIDATE_NODE_REVIEW_STATE,
+            persisted["checkpoint_state"],
+        )
+        self.assertEqual("current", module._validate_live_checkpoint_integrity(persisted))
+        module._validate_legacy_candidate_transition_checkpoint(persisted)
+
     def test_v12_legacy_candidate_first_model_boundary_is_reviewer(self):
         module = _load_v12_build_module()
         graph = _load_graph()
@@ -3169,6 +3444,103 @@ class QuestionBankV12Test(unittest.TestCase):
             calls,
         )
         self.assertEqual(list(range(1, 21)), persisted["checkpoint_migrations"][-1]["fresh_review"]["pending_slots"])
+
+    def test_v12_force_slot_preflight_admits_real_legacy_candidate_reviewer_first(self):
+        module = _load_v12_build_module()
+        source = json.loads(V12_REAL_LEGACY_V5_CHECKPOINT.read_text(encoding="utf-8"))
+        calls: list[tuple[str, str]] = []
+
+        def stop_at_first_boundary(**kwargs):
+            route = kwargs["route"]
+            calls.append((route.agent_key, route.task))
+            raise RuntimeError("stop at force legacy reviewer boundary")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkpoint_dir = root / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_V5_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_V5_CHECKPOINT, target)
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=stop_at_first_boundary), \
+                 self.assertRaisesRegex(RuntimeError, "force legacy reviewer boundary"):
+                module.build_live(
+                    output_path=root / "out.json",
+                    checkpoint_dir=checkpoint_dir,
+                    project_root=PROJECT_ROOT,
+                    node_ids=[source["node_id"]],
+                    max_rounds=3,
+                    max_concurrency=1,
+                    node_review_concurrency=1,
+                    resume=True,
+                    force_slots={source["node_id"]: {20}},
+                    max_semantic_calls=64,
+                    max_provider_attempts=192,
+                )
+            persisted = json.loads(target.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            [(question_bank.QUESTION_REVIEWER_AGENT_KEY, "question_review")],
+            calls,
+        )
+        self.assertFalse(any(task == "question_candidate" for _agent, task in calls))
+        self.assertEqual(
+            module.V12_LEGACY_CANDIDATE_FRESH_REVIEW_STATE,
+            persisted["checkpoint_state"],
+        )
+        self.assertEqual(
+            list(range(1, 21)),
+            persisted["checkpoint_migrations"][-1]["fresh_review"]["pending_slots"],
+        )
+
+    def test_v12_force_slot_preflight_tampered_legacy_checkpoint_is_zero_write(self):
+        module = _load_v12_build_module()
+        source = json.loads(V12_REAL_LEGACY_V5_CHECKPOINT.read_text(encoding="utf-8"))
+        tampered = copy.deepcopy(source)
+        tampered["accepted_slots"]["20"]["prompt"] += " tampered"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkpoint_dir = root / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_V5_CHECKPOINT.name
+            target.write_text(json.dumps(tampered, ensure_ascii=False), encoding="utf-8")
+            output_path = root / "out.json"
+            before_bytes = target.read_bytes()
+            inventory_before = sorted(
+                path.relative_to(root).as_posix()
+                for path in root.rglob("*")
+                if path.is_file()
+            )
+
+            with mock.patch.object(module, "_call_v12_batch_agent") as model_call, \
+                 self.assertRaises(module.model_router.ModelCallError):
+                module.build_live(
+                    output_path=output_path,
+                    checkpoint_dir=checkpoint_dir,
+                    project_root=PROJECT_ROOT,
+                    node_ids=[source["node_id"]],
+                    max_rounds=3,
+                    max_concurrency=1,
+                    node_review_concurrency=1,
+                    resume=True,
+                    force_slots={source["node_id"]: {20}},
+                    max_semantic_calls=64,
+                    max_provider_attempts=192,
+                )
+
+            model_call.assert_not_called()
+            self.assertEqual(before_bytes, target.read_bytes())
+            self.assertFalse(output_path.exists())
+            self.assertFalse((checkpoint_dir / ".run-state").exists())
+            self.assertFalse((checkpoint_dir / ".run-locks").exists())
+            self.assertEqual(
+                inventory_before,
+                sorted(
+                    path.relative_to(root).as_posix()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                ),
+            )
 
     def test_v12_legacy_candidate_reviewer_rejection_routes_only_that_slot_to_designer(self):
         module = _load_v12_build_module()
@@ -3269,6 +3641,1071 @@ class QuestionBankV12Test(unittest.TestCase):
             persisted["checkpoint_state"],
         )
         self.assertEqual(list(range(1, 21)), persisted["checkpoint_migrations"][-1]["fresh_review"]["approved_slots"])
+        self.assertTrue(all(
+            item["interaction_schema"]["schema_version"]
+            == question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION
+            and isinstance(item["interaction_schema"].get("requires_explanation"), bool)
+            for item in persisted["node"]["items"]
+        ))
+
+    def test_v12_forced_legacy_rejection_merges_pending_repair_and_resumes_idempotently(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        source = json.loads(
+            V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.read_text(encoding="utf-8")
+        )
+        node = next(item for item in graph["nodes"] if item["id"] == source["node_id"])
+        source_slot = next(item for item in source["node"]["items"] if item["slot"] == 5)
+        operation_token = "TEST-PARENTHESIS-SLOT-5-PENDING-FORCE"
+        designer_calls: list[list[int]] = []
+        designer_directive_reasons: list[str] = []
+
+        def first_run_router(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "question_candidate":
+                designer_calls.append(requested_slots)
+                directives = kwargs["trusted_context"].get("accepted_repair_directives") or []
+                designer_directive_reasons.extend(
+                    str(directive.get("reason") or "")
+                    for directive in directives
+                    if isinstance(directive, dict)
+                )
+                repaired = copy.deepcopy(source_slot)
+                repaired["prompt"] = (
+                    "把 2m−3(m+4) 化简，并说明 −3 怎样分别作用到 m 和 4。"
+                )
+                repaired["interaction_schema"] = {
+                    "schema_version": question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION,
+                    "type": "short_text",
+                    "title": "写出化简过程",
+                    "allow_explanation": True,
+                    "requires_explanation": True,
+                    "explanation_label": "说明去括号关系",
+                    "fields": [],
+                    "choices": [],
+                    "formula_label": "",
+                    "placeholder": "",
+                }
+                return module.model_router.StructuredJSONResult(
+                    value=_designer_batch_response_from_item(
+                        source["node_id"],
+                        source["graph_version"],
+                        repaired,
+                    ),
+                    mode="json_schema",
+                    raw_response={"designed_slots": requested_slots},
+                ), "rendered designer prompt"
+            if route.task == "node_set_review":
+                raise RuntimeError("stop after forced pending repair")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        def stop_resumed_focal(**kwargs):
+            route = kwargs["route"]
+            if route.task == "node_set_review":
+                raise RuntimeError("stop at resumed focal review")
+            self.fail(f"resume unexpectedly called {route.agent_key}:{route.task}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp) / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT, target)
+            kwargs = _legacy_v5_build_kwargs(
+                module,
+                node=node,
+                graph=graph,
+                graph_version=source["graph_version"],
+                checkpoint_dir=checkpoint_dir,
+            )
+            kwargs.update({
+                "force_slots": {5},
+                "force_slot_modes": {5: "standard"},
+                "force_slot_operation_tokens": {5: operation_token},
+            })
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=first_run_router), \
+                 self.assertRaisesRegex(RuntimeError, "stop after forced pending repair"):
+                module._build_live_node(**kwargs)
+            after_first = json.loads(target.read_text(encoding="utf-8"))
+
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=stop_resumed_focal), \
+                 self.assertRaisesRegex(RuntimeError, "stop at resumed focal review"):
+                module._build_live_node(**kwargs)
+            after_resume = json.loads(target.read_text(encoding="utf-8"))
+
+        self.assertEqual([[5]], designer_calls)
+        self.assertIn("legacy_candidate_deterministic_review_rejected", designer_directive_reasons)
+        self.assertIn("operator_force_slot_regeneration", designer_directive_reasons)
+        operation_events = [
+            event
+            for event in after_first["repair_chain_events"]
+            if event.get("reason") == "operator_force_slot_regeneration"
+            and int(event.get("slot") or 0) == 5
+        ]
+        completion_events = [
+            event
+            for event in after_first["repair_chain_events"]
+            if event.get("reason") == "operator_force_slot_regeneration_completed"
+            and int(event.get("slot") or 0) == 5
+        ]
+        self.assertEqual(1, len(operation_events))
+        self.assertEqual(1, len(completion_events))
+        quarantined = after_first["checkpoint_migrations"][-1]["fresh_review"][
+            "quarantined_candidates_by_slot"
+        ]["5"]
+        self.assertEqual(
+            question_bank.v12_external_candidate_sha256(quarantined),
+            operation_events[0]["operator_operation_receipt"]["source_candidate_sha256"],
+        )
+        self.assertNotIn("5", after_first.get("pending_repair_by_slot") or {})
+        self.assertEqual(after_first["repair_chain_events"], after_resume["repair_chain_events"])
+
+    def test_v12_pending_legacy_force_receipt_reuse_is_idempotent_and_conflict_fails(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        source = json.loads(
+            V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.read_text(encoding="utf-8")
+        )
+        node = next(item for item in graph["nodes"] if item["id"] == source["node_id"])
+
+        def stop_at_designer(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "question_candidate":
+                raise RuntimeError("stop with legacy slot pending")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp) / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT, target)
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=stop_at_designer), \
+                 self.assertRaisesRegex(RuntimeError, "legacy slot pending"):
+                module._build_live_node(**_legacy_v5_build_kwargs(
+                    module,
+                    node=node,
+                    graph=graph,
+                    graph_version=source["graph_version"],
+                    checkpoint_dir=checkpoint_dir,
+                ))
+            persisted = json.loads(target.read_text(encoding="utf-8"))
+
+        accepted = module._accepted_slots_from_checkpoint(persisted)
+        pending = module._pending_repair_from_checkpoint(persisted)
+        events = module._repair_chain_events_from_checkpoint(persisted)
+        slot_rounds = {
+            slot: int((persisted.get("slot_rounds") or {}).get(str(slot), 0) or 0)
+            for slot in range(1, 21)
+        }
+        counters = module._stage_counters_from_checkpoint(
+            persisted,
+            slot_rounds=slot_rounds,
+        )
+        sources = module._legacy_candidate_force_sources_by_slot(
+            persisted.get("checkpoint_migrations")
+        )
+        first = module._apply_forced_slot_regeneration(
+            node=node,
+            graph_version=source["graph_version"],
+            force_slots={5},
+            force_slot_modes={5: "standard"},
+            force_slot_operation_tokens={5: "PENDING-LEGACY-FORCE-TOKEN-A"},
+            accepted_by_slot=accepted,
+            pending_repair_by_slot=pending,
+            slot_rounds=slot_rounds,
+            stage_counters=counters,
+            repair_chain_events=events,
+            force_source_candidates_by_slot=sources,
+        )
+        pending_after_first = copy.deepcopy(pending)
+        counters_after_first = copy.deepcopy(counters)
+        rounds_after_first = copy.deepcopy(slot_rounds)
+        second = module._apply_forced_slot_regeneration(
+            node=node,
+            graph_version=source["graph_version"],
+            force_slots={5},
+            force_slot_modes={5: "standard"},
+            force_slot_operation_tokens={5: "PENDING-LEGACY-FORCE-TOKEN-A"},
+            accepted_by_slot=accepted,
+            pending_repair_by_slot=pending,
+            slot_rounds=slot_rounds,
+            stage_counters=counters,
+            repair_chain_events=first,
+            force_source_candidates_by_slot=sources,
+        )
+
+        self.assertEqual(first, second)
+        self.assertEqual(pending_after_first, pending)
+        self.assertEqual(counters_after_first, counters)
+        self.assertEqual(rounds_after_first, slot_rounds)
+        with self.assertRaisesRegex(
+            module.model_router.ModelCallError,
+            "conflicting operator slot operation receipts",
+        ):
+            module._apply_forced_slot_regeneration(
+                node=node,
+                graph_version=source["graph_version"],
+                force_slots={5},
+                force_slot_modes={5: "standard"},
+                force_slot_operation_tokens={5: "PENDING-LEGACY-FORCE-TOKEN-B"},
+                accepted_by_slot=accepted,
+                pending_repair_by_slot=pending,
+                slot_rounds=slot_rounds,
+                stage_counters=counters,
+                repair_chain_events=first,
+                force_source_candidates_by_slot=sources,
+            )
+
+    def test_v12_plain_force_pending_merge_receipt_writes_reads_and_requires_every_field(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        source = json.loads(
+            V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.read_text(encoding="utf-8")
+        )
+        node = next(item for item in graph["nodes"] if item["id"] == source["node_id"])
+
+        def stop_after_pending_force_write(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "question_candidate":
+                raise RuntimeError("stop after pending force checkpoint write")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp) / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT, target)
+            kwargs = _legacy_v5_build_kwargs(
+                module,
+                node=node,
+                graph=graph,
+                graph_version=source["graph_version"],
+                checkpoint_dir=checkpoint_dir,
+            )
+            kwargs.update({
+                "force_slots": {5},
+                "force_slot_modes": {},
+                "force_slot_operation_tokens": {},
+            })
+            with mock.patch.object(
+                module,
+                "_call_v12_batch_agent",
+                side_effect=stop_after_pending_force_write,
+            ), self.assertRaisesRegex(
+                RuntimeError,
+                "stop after pending force checkpoint write",
+            ):
+                module._build_live_node(**kwargs)
+
+            persisted = json.loads(target.read_text(encoding="utf-8"))
+            reread = module._read_live_node_checkpoint(
+                checkpoint_dir,
+                node_id=source["node_id"],
+                graph_version=source["graph_version"],
+            )
+
+        operation_events = [
+            event
+            for event in persisted["repair_chain_events"]
+            if event.get("reason") == "operator_force_slot_regeneration"
+            and int(event.get("slot") or 0) == 5
+        ]
+        self.assertEqual(1, len(operation_events))
+        receipt = operation_events[0]["operator_operation_receipt"]
+        module._validate_operator_operation_receipt(receipt)
+        self.assertEqual(persisted["repair_chain_events"], reread["repair_chain_events"])
+        self.assertEqual("pending_quarantined", receipt["source_candidate_state"])
+        self.assertEqual("standard", receipt["target_mode"])
+        self.assertEqual(module._sha256_text(""), receipt["operation_token_sha256"])
+        self.assertEqual(1, receipt["operation_generation"])
+        self.assertEqual(
+            ["legacy_candidate_deterministic_review_rejected"],
+            receipt["source_pending_reasons"],
+        )
+        self.assertEqual(
+            module._sha256_json(receipt["source_pending_reasons"]),
+            receipt["source_pending_reasons_sha256"],
+        )
+        self.assertEqual(
+            operation_events[0]["old_candidate_sha256"],
+            receipt["source_candidate_sha256"],
+        )
+        self.assertEqual(
+            operation_events[0]["source_review_artifact_sha256"],
+            receipt["source_review_artifact_sha256"],
+        )
+        for field in sorted(receipt):
+            with self.subTest(missing_field=field):
+                tampered = copy.deepcopy(receipt)
+                tampered.pop(field)
+                with self.assertRaisesRegex(
+                    module.model_router.ModelCallError,
+                    "operator slot operation receipt",
+                ):
+                    module._validate_operator_operation_receipt(tampered)
+
+    def test_v12_build_live_preflight_resumes_attached_pending_force_without_replaying_reviews(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        source = json.loads(
+            V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.read_text(encoding="utf-8")
+        )
+        node = next(item for item in graph["nodes"] if item["id"] == source["node_id"])
+        source_slot = next(item for item in source["node"]["items"] if item["slot"] == 5)
+
+        def create_pending_state(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "question_candidate":
+                raise RuntimeError("stop with copied real pending state")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        resume_calls: list[tuple[str, list[int]]] = []
+
+        def resume_router(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            resume_calls.append((route.task, requested_slots))
+            if route.task == "question_candidate":
+                repaired = copy.deepcopy(source_slot)
+                repaired["prompt"] = (
+                    "把 2m−3(m+4) 化简，并说明 −3 怎样分别作用到 m 和 4。"
+                )
+                repaired["interaction_schema"] = {
+                    "schema_version": question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION,
+                    "type": "short_text",
+                    "title": "写出化简过程",
+                    "allow_explanation": True,
+                    "requires_explanation": True,
+                    "explanation_label": "说明去括号关系",
+                    "fields": [],
+                    "choices": [],
+                    "formula_label": "",
+                    "placeholder": "",
+                }
+                return module.model_router.StructuredJSONResult(
+                    value=_designer_batch_response_from_item(
+                        source["node_id"],
+                        source["graph_version"],
+                        repaired,
+                    ),
+                    mode="json_schema",
+                    raw_response={"designed_slots": requested_slots},
+                ), "rendered designer prompt"
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "node_set_review":
+                raise RuntimeError("stop at resumed pending focal review")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkpoint_dir = root / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT, target)
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=create_pending_state), \
+                 self.assertRaisesRegex(RuntimeError, "copied real pending state"):
+                module._build_live_node(**_legacy_v5_build_kwargs(
+                    module,
+                    node=node,
+                    graph=graph,
+                    graph_version=source["graph_version"],
+                    checkpoint_dir=checkpoint_dir,
+                ))
+
+            with mock.patch.object(
+                module,
+                "_process_live_slot_chunk",
+                side_effect=RuntimeError("crash after pending force receipt"),
+            ), mock.patch.object(module, "_call_v12_batch_agent") as unexpected_model, \
+                 self.assertRaisesRegex(RuntimeError, "crash after pending force receipt"):
+                module.build_live(
+                    output_path=root / "out.json",
+                    checkpoint_dir=checkpoint_dir,
+                    project_root=PROJECT_ROOT,
+                    node_ids=[source["node_id"]],
+                    max_rounds=3,
+                    max_concurrency=1,
+                    node_review_concurrency=1,
+                    resume=True,
+                    force_slots={source["node_id"]: {5}},
+                    max_semantic_calls=64,
+                    max_provider_attempts=192,
+                )
+            unexpected_model.assert_not_called()
+            attached = json.loads(target.read_text(encoding="utf-8"))
+            self.assertTrue(any(
+                event.get("reason") == "operator_force_slot_regeneration"
+                and int(event.get("slot") or 0) == 5
+                for event in attached["repair_chain_events"]
+            ))
+
+            before_conflict = target.read_bytes()
+            inventory_before = sorted(
+                path.relative_to(root).as_posix()
+                for path in root.rglob("*")
+                if path.is_file()
+            )
+            with mock.patch.object(module, "_call_v12_batch_agent") as conflict_model, \
+                 self.assertRaisesRegex(
+                     module.model_router.ModelCallError,
+                     "conflicting operator slot operation receipts",
+                 ):
+                module.build_live(
+                    output_path=root / "out.json",
+                    checkpoint_dir=checkpoint_dir,
+                    project_root=PROJECT_ROOT,
+                    node_ids=[source["node_id"]],
+                    max_rounds=3,
+                    max_concurrency=1,
+                    node_review_concurrency=1,
+                    resume=True,
+                    force_slots={source["node_id"]: {5}},
+                    force_slot_modes={source["node_id"]: {5: "standard"}},
+                    force_slot_operation_tokens={source["node_id"]: {5: "CONFLICTING-TOKEN"}},
+                    max_semantic_calls=64,
+                    max_provider_attempts=192,
+                )
+            conflict_model.assert_not_called()
+            self.assertEqual(before_conflict, target.read_bytes())
+            self.assertEqual(
+                inventory_before,
+                sorted(
+                    path.relative_to(root).as_posix()
+                    for path in root.rglob("*")
+                    if path.is_file()
+                ),
+            )
+
+            def assert_zero_write_preflight_rejection(
+                payload: dict,
+                *,
+                case_name: str,
+            ) -> None:
+                case_root = root / case_name
+                case_checkpoint_dir = case_root / "checkpoints"
+                case_checkpoint_dir.mkdir(parents=True)
+                case_target = case_checkpoint_dir / target.name
+                case_target.write_text(
+                    json.dumps(payload, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                before_bytes = case_target.read_bytes()
+                before_inventory = sorted(
+                    path.relative_to(case_root).as_posix()
+                    for path in case_root.rglob("*")
+                    if path.is_file()
+                )
+                with mock.patch.object(module, "_call_v12_batch_agent") as model_call, \
+                     self.assertRaises(module.model_router.ModelCallError):
+                    module.build_live(
+                        output_path=case_root / "out.json",
+                        checkpoint_dir=case_checkpoint_dir,
+                        project_root=PROJECT_ROOT,
+                        node_ids=[source["node_id"]],
+                        max_rounds=3,
+                        max_concurrency=1,
+                        node_review_concurrency=1,
+                        resume=True,
+                        force_slots={source["node_id"]: {5}},
+                        max_semantic_calls=64,
+                        max_provider_attempts=192,
+                    )
+                model_call.assert_not_called()
+                self.assertEqual(before_bytes, case_target.read_bytes())
+                self.assertFalse((case_checkpoint_dir / ".run-state").exists())
+                self.assertFalse((case_checkpoint_dir / ".run-locks").exists())
+                self.assertEqual(
+                    before_inventory,
+                    sorted(
+                        path.relative_to(case_root).as_posix()
+                        for path in case_root.rglob("*")
+                        if path.is_file()
+                    ),
+                )
+
+            tampered_pending = copy.deepcopy(attached)
+            tampered_pending["pending_repair_by_slot"]["5"][0]["reason"] = (
+                "tampered_pending_reason"
+            )
+            tampered_pending["checkpoint_integrity_sha256"] = (
+                module._checkpoint_integrity_sha256(tampered_pending)
+            )
+            assert_zero_write_preflight_rejection(
+                tampered_pending,
+                case_name="tampered-pending",
+            )
+
+            missing_source = copy.deepcopy(attached)
+            transition = missing_source["checkpoint_migrations"][-1]
+            transition["fresh_review"]["quarantined_candidates_by_slot"].pop("5")
+            transition["source_checkpoint"]["node"]["items"] = [
+                item
+                for item in transition["source_checkpoint"]["node"]["items"]
+                if int(item.get("slot") or 0) != 5
+            ]
+            transition["source_checkpoint"]["accepted_slots"].pop("5")
+            transition["source_checkpoint_payload_sha256"] = module._sha256_json(
+                transition["source_checkpoint"]
+            )
+            missing_source["checkpoint_integrity_sha256"] = (
+                module._checkpoint_integrity_sha256(missing_source)
+            )
+            assert_zero_write_preflight_rejection(
+                missing_source,
+                case_name="missing-source",
+            )
+
+            with mock.patch.object(module, "_call_v12_batch_agent", side_effect=resume_router), \
+                 self.assertRaisesRegex(RuntimeError, "resumed pending focal review"):
+                module.build_live(
+                    output_path=root / "out.json",
+                    checkpoint_dir=checkpoint_dir,
+                    project_root=PROJECT_ROOT,
+                    node_ids=[source["node_id"]],
+                    max_rounds=3,
+                    max_concurrency=1,
+                    node_review_concurrency=1,
+                    resume=True,
+                    force_slots={source["node_id"]: {5}},
+                    max_semantic_calls=64,
+                    max_provider_attempts=192,
+                )
+
+        self.assertEqual([[5]], [slots for task, slots in resume_calls if task == "question_candidate"])
+        self.assertEqual([[5]], [slots for task, slots in resume_calls if task == "question_review"])
+        self.assertFalse(any(
+            task == "question_review" and slots != [5]
+            for task, slots in resume_calls
+        ))
+
+    def test_v12_candidate_only_resume_accepts_repaired_slot_lineage_after_verifier_504(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        source = json.loads(
+            V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.read_text(
+                encoding="utf-8"
+            )
+        )
+        node = next(item for item in graph["nodes"] if item["id"] == source["node_id"])
+
+        def stop_with_slot_five_pending(**kwargs):
+            route = kwargs["route"]
+            requested_slots = [
+                int(slot)
+                for slot in kwargs["untrusted_payload"].get("requested_slots") or []
+            ]
+            if route.task == "question_review":
+                return module.model_router.StructuredJSONResult(
+                    value=_reviewer_batch_response(
+                        module,
+                        source["node_id"],
+                        source["graph_version"],
+                        kwargs["untrusted_payload"]["items"],
+                    ),
+                    mode="json_schema",
+                    raw_response={"reviewed_slots": requested_slots},
+                ), "rendered reviewer prompt"
+            if route.task == "question_candidate":
+                raise RuntimeError("stop with slot five pending")
+            self.fail(f"unexpected model boundary: {route.agent_key}:{route.task}")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkpoint_dir = root / "checkpoints"
+            checkpoint_dir.mkdir()
+            target = checkpoint_dir / V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT.name
+            shutil.copy2(V12_REAL_LEGACY_INVALID_CHILD_SURFACE_CHECKPOINT, target)
+            with mock.patch.object(
+                module,
+                "_call_v12_batch_agent",
+                side_effect=stop_with_slot_five_pending,
+            ), self.assertRaisesRegex(RuntimeError, "slot five pending"):
+                module._build_live_node(**_legacy_v5_build_kwargs(
+                    module,
+                    node=node,
+                    graph=graph,
+                    graph_version=source["graph_version"],
+                    checkpoint_dir=checkpoint_dir,
+                ))
+
+            pending_checkpoint = json.loads(target.read_text(encoding="utf-8"))
+            accepted = module._accepted_slots_from_checkpoint(pending_checkpoint)
+            pending = module._pending_repair_from_checkpoint(pending_checkpoint)
+            slot_rounds = {
+                slot: int(
+                    (pending_checkpoint.get("slot_rounds") or {}).get(str(slot), 0)
+                    or 0
+                )
+                for slot in range(1, 21)
+            }
+            stage_counters = module._stage_counters_from_checkpoint(
+                pending_checkpoint,
+                slot_rounds=slot_rounds,
+            )
+            events = module._repair_chain_events_from_checkpoint(pending_checkpoint)
+            original_slot_thirteen = copy.deepcopy(accepted[13])
+            events = module._apply_forced_slot_regeneration(
+                node=node,
+                graph_version=source["graph_version"],
+                force_slots={13},
+                force_slot_modes={},
+                force_slot_operation_tokens={},
+                accepted_by_slot=accepted,
+                pending_repair_by_slot=pending,
+                slot_rounds=slot_rounds,
+                stage_counters=stage_counters,
+                repair_chain_events=events,
+                force_source_candidates_by_slot=module._legacy_candidate_force_sources_by_slot(
+                    pending_checkpoint.get("checkpoint_migrations")
+                ),
+            )
+            slot_thirteen_receipt = module._operator_operation_receipts_by_slot(
+                pending[13]
+            )[13]
+            repaired_slot_thirteen = copy.deepcopy(original_slot_thirteen)
+            repaired_slot_thirteen["prompt"] = (
+                str(repaired_slot_thirteen["prompt"]).rstrip()
+                + "\n请写清楚你的判断理由。"
+            )
+            repaired_slot_thirteen["review_artifact"]["pipeline_stage"] = (
+                "local_item_repair"
+            )
+            repaired_slot_thirteen["review_artifact"]["stage_attempt"] = 1
+            _refresh_v3_item_review_commitment(
+                repaired_slot_thirteen,
+                reset_semantic_evidence=True,
+            )
+            events = module._append_repair_chain_event(
+                events,
+                node_id=source["node_id"],
+                graph_version=source["graph_version"],
+                stage="local_item_repair",
+                stage_attempt=1,
+                slot=13,
+                reason="operator_force_slot_regeneration_completed",
+                instruction={"operator_operation_receipt": slot_thirteen_receipt},
+                old_candidate=None,
+                new_candidate=repaired_slot_thirteen,
+                source_review_artifact=repaired_slot_thirteen["review_artifact"],
+            )
+            accepted[13] = repaired_slot_thirteen
+            pending.pop(13)
+            slot_rounds[13] = 1
+            module._write_checkpoint(
+                checkpoint_dir,
+                node_id=source["node_id"],
+                graph_version=source["graph_version"],
+                rounds_used=max(slot_rounds.values()),
+                rejected_rounds=int(pending_checkpoint.get("rejected_rounds") or 0),
+                report={},
+                node_entry=module._node_entry_from_accepted(
+                    node=node,
+                    accepted_by_slot=accepted,
+                ),
+                status="incomplete",
+                slot_rounds=slot_rounds,
+                pending_repair_by_slot=pending,
+                stage_counters=stage_counters,
+                repair_chain_events=events,
+                checkpoint_migrations=pending_checkpoint["checkpoint_migrations"],
+                cross_node_summary_contexts=pending_checkpoint.get(
+                    "cross_node_summary_contexts"
+                ),
+                cross_node_context_required=bool(
+                    pending_checkpoint.get("cross_node_context_requirement")
+                ),
+            )
+            repaired_pending = json.loads(target.read_text(encoding="utf-8"))
+            module._validate_legacy_candidate_transition_checkpoint(repaired_pending)
+            slot_thirteen_sha256 = question_bank.v12_external_candidate_sha256(
+                repaired_slot_thirteen
+            )
+
+            arbitrary_mutation = copy.deepcopy(repaired_pending)
+            next(
+                item
+                for item in arbitrary_mutation["node"]["items"]
+                if int(item["slot"]) == 13
+            )["prompt"] += " tampered"
+            with self.assertRaisesRegex(
+                module.model_router.ModelCallError,
+                "repaired candidate lineage mismatch",
+            ):
+                module._validate_legacy_candidate_transition_checkpoint(
+                    arbitrary_mutation
+                )
+
+            completion_index = next(
+                index
+                for index, event in enumerate(repaired_pending["repair_chain_events"])
+                if event.get("reason")
+                == "operator_force_slot_regeneration_completed"
+                and int(event.get("slot") or 0) == 13
+            )
+            self.assertEqual(
+                len(repaired_pending["repair_chain_events"]) - 1,
+                completion_index,
+            )
+            missing_completion = copy.deepcopy(repaired_pending)
+            missing_completion["repair_chain_events"].pop(completion_index)
+            missing_completion["repair_chain_head_sha256"] = (
+                module._repair_chain_head_sha256(
+                    missing_completion["repair_chain_events"]
+                )
+            )
+            missing_completion["repair_chain_hash"] = (
+                module._repair_chain_commitment_hash(
+                    missing_completion["repair_chain_events"]
+                )
+            )
+            with self.assertRaisesRegex(
+                module.model_router.ModelCallError,
+                "repaired candidate lineage mismatch",
+            ):
+                module._validate_legacy_candidate_transition_checkpoint(
+                    missing_completion
+                )
+
+            forked_chain = copy.deepcopy(repaired_pending)
+            forked_event = forked_chain["repair_chain_events"][completion_index]
+            forked_event["previous_event_sha256"] = "f" * 64
+            forked_event["event_sha256"] = module._sha256_json({
+                key: value
+                for key, value in forked_event.items()
+                if key != "event_sha256"
+            })
+            forked_chain["repair_chain_head_sha256"] = forked_event["event_sha256"]
+            forked_chain["repair_chain_hash"] = module._repair_chain_commitment_hash(
+                forked_chain["repair_chain_events"]
+            )
+            with self.assertRaisesRegex(
+                module.model_router.ModelCallError,
+                "previous hash mismatch",
+            ):
+                module._validate_legacy_candidate_transition_checkpoint(forked_chain)
+
+            stale_review = copy.deepcopy(repaired_pending)
+            stale_item = next(
+                item
+                for item in stale_review["node"]["items"]
+                if int(item["slot"]) == 13
+            )
+            stale_item["review_artifact"]["candidate_sha256"] = "0" * 64
+            stale_event = stale_review["repair_chain_events"][completion_index]
+            stale_event["source_review_artifact_sha256"] = module._sha256_json(
+                stale_item["review_artifact"]
+            )
+            stale_event["event_sha256"] = module._sha256_json({
+                key: value
+                for key, value in stale_event.items()
+                if key != "event_sha256"
+            })
+            stale_review["repair_chain_head_sha256"] = stale_event["event_sha256"]
+            stale_review["repair_chain_hash"] = module._repair_chain_commitment_hash(
+                stale_review["repair_chain_events"]
+            )
+            with self.assertRaisesRegex(
+                module.model_router.ModelCallError,
+                "repaired slot 13 is untrusted",
+            ):
+                module._validate_legacy_candidate_transition_checkpoint(stale_review)
+
+            repaired_slot_five = copy.deepcopy(
+                next(item for item in source["node"]["items"] if item["slot"] == 5)
+            )
+            repaired_slot_five["prompt"] = (
+                "把 2m−3(m+4) 化简，并说明 −3 怎样分别作用到 m 和 4。"
+            )
+            repaired_slot_five["interaction_schema"] = {
+                "schema_version": question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION,
+                "type": "short_text",
+                "title": "写出化简过程",
+                "allow_explanation": True,
+                "requires_explanation": True,
+                "explanation_label": "说明去括号关系",
+                "fields": [],
+                "choices": [],
+                "formula_label": "",
+                "placeholder": "",
+            }
+            designer_items = _designer_batch_items(source["node"]["items"])
+            repaired_slot_five_designer_item = _designer_batch_items(
+                [repaired_slot_five]
+            )[0]
+            designer_items = [
+                repaired_slot_five_designer_item
+                if int(item["slot"]) == 5
+                else item
+                for item in designer_items
+            ]
+            first_resume_calls: list[tuple[str, list[int]]] = []
+
+            def fail_verifier_after_repair(
+                route,
+                payload,
+                *,
+                schema,
+                plain_json_instruction="",
+                retryable_errors_fallback=True,
+            ):
+                requested_slots = _requested_slots_from_payload(payload)
+                reviewed_slots = _reviewed_slots_from_payload(payload)
+                first_resume_calls.append(
+                    (str(route.task), requested_slots or reviewed_slots)
+                )
+                if route.task == "node_global_verifier":
+                    raise module.model_router.ModelCallError(
+                        "HTTP 504 verifier transport timeout"
+                    )
+                return _fake_v6_model_router_result(
+                    module,
+                    route,
+                    payload,
+                    node_entry=source["node"],
+                    graph_version=source["graph_version"],
+                    designer_items=designer_items,
+                )
+
+            build_kwargs = {
+                "output_path": root / "out.json",
+                "checkpoint_dir": checkpoint_dir,
+                "project_root": PROJECT_ROOT,
+                "node_ids": [source["node_id"]],
+                "max_rounds": 3,
+                "max_concurrency": 1,
+                "node_review_concurrency": 1,
+                "resume": True,
+                "force_slots": {source["node_id"]: {5, 13}},
+                "max_semantic_calls": 128,
+                "max_provider_attempts": 384,
+            }
+            with mock.patch.object(
+                module.model_router,
+                "call_structured_json",
+                side_effect=fail_verifier_after_repair,
+            ), mock.patch.object(
+                module,
+                "_LIVE_RETRY_SLEEPER",
+                return_value=None,
+            ), self.assertRaisesRegex(
+                module.model_router.ModelCallError,
+                "retry budget exhausted",
+            ):
+                module.build_live(**build_kwargs)
+
+            after_verifier_failure = json.loads(target.read_text(encoding="utf-8"))
+            slot_five_sha256 = question_bank.v12_external_candidate_sha256(
+                module._accepted_slots_from_checkpoint(after_verifier_failure)[5]
+            )
+            self.assertEqual(
+                slot_thirteen_sha256,
+                question_bank.v12_external_candidate_sha256(
+                    module._accepted_slots_from_checkpoint(after_verifier_failure)[13]
+                ),
+            )
+            self.assertEqual(
+                [[5]],
+                [
+                    slots
+                    for task, slots in first_resume_calls
+                    if task == "question_candidate"
+                ],
+            )
+            self.assertEqual(
+                [[5]],
+                [
+                    slots
+                    for task, slots in first_resume_calls
+                    if task == "question_review"
+                ],
+            )
+
+            final_resume_calls: list[tuple[str, list[int]]] = []
+
+            def finish_after_verifier_resume(
+                route,
+                payload,
+                *,
+                schema,
+                plain_json_instruction="",
+                retryable_errors_fallback=True,
+            ):
+                requested_slots = _requested_slots_from_payload(payload)
+                reviewed_slots = _reviewed_slots_from_payload(payload)
+                final_resume_calls.append(
+                    (str(route.task), requested_slots or reviewed_slots)
+                )
+                return _fake_v6_model_router_result(
+                    module,
+                    route,
+                    payload,
+                    node_entry=source["node"],
+                    graph_version=source["graph_version"],
+                    designer_items=designer_items,
+                )
+
+            with mock.patch.object(
+                module.model_router,
+                "call_structured_json",
+                side_effect=finish_after_verifier_resume,
+            ):
+                result = module.build_live(**build_kwargs)
+
+            completed = json.loads(target.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, result["nodes_completed"])
+        self.assertFalse(any(
+            task in {"question_candidate", "question_review", "node_set_review"}
+            for task, _slots in final_resume_calls
+        ))
+        completed_slots = module._accepted_slots_from_checkpoint(completed)
+        self.assertEqual(
+            slot_thirteen_sha256,
+            question_bank.v12_external_candidate_sha256(completed_slots[13]),
+        )
+        self.assertEqual(
+            slot_five_sha256,
+            question_bank.v12_external_candidate_sha256(completed_slots[5]),
+        )
+
+    def test_v12_legacy_v1_answer_only_surface_stays_explicit_and_reviewer_rejects(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        node = next(item for item in graph["nodes"] if item["id"] == "M-G7-POS-NEG")
+        item = _core_item(node, 1, provider_mode="live_model")
+        item.pop("prompt_format", None)
+        item["prompt"] = "请选择更合适的数量关系。"
+        item["interaction_schema"] = {
+            "schema_version": question_bank.QUESTION_INTERACTION_LEGACY_SCHEMA_VERSION,
+            "type": "single_choice",
+            "title": "选择数量关系",
+            "allow_explanation": True,
+            "explanation_label": "说明理由",
+            "fields": [],
+            "choices": [
+                {"id": "A", "label": "关系一"},
+                {"id": "B", "label": "关系二"},
+            ],
+            "formula_label": "",
+            "placeholder": "",
+        }
+        canonical = module._canonicalize_legacy_candidate_for_fresh_review(item)
+        self.assertEqual(
+            question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION,
+            canonical["interaction_schema"]["schema_version"],
+        )
+        self.assertFalse(canonical["interaction_schema"]["requires_explanation"])
+
+        invalid = copy.deepcopy(item)
+        invalid["interaction_schema"]["schema_version"] = "invalid-interaction-schema"
+        with self.assertRaises(module.child_prompt.ChildPromptContractError):
+            module._canonicalize_legacy_candidate_for_fresh_review(invalid)
+
+        def reject_answer_only(**kwargs):
+            return module.model_router.StructuredJSONResult(
+                value=_reviewer_batch_response(
+                    module,
+                    node["id"],
+                    _graph_version(),
+                    kwargs["untrusted_payload"]["items"],
+                    reject_slots={1},
+                ),
+                mode="json_schema",
+                raw_response={"answer_only_rejected": True},
+            ), "rendered reviewer prompt"
+
+        with mock.patch.object(module, "_call_v12_batch_agent", side_effect=reject_answer_only):
+            result = module._review_live_candidate_chunk(
+                node=node,
+                graph=graph,
+                graph_version=_graph_version(),
+                requested_slots=[1],
+                round_number=1,
+                reviewer_contract=module._load_json(module.REVIEWER_CONTRACT_PATH),
+                reviewer_prompt_template=module.REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+                accepted_core_summaries=[],
+                accepted_items=[],
+                candidates=[canonical],
+                target_voice_by_slot={1: canonical["intended_instruction_voice_family"]},
+                operation_receipts_by_slot={},
+                pipeline_stage="legacy_candidate_fresh_review",
+                stage_attempt=1,
+            )
+
+        self.assertEqual([1], result["rejected_slots"])
+        self.assertTrue(result["repair_instructions"])
 
     def test_v12_legacy_candidate_fresh_review_crash_resume_skips_completed_slots(self):
         module = _load_v12_build_module()
@@ -3987,6 +5424,13 @@ class QuestionBankV12Test(unittest.TestCase):
             "request_input_sha256",
             "request_lineage_sha256",
             "model_judgment_output_sha256",
+            "shard_policy_version",
+            "expected_shards",
+            "shard_artifacts_sha256",
+            "shard_semantic_evidence_sha256s",
+            "shard_route_tuples",
+            "shard_route_tuples_sha256",
+            "aggregate_commitment_sha256",
             "constituent_semantic_evidence_sha256",
         }
         self.assertLessEqual(exact_fields, set(receipt_verifier))
@@ -3999,6 +5443,17 @@ class QuestionBankV12Test(unittest.TestCase):
         self.assertEqual(
             [artifact["response_schema_sha256"]],
             receipt["prompt_schema_hashes"]["node_set_global_verifier_response_schema_sha256"],
+        )
+        self.assertEqual(
+            question_bank.v12_expected_global_verifier_shards(),
+            [
+                shard["reviewed_slots"]
+                for shard in receipt_verifier["shard_artifacts"]
+            ],
+        )
+        self.assertEqual(
+            artifact["shard_route_tuples"],
+            receipt_verifier["shard_route_tuples"],
         )
 
         conn = sqlite3.connect(":memory:")
@@ -4042,6 +5497,13 @@ class QuestionBankV12Test(unittest.TestCase):
                 "node_set_global_verifier_prompt_template_sha256"
             )
 
+        def alter_verifier_shard(field: str, value):
+            def mutate(candidate: dict) -> None:
+                candidate["nodes"][0]["node_set_review"]["global_verifier"][
+                    "shard_artifacts"
+                ][0][field] = value
+            return mutate
+
         scenarios = [
             ("missing_verifier", remove_verifier, "global_verifier:missing"),
             ("altered_phase", alter_verifier("phase", "node_global_finalizer"), "global_verifier:phase:mismatch"),
@@ -4050,6 +5512,14 @@ class QuestionBankV12Test(unittest.TestCase):
             ("altered_judgment_hash", alter_verifier("model_judgment_output_sha256", "0" * 64), "global_verifier:model_judgment_output_sha256:mismatch"),
             ("altered_request_lineage_hash", alter_verifier("request_lineage_sha256", "1" * 64), "global_verifier:request_lineage_sha256:mismatch"),
             ("altered_semantic_hash", alter_verifier("semantic_evidence_sha256", "2" * 64), "global_verifier:semantic_evidence_sha256:mismatch"),
+            ("altered_shard_phase", alter_verifier_shard("phase", "node_global_finalizer"), "global_verifier:shard:0:phase:mismatch"),
+            ("altered_shard_provider", alter_verifier_shard("model_provider", "forged-provider"), "global_verifier:shard:0:model_provider:mismatch"),
+            ("altered_shard_model", alter_verifier_shard("model_name", "forged-model"), "global_verifier:shard:0:model_name:mismatch"),
+            ("altered_shard_route_tuple", alter_verifier("shard_route_tuples_sha256", "7" * 64), "global_verifier:shard_route_tuples_sha256:mismatch"),
+            ("altered_shard_judgment", alter_verifier_shard("model_judgment_output_sha256", "3" * 64), "global_verifier:shard:0:model_judgment_output_sha256:mismatch"),
+            ("altered_shard_request", alter_verifier_shard("request_lineage_sha256", "4" * 64), "global_verifier:shard:0:request_lineage_sha256:mismatch"),
+            ("altered_shard_semantic", alter_verifier_shard("semantic_evidence_sha256", "5" * 64), "global_verifier:shard:0:semantic_evidence_sha256:mismatch"),
+            ("altered_aggregate_commitment", alter_verifier("aggregate_commitment_sha256", "6" * 64), "global_verifier:aggregate_commitment_sha256:mismatch"),
             ("missing_top_level_prompt_hash", remove_top_level_prompt_hash, "prompt_schema_hashes:node_set_global_verifier_prompt_template_sha256:mismatch"),
         ]
         for scenario, mutate, expected_error in scenarios:
@@ -4070,6 +5540,758 @@ class QuestionBankV12Test(unittest.TestCase):
                         )
                 finally:
                     conn.close()
+
+    def test_v12_global_verifier_and_finalizer_gateway_envelopes_are_bounded(self):
+        module = _load_v12_build_module()
+        node_entry = _manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )["nodes"][0]
+        reviews = node_entry["node_review_artifact"]["constituent_reviews"]
+        verifier_contract = module._load_global_verifier_contract()
+        verifier_schema_bytes = len(json.dumps(
+            verifier_contract["response_schema"],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8"))
+        self.assertLess(verifier_schema_bytes, 8_000)
+        verifier_request_sizes = []
+        verifier_response_sizes = []
+        for reviewed_slots in question_bank.v12_expected_global_verifier_shards():
+            lineage = module._global_verifier_shard_expected_lineage(
+                node_entry,
+                reviews,
+                reviewed_slots,
+            )
+            verifier_request_sizes.append(
+                len(lineage["rendered_prompt"].encode("utf-8"))
+            )
+            response = _node_set_global_verifier_shard_response_for_payload({
+                "instructions": lineage["rendered_prompt"],
+            })
+            verifier_response_sizes.append(len(json.dumps(
+                response,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")))
+        self.assertEqual(4, len(verifier_request_sizes))
+        self.assertLessEqual(
+            max(verifier_request_sizes),
+            module.V12_GLOBAL_VERIFIER_RENDERED_REQUEST_MAX_BYTES,
+        )
+        self.assertLessEqual(
+            max(verifier_response_sizes),
+            module.V12_GLOBAL_VERIFIER_RESPONSE_ESTIMATE_MAX_BYTES,
+        )
+
+        finalizer_request = module._global_finalizer_request_payloads(
+            node_entry,
+            reviews,
+        )
+        finalizer_rendered = module._require_bounded_rendered_request(
+            phase="global finalizer test profile",
+            prompt_template=module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(
+                encoding="utf-8"
+            ),
+            trusted_context=finalizer_request["trusted_context"],
+            untrusted_payload=finalizer_request["untrusted_payload"],
+            maximum_bytes=module.V12_GLOBAL_FINALIZER_RENDERED_REQUEST_MAX_BYTES,
+        )
+        finalizer_response = _node_set_global_finalizer_response_for_payload({
+            "instructions": finalizer_rendered,
+        })
+        self.assertLessEqual(
+            len(finalizer_rendered.encode("utf-8")),
+            module.V12_GLOBAL_FINALIZER_RENDERED_REQUEST_MAX_BYTES,
+        )
+        self.assertLessEqual(
+            len(json.dumps(
+                finalizer_response,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")),
+            module.V12_GLOBAL_FINALIZER_RESPONSE_ESTIMATE_MAX_BYTES,
+        )
+
+    def test_v12_global_verifier_and_finalizer_reject_oversized_model_responses(self):
+        module = _load_v12_build_module()
+        node_entry = _manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )["nodes"][0]
+        reviews = node_entry["node_review_artifact"]["constituent_reviews"]
+        verifier_slots = question_bank.v12_expected_global_verifier_shards()[0]
+        verifier_lineage = module._global_verifier_shard_expected_lineage(
+            node_entry,
+            reviews,
+            verifier_slots,
+        )
+        verifier_output = _node_set_global_verifier_shard_response_for_payload({
+            "instructions": verifier_lineage["rendered_prompt"],
+        })
+        verifier_output["reasons"] = ["x" * module.V12_GLOBAL_VERIFIER_RESPONSE_ESTIMATE_MAX_BYTES]
+        verifier_bound = module._bind_global_verifier_shard_judgment(
+            node_entry,
+            verifier_output,
+            graph_version=_graph_version(),
+            reviewed_slots=verifier_slots,
+        )
+        with self.assertRaisesRegex(
+            module.model_router.ModelJSONParseError,
+            "global verifier shard structured response exceeds",
+        ):
+            module._node_set_global_verifier_shard_artifact(
+                node_entry=node_entry,
+                constituent_reviews=reviews,
+                reviewed_slots=verifier_slots,
+                model_judgment=verifier_bound,
+                contract=module._load_global_verifier_contract(),
+                prompt_template=module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8"),
+                rendered_prompt=verifier_lineage["rendered_prompt"],
+                result=module.model_router.StructuredJSONResult(
+                    value=verifier_bound,
+                    mode="json_schema",
+                    raw_response={"oversized": "verifier"},
+                ),
+                route=module.model_router.question_node_global_verifier_route(),
+                stage_attempt=1,
+            )
+
+        finalizer_lineage = module._global_finalizer_expected_lineage(
+            node_entry,
+            reviews,
+        )
+        finalizer_output = _node_set_global_finalizer_response_for_payload({
+            "instructions": finalizer_lineage["rendered_prompt"],
+        })
+        finalizer_output["item_classifications"][0]["reason"] += (
+            "x" * module.V12_GLOBAL_FINALIZER_RESPONSE_ESTIMATE_MAX_BYTES
+        )
+        with self.assertRaisesRegex(
+            module.model_router.ModelJSONParseError,
+            "global finalizer structured response exceeds",
+        ):
+            module._node_set_global_finalizer_artifact(
+                node_entry=node_entry,
+                constituent_reviews=reviews,
+                output=finalizer_output,
+                contract=module._load_json(module.GLOBAL_FINALIZER_CONTRACT_PATH),
+                prompt_template=module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8"),
+                rendered_prompt=finalizer_lineage["rendered_prompt"],
+                result=module.model_router.StructuredJSONResult(
+                    value=finalizer_output,
+                    mode="json_schema",
+                    raw_response={"oversized": "finalizer"},
+                ),
+                route=module.model_router.question_node_global_finalizer_route(),
+                stage_attempt=1,
+            )
+
+    def test_v12_global_verifier_shard_failure_resumes_without_replay(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        node_entry = copy.deepcopy(_manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )["nodes"][0])
+        node = next(
+            value for value in graph["nodes"] if value["id"] == node_entry["node_id"]
+        )
+        reviews = copy.deepcopy(
+            node_entry["node_review_artifact"]["constituent_reviews"]
+        )
+        focal_contract = module._load_json(module.NODE_SET_REVIEWER_CONTRACT_PATH)
+        focal_prompt = module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8")
+        node_entry["node_review_artifact"] = module._partial_node_set_review_artifact(
+            node_entry=node_entry,
+            contract=focal_contract,
+            prompt_template=focal_prompt,
+            route=module.model_router.question_node_set_review_route(),
+            shard_reviews=reviews,
+            node_review_concurrency=1,
+            stage_attempt=1,
+        )
+        verifier_contract = module._load_global_verifier_contract()
+        verifier_prompt = module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8")
+        finalizer_contract = module._load_json(module.GLOBAL_FINALIZER_CONTRACT_PATH)
+        finalizer_prompt = module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8")
+        first_calls: list[list[int]] = []
+
+        def fail_third_verifier_shard(
+            route,
+            payload,
+            *,
+            schema,
+            plain_json_instruction="",
+            retryable_errors_fallback=True,
+        ):
+            if route.task != "node_global_verifier":
+                self.fail(f"unexpected first-run route: {route.task}")
+            slots = _reviewed_slots_from_payload(payload)
+            first_calls.append(slots)
+            if slots == [11, 12, 13, 14, 15]:
+                raise module.model_router.ModelCallError(
+                    "HTTP 504 verifier shard transport timeout"
+                )
+            return module.model_router.StructuredJSONResult(
+                value=_node_set_global_verifier_shard_response_for_payload(payload),
+                mode="json_schema",
+                raw_response={"verifier_shard": slots},
+            )
+
+        with mock.patch.object(
+            module.model_router,
+            "call_structured_json",
+            side_effect=fail_third_verifier_shard,
+        ), mock.patch.object(
+            module,
+            "_LIVE_RETRY_SLEEPER",
+            return_value=None,
+        ), self.assertRaises(module.NodeSetReviewShardError) as failure:
+            module._node_set_semantic_repair_instructions(
+                node_entry=node_entry,
+                node=node,
+                graph=graph,
+                graph_version=_graph_version(),
+                contract=focal_contract,
+                prompt_template=focal_prompt,
+                global_verifier_contract=verifier_contract,
+                global_verifier_prompt_template=verifier_prompt,
+                global_finalizer_contract=finalizer_contract,
+                global_finalizer_prompt_template=finalizer_prompt,
+                accepted_core_summaries=[],
+                node_review_concurrency=1,
+                stage_attempt=1,
+            )
+        partial = failure.exception.partial_artifact
+        self.assertEqual(
+            [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
+            [
+                shard["reviewed_slots"]
+                for shard in partial["global_verifier_shards"]
+            ],
+        )
+        self.assertEqual(3, first_calls.count([11, 12, 13, 14, 15]))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp)
+            module._write_checkpoint(
+                checkpoint_dir,
+                node_id=node_entry["node_id"],
+                graph_version=_graph_version(),
+                rounds_used=1,
+                rejected_rounds=0,
+                report={},
+                node_entry={**node_entry, "node_review_artifact": partial},
+                status="incomplete",
+                slot_rounds={slot: 1 for slot in range(1, 21)},
+                pending_repair_by_slot={},
+                stage_counters={"node_set_review_round": 1},
+                repair_chain_events=[],
+            )
+            reloaded_checkpoint = json.loads(
+                (checkpoint_dir / f"{node_entry['node_id']}.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+        reloaded_artifact = module._node_review_artifact_from_checkpoint(
+            reloaded_checkpoint,
+            node_entry=node_entry,
+        )
+        self.assertIsNotNone(reloaded_artifact)
+        self.assertEqual(
+            [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
+            [
+                shard["reviewed_slots"]
+                for shard in reloaded_artifact["global_verifier_shards"]
+            ],
+        )
+
+        resumed_entry = copy.deepcopy(node_entry)
+        resumed_entry["node_review_artifact"] = reloaded_artifact
+        resume_calls: list[tuple[str, list[int]]] = []
+
+        def finish_remaining_shards(
+            route,
+            payload,
+            *,
+            schema,
+            plain_json_instruction="",
+            retryable_errors_fallback=True,
+        ):
+            slots = _reviewed_slots_from_payload(payload)
+            resume_calls.append((route.task, slots))
+            if route.task == "node_global_verifier":
+                return module.model_router.StructuredJSONResult(
+                    value=_node_set_global_verifier_shard_response_for_payload(payload),
+                    mode="json_schema",
+                    raw_response={"verifier_shard": slots},
+                )
+            if route.task == "node_global_finalizer":
+                return module.model_router.StructuredJSONResult(
+                    value=_node_set_global_finalizer_response_for_payload(payload),
+                    mode="json_schema",
+                    raw_response={"global_finalizer": "approved"},
+                )
+            self.fail(f"unexpected resume route: {route.task}")
+
+        with mock.patch.object(
+            module.model_router,
+            "call_structured_json",
+            side_effect=finish_remaining_shards,
+        ):
+            result = module._node_set_semantic_repair_instructions(
+                node_entry=resumed_entry,
+                node=node,
+                graph=graph,
+                graph_version=_graph_version(),
+                contract=focal_contract,
+                prompt_template=focal_prompt,
+                global_verifier_contract=verifier_contract,
+                global_verifier_prompt_template=verifier_prompt,
+                global_finalizer_contract=finalizer_contract,
+                global_finalizer_prompt_template=finalizer_prompt,
+                accepted_core_summaries=[],
+                node_review_concurrency=1,
+                stage_attempt=1,
+            )
+        self.assertEqual([], result["repair_instructions"])
+        self.assertEqual(
+            [[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]],
+            [slots for task, slots in resume_calls if task == "node_global_verifier"],
+        )
+        self.assertEqual(
+            1,
+            sum(task == "node_global_finalizer" for task, _slots in resume_calls),
+        )
+        final_node_entry = copy.deepcopy(node_entry)
+        final_node_entry["node_review_artifact"] = result["node_review_artifact"]
+        recovered_manifest = _manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )
+        recovered_manifest["nodes"] = [final_node_entry]
+        recovered_receipt = _runner_receipt_for_manifest(recovered_manifest)
+        receipt_verifier = recovered_receipt["nodes"][0]["node_set_review"]["global_verifier"]
+        old_shards = reloaded_artifact["global_verifier_shards"]
+        final_shards = result["node_review_artifact"]["global_verifier"]["shard_artifacts"]
+        receipt_shards = receipt_verifier["shard_artifacts"]
+        self.assertEqual(
+            [old_shards[0]["semantic_evidence_sha256"], old_shards[1]["semantic_evidence_sha256"]],
+            [final_shards[0]["semantic_evidence_sha256"], final_shards[1]["semantic_evidence_sha256"]],
+        )
+        self.assertEqual(
+            [shard["request_lineage_sha256"] for shard in final_shards],
+            [shard["request_lineage_sha256"] for shard in receipt_shards],
+        )
+        self.assertEqual(
+            result["node_review_artifact"]["global_verifier"]["aggregate_commitment_sha256"],
+            receipt_verifier["aggregate_commitment_sha256"],
+        )
+        self.assertEqual(
+            result["node_review_artifact"]["global_verifier"]["shard_route_tuples"],
+            receipt_verifier["shard_route_tuples"],
+        )
+
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        try:
+            db.init_schema(conn)
+            for graph_node in _load_graph()["nodes"]:
+                conn.execute(
+                    """
+                    insert or replace into graph_nodes(
+                      id, name, stage, domain, priority, summer_mode, sequence_band,
+                      prerequisites_json, unlocks_json, raw_json
+                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    db._node_values(
+                        graph_node,
+                        graph_node.get("summer_execution", {}),
+                    ),
+                )
+            seed_result = db.seed_external_question_bank_v12(
+                conn,
+                recovered_manifest,
+                project_root=PROJECT_ROOT,
+                runner_receipt=recovered_receipt,
+                commit=False,
+            )
+            self.assertEqual(20, seed_result["questions_upserted"])
+
+            tampered_receipt = json.loads(json.dumps(recovered_receipt, ensure_ascii=False))
+            tampered_receipt["nodes"][0]["node_set_review"]["global_verifier"][
+                "shard_artifacts"
+            ][0]["request_lineage_sha256"] = "0" * 64
+            with self.assertRaisesRegex(
+                ValueError,
+                "global_verifier:shard:0:request_lineage_sha256:mismatch",
+            ):
+                db.seed_external_question_bank_v12(
+                    conn,
+                    recovered_manifest,
+                    project_root=PROJECT_ROOT,
+                    runner_receipt=tampered_receipt,
+                    commit=False,
+                )
+        finally:
+            conn.close()
+
+    def test_v12_global_verifier_shard_rejects_missing_or_duplicate_slots(self):
+        module = _load_v12_build_module()
+        node_entry = _manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )["nodes"][0]
+        reviews = node_entry["node_review_artifact"]["constituent_reviews"]
+        slots = [1, 2, 3, 4, 5]
+        lineage = module._global_verifier_shard_expected_lineage(
+            node_entry,
+            reviews,
+            slots,
+        )
+        base = _node_set_global_verifier_shard_response_for_payload({
+            "instructions": lineage["rendered_prompt"],
+        })
+        contract = module._load_global_verifier_contract()
+        prompt = module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8")
+        route = module.model_router.question_node_global_verifier_route()
+        cases = {
+            "missing": base["item_classifications"][:-1],
+            "duplicate": [
+                *base["item_classifications"][:-1],
+                copy.deepcopy(base["item_classifications"][0]),
+            ],
+        }
+        for case_name, classifications in cases.items():
+            with self.subTest(case=case_name):
+                output = copy.deepcopy(base)
+                output["item_classifications"] = classifications
+                output = module._bind_global_verifier_shard_judgment(
+                    node_entry,
+                    output,
+                    graph_version=_graph_version(),
+                    reviewed_slots=slots,
+                )
+                model_result = module.model_router.StructuredJSONResult(
+                    value=output,
+                    mode="json_schema",
+                    raw_response={"case": case_name},
+                )
+                with self.assertRaises(module.model_router.ModelJSONParseError):
+                    module._node_set_global_verifier_shard_artifact(
+                        node_entry=node_entry,
+                        constituent_reviews=reviews,
+                        reviewed_slots=slots,
+                        model_judgment=output,
+                        contract=contract,
+                        prompt_template=prompt,
+                        rendered_prompt=lineage["rendered_prompt"],
+                        result=model_result,
+                        route=route,
+                        stage_attempt=1,
+                    )
+
+    def test_v12_verifier_rejection_survives_optimistic_finalizer_end_to_end(self):
+        module = _load_v12_build_module()
+        graph = _load_graph()
+        node_entry = copy.deepcopy(_manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )["nodes"][0])
+        node = next(
+            value for value in graph["nodes"] if value["id"] == node_entry["node_id"]
+        )
+        reviews = copy.deepcopy(
+            node_entry["node_review_artifact"]["constituent_reviews"]
+        )
+        node_entry["node_review_artifact"] = module._partial_node_set_review_artifact(
+            node_entry=node_entry,
+            contract=module._load_json(module.NODE_SET_REVIEWER_CONTRACT_PATH),
+            prompt_template=module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+            route=module.model_router.question_node_set_review_route(),
+            shard_reviews=reviews,
+            node_review_concurrency=1,
+            stage_attempt=1,
+        )
+        verifier_contract = module._load_global_verifier_contract()
+        verifier_prompt = module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8")
+        finalizer_contract = module._load_json(module.GLOBAL_FINALIZER_CONTRACT_PATH)
+        finalizer_prompt = module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8")
+
+        def verifier_rejects_slot_seven_finalizer_approves(
+            route,
+            payload,
+            *,
+            schema,
+            plain_json_instruction="",
+            retryable_errors_fallback=True,
+        ):
+            if route.task == "node_global_verifier":
+                slots = _reviewed_slots_from_payload(payload)
+                output = _node_set_global_verifier_shard_response_for_payload(payload)
+                if slots == [6, 7, 8, 9, 10]:
+                    output["confidence"] = 0.82
+                    output["distribution_scores"]["semantic_diversity"] = 0.72
+                    output["reasons"].append(
+                        "slot 7 repeats the same evidence path as another shard"
+                    )
+                    output["repair_plan"] = [{
+                        "slot": 7,
+                        "repair_scope": "global_evidence_diversity",
+                        "preserved_role": str(node_entry["items"][6]["slot_role"]),
+                        "preserve_or_replace_math_core": "replace_math_core",
+                        "required_voice_family": str(
+                            node_entry["items"][6]["intended_instruction_voice_family"]
+                        ),
+                        "avoided_voice_families": [],
+                        "exact_target_delta": {
+                            "dimension": "primary_evidence_move",
+                            "from_value": "repeated evidence path",
+                            "to_value": "independent current-node evidence",
+                        },
+                        "evidence_refs": ["verifier-shard:slots-06-10"],
+                    }]
+                return module.model_router.StructuredJSONResult(
+                    value=output,
+                    mode="json_schema",
+                    raw_response={"verifier_shard": slots},
+                )
+            if route.task == "node_global_finalizer":
+                return module.model_router.StructuredJSONResult(
+                    value=_node_set_global_finalizer_response_for_payload(payload),
+                    mode="json_schema",
+                    raw_response={"global_finalizer": "optimistic"},
+                )
+            self.fail(f"unexpected route: {route.task}")
+
+        with mock.patch.object(
+            module.model_router,
+            "call_structured_json",
+            side_effect=verifier_rejects_slot_seven_finalizer_approves,
+        ):
+            result = module._node_set_semantic_repair_instructions(
+                node_entry=node_entry,
+                node=node,
+                graph=graph,
+                graph_version=_graph_version(),
+                contract=module._load_json(module.NODE_SET_REVIEWER_CONTRACT_PATH),
+                prompt_template=module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+                global_verifier_contract=verifier_contract,
+                global_verifier_prompt_template=verifier_prompt,
+                global_finalizer_contract=finalizer_contract,
+                global_finalizer_prompt_template=finalizer_prompt,
+                accepted_core_summaries=[],
+                node_review_concurrency=1,
+                stage_attempt=1,
+            )
+
+        self.assertEqual(
+            [7],
+            [instruction["slot"] for instruction in result["repair_instructions"]],
+        )
+        self.assertEqual(
+            "needs_repair",
+            result["node_review_artifact"]["verdict"],
+        )
+        self.assertEqual(
+            "v12_node_set_semantic_review",
+            result["repair_instructions"][0]["reason"],
+        )
+
+    def test_v12_global_verifier_aggregate_unions_cross_shard_failures(self):
+        module = _load_v12_build_module()
+        node_entry = _manifest(
+            provider_mode="live_model",
+            status="draft_live_model",
+        )["nodes"][0]
+        reviews = node_entry["node_review_artifact"]["constituent_reviews"]
+        shard_artifacts = []
+        for reviewed_slots in question_bank.v12_expected_global_verifier_shards():
+            lineage = module._global_verifier_shard_expected_lineage(
+                node_entry,
+                reviews,
+                reviewed_slots,
+            )
+            output = _node_set_global_verifier_shard_response_for_payload({
+                "instructions": lineage["rendered_prompt"],
+            })
+            if reviewed_slots == [1, 2, 3, 4, 5]:
+                output["homogeneous_clusters"] = [{
+                    "cluster_id": "left-cross-shard",
+                    "slots": [4, 5, 6],
+                    "reason": "same evidence path across the first boundary",
+                    "subject_sha256s": [],
+                }]
+            if reviewed_slots == [6, 7, 8, 9, 10]:
+                output["homogeneous_clusters"] = [{
+                    "cluster_id": "right-cross-shard",
+                    "slots": [6, 7, 8],
+                    "reason": "same evidence path across the second boundary",
+                    "subject_sha256s": [],
+                }]
+                output["distribution_scores"]["semantic_diversity"] = 0.71
+                output["confidence"] = 0.82
+                output["repair_plan"] = [{
+                    "slot": 7,
+                    "repair_scope": "global_evidence_diversity",
+                    "preserved_role": str(node_entry["items"][6]["slot_role"]),
+                    "preserve_or_replace_math_core": "replace_math_core",
+                    "required_voice_family": str(
+                        node_entry["items"][6]["intended_instruction_voice_family"]
+                    ),
+                    "avoided_voice_families": [],
+                    "exact_target_delta": {
+                        "dimension": "primary_evidence_move",
+                        "from_value": "repeated evidence path",
+                        "to_value": "distinct node-local evidence path",
+                    },
+                    "evidence_refs": ["verifier-shard:slots-06-10"],
+                }]
+            bound = module._bind_global_verifier_shard_judgment(
+                node_entry,
+                output,
+                graph_version=_graph_version(),
+                reviewed_slots=reviewed_slots,
+            )
+            shard_artifacts.append({
+                "reviewed_slots": reviewed_slots,
+                "model_judgment_output": bound,
+            })
+        aggregate = module._aggregate_global_verifier_shard_judgments(
+            node_entry,
+            shard_artifacts,
+            graph_version=_graph_version(),
+        )
+        self.assertEqual(
+            [[4, 5, 6, 7, 8]],
+            [cluster["slots"] for cluster in aggregate["homogeneous_clusters"]],
+        )
+        self.assertEqual(0.71, aggregate["distribution_scores"]["semantic_diversity"])
+        self.assertEqual(0.82, aggregate["confidence"])
+        self.assertEqual([7], [entry["slot"] for entry in aggregate["repair_plan"]])
+
+    def test_v12_validator_rejects_self_consistent_global_verifier_shard_laundering(self):
+        manifest = _manifest(provider_mode="live_model", status="draft_live_model")
+        node_entry = manifest["nodes"][0]
+        verifier = node_entry["node_review_artifact"]["global_verifier"]
+        shard = verifier["shard_artifacts"][0]
+        judgment = shard["model_judgment_output"]
+        judgment["confidence"] = 0.1
+        judgment["distribution_scores"] = {
+            key: 0.1 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+        }
+        judgment["reasons"] = [
+            *list(judgment.get("reasons") or []),
+            "verifier shard found a blocker that the forged aggregate omits",
+        ]
+        judgment["repair_plan"] = [{
+            "slot": 1,
+            "repair_scope": "global_evidence_diversity",
+            "preserved_role": str(node_entry["items"][0]["slot_role"]),
+            "preserve_or_replace_math_core": "replace_math_core",
+            "required_voice_family": str(
+                node_entry["items"][0]["intended_instruction_voice_family"]
+            ),
+            "avoided_voice_families": [],
+            "exact_target_delta": {
+                "dimension": "primary_evidence_move",
+                "from_value": "laundered shard blocker",
+                "to_value": "independent current-node evidence",
+            },
+            "evidence_refs": ["verifier-shard:slots-01-05"],
+        }]
+        shard["model_judgment_output_sha256"] = _sha256_json(judgment)
+        shard["semantic_evidence_sha256"] = _sha256_json({
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SEMANTIC_EVIDENCE_VERSION,
+            "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
+            "constituent_semantic_evidence_sha256": shard["constituent_semantic_evidence_sha256"],
+            "reviewed_slots": shard["reviewed_slots"],
+            "compact_index_sha256": shard["compact_index_sha256"],
+            "model_judgment_output_sha256": shard["model_judgment_output_sha256"],
+        })
+        verifier["shard_artifacts_sha256"] = _sha256_json(verifier["shard_artifacts"])
+        verifier["shard_semantic_evidence_sha256s"] = [
+            entry["semantic_evidence_sha256"]
+            for entry in verifier["shard_artifacts"]
+        ]
+        verifier["shard_route_tuples"] = (
+            question_bank.v12_global_verifier_shard_route_tuples(
+                verifier["shard_artifacts"]
+            )
+        )
+        verifier["shard_route_tuples_sha256"] = _sha256_json(
+            verifier["shard_route_tuples"]
+        )
+        verifier["aggregate_commitment_sha256"] = _sha256_json({
+            "version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_AGGREGATE_VERSION,
+            "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
+            "expected_shards": question_bank.v12_expected_global_verifier_shards(),
+            "shard_semantic_evidence_sha256s": verifier["shard_semantic_evidence_sha256s"],
+            "shard_artifacts_sha256": verifier["shard_artifacts_sha256"],
+            "shard_route_tuples_sha256": verifier["shard_route_tuples_sha256"],
+            "model_judgment_output_sha256": verifier["model_judgment_output_sha256"],
+            "request_lineage_sha256": verifier["request_lineage_sha256"],
+        })
+        verifier["semantic_evidence_sha256"] = _sha256_json({
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
+            "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
+            "constituent_semantic_evidence_sha256": verifier["constituent_semantic_evidence_sha256"],
+            "shard_semantic_evidence_sha256s": verifier["shard_semantic_evidence_sha256s"],
+            "aggregate_commitment_sha256": verifier["aggregate_commitment_sha256"],
+            "model_judgment_output_sha256": verifier["model_judgment_output_sha256"],
+        })
+
+        report = question_bank.validate_external_question_bank_v12(
+            manifest,
+            _load_graph(),
+        )
+        self.assertIn(
+            "v12_node_set_global_verifier_aggregate_mismatch",
+            {issue["type"] for issue in report["issues"]},
+        )
+
+    def test_v12_validator_rejects_self_consistent_global_verifier_route_laundering(self):
+        manifest = _manifest(provider_mode="live_model", status="draft_live_model")
+        node_entry = manifest["nodes"][0]
+        verifier = node_entry["node_review_artifact"]["global_verifier"]
+        verifier["shard_artifacts"][0]["model_provider"] = "forged-provider"
+        verifier["shard_artifacts_sha256"] = _sha256_json(verifier["shard_artifacts"])
+        verifier["shard_route_tuples"] = (
+            question_bank.v12_global_verifier_shard_route_tuples(
+                verifier["shard_artifacts"]
+            )
+        )
+        verifier["shard_route_tuples_sha256"] = _sha256_json(
+            verifier["shard_route_tuples"]
+        )
+        verifier["aggregate_commitment_sha256"] = _sha256_json({
+            "version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_AGGREGATE_VERSION,
+            "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
+            "expected_shards": question_bank.v12_expected_global_verifier_shards(),
+            "shard_semantic_evidence_sha256s": verifier["shard_semantic_evidence_sha256s"],
+            "shard_artifacts_sha256": verifier["shard_artifacts_sha256"],
+            "shard_route_tuples_sha256": verifier["shard_route_tuples_sha256"],
+            "model_judgment_output_sha256": verifier["model_judgment_output_sha256"],
+            "request_lineage_sha256": verifier["request_lineage_sha256"],
+        })
+        verifier["semantic_evidence_sha256"] = _sha256_json({
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
+            "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
+            "constituent_semantic_evidence_sha256": verifier["constituent_semantic_evidence_sha256"],
+            "shard_semantic_evidence_sha256s": verifier["shard_semantic_evidence_sha256s"],
+            "aggregate_commitment_sha256": verifier["aggregate_commitment_sha256"],
+            "model_judgment_output_sha256": verifier["model_judgment_output_sha256"],
+        })
+
+        report = question_bank.validate_external_question_bank_v12(
+            manifest,
+            _load_graph(),
+        )
+        self.assertIn(
+            "v12_node_set_global_verifier_shard_route_mismatch",
+            {issue["type"] for issue in report["issues"]},
+        )
 
     def test_v12_seed_accepts_external_semantic_identity_slugs_with_original_receipt_hashes(self):
         manifest = _manifest_with_semantic_identity_slugs()
@@ -4379,6 +6601,7 @@ class QuestionBankV12Test(unittest.TestCase):
                 chunk_items = [json.loads(json.dumps(raw_items[slot - 1])) for slot in requested_slots]
                 if 1 in requested_slots and not first_slot_rejected_once["done"]:
                     chunk_items[0]["prompt"] = "1+1=?"
+                    chunk_items[0]["interaction_schema"]["requires_explanation"] = False
                     chunk_items[0]["math_core_signature"] = "too-mechanical-slot-1"
                 return module.model_router.StructuredJSONResult(
                     value={
@@ -6014,7 +8237,10 @@ class QuestionBankV12Test(unittest.TestCase):
                 [call for call in resume_calls if call[0] == "node_set_review"],
             )
             self.assertEqual(1, sum(call[0] == "node_global_finalizer" for call in resume_calls))
-            self.assertEqual(1, sum(call[0] == "node_global_verifier" for call in resume_calls))
+            self.assertEqual(
+                len(question_bank.v12_expected_global_verifier_shards()),
+                sum(call[0] == "node_global_verifier" for call in resume_calls),
+            )
             self.assertEqual(10, len(artifact["constituent_reviews"]))
             self.assertEqual("v4_focal_evidence_plus_global_finalizer", artifact["aggregation"]["strategy"])
 

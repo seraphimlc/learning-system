@@ -80,6 +80,7 @@
                 "type",
                 "title",
                 "allow_explanation",
+                "requires_explanation",
                 "explanation_label",
                 "fields",
                 "choices",
@@ -87,13 +88,14 @@
                 "placeholder"
               ],
               "properties": {
-                "schema_version": {"const": "2026-07-13.question-interaction.v1"},
+                "schema_version": {"const": "2026-07-17.question-interaction.v2"},
                 "type": {
                   "type": "string",
                   "enum": ["short_text", "fill_blank", "single_choice", "multi_choice", "formula_input"]
                 },
                 "title": {"type": "string"},
                 "allow_explanation": {"type": "boolean"},
+                "requires_explanation": {"type": "boolean"},
                 "explanation_label": {"type": "string"},
                 "fields": {
                   "type": "array",

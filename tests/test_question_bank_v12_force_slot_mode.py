@@ -99,11 +99,18 @@ def _approved_global_judgment(node_entry: dict, graph_version: str) -> dict:
 def _upgrade_node_to_v6(module, source: dict) -> dict:
     node_entry = copy.deepcopy(source["node"])
     for item in node_entry["items"]:
+        child_surface = question_bank.canonical_child_surface_projection(item)
+        item["prompt_format"] = child_surface["prompt_format"]
+        item["prompt"] = child_surface["prompt"]
+        item["interaction_schema"] = child_surface["interaction_schema"]
         review = item["review_artifact"]
-        review["child_surface_sha256"] = question_bank.canonical_child_surface_projection(item)[
-            "projection_sha256"
-        ]
+        review["candidate_sha256"] = question_bank.v12_external_candidate_sha256(item)
+        review["child_surface_sha256"] = question_bank.canonical_child_surface_projection(item)["projection_sha256"]
         review["item_review_request_sha256"] = question_bank.v12_item_review_request_sha256(item)
+        review["semantic_evidence_sha256"] = question_bank.v12_item_review_semantic_evidence_sha256(
+            item,
+            review,
+        )
     artifact = node_entry["node_review_artifact"]
     reviews = artifact["constituent_reviews"]
     item_by_slot = {int(item["slot"]): item for item in node_entry["items"]}
@@ -112,9 +119,15 @@ def _upgrade_node_to_v6(module, source: dict) -> dict:
         review["node_candidate_sha256"] = node_candidate_sha256
         output = review["review_output"]
         for entry in output["focal_slot_reviews"]:
-            subject = question_bank.v12_item_review_subject_binding(item_by_slot[int(entry["slot"])])
+            item = item_by_slot[int(entry["slot"])]
+            subject = question_bank.v12_item_review_subject_binding(item)
+            entry["item_id"] = item["id"]
+            entry["candidate_sha256"] = question_bank.v12_external_candidate_sha256(item)
             entry["child_surface_sha256"] = subject["child_surface_sha256"]
             entry["item_review_request_sha256"] = subject["item_review_request_sha256"]
+            entry["item_review_semantic_evidence_sha256"] = item["review_artifact"][
+                "semantic_evidence_sha256"
+            ]
         review["review_output_sha256"] = module._sha256_json(output)
         review["semantic_evidence_sha256"] = question_bank.v12_node_set_constituent_semantic_evidence_sha256(
             node_entry,
@@ -126,11 +139,6 @@ def _upgrade_node_to_v6(module, source: dict) -> dict:
     finalizer_contract = json.loads(module.GLOBAL_FINALIZER_CONTRACT_PATH.read_text(encoding="utf-8"))
     finalizer_prompt = module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8")
     request = module._global_finalizer_request_payloads(node_entry, reviews)
-    verifier_rendered = module._render_prompt(
-        verifier_prompt,
-        trusted_context=request["trusted_context"],
-        untrusted_payload=request["untrusted_payload"],
-    )
     finalizer_rendered = module._render_prompt(
         finalizer_prompt,
         trusted_context=request["trusted_context"],
@@ -151,24 +159,55 @@ def _upgrade_node_to_v6(module, source: dict) -> dict:
     finalizer_route = model_router.ModelRoute(
         **{**finalizer_route.__dict__, "task": "node_global_finalizer"}
     )
-    verifier_result = model_router.StructuredJSONResult(
-        value=judgment,
-        mode="json_schema",
-        raw_response={"fixture": "global_verifier_v1"},
-    )
     finalizer_result = model_router.StructuredJSONResult(
         value=judgment,
         mode="json_schema",
         raw_response={"fixture": "global_finalizer_v6"},
     )
+    verifier_shards = []
+    for reviewed_slots in question_bank.v12_expected_global_verifier_shards():
+        shard_judgment = {
+            **judgment,
+            "schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION,
+            "reviewed_slots": reviewed_slots,
+            "item_classifications": [
+                copy.deepcopy(entry)
+                for entry in judgment["item_classifications"]
+                if int(entry.get("slot") or 0) in reviewed_slots
+            ],
+        }
+        shard_judgment = module._bind_global_verifier_shard_judgment(
+            node_entry,
+            shard_judgment,
+            graph_version=source["graph_version"],
+            reviewed_slots=reviewed_slots,
+        )
+        lineage = module._global_verifier_shard_expected_lineage(
+            node_entry,
+            reviews,
+            reviewed_slots,
+        )
+        verifier_shards.append(module._node_set_global_verifier_shard_artifact(
+            node_entry=node_entry,
+            constituent_reviews=reviews,
+            reviewed_slots=reviewed_slots,
+            model_judgment=shard_judgment,
+            contract=verifier_contract,
+            prompt_template=verifier_prompt,
+            rendered_prompt=lineage["rendered_prompt"],
+            result=model_router.StructuredJSONResult(
+                value=shard_judgment,
+                mode="json_schema",
+                raw_response={"fixture": reviewed_slots},
+            ),
+            route=verifier_route,
+            stage_attempt=1,
+        ))
     verifier = module._node_set_global_verifier_artifact(
         node_entry=node_entry,
         constituent_reviews=reviews,
-        model_judgment=judgment,
-        contract=verifier_contract,
-        prompt_template=verifier_prompt,
-        rendered_prompt=verifier_rendered,
-        result=verifier_result,
+        shard_artifacts=verifier_shards,
         route=verifier_route,
         stage_attempt=1,
     )
@@ -502,9 +541,12 @@ def _terminal_supersession_events(module) -> tuple[dict, list[dict]]:
 
 
 def _reseal_operation_receipt(module, receipt: dict) -> None:
-    receipt["operation_id"] = module._sha256_json({
-        key: value for key, value in receipt.items() if key != "operation_id"
-    })
+    receipt["operation_id"] = module._sha256_json(
+        module._operator_operation_receipt_identity_payload(receipt)
+    )
+    receipt["receipt_integrity_sha256"] = (
+        module._operator_operation_receipt_integrity_sha256(receipt)
+    )
 
 
 def _reseal_repair_chain(module, events: list[dict]) -> None:
@@ -911,7 +953,7 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
         self.assertEqual("completed", legacy["status"])
         with self.assertRaisesRegex(
             model_router.ModelCallError,
-            r"legacy operator slot supersession.*quarantine",
+            r"operator slot operation receipt schema is invalid|legacy operator slot supersession.*quarantine",
         ):
             module._validate_live_checkpoint_integrity(legacy)
 
@@ -980,33 +1022,69 @@ class QuestionBankV12ForceSlotModeTests(unittest.TestCase):
             {
                 "schema_version",
                 "operation_id",
+                "receipt_integrity_sha256",
                 "node_id",
                 "graph_version",
                 "slot",
                 "source_candidate_sha256",
+                "source_candidate_state",
+                "source_review_artifact_sha256",
+                "source_pending_repair_sha256",
+                "source_pending_repair_count",
+                "source_pending_reasons",
+                "source_pending_reasons_sha256",
                 "source_mode",
                 "target_mode",
                 "mode_override_applied",
                 "process_node_policy_protected",
                 "operation_token_sha256",
+                "operation_generation",
             },
             set(receipt),
         )
+        self.assertEqual(module.V12_OPERATOR_SLOT_OPERATION_VERSION, receipt["schema_version"])
         self.assertEqual("standard", receipt["source_mode"])
         self.assertEqual("standard", receipt["target_mode"])
+        self.assertEqual("accepted", receipt["source_candidate_state"])
+        self.assertEqual(
+            module._sha256_json(item["review_artifact"]),
+            receipt["source_review_artifact_sha256"],
+        )
+        self.assertEqual(module._sha256_json([]), receipt["source_pending_repair_sha256"])
+        self.assertEqual(0, receipt["source_pending_repair_count"])
+        self.assertEqual([], receipt["source_pending_reasons"])
+        self.assertEqual(module._sha256_json([]), receipt["source_pending_reasons_sha256"])
         self.assertFalse(receipt["mode_override_applied"])
         self.assertFalse(receipt["process_node_policy_protected"])
+        self.assertEqual(1, receipt["operation_generation"])
         self.assertEqual(64, len(receipt["operation_id"]))
+        self.assertEqual(
+            module._operator_operation_receipt_integrity_sha256(receipt),
+            receipt["receipt_integrity_sha256"],
+        )
         self.assertEqual(module._sha256_text(FORCE_OPERATION_TOKEN), receipt["operation_token_sha256"])
         module._validate_repair_chain_events(events)
 
         tampered_values = {
+            "schema_version": "tampered-version",
             "operation_id": "0" * 64,
-            "source_mode": "unprompted_process_evidence",
-            "target_mode": "unprompted_process_evidence",
+            "receipt_integrity_sha256": "0" * 64,
+            "node_id": "",
+            "graph_version": "",
+            "slot": 0,
+            "source_candidate_sha256": "0" * 64,
+            "source_candidate_state": "tampered",
+            "source_review_artifact_sha256": "0" * 64,
+            "source_pending_repair_sha256": "0" * 64,
+            "source_pending_repair_count": -1,
+            "source_pending_reasons": ["tampered"],
+            "source_pending_reasons_sha256": "0" * 64,
+            "source_mode": "",
+            "target_mode": "tampered",
             "mode_override_applied": True,
             "process_node_policy_protected": True,
             "operation_token_sha256": "0" * 64,
+            "operation_generation": 0,
         }
         for field, value in tampered_values.items():
             with self.subTest(field=field):

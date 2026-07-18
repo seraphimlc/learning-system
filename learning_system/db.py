@@ -4105,10 +4105,217 @@ def _assert_v12_trusted_live_runner_provenance(
             raise ValueError(
                 f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:model_judgment_output_sha256"
             )
+        verifier_shards = (
+            global_verifier.get("shard_artifacts")
+            if isinstance(global_verifier.get("shard_artifacts"), list)
+            else []
+        )
+        receipt_verifier_shards = (
+            receipt_global_verifier.get("shard_artifacts")
+            if isinstance(receipt_global_verifier.get("shard_artifacts"), list)
+            else []
+        )
+        expected_verifier_shards = question_bank.v12_expected_global_verifier_shards()
+        if (
+            [
+                list(shard.get("reviewed_slots") or [])
+                for shard in verifier_shards
+                if isinstance(shard, dict)
+            ] != expected_verifier_shards
+            or len(receipt_verifier_shards) != len(verifier_shards)
+        ):
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard_coverage"
+            )
+        verifier_shard_semantic_hashes: list[str] = []
+        top_level_verifier_route = {
+            "model_provider": str(global_verifier.get("model_provider") or ""),
+            "model_name": str(global_verifier.get("model_name") or ""),
+            "model_alias": str(global_verifier.get("model_alias") or ""),
+            "structured_json_mode": str(global_verifier.get("structured_json_mode") or ""),
+        }
+        verifier_shard_receipt_fields = (
+            "agent_key",
+            "phase",
+            "artifact_role",
+            "provider_mode",
+            "model_provider",
+            "model_name",
+            "model_alias",
+            "structured_json_mode",
+            "prompt_template_sha256",
+            "rendered_prompt_sha256",
+            "response_schema_version",
+            "response_schema_sha256",
+            "batch_raw_response_sha256",
+            "contract_key",
+            "contract_version",
+            "prompt_version_id",
+            "semantic_evidence_version",
+            "semantic_evidence_sha256",
+            "pipeline_stage",
+            "stage_attempt",
+            "shard_id",
+            "reviewed_slots",
+            "compact_index_sha256",
+            "node_candidate_sha256",
+            "request_lineage_version",
+            "trusted_context_sha256",
+            "untrusted_payload_sha256",
+            "request_options_sha256",
+            "request_input_sha256",
+            "request_lineage_sha256",
+            "model_judgment_output_sha256",
+            "constituent_semantic_evidence_sha256",
+        )
+        for index, verifier_shard in enumerate(verifier_shards):
+            if not isinstance(verifier_shard, dict):
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard:{index}"
+                )
+            receipt_shard = (
+                receipt_verifier_shards[index]
+                if index < len(receipt_verifier_shards)
+                and isinstance(receipt_verifier_shards[index], dict)
+                else {}
+            )
+            reviewed_slots = expected_verifier_shards[index]
+            expected_shard_identity = {
+                "agent_key": question_bank.QUESTION_REVIEWER_AGENT_KEY,
+                "phase": "node_global_verifier",
+                "artifact_role": "node_set_global_verifier_shard",
+                "contract_key": "math_question_bank_v12_node_set_global_verifier",
+                "contract_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION,
+                "prompt_version_id": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID,
+                "response_schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+                "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SEMANTIC_EVIDENCE_VERSION,
+                "provider_mode": "live_model",
+                "prompt_template_sha256": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_TEMPLATE_SHA256,
+                "response_schema_sha256": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_SHA256,
+                "request_lineage_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_REQUEST_LINEAGE_VERSION,
+                "reviewed_slots": reviewed_slots,
+                "shard_id": question_bank.v12_node_set_review_shard_id(reviewed_slots),
+            }
+            for key, value in expected_shard_identity.items():
+                if verifier_shard.get(key) != value:
+                    raise ValueError(
+                        f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard:{index}:{key}"
+                    )
+            for key, value in top_level_verifier_route.items():
+                if verifier_shard.get(key) != value:
+                    raise ValueError(
+                        f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard:{index}:{key}"
+                    )
+            if (
+                verifier_shard.get("node_candidate_sha256") != node_candidate_sha256
+                or verifier_shard.get("constituent_semantic_evidence_sha256")
+                != expected_constituent_semantic_hashes
+            ):
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard:{index}:subject"
+                )
+            shard_judgment = (
+                verifier_shard.get("model_judgment_output")
+                if isinstance(verifier_shard.get("model_judgment_output"), dict)
+                else {}
+            )
+            if (
+                verifier_shard.get("model_judgment_output_sha256")
+                != _v12_sorted_digest_json(shard_judgment)
+                or shard_judgment.get("reviewed_slots") != reviewed_slots
+                or [
+                    int(entry.get("slot") or 0)
+                    for entry in shard_judgment.get("item_classifications") or []
+                    if isinstance(entry, dict)
+                ] != reviewed_slots
+            ):
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard:{index}:judgment"
+                )
+            expected_shard_semantic = _v12_sorted_digest_json({
+                "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_SEMANTIC_EVIDENCE_VERSION,
+                "node_candidate_sha256": node_candidate_sha256,
+                "constituent_semantic_evidence_sha256": expected_constituent_semantic_hashes,
+                "reviewed_slots": reviewed_slots,
+                "compact_index_sha256": verifier_shard.get("compact_index_sha256") or "",
+                "model_judgment_output_sha256": verifier_shard.get("model_judgment_output_sha256") or "",
+            })
+            if verifier_shard.get("semantic_evidence_sha256") != expected_shard_semantic:
+                raise ValueError(
+                    f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard:{index}:semantic_evidence_sha256"
+                )
+            for key in verifier_shard_receipt_fields:
+                if receipt_shard.get(key) != verifier_shard.get(key):
+                    raise ValueError(
+                        f"V12 active seed requires trusted live runner receipt: {node_id}:node_set_review:global_verifier:shard:{index}:{key}:mismatch"
+                    )
+            verifier_shard_semantic_hashes.append(
+                str(verifier_shard.get("semantic_evidence_sha256") or "")
+            )
+        expected_verifier_shard_artifacts_sha256 = _v12_sorted_digest_json(
+            verifier_shards
+        )
+        expected_verifier_shard_route_tuples = (
+            question_bank.v12_global_verifier_shard_route_tuples(verifier_shards)
+        )
+        expected_verifier_shard_route_tuples_sha256 = _v12_sorted_digest_json(
+            expected_verifier_shard_route_tuples
+        )
+        try:
+            expected_verifier_judgment = (
+                question_bank.v12_aggregate_global_verifier_shard_judgments(
+                    node_entry,
+                    verifier_shards,
+                    graph_version=str(verifier_judgment.get("graph_version") or ""),
+                )
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:aggregate:{exc}"
+            ) from exc
+        if verifier_judgment != expected_verifier_judgment:
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:aggregate_judgment"
+            )
+        if (
+            global_verifier.get("shard_policy_version")
+            != question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_POLICY_VERSION
+            or global_verifier.get("expected_shards") != expected_verifier_shards
+            or global_verifier.get("shard_artifacts_sha256")
+            != expected_verifier_shard_artifacts_sha256
+            or global_verifier.get("shard_semantic_evidence_sha256s")
+            != verifier_shard_semantic_hashes
+            or global_verifier.get("shard_route_tuples")
+            != expected_verifier_shard_route_tuples
+            or global_verifier.get("shard_route_tuples_sha256")
+            != expected_verifier_shard_route_tuples_sha256
+        ):
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:shard_commitment"
+            )
+        expected_verifier_aggregate_commitment = _v12_sorted_digest_json({
+            "version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_AGGREGATE_VERSION,
+            "node_candidate_sha256": node_candidate_sha256,
+            "expected_shards": expected_verifier_shards,
+            "shard_semantic_evidence_sha256s": verifier_shard_semantic_hashes,
+            "shard_artifacts_sha256": expected_verifier_shard_artifacts_sha256,
+            "shard_route_tuples_sha256": expected_verifier_shard_route_tuples_sha256,
+            "model_judgment_output_sha256": expected_verifier_judgment_sha256,
+            "request_lineage_sha256": global_verifier.get("request_lineage_sha256") or "",
+        })
+        if (
+            global_verifier.get("aggregate_commitment_sha256")
+            != expected_verifier_aggregate_commitment
+        ):
+            raise ValueError(
+                f"V12 active seed requires trusted live runner provenance: {node_id}:node_set_review:global_verifier:aggregate_commitment_sha256"
+            )
         expected_verifier_semantic_sha256 = _v12_sorted_digest_json({
             "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SEMANTIC_EVIDENCE_VERSION,
             "node_candidate_sha256": node_candidate_sha256,
             "constituent_semantic_evidence_sha256": expected_constituent_semantic_hashes,
+            "shard_semantic_evidence_sha256s": verifier_shard_semantic_hashes,
+            "aggregate_commitment_sha256": expected_verifier_aggregate_commitment,
             "model_judgment_output_sha256": expected_verifier_judgment_sha256,
         })
         if global_verifier.get("semantic_evidence_sha256") != expected_verifier_semantic_sha256:
@@ -4144,6 +4351,13 @@ def _assert_v12_trusted_live_runner_provenance(
             "request_input_sha256",
             "request_lineage_sha256",
             "model_judgment_output_sha256",
+            "shard_policy_version",
+            "expected_shards",
+            "shard_artifacts_sha256",
+            "shard_semantic_evidence_sha256s",
+            "shard_route_tuples",
+            "shard_route_tuples_sha256",
+            "aggregate_commitment_sha256",
             "constituent_semantic_evidence_sha256",
         )
         for key in verifier_receipt_fields:

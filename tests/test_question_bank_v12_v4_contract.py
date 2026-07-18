@@ -88,6 +88,7 @@ def _interaction_schema(kind: str = "short_text") -> dict:
         "type": kind,
         "title": "",
         "allow_explanation": True,
+        "requires_explanation": False,
         "explanation_label": "补充说明",
         "fields": [],
         "choices": [],
@@ -488,10 +489,10 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
             question_bank.V12_GLOBAL_FINALIZER_SEMANTIC_EVIDENCE_VERSION.endswith(".v4")
         )
         self.assertTrue(
-            question_bank.V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION.endswith(".v2")
+            question_bank.V12_NODE_SET_GLOBAL_FINALIZER_REQUEST_LINEAGE_VERSION.endswith(".v3")
         )
-        self.assertTrue(question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION.endswith(".v1"))
-        self.assertTrue(question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID.endswith(".v1"))
+        self.assertTrue(question_bank.V12_NODE_SET_GLOBAL_VERIFIER_CONTRACT_VERSION.endswith(".v2"))
+        self.assertTrue(question_bank.V12_NODE_SET_GLOBAL_VERIFIER_PROMPT_VERSION_ID.endswith(".v2"))
 
         v4_path_names = (
             "DESIGNER_CONTRACT_PATH",
@@ -516,8 +517,8 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
         for name in ("GLOBAL_VERIFIER_CONTRACT_PATH", "GLOBAL_VERIFIER_PROMPT_PATH"):
             with self.subTest(path=name):
                 path = getattr(module, name, None)
-                self.assertIsInstance(path, Path, f"missing v1 verifier path {name}")
-                self.assertIn(".v1.", path.name)
+                self.assertIsInstance(path, Path, f"missing v2 verifier path {name}")
+                self.assertIn(".v2.", path.name)
                 self.assertTrue(path.is_file(), path)
 
     def test_child_visible_prompt_and_review_only_payloads_are_strictly_partitioned(self):
@@ -712,6 +713,8 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
         self.assertIsInstance(reviewer_path, Path)
         designer = json.loads(designer_path.read_text(encoding="utf-8"))
         reviewer = json.loads(reviewer_path.read_text(encoding="utf-8"))
+        designer_prompt = module.DESIGNER_PROMPT_PATH.read_text(encoding="utf-8")
+        reviewer_prompt = module.REVIEWER_PROMPT_PATH.read_text(encoding="utf-8")
         designer_item = designer["response_schema"]["properties"]["items"]["items"]
         review_item = reviewer["response_schema"]["properties"]["item_reviews"]["items"]
         semantic = review_item["properties"]["semantic_evidence"]
@@ -719,7 +722,12 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
         self.assertIn("intended_instruction_voice_family", designer_item["required"])
         self.assertIn("interaction_schema", designer_item["required"])
         interaction_schema = designer_item["properties"]["interaction_schema"]
-        self.assertEqual(question_bank.QUESTION_INTERACTION_SCHEMA_VERSION, interaction_schema["properties"]["schema_version"]["const"])
+        self.assertEqual(question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION, interaction_schema["properties"]["schema_version"]["const"])
+        self.assertIn("requires_explanation", interaction_schema["required"])
+        self.assertIn(question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION, designer_prompt)
+        self.assertIn(question_bank.QUESTION_INTERACTION_CURRENT_SCHEMA_VERSION, reviewer_prompt)
+        self.assertIn("legacy input only", designer_prompt)
+        self.assertIn("legacy input only", reviewer_prompt)
         self.assertIn("fill_blank", interaction_schema["properties"]["type"]["enum"])
         self.assertIn("single_choice", interaction_schema["properties"]["type"]["enum"])
         self.assertIn("formula_input", interaction_schema["properties"]["type"]["enum"])
@@ -967,9 +975,24 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
                         "wrong-runtime-model-review-echo"
                     )
             elif task in {"node_global_verifier", "node_global_finalizer"}:
-                value = module._global_model_judgment_from_output(
+                full_value = module._global_model_judgment_from_output(
                     _global_output(node_entry, _constituent_reviews(node_entry))
                 )
+                if task == "node_global_verifier":
+                    reviewed_slots = list(kwargs["trusted_context"]["reviewed_slots"])
+                    value = {
+                        **full_value,
+                        "schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+                        "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION,
+                        "reviewed_slots": reviewed_slots,
+                        "item_classifications": [
+                            entry
+                            for entry in full_value["item_classifications"]
+                            if int(entry.get("slot") or 0) in reviewed_slots
+                        ],
+                    }
+                else:
+                    value = full_value
             else:
                 raise AssertionError(f"unexpected route {task}")
             rendered = (
@@ -1067,13 +1090,28 @@ class QuestionBankV12V4ContractTest(unittest.TestCase):
 
         verifier_calls = [call for call in calls if call["route"].task == "node_global_verifier"]
         global_calls = [call for call in calls if call["route"].task == "node_global_finalizer"]
-        self.assertEqual(1, len(verifier_calls))
+        self.assertEqual(
+            len(question_bank.v12_expected_global_verifier_shards()),
+            len(verifier_calls),
+        )
         self.assertEqual(1, len(global_calls))
         self.assertNotIn("independent_global_verifier", global_calls[0]["trusted_context"])
         self.assertEqual(
-            verifier_calls[0]["untrusted_payload"],
-            global_calls[0]["untrusted_payload"],
+            question_bank.v12_expected_global_verifier_shards(),
+            [call["trusted_context"]["reviewed_slots"] for call in verifier_calls],
         )
+        for call in verifier_calls:
+            self.assertEqual(
+                20,
+                len(call["untrusted_payload"]["whole_node_compact_index"]),
+            )
+            self.assertEqual(
+                call["trusted_context"]["reviewed_slots"],
+                [
+                    int(card["slot"])
+                    for card in call["untrusted_payload"]["full_items"]
+                ],
+            )
         payload = global_calls[0]["untrusted_payload"]
         cards = payload["item_cards"]
         self.assertEqual(list(range(1, 21)), [int(card["slot"]) for card in cards])

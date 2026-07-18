@@ -510,6 +510,14 @@ def project_child_surface(
     source_prompt_sha256 = hashlib.sha256(raw_prompt.encode("utf-8")).hexdigest()
     if legacy:
         legacy_schema = normalize_interaction_schema(raw_schema, allow_legacy=True)
+        if (
+            isinstance(raw_schema, dict)
+            and "requires_explanation" not in raw_schema
+            and "explanation_required" not in raw_schema
+        ):
+            legacy_schema["requires_explanation"] = bool(
+                _EXPLANATION_INSTRUCTION.search(raw_prompt)
+            )
         raw_prompt, repaired_schema = _repair_legacy_choice_surface(raw_prompt, legacy_schema)
         normalized_schema = normalize_interaction_schema(repaired_schema, allow_legacy=True)
     else:
