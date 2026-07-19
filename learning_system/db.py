@@ -845,6 +845,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
           improvement_direction_json text not null default '[]',
           expression_judgment text not null default '',
           teaching_explanation text not null default '',
+          semantic_output_json text not null default '{}',
+          semantic_output_digest_sha256 text not null default '',
+          semantic_envelope_json text not null default '{}',
+          semantic_checkpointed_at text,
           trust_label text not null default 'pending',
           provider_mode text not null default 'not_configured',
           answer_analysis_agent_run_id text references agent_runs(id),
@@ -1208,6 +1212,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "flow_steps", "answer_contract_id", "text references answer_contracts(id)")
     _ensure_column(conn, "flow_steps", "answer_contract_version", "integer")
     _ensure_column(conn, "flow_steps", "answer_contract_digest_sha256", "text")
+    _ensure_column(conn, "attempt_assessments", "semantic_output_json", "text not null default '{}'")
+    _ensure_column(conn, "attempt_assessments", "semantic_output_digest_sha256", "text not null default ''")
+    _ensure_column(conn, "attempt_assessments", "semantic_envelope_json", "text not null default '{}'")
+    _ensure_column(conn, "attempt_assessments", "semantic_checkpointed_at", "text")
     _ensure_column(conn, "evidence_validations", "assessment_id", "text references attempt_assessments(id)")
     _ensure_column(conn, "evidence_validations", "assessment_version", "integer")
     _ensure_column(conn, "evidence_validations", "assessment_digest_sha256", "text")

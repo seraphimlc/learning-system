@@ -349,6 +349,12 @@ class KnowledgeMapService:
                 status=409,
                 state="assessment_unavailable",
             )
+        if receipt.get("activation_mode") == "lightweight_local_contracts_v1":
+            return self._lightweight_assessment_authority(
+                snapshot=snapshot,
+                ledger=ledger,
+                receipt=receipt,
+            )
         rows = self.conn.execute(
             """
             select ac.id as contract_id, ac.stable_contract_id,
@@ -519,6 +525,130 @@ class KnowledgeMapService:
                         "score_points": db.json_load(item["score_points_json"], []),
                         "review_record_id": item["review_record_id"],
                         "review_run_id": item["review_run_id"],
+                        "status": "active",
+                    },
+                }
+            )
+        commitment_digest = _canonical_sha256(commitments)
+        if (
+            int(receipt.get("active_contract_count") or 0) != len(commitments)
+            or receipt.get("contract_set_digest_sha256") != commitment_digest
+            or int(ledger.get("node_count") or 0)
+            not in {0, len({item["node_id"] for item in commitments})}
+        ):
+            raise KnowledgeMapError(
+                "答案评估激活集合摘要不一致，请继续当前学习。",
+                status=409,
+                state="assessment_unavailable",
+            )
+        assets_by_node: dict[str, list[dict[str, Any]]] = {}
+        for asset in assets:
+            assets_by_node.setdefault(str(asset["node_id"]), []).append(asset)
+        return {
+            "ledger": ledger,
+            "receipt": receipt,
+            "assets": assets,
+            "assets_by_node": assets_by_node,
+        }
+
+    def _lightweight_assessment_authority(
+        self,
+        *,
+        snapshot: dict[str, Any],
+        ledger: dict[str, Any],
+        receipt: dict[str, Any],
+    ) -> dict[str, Any]:
+        graph_lineage = str(snapshot["graph_lineage"])
+        bank_version = str(ledger.get("question_bank_version") or "")
+        rows = self.conn.execute(
+            """
+            select ac.id as contract_id, ac.stable_contract_id,
+                   ac.question_id, ac.item_version, ac.contract_version,
+                   ac.contract_digest_sha256, ac.question_digest_sha256,
+                   ac.graph_version, ac.question_bank_version,
+                   ac.reference_solution_json, ac.score_points_json,
+                   ac.review_record_id, qi.node_id, qi.raw_json,
+                   qrr.candidate_sha256, qrr.review_status, qrr.active_eligible
+            from answer_contracts ac
+            join question_items qi
+              on qi.id = ac.question_id and qi.item_version = ac.item_version
+            join question_review_records qrr on qrr.id = ac.review_record_id
+            where ac.status = 'active'
+              and ac.graph_version = ?
+              and ac.question_bank_version = ?
+              and qi.item_version = ?
+            order by ac.question_id
+            """,
+            (graph_lineage, bank_version, bank_version),
+        ).fetchall()
+        if len(rows) != int(ledger["item_count"]):
+            raise KnowledgeMapError(
+                "答案评估激活集合不完整，请继续当前学习。",
+                status=409,
+                state="assessment_unavailable",
+            )
+        assets: list[dict[str, Any]] = []
+        commitments: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            question_row = self.conn.execute(
+                "select * from question_items where id = ? and item_version = ?",
+                (item["question_id"], item["item_version"]),
+            ).fetchone()
+            if not question_row:
+                raise KnowledgeMapError(
+                    "答案评估题目凭据缺失，请继续当前学习。",
+                    status=409,
+                    state="assessment_unavailable",
+                )
+            question = db.row_to_question(question_row)
+            question_digest = _answer_contract_question_digest(question)
+            candidate_digest = db._digest_json(db.json_load(item["raw_json"], {}))
+            if (
+                item["item_version"] != bank_version
+                or item["graph_version"] != graph_lineage
+                or item["question_bank_version"] != bank_version
+                or item["question_digest_sha256"] != question_digest
+                or item["candidate_sha256"] != candidate_digest
+                or item["review_status"] != "approved"
+                or int(item["active_eligible"] or 0) != 1
+            ):
+                raise KnowledgeMapError(
+                    "答案评估的题目或合同凭据不一致，请继续当前学习。",
+                    status=409,
+                    state="assessment_unavailable",
+                )
+            commitment = {
+                "question_id": item["question_id"],
+                "item_version": item["item_version"],
+                "node_id": item["node_id"],
+                "question_digest_sha256": question_digest,
+                "review_record_id": item["review_record_id"],
+                "candidate_sha256": item["candidate_sha256"],
+                "contract_id": item["contract_id"],
+                "contract_version": int(item["contract_version"]),
+                "contract_digest_sha256": item["contract_digest_sha256"],
+            }
+            commitments.append(commitment)
+            assets.append(
+                {
+                    **commitment,
+                    "question": question,
+                    "contract": {
+                        "id": item["contract_id"],
+                        "stable_contract_id": item["stable_contract_id"],
+                        "question_id": item["question_id"],
+                        "item_version": item["item_version"],
+                        "contract_version": int(item["contract_version"]),
+                        "contract_digest_sha256": item["contract_digest_sha256"],
+                        "graph_version": item["graph_version"],
+                        "question_bank_version": item["question_bank_version"],
+                        "reference_solution": db.json_load(
+                            item["reference_solution_json"], {}
+                        ),
+                        "score_points": db.json_load(item["score_points_json"], []),
+                        "review_record_id": item["review_record_id"],
+                        "review_run_id": "",
                         "status": "active",
                     },
                 }

@@ -5445,8 +5445,18 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             conn.execute("pragma foreign_keys = on")
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
-        finally:
             conn.close()
+            from scripts import activate_lightweight_answer_contracts
+
+            activate_lightweight_answer_contracts.activate(
+                cls._seed_path,
+                project_root=PROJECT_ROOT,
+            )
+        finally:
+            try:
+                conn.close()
+            except sqlite3.ProgrammingError:
+                pass
 
     @classmethod
     def tearDownClass(cls):
@@ -5476,7 +5486,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.tmpdir.cleanup()
 
     def _pin_v51_contract(self):
-        from learning_system import assessment_policy, question_fingerprints
+        from learning_system import assessment_policy, assessment_store, question_fingerprints
 
         step_row = self.conn.execute(
             "select * from flow_steps where step_handle = ?",
@@ -5485,6 +5495,35 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.assertIsNotNone(step_row)
         self.flow_id = step_row["flow_id"]
         self.question = db.get_question(self.conn, step_row["question_id"])
+        existing_contract = assessment_store.active_contract_for_question(
+            self.conn,
+            self.question["id"],
+            self.question["item_version"],
+        )
+        if existing_contract:
+            self.conn.execute(
+                """
+                update flow_steps
+                set answer_contract_id = ?, answer_contract_version = ?,
+                    answer_contract_digest_sha256 = ?
+                where id = ?
+                """,
+                (
+                    existing_contract["id"],
+                    existing_contract["contract_version"],
+                    existing_contract["contract_digest_sha256"],
+                    step_row["id"],
+                ),
+            )
+            self.conn.execute(
+                "update daily_flows set assessment_policy_version = 'v5.1' where id = ?",
+                (self.flow_id,),
+            )
+            self.conn.commit()
+            self.contract = existing_contract
+            self.contract_id = existing_contract["id"]
+            self.contract_digest = existing_contract["contract_digest_sha256"]
+            return
         contract = assessment_policy.build_answer_contract(self.question)
         assessment_policy.validate_contract(contract)
         contract_id = f"AC-runtime-v51-{self.question['id']}"
@@ -5707,7 +5746,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         child_state = self.runtime.project_child_state(
             self.runtime._flow_by_id(self.flow_id)
         )
-        self.assertEqual("teaching", child_state["child_state"])
+        self.assertEqual("assessment_feedback", child_state["child_state"])
         feedback = child_state["current_step"]["assessment_feedback"]
         self.assertEqual("10/10", feedback["score_label"])
         self.assertTrue(feedback["reference_answer"])
@@ -5757,6 +5796,140 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.assertEqual("assessment_feedback", replay["next_action"])
         self.assertEqual(accepted["id"], replay["assessment_id"])
         self.assertEqual(result["feedback_step_id"], replay["feedback_step_id"])
+
+    def test_accepted_semantic_checkpoint_replays_without_second_model_call(self):
+        from learning_system import assessment_store, model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "I state the relation, calculate, and verify the result.",
+            "submit-runtime-v51-checkpoint-replay",
+        )
+        output = self._v3_output(attempt)
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.97,
+            output=output,
+            route_meta={"source": "runtime-v51-checkpoint-fixture"},
+            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        real_accept = assessment_store.accept_assessment
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ) as semantic_call, mock.patch.object(
+            assessment_store,
+            "accept_assessment",
+            side_effect=RuntimeError("crash after semantic checkpoint"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "crash after semantic checkpoint"):
+                self.runtime._handle_answer_analysis_job(job)
+
+        checkpoint = self.conn.execute(
+            """
+            select semantic_output_digest_sha256, semantic_output_json
+            from attempt_assessments
+            where attempt_id = ?
+            """,
+            (attempt["id"],),
+        ).fetchone()
+        self.assertTrue(checkpoint["semantic_output_digest_sha256"])
+        self.assertEqual(output, db.json_load(checkpoint["semantic_output_json"], {}))
+        self.assertEqual(1, semantic_call.call_count)
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("retry must reuse semantic checkpoint"),
+        ), mock.patch.object(
+            assessment_store,
+            "accept_assessment",
+            side_effect=real_accept,
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("succeeded", result["job_status"])
+        accepted = assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            attempt["id"],
+            int(attempt["attempt_version"]),
+        )
+        self.assertIsNotNone(accepted)
+        self.assertEqual(10, accepted["score_out_of_10"])
+
+    def test_v51_missing_answer_contract_fails_closed_without_legacy_chain(self):
+        from learning_system import model_router, semantic_agents
+
+        self.conn.execute(
+            """
+            update flow_steps
+            set answer_contract_id = null,
+                answer_contract_version = null,
+                answer_contract_digest_sha256 = null
+            where step_handle = ?
+            """,
+            (self.step["step_handle"],),
+        )
+        self.conn.commit()
+        attempt = self._submit_text(
+            "I wrote a normal answer.",
+            "submit-runtime-v51-missing-contract",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("missing v5.1 contract must not call answer model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("missing v5.1 contract must not call evaluation model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("missing v5.1 contract must not call planner model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("missing v5.1 contract must not call teaching model"),
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("blocked", result["job_status"])
+        self.assertEqual("v5.1_answer_contract_missing", result["reason"])
+        self.assertEqual(0, self.conn.execute(
+            """
+            select count(*) from background_jobs
+            where attempt_id = ?
+              and job_type in ('evaluation_update','planner_decision','teaching_generation')
+            """,
+            (attempt["id"],),
+        ).fetchone()[0])
 
     def test_explicit_stuck_uses_zero_model_calls_and_creates_no_scored_assessment(self):
         from learning_system import semantic_agents
@@ -5838,7 +6011,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         child_state = self.runtime.project_child_state(
             self.runtime._flow_by_id(self.flow_id)
         )
-        self.assertEqual("teaching", child_state["child_state"])
+        self.assertEqual("assessment_feedback", child_state["child_state"])
         self.assertNotEqual("10/10", child_state["current_step"]["assessment_feedback"]["score_label"])
         decision = self.conn.execute(
             "select action from next_step_decisions where id = ?",

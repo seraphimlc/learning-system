@@ -117,8 +117,18 @@ class LearningSystemTest(unittest.TestCase):
             template_conn.row_factory = sqlite3.Row
             db.init_schema(template_conn)
             db.seed_from_assets(template_conn, PROJECT_ROOT)
-        finally:
             template_conn.close()
+            from scripts import activate_lightweight_answer_contracts
+
+            activate_lightweight_answer_contracts.activate(
+                cls._seed_template_path,
+                project_root=PROJECT_ROOT,
+            )
+        finally:
+            try:
+                template_conn.close()
+            except sqlite3.ProgrammingError:
+                pass
 
     @classmethod
     def tearDownClass(cls):
@@ -2120,7 +2130,7 @@ class LearningSystemTest(unittest.TestCase):
         answer_envelope = semantic_agents.accepted_envelope(
             agent_key="answer_analysis_agent",
             phase="answer_analysis",
-            output=self._v5_msg004_answer_output(attempt),
+            output=self._v51_answer_review_output(attempt),
             provider_mode="live_model",
             confidence=0.93,
             route_meta={"source": "live-single-call-fixture"},
@@ -2149,11 +2159,11 @@ class LearningSystemTest(unittest.TestCase):
             result = runtime.process_next_background_job(worker_id="test-v5-live-single-call")
 
         self.assertEqual("succeeded", result.get("job_status"), result)
-        self.assertEqual("single_live_model_call", result.get("pipeline_mode"))
+        self.assertEqual("v5.1_single_semantic_call_deterministic_score", result.get("pipeline_mode"))
         self.assertEqual(1, answer_agent_call.call_count)
         self.assertTrue(result.get("mastery_decision_id"))
         self.assertTrue(result.get("next_step_decision_id"))
-        self.assertEqual("summary", result.get("next_action"))
+        self.assertEqual("assessment_feedback", result.get("next_action"))
         self.assertEqual(0, self.conn.execute(
             """
             select count(*)
@@ -6939,16 +6949,17 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual("teaching", result["child_state"])
         attempt = self.conn.execute("select * from attempts where client_idempotency_key = ?", ("submit-v5-text-i-do-not-know",)).fetchone()
         self.assertIsNotNone(attempt)
-        self.assertEqual("graded", attempt["grading_status"])
-        self.assertEqual("wrong", attempt["result"])
-        self.assertEqual("valid", attempt["analysis_status"])
+        self.assertEqual("not_scored", attempt["grading_status"])
+        self.assertEqual("submitted", attempt["result"])
+        self.assertEqual("not_required", attempt["analysis_status"])
         self.assertEqual("v3_stuck", attempt["answer_source"])
         self.assertEqual("我不会", attempt["answer_raw"])
         review_meta = db.json_load(attempt["review_meta_json"], {})
         self.assertTrue(review_meta["stuck"])
         self.assertEqual("deterministic_runtime", review_meta["provider_mode"])
         self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
-        self.assertEqual(1, self.conn.execute("select count(*) from evidence_validations where attempt_id = ? and gate_status = 'passed'", (attempt["id"],)).fetchone()[0])
+        self.assertEqual(0, self.conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt["id"],)).fetchone()[0])
+        self.assertEqual(0, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
 
     def test_v5_child_ui_stuck_prompt_texts_fast_track_without_model_jobs(self):
         prompts = [
@@ -18612,6 +18623,35 @@ class LearningSystemTest(unittest.TestCase):
         if solution_steps:
             output["answer_analysis"]["optimal_solution_steps"] = solution_steps[:6]
         return output
+
+    def _v51_answer_review_output(self, attempt: dict) -> dict:
+        from learning_system import assessment_store
+
+        contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn,
+            attempt["flow_step_id"],
+        )
+        self.assertIsNotNone(contract)
+        criteria = [
+            {
+                "criterion_key": point["key"],
+                "status": "met",
+                "child_evidence": "The child answer supports this scoring point.",
+                "reason": "Grounded in the submitted answer.",
+            }
+            for point in contract["score_points"]
+        ]
+        return {
+            "schema_version": "2026-07-14.answer-review.v5.schema.v3",
+            "criteria": criteria,
+            "answer_gap": "No mathematical gap affecting the score.",
+            "improvement_direction": [
+                "Keep writing the key relation before the calculation."
+            ],
+            "expression_judgment": "The expression is mathematically equivalent and clear enough.",
+            "teaching_explanation": "The answer shows the target relation, execution, and check.",
+            "confidence": 0.97,
+        }
 
     def _v5_strict_recorded_answer_envelope(
         self,

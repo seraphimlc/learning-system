@@ -473,12 +473,18 @@ class DailyLearningRuntime:
                     set mode = 'review_old_knowledge',
                         status = 'reviewing',
                         current_step_id = ?,
+                        assessment_policy_version = ?,
                         blocked_reason = '',
                         flow_revision = flow_revision + 1,
                         updated_at = ?
                     where id = ?
                     """,
-                    (step_id, now, flow["id"]),
+                    (
+                        step_id,
+                        "v5.1" if answer_assessment_v51_enabled() else flow["assessment_policy_version"],
+                        now,
+                        flow["id"],
+                    ),
                 )
                 flow = self._flow_by_id(flow["id"])
         return self.project_child_state(flow)
@@ -500,8 +506,8 @@ class DailyLearningRuntime:
               current_step_id, graph_version, planned_graph_node_ids_json,
               question_bank_version, legacy_session_id, flow_revision,
               created_by_runtime_version, source_plan_id, blocked_reason,
-              summary_id, created_at, updated_at
-            ) values (?, ?, ?, 'not_selected', 'new', 10, 20, null, ?, '[]', ?, ?, 1, ?, null, '', null, ?, ?)
+              assessment_policy_version, summary_id, created_at, updated_at
+            ) values (?, ?, ?, 'not_selected', 'new', 10, 20, null, ?, '[]', ?, ?, 1, ?, null, '', ?, null, ?, ?)
             """,
             (
                 flow_id,
@@ -511,6 +517,7 @@ class DailyLearningRuntime:
                 db.get_active_question_bank_version(self.conn),
                 legacy_session_id,
                 db.V3_RUNTIME_VERSION,
+                "v5.1" if answer_assessment_v51_enabled() else "legacy",
                 now,
                 now,
             ),
@@ -1516,7 +1523,7 @@ class DailyLearningRuntime:
             return self.project_child_state(self._flow_by_id(step["flow_id"]))
         if step["status"] not in {"selected", "displayed"}:
             raise ChildSafeRuntimeError("当前没有可以继续的学习步骤，请刷新后继续。")
-        if step["step_type"] not in {"teaching_repair", "worked_example"}:
+        if step["step_type"] not in {"teaching_repair", "worked_example", "assessment_feedback"}:
             raise ChildSafeRuntimeError("这一步需要先保存答案。", status=400, child_action="保存答案")
         with self.conn:
             flow = dict(self._flow_by_id(step["flow_id"]))
@@ -1967,9 +1974,21 @@ class DailyLearningRuntime:
         if step:
             if step["status"] == "analyzing":
                 return self._project_analyzing_step_or_reconcile(base, flow_dict, dict(step))
-            child_state = "teaching" if step["step_type"] in {"teaching_repair", "worked_example"} else ("clarify_evidence" if step["step_type"] == "clarify_evidence" else "current_step")
+            child_state = (
+                "assessment_feedback"
+                if step["step_type"] == "assessment_feedback"
+                else "teaching"
+                if step["step_type"] in {"teaching_repair", "worked_example"}
+                else ("clarify_evidence" if step["step_type"] == "clarify_evidence" else "current_step")
+            )
             message = dict(base["message"])
-            if child_state == "teaching":
+            if child_state == "assessment_feedback":
+                message = {
+                    "title": "本题解析",
+                    "body": "先看得分、标准答案和差距；看完后继续下一步。",
+                    "action_label": "继续下一步",
+                }
+            elif child_state == "teaching":
                 message = {
                     "title": "先看这一处讲解",
                     "body": "看完后点继续，系统会给一题很小的检查；如果还是卡住，也可以直接说卡住。",
@@ -2330,7 +2349,7 @@ class DailyLearningRuntime:
                 select *
                 from flow_steps
                 where flow_id = ?
-                  and step_type = 'teaching_repair'
+                  and step_type in ('assessment_feedback', 'teaching_repair')
                   and selection_reason_json like '%v5.1_assessment_feedback%'
                   and selection_reason_json like ?
                 order by created_at desc, id desc
@@ -2397,6 +2416,23 @@ class DailyLearningRuntime:
         contract = assessment_store.bound_active_contract_for_flow_step(
             self.conn, str(attempt.get("flow_step_id") or "")
         )
+        flow = self._flow_by_id(flow_id)
+        flow_policy_version = str(
+            dict(flow).get("assessment_policy_version") if flow else ""
+        )
+        if flow_policy_version == "v5.1" and contract is None:
+            reason = "v5.1_answer_contract_missing"
+            with self.conn:
+                self._block_flow(
+                    flow_id,
+                    "这道题暂时缺少评分标准，系统不能安全批阅。已经停下，稍后恢复后继续。",
+                )
+            return {
+                "job_status": "blocked",
+                "reason": reason,
+                "attempt_id": attempt_id,
+                "pipeline_mode": "v5.1_fail_closed_missing_answer_contract",
+            }
         if contract is not None:
             return self._handle_v51_answer_analysis_job(
                 job=job,
@@ -2601,34 +2637,80 @@ class DailyLearningRuntime:
             contract=contract,
             assessment_input_digest_sha256=input_digest,
         )
-        recorded_output = (
-            payload.get("recorded_agent_output")
-            if isinstance(payload.get("recorded_agent_output"), dict)
-            else None
-        )
-        request = self._answer_analysis_request(
-            job=job,
-            attempt=attempt,
-            question=question,
-            provider_mode=provider_mode,
-            photo_ocr=photo_ocr,
-            recorded_output=recorded_output,
-            answer_contract=contract,
-        )
-        envelope = semantic_agents.call_answer_analysis_agent(request)
-        if envelope.status != "accepted":
-            return self._handle_pending_answer_analysis(
-                job,
-                attempt=attempt,
-                question=question,
-                review={
-                    "status": envelope.status,
-                    "reason": envelope.error_reason or "answer_analysis_agent blocked",
-                },
-                provider_mode=envelope.provider_mode,
-            )
 
         policy_contract = assessment_store.policy_contract_for_assessment(contract)
+        expected_contract = internal_agents.load_v5_contract_for_agent(
+            "answer_analysis_agent"
+        )
+        checkpoint_output = (
+            pending.get("semantic_output")
+            if isinstance(pending.get("semantic_output"), dict)
+            and pending.get("semantic_output_digest_sha256")
+            else None
+        )
+        checkpoint_envelope = (
+            pending.get("semantic_envelope")
+            if isinstance(pending.get("semantic_envelope"), dict)
+            and pending.get("semantic_envelope")
+            else {}
+        )
+        if checkpoint_output:
+            checkpoint_needed = False
+            envelope = semantic_agents.SemanticAgentEnvelope(
+                agent_key=str(
+                    checkpoint_envelope.get("agent_key")
+                    or "answer_analysis_agent"
+                ),
+                phase=str(checkpoint_envelope.get("phase") or "answer_analysis"),
+                status=str(checkpoint_envelope.get("status") or "accepted"),
+                provider_mode=str(
+                    checkpoint_envelope.get("provider_mode") or provider_mode
+                ),
+                retryable=bool(checkpoint_envelope.get("retryable", False)),
+                confidence=float(checkpoint_envelope.get("confidence") or 0.0),
+                output=checkpoint_output,
+                validation_errors=tuple(
+                    checkpoint_envelope.get("validation_errors") or ()
+                ),
+                error_reason=str(checkpoint_envelope.get("error_reason") or ""),
+                route_meta=dict(checkpoint_envelope.get("route_meta") or {}),
+                prompt_version_id=str(
+                    checkpoint_envelope.get("prompt_version_id")
+                    or expected_contract["prompt_version_id"]
+                ),
+                response_schema_version=str(
+                    checkpoint_envelope.get("response_schema_version")
+                    or expected_contract["response_schema_version"]
+                ),
+            )
+        else:
+            checkpoint_needed = True
+            recorded_output = (
+                payload.get("recorded_agent_output")
+                if isinstance(payload.get("recorded_agent_output"), dict)
+                else None
+            )
+            request = self._answer_analysis_request(
+                job=job,
+                attempt=attempt,
+                question=question,
+                provider_mode=provider_mode,
+                photo_ocr=photo_ocr,
+                recorded_output=recorded_output,
+                answer_contract=contract,
+            )
+            envelope = semantic_agents.call_answer_analysis_agent(request)
+            if envelope.status != "accepted":
+                return self._handle_pending_answer_analysis(
+                    job,
+                    attempt=attempt,
+                    question=question,
+                    review={
+                        "status": envelope.status,
+                        "reason": envelope.error_reason or "answer_analysis_agent blocked",
+                    },
+                    provider_mode=envelope.provider_mode,
+                )
         output = envelope.output
         expected_fields = {
             "schema_version",
@@ -2639,9 +2721,6 @@ class DailyLearningRuntime:
             "teaching_explanation",
             "confidence",
         }
-        expected_contract = internal_agents.load_v5_contract_for_agent(
-            "answer_analysis_agent"
-        )
         if (
             envelope.agent_key != "answer_analysis_agent"
             or envelope.phase != "answer_analysis"
@@ -2685,6 +2764,18 @@ class DailyLearningRuntime:
         if not calculated["finalized"]:
             raise model_router.ModelJSONParseError(
                 "answer review v3 contains unclear criteria"
+            )
+        if checkpoint_needed:
+            output_digest = question_fingerprints.canonical_sha256(output)
+            assessment_store.checkpoint_semantic_assessment_output(
+                self.conn,
+                assessment_id=pending["id"],
+                output=output,
+                output_digest_sha256=output_digest,
+                envelope={
+                    **envelope.as_result_refs(),
+                    "route_meta": envelope.route_meta or {},
+                },
             )
         reference_answer = self._assessment_reference_answer(contract)
         feedback = {
@@ -5371,7 +5462,7 @@ class DailyLearningRuntime:
 
     def _project_step(self, step: dict[str, Any]) -> dict[str, Any]:
         package = db.json_load(step.get("prompt_package_json"), {})
-        if step.get("step_type") in {"worked_example", "teaching_repair"}:
+        if step.get("step_type") in {"worked_example", "teaching_repair", "assessment_feedback"}:
             return child_teaching_step_dto({
                 **step,
                 **{
@@ -5866,6 +5957,18 @@ class DailyLearningRuntime:
             return question_bank.QUESTION_BANK_VERSION
         return str(dict(row).get("question_bank_version") or question_bank.QUESTION_BANK_VERSION)
 
+    def _active_answer_contract_for_question(self, question: dict[str, Any]) -> dict[str, Any] | None:
+        if not answer_assessment_v51_enabled():
+            return None
+        try:
+            return assessment_store.active_contract_for_question(
+                self.conn,
+                str(question.get("id") or ""),
+                str(question.get("item_version") or ""),
+            )
+        except (sqlite3.DatabaseError, KeyError, TypeError, ValueError):
+            return None
+
     def _create_question_step(
         self,
         *,
@@ -5884,6 +5987,22 @@ class DailyLearningRuntime:
         initial_status: str = "selected",
         answer_contract: dict[str, Any] | None = None,
     ) -> str:
+        if answer_contract is None:
+            answer_contract = self._active_answer_contract_for_question(question)
+        flow_row = self._flow_by_id(flow_id)
+        flow_policy_version = str(
+            dict(flow_row).get("assessment_policy_version") if flow_row else ""
+        )
+        if (
+            flow_policy_version == "v5.1"
+            and step_type in {"question", "micro_check", "standard_check", "variant_check"}
+            and answer_contract is None
+        ):
+            raise ChildSafeRuntimeError(
+                "这道题暂时缺少评分标准，系统不能安全安排作答。请稍后再试。",
+                status=503,
+                child_action="稍后重试",
+            )
         question_visual = self._question_visual_for_question(question)
         source_decision_id = str(selection_reason.get("source_next_step_decision_id") or "")
         if source_decision_id:
@@ -5952,6 +6071,9 @@ class DailyLearningRuntime:
                 prompt = f"{prompt}\n\n步骤提示：\n{steps_text}"
             prompt = f"{prompt}\n\n看完后不用在这里答题，下一步做一题很小的检查。"
             hint = support_hint or "看懂每一步为什么成立后点继续；如果哪一步看不懂，直接点还是卡住。"
+        elif step_type == "assessment_feedback":
+            prompt = support_hint or "先看本题得分和解析，再继续下一步。"
+            hint = "看完后点继续，系统会安排下一步。"
         elif step_type == "teaching_repair":
             prompt = support_hint or "先把关键关系写清楚，再做计算和检查。"
             hint = "看完后点继续，系统会给一题很小的检查；如果还是卡住，也可以直接说卡住。"
@@ -5963,7 +6085,7 @@ class DailyLearningRuntime:
                 else "先写你能确定的规则或关系；如果卡住了，也可以直接写卡在哪里。"
             )
         package_child_surface = question_child_surface
-        if step_type not in {"worked_example", "teaching_repair"}:
+        if step_type not in {"worked_example", "teaching_repair", "assessment_feedback"}:
             package_child_surface = child_prompt.project_child_surface(
                 prompt=prompt,
                 prompt_format=child_prompt.CHILD_PROMPT_FORMAT,
@@ -6012,7 +6134,13 @@ class DailyLearningRuntime:
                     "teaching_sections": teaching_sections or {},
                     "assessment_feedback": assessment_feedback or {},
                     "question_visual": question_visual,
-                    "allowed_response_modes": ["continue", "stuck"] if step_type in {"worked_example", "teaching_repair"} else None,
+                    "allowed_response_modes": (
+                        ["continue"]
+                        if step_type == "assessment_feedback"
+                        else ["continue", "stuck"]
+                        if step_type in {"worked_example", "teaching_repair"}
+                        else None
+                    ),
                 }),
                 db.json_dump(selection_reason),
                 selection_reason.get("source_next_step_decision_id"),
@@ -6671,7 +6799,7 @@ class DailyLearningRuntime:
                 if needs_repair
                 else "先看本题得分和解析，再继续下一题。"
             ),
-            step_type="teaching_repair",
+            step_type="assessment_feedback",
             answer_input_mode="none",
             teaching_sections=teaching_sections,
             assessment_feedback=feedback,
@@ -7408,6 +7536,7 @@ class DailyLearningRuntime:
 def _kind_label(step_type: str | None) -> str:
     return {
         "question": "小检测",
+        "assessment_feedback": "本题解析",
         "teaching_repair": "讲解",
         "worked_example": "例题",
         "micro_check": "小互动",

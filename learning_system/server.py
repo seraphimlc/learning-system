@@ -2350,7 +2350,8 @@ def main() -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with db.connect(db_path) as conn:
         db.init_schema(conn)
-        db.seed_from_assets(conn, PROJECT_ROOT)
+        if not _db_has_active_seed_assets(conn):
+            db.seed_from_assets(conn, PROJECT_ROOT)
     httpd = make_server(db_path, args.host, args.port, upload_root=Path(args.upload_root))
     print(f"Serving local learning system at http://{args.host}:{args.port}", flush=True)
     if loaded_env_keys:
@@ -2358,6 +2359,20 @@ def main() -> None:
     for line in _startup_ai_status_lines():
         print(line, flush=True)
     httpd.serve_forever()
+
+
+def _db_has_active_seed_assets(conn: sqlite3.Connection) -> bool:
+    try:
+        graph_nodes = int(conn.execute("select count(*) from graph_nodes").fetchone()[0])
+        questions = int(conn.execute("select count(*) from question_items").fetchone()[0])
+        active_ledgers = int(
+            conn.execute(
+                "select count(*) from question_bank_version_ledger where status = 'active'"
+            ).fetchone()[0]
+        )
+    except sqlite3.DatabaseError:
+        return False
+    return graph_nodes > 0 and questions > 0 and active_ledgers == 1
 
 
 if __name__ == "__main__":

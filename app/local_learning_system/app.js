@@ -25,6 +25,7 @@ const V5_CANONICAL_CHILD_STATES = Object.freeze({
   START_RESUME: "start_resume",
   CURRENT_STEP: "current_step",
   ANALYZING_PENDING: "analyzing_pending",
+  ASSESSMENT_FEEDBACK: "assessment_feedback",
   FEEDBACK_TEACHING: "feedback_teaching",
   CLARIFY_EVIDENCE: "clarify_evidence",
   READY_FOR_NEW_KNOWLEDGE: "ready_for_new_knowledge",
@@ -885,6 +886,7 @@ function v3UiState(childState) {
   if (canonical === V5_CANONICAL_CHILD_STATES.START_RESUME) return CHILD_UI_STATES.CHOOSE_REVIEW;
   if (canonical === V5_CANONICAL_CHILD_STATES.CURRENT_STEP) return CHILD_UI_STATES.CURRENT_STEP;
   if (canonical === V5_CANONICAL_CHILD_STATES.CLARIFY_EVIDENCE) return CHILD_UI_STATES.CURRENT_STEP;
+  if (canonical === V5_CANONICAL_CHILD_STATES.ASSESSMENT_FEEDBACK) return CHILD_UI_STATES.REVIEW_READY;
   if (canonical === V5_CANONICAL_CHILD_STATES.FEEDBACK_TEACHING) return CHILD_UI_STATES.TEACHING;
   if (canonical === V5_CANONICAL_CHILD_STATES.ANALYZING_PENDING) return CHILD_UI_STATES.ANALYZING;
   if (canonical === V5_CANONICAL_CHILD_STATES.READY_FOR_NEW_KNOWLEDGE) return CHILD_UI_STATES.READY_FOR_NEW_KNOWLEDGE;
@@ -1168,7 +1170,8 @@ function renderV3CurrentStep() {
   const inputMode = step.answer_input_mode || "text";
   const childState = state.data?.child_state || "";
   const canonical = canonicalV5ChildState(childState);
-  const isTeachingOnly = inputMode === "none" || canonical === V5_CANONICAL_CHILD_STATES.FEEDBACK_TEACHING || step.kind_label === "讲解";
+  const isAssessmentFeedback = canonical === V5_CANONICAL_CHILD_STATES.ASSESSMENT_FEEDBACK || step.kind_label === "本题解析";
+  const isTeachingOnly = inputMode === "none" || canonical === V5_CANONICAL_CHILD_STATES.FEEDBACK_TEACHING || isAssessmentFeedback || step.kind_label === "讲解";
   const isClarify = canonical === V5_CANONICAL_CHILD_STATES.CLARIFY_EVIDENCE || step.kind_label === "确认一下" || inputMode === "clarification";
   const interactionSchema = !isTeachingOnly ? normalizeInteractionSchema(step.interaction_schema) : null;
   const promptHtml = canonicalPromptHtml(step);
@@ -1190,10 +1193,10 @@ function renderV3CurrentStep() {
   const allowPhoto = allowedModes.has("photo") || allowedModes.has("text_photo") || allowedModes.has("clarification");
   const allowStuck = (allowedModes.has("stuck") || isClarify) && step.stuck_enabled !== false;
   const allowContinue = allowedModes.has("continue") || isTeachingOnly;
-  const promptLabel = isTeachingOnly ? "讲解" : (isClarify ? "请补清楚" : "题目");
-  const continueLabel = step.support?.continue_label || "继续小检查";
+  const promptLabel = isAssessmentFeedback ? "解析" : (isTeachingOnly ? "讲解" : (isClarify ? "请补清楚" : "题目"));
+  const continueLabel = step.support?.continue_label || (isAssessmentFeedback ? "看完，继续下一步" : "继续小检查");
   const stuckContinueLabel = step.support?.stuck_label || "还是卡住";
-  const teachingSectionsHtml = isTeachingOnly ? renderV5TeachingSections(step) : "";
+  const teachingSectionsHtml = isTeachingOnly && !isAssessmentFeedback ? renderV5TeachingSections(step) : "";
   const assessmentFeedbackHtml = isTeachingOnly ? renderV51AssessmentFeedback(step.assessment_feedback) : "";
   const activeStuckPrompts = isClarify
     ? [...stuckPrompts, ["无法补充，先记为待判断", "我现在无法补充得更清楚，先记为待判断。"]]
@@ -1220,7 +1223,7 @@ function renderV3CurrentStep() {
             题面图未加载，请刷新页面后再作答。
           </p>
         ` : ""}
-        ${step.support?.hint ? `<p class="row-meta">${escapeHtml(step.support.hint)}</p>` : ""}
+        ${step.support?.hint && !isAssessmentFeedback ? `<p class="row-meta">${escapeHtml(step.support.hint)}</p>` : ""}
         ${assessmentFeedbackHtml}
         ${teachingSectionsHtml}
         ${allowContinue ? `
@@ -1262,6 +1265,7 @@ function renderV3ChildState() {
   const message = v3Message();
   if (
     childState === V5_CANONICAL_CHILD_STATES.CURRENT_STEP
+    || childState === V5_CANONICAL_CHILD_STATES.ASSESSMENT_FEEDBACK
     || childState === V5_CANONICAL_CHILD_STATES.FEEDBACK_TEACHING
     || childState === V5_CANONICAL_CHILD_STATES.CLARIFY_EVIDENCE
   ) {

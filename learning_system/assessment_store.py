@@ -65,6 +65,12 @@ def _assessment_from_row(row: sqlite3.Row) -> dict[str, Any]:
     result["improvement_direction"] = db.json_load(
         result.pop("improvement_direction_json"), []
     )
+    result["semantic_output"] = db.json_load(
+        result.pop("semantic_output_json", "{}"), {}
+    )
+    result["semantic_envelope"] = db.json_load(
+        result.pop("semantic_envelope_json", "{}"), {}
+    )
     result["question_passed"] = bool(result["question_passed"])
     return result
 
@@ -591,6 +597,72 @@ def accepted_assessment_for_attempt(
         (attempt_id, attempt_version),
     ).fetchone()
     return _assessment_from_row(row) if row else None
+
+
+def checkpoint_semantic_assessment_output(
+    conn: sqlite3.Connection,
+    *,
+    assessment_id: str,
+    output: dict[str, Any],
+    envelope: dict[str, Any],
+    output_digest_sha256: str,
+    commit: bool = True,
+) -> dict[str, Any]:
+    assessment_id = _nonempty_text(assessment_id, "assessment_id")
+    output_digest_sha256 = _nonempty_text(
+        output_digest_sha256, "semantic_output_digest_sha256"
+    )
+    if not isinstance(output, dict) or not output:
+        raise ValueError("semantic output checkpoint must be a non-empty object")
+    if not isinstance(envelope, dict) or not envelope:
+        raise ValueError("semantic envelope checkpoint must be a non-empty object")
+    with (conn if commit else nullcontext()):
+        row = conn.execute(
+            "select * from attempt_assessments where id = ?",
+            (assessment_id,),
+        ).fetchone()
+        if not row:
+            raise ValueError("assessment does not exist")
+        assessment = _assessment_from_row(row)
+        if assessment["status"] == "accepted":
+            if assessment.get("semantic_output_digest_sha256") not in {
+                "",
+                output_digest_sha256,
+            }:
+                raise ValueError("accepted assessment checkpoint digest conflict")
+            return assessment
+        if assessment["status"] != "pending":
+            raise ValueError("only a pending assessment can receive a semantic checkpoint")
+        existing_digest = str(assessment.get("semantic_output_digest_sha256") or "")
+        if existing_digest:
+            if existing_digest != output_digest_sha256:
+                raise ValueError("semantic checkpoint retry has a conflicting digest")
+            return assessment
+        now = db.now_iso()
+        conn.execute(
+            """
+            update attempt_assessments
+            set semantic_output_json = ?, semantic_output_digest_sha256 = ?,
+                semantic_envelope_json = ?, semantic_checkpointed_at = ?,
+                updated_at = ?
+            where id = ? and status = 'pending'
+            """,
+            (
+                db.json_dump(output),
+                output_digest_sha256,
+                db.json_dump(envelope),
+                now,
+                now,
+                assessment_id,
+            ),
+        )
+    row = conn.execute(
+        "select * from attempt_assessments where id = ?",
+        (assessment_id,),
+    ).fetchone()
+    if not row:
+        raise ValueError("semantic checkpoint could not be read back")
+    return _assessment_from_row(row)
 
 
 def _validated_feedback(feedback: Any) -> dict[str, Any]:
