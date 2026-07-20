@@ -65,7 +65,6 @@ async function projection() {
 async function mobileSheetModalCleanupOracle() {
   const { context, page } = await freshPage({ width: 390, height: 844 });
   try {
-    await page.getByRole("button", { name: "展开全部知识模块" }).click();
     const node = page.locator(".knowledge-node-button:visible").first();
     const handle = await node.getAttribute("data-node-handle");
     const baselineInertCount = await page.locator("[inert]").count();
@@ -155,12 +154,12 @@ async function searchSelectionRestoreOracle() {
       return {
         selectedVisible: Boolean(selected?.getClientRects().length),
         selectedPressed: selected?.getAttribute("aria-pressed") === "true",
-        rootVisible: Boolean(document.querySelector(".mind-virtual-root")?.getClientRects().length),
+        directoryVisible: Boolean(document.querySelector(".mind-module-root-list")?.getClientRects().length),
       };
     }, target.handle);
     await screenshot(page, "knowledge-v51-regression-search-selection-restore.png");
     return {
-      pass: restored.selectedVisible && restored.selectedPressed && restored.rootVisible,
+      pass: restored.selectedVisible && restored.selectedPressed && restored.directoryVisible,
       target: target.name,
       restored,
     };

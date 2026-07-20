@@ -91,13 +91,16 @@ try {
   );
 
   await openKnowledgeMapExplorer();
-  const moduleTitles = await page.locator(".mind-module-toggle").evaluateAll((items) =>
-    items.map((item) => item.textContent.trim().replace(/\s+/g, " "))
+  const moduleTitles = await page.locator(".mind-module-heading").evaluateAll((items) =>
+    items.map((item) => item.childNodes[0]?.textContent?.trim() || "")
   );
-  report.mind_virtual_root_and_eight_modules_collapsed =
-    await page.locator(".mind-virtual-root").count() === 1 &&
+  report.flat_directory_shows_eight_modules_with_visible_nodes =
     moduleTitles.length === 8 &&
-    await page.locator(".mind-module-list:not([hidden])").count() === 0;
+    await page.locator(".mind-virtual-root").count() === 0 &&
+    await page.locator(".mind-node-toggle").count() === 0 &&
+    await page.locator(".mind-node-children").count() === 0 &&
+    await page.locator(".mind-module-list:not([hidden])").count() === 8 &&
+    await page.locator(".mind-module-list .knowledge-node-button:visible").count() === 55;
   report.mind_module_order_matches_learning_path =
     JSON.stringify(moduleTitles) === JSON.stringify(expectedModuleOrder);
   report.child_dom_has_no_graph_surface =
@@ -107,7 +110,6 @@ try {
   report.internal_process_module_hidden_in_dom =
     !/学习流程与错因|解题步骤与检验习惯/.test(await page.locator("body").innerText());
 
-  await page.getByRole("button", { name: "展开全部知识模块" }).click();
   const firstNode = page.locator(".knowledge-node-button").first();
   await firstNode.click();
   report.node_selection_opens_child_safe_detail =
@@ -119,7 +121,7 @@ try {
     .then(async () => page.locator(".mind-search-results .knowledge-node-button").count())
     .then((count) => count > 0 && count <= 6);
   report.search_clear_preserves_child_surface = await page.locator("[data-clear-search]").click()
-    .then(async () => page.locator(".mind-virtual-root").isVisible());
+    .then(async () => page.locator(".mind-module-root-list").isVisible());
   report.child_safe_dom = await page.locator("body").innerText().then((text) =>
     !/node_id|graph_version|provider|rubric|queue|job|agent|图谱|学习流程与错因/i.test(text)
   );

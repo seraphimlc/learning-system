@@ -2329,7 +2329,7 @@ class DualViewBrowserContractTests(KnowledgeViewsV51TestCase):
                 "child_home_defaults_to_simple_start",
                 "first_visit_mind_map",
                 "desktop_1280_no_horizontal_scroll",
-                "mind_virtual_root_and_eight_modules_collapsed",
+                "flat_directory_shows_eight_modules_with_visible_nodes",
                 "mind_module_order_matches_learning_path",
                 "child_dom_has_no_graph_surface",
                 "internal_process_module_hidden_in_dom",

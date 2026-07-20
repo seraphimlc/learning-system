@@ -19,7 +19,6 @@
     selectedHandle: "",
     query: "",
     filter: "all",
-    collapsed: {},
     selectedModuleHandle: "",
     graphFocusMode: "fit_all",
     graphViewportStored: false,
@@ -148,8 +147,6 @@
       window.localStorage.removeItem(graphViewportKey);
       window.localStorage.removeItem(storageKey("graph:focus-mode"));
     }
-    const collapsed = loadJsonPreference(storageKey("mind_map:collapsed"), {});
-    state.collapsed = collapsed && typeof collapsed === "object" ? collapsed : {};
     const pendingAction = loadJsonPreference(storageKey("target-action"), null);
     const pendingNode = state.nodeByHandle.get(pendingAction?.handle);
     state.pendingAction = (
@@ -176,10 +173,6 @@
       state.graphViewportStored = true;
       window.localStorage.setItem(storageKey("graph:focus-mode"), state.graphFocusMode);
     }
-  }
-
-  function saveCollapsed() {
-    window.localStorage.setItem(storageKey("mind_map:collapsed"), JSON.stringify(state.collapsed));
   }
 
   function savePendingAction() {
@@ -898,9 +891,6 @@
   }
 
   function renderWithSelectionGuard() {
-    if (state.selectedHandle && state.activeView === "mind_map") {
-      expandMindAncestors(state.selectedHandle);
-    }
     renderActiveView();
     if (!state.selectedHandle) return;
     window.requestAnimationFrame(() => {
@@ -1027,41 +1017,6 @@
     const current = buttons.indexOf(event.currentTarget);
     if (current < 0 || !buttons.length) return;
     event.preventDefault();
-    if (state.activeView === "mind_map") {
-      const item = event.currentTarget.closest(".mind-node-item");
-      const toggle = item?.querySelector(":scope > .mind-node-row > .mind-node-toggle");
-      if (event.key === "ArrowRight") {
-        if (toggle?.getAttribute("aria-expanded") === "false") {
-          toggle.click();
-          event.currentTarget.focus({ preventScroll: false });
-          return;
-        }
-        const child = item?.querySelector(":scope > .mind-node-children .knowledge-node-button");
-        if (child) {
-          buttons.forEach((button) => { button.tabIndex = -1; });
-          child.tabIndex = 0;
-          state.rovingHandle = child.dataset.nodeHandle || "";
-          child.focus({ preventScroll: false });
-          return;
-        }
-      }
-      if (event.key === "ArrowLeft") {
-        if (toggle?.getAttribute("aria-expanded") === "true") {
-          toggle.click();
-          event.currentTarget.focus({ preventScroll: false });
-          return;
-        }
-        const parentItem = item?.parentElement?.closest(".mind-node-item");
-        const parent = parentItem?.querySelector(":scope > .mind-node-row > .knowledge-node-button");
-        if (parent) {
-          buttons.forEach((button) => { button.tabIndex = -1; });
-          parent.tabIndex = 0;
-          state.rovingHandle = parent.dataset.nodeHandle || "";
-          parent.focus({ preventScroll: false });
-          return;
-        }
-      }
-    }
     let next = current;
     if (state.activeView === "graph" && event.key.startsWith("Arrow")) {
       const currentRect = event.currentTarget.getBoundingClientRect();
@@ -1097,86 +1052,11 @@
   function renderMindMap(nodes) {
     const world = state.root.querySelector('[data-knowledge-world="mind_map"]');
     world.replaceChildren();
-    const crossLinks = (state.projection.views.mind_map.cross_links || []).filter(
-      (link) => state.nodeByHandle.has(link.source_handle) && state.nodeByHandle.has(link.target_handle)
-    );
-    world.dataset.crossLinkCount = String(crossLinks.length);
-    const visible = new Set(nodes.map((node) => node.handle));
-    const placements = new Map(
-      state.projection.views.mind_map.placements.map((placement) => [placement.handle, placement])
-    );
-    const children = new Map();
-    for (const placement of placements.values()) {
-      const bucket = children.get(placement.parent_handle) || [];
-      bucket.push(placement);
-      children.set(placement.parent_handle, bucket);
-    }
-    for (const bucket of children.values()) bucket.sort((a, b) => a.order - b.order);
-    const rendered = new Set(visible);
-    if (state.query || state.selectedHandle) {
-      const ancestryHandles = state.query ? [...visible] : [state.selectedHandle];
-      for (const handle of ancestryHandles) {
-        let current = placements.get(handle);
-        while (current?.parent_type === "node") {
-          rendered.add(current.parent_handle);
-          current = placements.get(current.parent_handle);
-        }
-      }
-    }
 
-    const disclosureId = (kind, handle) =>
-      `knowledge-${kind}-${String(handle).replace(/[^A-Za-z0-9_-]/g, "_")}`;
-
-    const appendNode = (placement, list, trail = new Set()) => {
-      if (!rendered.has(placement.handle) || trail.has(placement.handle)) return;
-      const node = state.nodeByHandle.get(placement.handle);
-      if (!node) return;
+    const appendNode = (node, list) => {
       const item = document.createElement("li");
       item.className = "mind-node-item";
-      const row = document.createElement("div");
-      row.className = "mind-node-row";
-      row.append(nodeButton(node));
-      const descendants = (children.get(placement.handle) || []).filter((child) => rendered.has(child.handle));
-      if (descendants.length) {
-        const collapsed = state.collapsed[placement.handle] ?? Boolean(placement.collapsed_by_default);
-        const toggle = document.createElement("button");
-        toggle.type = "button";
-        toggle.className = "mind-node-toggle";
-        toggle.setAttribute("aria-expanded", String(!collapsed));
-        toggle.setAttribute("aria-label", `${collapsed ? "展开" : "折叠"} ${node.name} 的分支`);
-        toggle.textContent = collapsed ? "+" : "−";
-        const nested = document.createElement("ul");
-        nested.className = "mind-node-children";
-        nested.id = disclosureId("branch", placement.handle);
-        nested.hidden = collapsed;
-        toggle.setAttribute("aria-controls", nested.id);
-        const nextTrail = new Set(trail); nextTrail.add(placement.handle);
-        descendants.forEach((child) => appendNode(child, nested, nextTrail));
-        toggle.addEventListener("click", () => {
-          const nextCollapsed = !nested.hidden;
-          if (
-            nextCollapsed &&
-            state.selectedHandle &&
-            nested.querySelector(`[data-node-handle="${state.selectedHandle}"]`)
-          ) {
-            state.collapsed[placement.handle] = false;
-            announce("已保留当前知识点所在的分支");
-            return;
-          }
-          state.collapsed[placement.handle] = nextCollapsed;
-          nested.hidden = nextCollapsed;
-          toggle.textContent = nextCollapsed ? "+" : "−";
-          toggle.setAttribute("aria-expanded", String(!nextCollapsed));
-          toggle.setAttribute("aria-label", `${nextCollapsed ? "展开" : "折叠"} ${node.name} 的分支`);
-          saveCollapsed();
-          syncRovingTabindex();
-        });
-        row.append(toggle);
-        if (nested.childElementCount) item.append(row, nested);
-        else item.append(row);
-      } else {
-        item.append(row);
-      }
+      item.append(nodeButton(node));
       list.append(item);
     };
 
@@ -1192,180 +1072,34 @@
       return;
     }
 
-    const root = document.createElement("button");
-    root.type = "button";
-    root.className = "mind-virtual-root";
-    root.textContent = state.projection.views.mind_map.root_label || "我的数学知识体系";
     const modules = [...state.moduleByHandle.values()].sort((a, b) => a.order - b.order);
-    root.setAttribute(
-      "aria-controls",
-      modules.map((module) => disclosureId("module", module.handle)).join(" ")
-    );
-    const moduleCollapsed = (module) => (
-      state.collapsed[module.handle] ?? Boolean(module.collapsed_by_default)
-    );
-    const syncRootExpansion = () => {
-      const expandedCount = modules.filter((module) => !moduleCollapsed(module)).length;
-      root.setAttribute("aria-expanded", String(expandedCount > 0));
-      root.dataset.expansionState = expandedCount === 0
-        ? "collapsed"
-        : (expandedCount === modules.length ? "expanded" : "partial");
-      root.setAttribute(
-        "aria-label",
-        expandedCount > 0 ? "折叠全部知识模块" : "展开全部知识模块"
-      );
-    };
-    syncRootExpansion();
-    root.addEventListener("click", () => {
-      const expand = modules.every((module) => moduleCollapsed(module));
-      modules.forEach((module) => { state.collapsed[module.handle] = !expand; });
-      if (state.selectedHandle && !expand) expandMindAncestors(state.selectedHandle);
-      else saveCollapsed();
-      renderActiveView();
+    const nodesByModule = new Map();
+    nodes.forEach((node) => {
+      const bucket = nodesByModule.get(node.module_handle) || [];
+      bucket.push(node);
+      nodesByModule.set(node.module_handle, bucket);
     });
-    world.append(root);
-
-    const selectedCrossPrerequisites = crossLinks.filter(
-      (link) => link.target_handle === state.selectedHandle
-    );
-    if (selectedCrossPrerequisites.length) {
-      const details = document.createElement("details");
-      details.className = "mind-cross-prerequisites";
-      details.dataset.crossPrerequisiteCount = String(selectedCrossPrerequisites.length);
-      const summary = document.createElement("summary");
-      summary.textContent = `查看其他严格前置关系（${selectedCrossPrerequisites.length}）`;
-      summary.setAttribute("aria-expanded", "false");
-      const list = document.createElement("div");
-      list.className = "mind-cross-prerequisite-list";
-      selectedCrossPrerequisites.forEach((link) => {
-        const source = state.nodeByHandle.get(link.source_handle);
-        const target = state.nodeByHandle.get(link.target_handle);
-        const row = document.createElement("p");
-        row.className = "mind-cross-prerequisite";
-        row.dataset.crossLink = `${link.source_handle}:${link.target_handle}`;
-        const sourceName = document.createElement("span");
-        sourceName.textContent = source.name;
-        const direction = document.createElement("span");
-        direction.className = "mind-cross-direction";
-        direction.textContent = "严格前置 →";
-        const targetName = document.createElement("span");
-        targetName.textContent = target.name;
-        row.append(sourceName, direction, targetName);
-        list.append(row);
-      });
-      details.append(summary, list);
-      details.addEventListener("toggle", () => {
-        summary.setAttribute("aria-expanded", String(details.open));
-        if (details.open) {
-          window.requestAnimationFrame(() => renderMindCrossPaths(details, selectedCrossPrerequisites));
-        } else {
-          details.querySelector(".mind-cross-overlay")?.remove();
-        }
-      });
-      world.append(details);
-    }
-
     const moduleList = document.createElement("ul");
     moduleList.className = "mind-module-root-list";
     for (const module of modules) {
-      const roots = (children.get(module.handle) || []).filter((placement) => rendered.has(placement.handle));
-      if (!roots.length && nodes.length !== state.nodeByHandle.size) continue;
+      const moduleNodes = nodesByModule.get(module.handle) || [];
+      if (!moduleNodes.length) continue;
       const branch = document.createElement("li");
       branch.className = "mind-module-branch";
-      const toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "mind-module-toggle";
-      const collapsed = moduleCollapsed(module);
-      toggle.textContent = module.name;
-      toggle.setAttribute("aria-expanded", String(!collapsed));
+      const heading = document.createElement("h4");
+      heading.className = "mind-module-heading";
+      heading.textContent = module.name;
+      const count = document.createElement("span");
+      count.className = "mind-module-count";
+      count.textContent = `${moduleNodes.length} 个知识点`;
+      heading.append(count);
       const list = document.createElement("ul");
       list.className = "mind-module-list";
-      list.id = disclosureId("module", module.handle);
-      list.hidden = collapsed;
-      toggle.setAttribute("aria-controls", list.id);
-      roots.forEach((placement) => appendNode(placement, list));
-      toggle.addEventListener("click", () => {
-        const nextHidden = !list.hidden;
-        if (
-          nextHidden &&
-          state.selectedHandle &&
-          list.querySelector(`[data-node-handle="${state.selectedHandle}"]`)
-        ) {
-          state.collapsed[module.handle] = false;
-          announce("已保留当前知识点所在的模块");
-          return;
-        }
-        state.collapsed[module.handle] = nextHidden;
-        list.hidden = nextHidden;
-        toggle.setAttribute("aria-expanded", String(!list.hidden));
-        saveCollapsed();
-        syncRootExpansion();
-        syncRovingTabindex();
-      });
-      branch.append(toggle, list);
+      moduleNodes.forEach((node) => appendNode(node, list));
+      branch.append(heading, list);
       moduleList.append(branch);
     }
     world.append(moduleList);
-  }
-
-  function renderMindCrossPaths(details, links) {
-    details.querySelector(".mind-cross-overlay")?.remove();
-    if (!details.open || !links.length) return;
-    const target = state.root.querySelector(
-      `[data-knowledge-view="mind_map"] .knowledge-node-button[data-node-handle="${state.selectedHandle}"]`
-    );
-    if (!target || !target.getClientRects().length) return;
-    const baseRect = details.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const scale = state.viewports.mind_map.scale || 1;
-    const width = Math.max(
-      details.offsetWidth,
-      (targetRect.right - baseRect.left) / scale + 24
-    );
-    const height = Math.max(
-      details.offsetHeight,
-      (targetRect.bottom - baseRect.top) / scale + 24
-    );
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("class", "mind-cross-overlay");
-    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.setAttribute("aria-hidden", "true");
-    svg.innerHTML = '<defs><marker id="kv51-mind-cross-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker></defs>';
-    const targetX = (targetRect.left - baseRect.left) / scale;
-    const targetY = (targetRect.top + targetRect.height / 2 - baseRect.top) / scale;
-    const rows = [...details.querySelectorAll("[data-cross-link]")];
-    rows.forEach((row, index) => {
-      const rowRect = row.getBoundingClientRect();
-      const startX = (rowRect.right - baseRect.left) / scale;
-      const startY = (rowRect.top + rowRect.height / 2 - baseRect.top) / scale;
-      const bend = Math.max(24, Math.abs(targetX - startX) * 0.45);
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute(
-        "d",
-        `M ${startX} ${startY} C ${startX + bend} ${startY}, ${targetX - bend} ${targetY}, ${targetX} ${targetY}`
-      );
-      path.setAttribute("marker-end", "url(#kv51-mind-cross-arrow)");
-      path.setAttribute("class", "mind-cross-path");
-      path.dataset.crossPath = String(index + 1);
-      svg.append(path);
-    });
-    details.prepend(svg);
-  }
-
-  function expandMindAncestors(handle) {
-    const placements = new Map(
-      state.projection.views.mind_map.placements.map((placement) => [placement.handle, placement])
-    );
-    let placement = placements.get(handle);
-    while (placement) {
-      state.collapsed[placement.handle] = false;
-      if (placement.parent_type === "module") {
-        state.collapsed[placement.parent_handle] = false;
-        break;
-      }
-      placement = placements.get(placement.parent_handle);
-    }
-    saveCollapsed();
   }
 
   function fitSelectedMindContext(details, target) {
@@ -1380,68 +1114,18 @@
     }
   }
 
-  function layoutRectWithin(element, ancestor) {
-    let left = 0;
-    let top = 0;
-    let current = element;
-    while (current && current !== ancestor) {
-      left += current.offsetLeft;
-      top += current.offsetTop;
-      current = current.offsetParent;
-    }
-    if (current !== ancestor) return null;
-    return {
-      left,
-      top,
-      right: left + element.offsetWidth,
-      bottom: top + element.offsetHeight,
-    };
-  }
-
-  function positionMindLocateDetails(details, target) {
-    const world = state.root?.querySelector('[data-knowledge-world="mind_map"]');
-    if (!world || !details || !target?.getClientRects().length) return;
-    const targetRect = layoutRectWithin(target, world);
-    if (!targetRect) return;
-    const targetCenterX = (targetRect.left + targetRect.right) / 2;
-    const targetTop = targetRect.top;
-    const width = details.offsetWidth;
-    const height = details.offsetHeight;
-    const maximumLeft = Math.max(24, world.offsetWidth - width - 24);
-    const left = Math.min(maximumLeft, Math.max(24, targetCenterX - width / 2));
-    const top = Math.max(58, targetTop - height - 20);
-    details.style.left = `${left}px`;
-    details.style.top = `${top}px`;
-  }
-
   function restoreSelectedMindContext() {
     if (!state.selectedHandle || state.activeView !== "mind_map") {
       renderActiveView();
       return;
     }
-    expandMindAncestors(state.selectedHandle);
     renderActiveView();
     window.requestAnimationFrame(() => {
       const region = state.root?.querySelector('[data-knowledge-view="mind_map"]');
       const target = region?.querySelector(
         `.knowledge-node-button[data-node-handle="${state.selectedHandle}"]`
       );
-      const details = region?.querySelector(".mind-cross-prerequisites");
-      const selectedLinks = (state.projection.views.mind_map.cross_links || []).filter(
-        (link) => link.target_handle === state.selectedHandle
-      );
-      if (details && selectedLinks.length) {
-        details.classList.add("is-locate-context");
-        details.open = true;
-        details.querySelector("summary")?.setAttribute("aria-expanded", "true");
-        window.requestAnimationFrame(() => {
-          positionMindLocateDetails(details, target);
-          renderMindCrossPaths(details, selectedLinks);
-          fitSelectedMindContext(details, target);
-        });
-        return;
-      }
-      fitSelectedMindContext(details, target);
+      fitSelectedMindContext(null, target);
     });
   }
 
@@ -2403,7 +2087,6 @@
     state.selectedHandle = handle;
     state.rovingHandle = handle;
     state.graphFocusMode = "node_focus";
-    expandMindAncestors(handle);
     renderActiveView();
     if (state.activeView === "graph") fitReadableGraphNodes();
     const button = state.root.querySelector(
@@ -2460,7 +2143,6 @@
     state.selectedHandle = "";
     state.query = "";
     state.filter = "all";
-    state.collapsed = {};
     state.selectedModuleHandle = "";
     state.graphFocusMode = "fit_all";
     state.graphViewportStored = false;
