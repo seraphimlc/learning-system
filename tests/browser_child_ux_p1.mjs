@@ -46,6 +46,10 @@ const currentStepPayload = {
     kind_label: "小检测",
     topic_label: "含分母方程",
     prompt: "解方程：(x-1)/3+2=(x+5)/6。写出第一步去分母。",
+    prompt_format: "2026-07-17.child-plain-text.v1",
+    prompt_segments: [
+      { type: "text", text: "解方程：(x-1)/3+2=(x+5)/6。写出第一步去分母。" },
+    ],
     answer_input_mode: "text_photo",
     allowed_response_modes: ["text", "photo", "text_photo", "stuck"],
     upload_enabled: true,

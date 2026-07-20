@@ -5610,7 +5610,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.assertIsNotNone(attempt)
         return dict(attempt)
 
-    def _v3_output(self, attempt, *, first_status="met"):
+    def _v3_output(self, attempt, *, first_status="met", confidence=0.97):
         judgments = []
         for index, point in enumerate(self.contract["score_points"]):
             status = first_status if index == 0 else "met"
@@ -5643,7 +5643,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             ],
             "expression_judgment": "The mathematical intent is judged from the submitted evidence.",
             "teaching_explanation": "Use the approved relation, then verify the conclusion.",
-            "confidence": 0.97,
+            "confidence": confidence,
         }
 
     def _live_route(self, model_router):
@@ -6025,6 +6025,306 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
               and job_type in ('evaluation_update','planner_decision','teaching_generation')
             """,
             (attempt["id"],),
+        ).fetchone()[0])
+
+    def test_low_confidence_v51_review_clarifies_without_score_or_mastery(self):
+        from learning_system import assessment_store, model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "The written work is too unclear to judge safely.",
+            "submit-runtime-v51-low-confidence-clarify",
+        )
+        output = self._v3_output(attempt, first_status="unclear", confidence=0.2)
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.2,
+            output=output,
+            route_meta={"source": "runtime-v51-low-confidence-fixture"},
+            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ) as semantic_call, mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("unclear evidence must not call evaluation model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("unclear evidence must not call planner model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("unclear evidence must not call teaching model"),
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual(1, semantic_call.call_count)
+        self.assertEqual("clarify_evidence", result["next_action"])
+        self.assertIsNone(
+            assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt["attempt_version"]),
+            )
+        )
+        pending = self.conn.execute(
+            """
+            select status, score_out_of_10, semantic_output_digest_sha256
+            from attempt_assessments
+            where attempt_id = ?
+            """,
+            (attempt["id"],),
+        ).fetchone()
+        self.assertEqual("pending", pending["status"])
+        self.assertIsNone(pending["score_out_of_10"])
+        self.assertTrue(pending["semantic_output_digest_sha256"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{attempt['id']}%",),
+        ).fetchone()[0])
+        validation = self.conn.execute(
+            """
+            select gate_status, predicate_result_json, assessment_id
+            from evidence_validations
+            where attempt_id = ?
+            order by created_at desc limit 1
+            """,
+            (attempt["id"],),
+        ).fetchone()
+        self.assertNotEqual("passed", validation["gate_status"])
+        self.assertIsNone(validation["assessment_id"])
+        predicate = db.json_load(validation["predicate_result_json"], {})
+        self.assertFalse(predicate.get("usable"))
+        child_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", child_state["child_state"])
+        self.assertEqual("clarification", child_state["current_step"]["answer_input_mode"])
+        clarify_steps_before = self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
+            (self.flow_id,),
+        ).fetchone()[0]
+        clarify_decisions_before = self.conn.execute(
+            "select count(*) from next_step_decisions where flow_id = ? and action = 'clarify_evidence'",
+            (self.flow_id,),
+        ).fetchone()[0]
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("retry must reuse unclear semantic checkpoint"),
+        ):
+            replay = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("clarify_evidence", replay["next_action"])
+        self.assertEqual("existing_clarify_step_replayed", replay["reason"])
+        self.assertEqual(clarify_steps_before, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(clarify_decisions_before, self.conn.execute(
+            "select count(*) from next_step_decisions where flow_id = ? and action = 'clarify_evidence'",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_v51_accepted_assessment_with_unusable_evidence_does_not_drive_flow(self):
+        from learning_system import assessment_store, evidence_gate, model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "I state the relation, calculate, and verify the result.",
+            "submit-runtime-v51-evidence-rejected",
+        )
+        output = self._v3_output(attempt)
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.97,
+            output=output,
+            route_meta={"source": "runtime-v51-evidence-rejected-fixture"},
+            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        rejected_validation = evidence_gate.EvidenceValidationResult(
+            validation_id="EV-rejected-v51-unit",
+            gate_status="rejected",
+            predicate=evidence_gate.EvidencePredicateResult(
+                usable=False,
+                projection_status="rejected",
+                failed_fields=("graph_version",),
+                report_label="stale_graph_version",
+            ),
+        )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ), mock.patch.object(
+            evidence_gate.EvidenceGate,
+            "validate_attempt",
+            return_value=rejected_validation,
+        ), mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("rejected evidence must not call evaluation model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("rejected evidence must not call planner model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("rejected evidence must not call teaching model"),
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("blocked", result["job_status"])
+        self.assertEqual("stale_graph_version", result["report_label"])
+        self.assertIsNotNone(
+            assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt["attempt_version"]),
+            )
+        )
+        self.assertEqual(0, self.conn.execute(
+            """
+            select count(*) from flow_steps
+            where flow_id = ? and step_type = 'assessment_feedback'
+            """,
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{attempt['id']}%",),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from next_step_decisions where source_attempt_ids_json like ?",
+            (f"%{attempt['id']}%",),
+        ).fetchone()[0])
+        flow = dict(self.runtime._flow_by_id(self.flow_id))
+        self.assertEqual("blocked", flow["status"])
+
+    def test_clarify_stuck_submission_closes_to_summary_without_extra_models(self):
+        from learning_system import daily_runtime, model_router, semantic_agents
+
+        first_attempt = self._submit_text(
+            "The written work is too unclear to judge safely.",
+            "submit-runtime-v51-clarify-then-stuck-first",
+        )
+        output = self._v3_output(first_attempt, first_status="unclear", confidence=0.2)
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.2,
+            output=output,
+            route_meta={"source": "runtime-v51-clarify-then-stuck-fixture"},
+            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            response_schema_version=output["schema_version"],
+        )
+        first_job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (first_attempt["id"],),
+        ).fetchone())
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ):
+            self.runtime._handle_answer_analysis_job(first_job)
+
+        clarify_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", clarify_state["child_state"])
+        clarify_step = clarify_state["current_step"]
+        self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=clarify_step["step_handle"],
+                position=clarify_step["position"],
+                client_idempotency_key="submit-runtime-v51-clarify-stuck",
+                answer_text="我还是不会",
+            )
+        )
+        clarify_attempt = dict(self.conn.execute(
+            "select * from attempts where client_idempotency_key = ?",
+            ("submit-runtime-v51-clarify-stuck",),
+        ).fetchone())
+        clarify_job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (clarify_attempt["id"],),
+        ).fetchone())
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("clarify stuck must close without answer model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("clarify stuck must not call evaluation model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("clarify stuck must not call planner model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("clarify stuck must not call teaching model"),
+        ):
+            result = self.runtime._handle_answer_analysis_job(clarify_job)
+
+        self.assertEqual("summary", result["next_action"])
+        child_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("summary", child_state["child_state"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{clarify_attempt['id']}%",),
         ).fetchone()[0])
 
 

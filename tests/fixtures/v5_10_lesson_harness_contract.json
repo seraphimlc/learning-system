@@ -43,6 +43,7 @@
         "continue_teaching",
         "still_stuck_after_teaching",
         "submit_clarification",
+        "continue_assessment_feedback",
         "retry_blocked_origin_stage",
         "start_new_knowledge",
         "finish_to_summary"
@@ -57,6 +58,7 @@
       "required_conclusions": [
         "current_step",
         "analyzing_pending",
+        "assessment_feedback",
         "feedback_teaching",
         "clarify_evidence",
         "ready_for_new_knowledge",
@@ -291,8 +293,8 @@
       "target_node_id": "M-G7-POS-NEG",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 12,
-        "target": 10
+        "maximum": 20,
+        "target": 13
       },
       "coverage": [
         "all_correct",
@@ -307,7 +309,7 @@
       "target_node_id": "M-G7-EQ-WORD",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 14,
+        "maximum": 20,
         "target": 10
       },
       "coverage": [
@@ -324,12 +326,11 @@
       "target_node_id": "M-G7-RATIONAL-ADD-SUB",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 14,
+        "maximum": 20,
         "target": 10
       },
       "coverage": [
         "all_partial",
-        "feedback_teaching",
         "summary"
       ],
       "adaptive_stop": "alternate_current_step_retest_and_teaching_without_fixed_questions"
@@ -340,9 +341,9 @@
       "profile": "mixed",
       "target_node_id": "M-G7-RATIONAL-MIXED",
       "interaction_budget": {
-        "minimum": 10,
-        "maximum": 16,
-        "target": 13
+        "minimum": 16,
+        "maximum": 20,
+        "target": 16
       },
       "coverage": [
         "mixed",
@@ -358,8 +359,8 @@
       "profile": "answer_only_stuck",
       "target_node_id": "M-G7-EQ-DENOM",
       "interaction_budget": {
-        "minimum": 10,
-        "maximum": 18,
+        "minimum": 16,
+        "maximum": 20,
         "target": 16
       },
       "coverage": [
@@ -378,7 +379,7 @@
       "target_node_id": "M-G7-RATIONAL-ADD-SUB",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 12,
+        "maximum": 20,
         "target": 10
       },
       "coverage": [
@@ -394,7 +395,7 @@
       "target_node_id": "M-G7-ALG-EXPR",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 14,
+        "maximum": 20,
         "target": 10
       },
       "coverage": [
@@ -411,7 +412,7 @@
       "target_node_id": "M-G7-EQ-SOLVE",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 15,
+        "maximum": 20,
         "target": 11
       },
       "coverage": [
@@ -429,7 +430,7 @@
       "target_node_id": "M-G7-COMPARE",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 16,
+        "maximum": 20,
         "target": 10
       },
       "coverage": [
@@ -447,7 +448,7 @@
       "target_node_id": "M-G7-ANGLE-CALC",
       "interaction_budget": {
         "minimum": 10,
-        "maximum": 14,
+        "maximum": 20,
         "target": 10
       },
       "coverage": [

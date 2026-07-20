@@ -1927,44 +1927,97 @@ def record_question_review_record(
             """,
             (question_id, item_version, source_type, candidate_sha256),
         )
-    record_id = f"QRR-{uuid.uuid4().hex[:12]}"
     reviewed_at = now_iso()
-    conn.execute(
-        """
-        insert or replace into question_review_records(
-          id, question_id, candidate_id, item_version, source_type,
-          candidate_sha256, designer_run_id, reviewer_run_id,
-          review_contract_version, review_status, rejection_reasons_json,
-          criteria_json, active_eligible, reviewed_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            record_id,
-            question_id,
-            candidate_id,
-            item_version,
-            source_type,
-            candidate_sha256,
-            designer_run_id,
-            reviewer_run_id,
-            quality.get("contract_version", question_bank.QUESTION_PRODUCTION_CONTRACT_VERSION),
-            quality.get("review_status", "rejected"),
-            json_dump(quality.get("rejection_reasons", [])),
-            json_dump({
-                "criteria": quality.get("criteria", []),
-                "requires_reasoning": quality.get("requires_reasoning"),
-                "has_high_signal_structure": quality.get("has_high_signal_structure"),
-                "no_mechanical_drill": quality.get("no_mechanical_drill"),
-                "requires_process_evidence": quality.get("requires_process_evidence", []),
-                "problem_family_id": quality.get("problem_family_id", ""),
-                "core_stem_id": quality.get("core_stem_id", ""),
-                "node_alignment": quality.get("node_alignment", {}),
-                "identity_basis": quality.get("identity_basis", {}),
-            }),
-            1 if active_eligible else 0,
-            reviewed_at,
-        ),
+    contract_version = quality.get(
+        "contract_version", question_bank.QUESTION_PRODUCTION_CONTRACT_VERSION
     )
+    review_status = quality.get("review_status", "rejected")
+    rejection_reasons = json_dump(quality.get("rejection_reasons", []))
+    criteria = json_dump({
+        "criteria": quality.get("criteria", []),
+        "requires_reasoning": quality.get("requires_reasoning"),
+        "has_high_signal_structure": quality.get("has_high_signal_structure"),
+        "no_mechanical_drill": quality.get("no_mechanical_drill"),
+        "requires_process_evidence": quality.get("requires_process_evidence", []),
+        "problem_family_id": quality.get("problem_family_id", ""),
+        "core_stem_id": quality.get("core_stem_id", ""),
+        "node_alignment": quality.get("node_alignment", {}),
+        "identity_basis": quality.get("identity_basis", {}),
+    })
+    existing = (
+        conn.execute(
+            """
+            select id
+            from question_review_records
+            where question_id = ?
+              and item_version = ?
+              and candidate_sha256 = ?
+            limit 1
+            """,
+            (question_id, item_version, candidate_sha256),
+        ).fetchone()
+        if question_id
+        else None
+    )
+    if existing:
+        record_id = existing["id"]
+        conn.execute(
+            """
+            update question_review_records
+            set candidate_id = ?,
+                source_type = ?,
+                designer_run_id = ?,
+                reviewer_run_id = ?,
+                review_contract_version = ?,
+                review_status = ?,
+                rejection_reasons_json = ?,
+                criteria_json = ?,
+                active_eligible = ?,
+                reviewed_at = ?
+            where id = ?
+            """,
+            (
+                candidate_id,
+                source_type,
+                designer_run_id,
+                reviewer_run_id,
+                contract_version,
+                review_status,
+                rejection_reasons,
+                criteria,
+                1 if active_eligible else 0,
+                reviewed_at,
+                record_id,
+            ),
+        )
+    else:
+        record_id = f"QRR-{uuid.uuid4().hex[:12]}"
+        conn.execute(
+            """
+            insert into question_review_records(
+              id, question_id, candidate_id, item_version, source_type,
+              candidate_sha256, designer_run_id, reviewer_run_id,
+              review_contract_version, review_status, rejection_reasons_json,
+              criteria_json, active_eligible, reviewed_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record_id,
+                question_id,
+                candidate_id,
+                item_version,
+                source_type,
+                candidate_sha256,
+                designer_run_id,
+                reviewer_run_id,
+                contract_version,
+                review_status,
+                rejection_reasons,
+                criteria,
+                1 if active_eligible else 0,
+                reviewed_at,
+            ),
+        )
     if commit:
         conn.commit()
     return {

@@ -1,7 +1,7 @@
 # Codex Multi-Agent Collaboration Contract
 
 Status: active model-facing router
-Updated: 2026-07-17
+Updated: 2026-07-19
 
 ## Startup
 

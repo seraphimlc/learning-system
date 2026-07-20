@@ -28,6 +28,16 @@ CURRENT_NUMBER_LINE_CHECKPOINT = (
     PROJECT_ROOT
     / "data/question_banks/math/.v12_pilot_six_checkpoints/M-G7-NUMBER-LINE.json"
 )
+LEGACY_V6_PARTIAL_FIXTURE_NODE_ID = "M-G7-POS-NEG"
+LEGACY_V6_PARTIAL_FIXTURE_ARTIFACT_SHA256 = (
+    "a266bac93408931a5408fcc4e526b1486a231ae5cc1d856fbeb87feca6db88d9"
+)
+LEGACY_V6_PARTIAL_FIXTURE_COMMITMENT_SHA256 = (
+    "de0a94af9b4ca54ee9254aafa179a51e935a9a6df3ab0ce4d8291380a8fe96d7"
+)
+LEGACY_V6_PARTIAL_FIXTURE_AGGREGATE_SHA256 = (
+    "4f028c1772ca87e8132b5da07ed1ce0b81f522f216ac884110e883f684f9d3e6"
+)
 
 
 def _load_builder():
@@ -118,6 +128,12 @@ def _node_set_constituent_reviews(
                 "slot": slot,
                 "item_id": items[slot - 1]["id"],
                 "candidate_sha256": question_bank.v12_external_candidate_sha256(items[slot - 1]),
+                "child_surface_sha256": question_bank.v12_item_review_subject_binding(
+                    items[slot - 1]
+                )["child_surface_sha256"],
+                "item_review_request_sha256": question_bank.v12_item_review_subject_binding(
+                    items[slot - 1]
+                )["item_review_request_sha256"],
                 "item_review_semantic_evidence_sha256": (
                     items[slot - 1]["review_artifact"]["semantic_evidence_sha256"]
                 ),
@@ -186,12 +202,43 @@ def _global_finalizer_artifact(
     *,
     model_judgment_override: dict | None = None,
 ) -> dict:
+    evidence_moves = list(question_bank.V12_PRIMARY_EVIDENCE_MOVES)
+    answer_paths = list(question_bank.V12_ANSWER_PATH_FAMILIES)
+    representations = list(question_bank.V12_REPRESENTATION_FAMILIES)
+    classifications = []
+    for index, item in enumerate(sorted(node_entry["items"], key=lambda value: int(value["slot"]))):
+        subject = question_bank.v12_item_review_subject_binding(item)
+        classifications.append({
+            **{
+                key: subject[key]
+                for key in (
+                    "node_id",
+                    "slot",
+                    "item_id",
+                    "candidate_sha256",
+                    "child_surface_sha256",
+                    "item_review_request_sha256",
+                    "item_review_semantic_evidence_sha256",
+                )
+            },
+            "ownership_mode": "current_node_mainline",
+            "current_node_indispensable": "yes",
+            "primary_evidence_move": evidence_moves[index % len(evidence_moves)],
+            "answer_path_family": answer_paths[index % len(answer_paths)],
+            "representation_family": representations[index % len(representations)],
+            "difficulty_verdict": "L2" if index < 14 else "L3",
+            "difficulty_features": [],
+            "prompt_interaction_verdict": "aligned",
+            "reason": "fixture global classification",
+        })
     model_judgment = {
         "schema_version": question_bank.V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION,
         "node_id": node_entry["node_id"],
         "graph_version": graph_version,
         "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
         "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_FINALIZER_MODEL_EVIDENCE_VERSION,
+        "item_classifications": classifications,
+        "homogeneous_clusters": [],
         "distribution_scores": {
             key: 0.95 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
         },
@@ -269,6 +316,7 @@ def _v3_live_manifest(module) -> tuple[dict, dict]:
                 "type": "short_text",
                 "title": "写出变化量并解释正负号",
                 "allow_explanation": True,
+                "requires_explanation": False,
                 "explanation_label": "补充说明",
                 "fields": [],
                 "choices": [],
@@ -351,6 +399,9 @@ def _v3_live_manifest(module) -> tuple[dict, dict]:
             ),
         }
         review["candidate_sha256"] = question_bank.v12_external_candidate_sha256(item)
+        child_surface = question_bank.canonical_child_surface_projection(item)
+        review["child_surface_sha256"] = child_surface["projection_sha256"]
+        review["item_review_request_sha256"] = question_bank.v12_item_review_request_sha256(item)
         review["semantic_evidence_sha256"] = question_bank.v12_item_review_semantic_evidence_sha256(item, review)
         item["review_artifact"] = review
         items.append(item)
@@ -363,10 +414,12 @@ def _v3_live_manifest(module) -> tuple[dict, dict]:
         shard_size=question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
     )
 
+    global_verifier = _global_verifier_artifact(module, node_entry, reviews, graph_version)
     global_finalizer = _global_finalizer_artifact(module, node_entry, reviews, graph_version)
     node_entry["node_review_artifact"] = module._aggregate_node_set_review_outputs(
         node_entry=node_entry,
         shard_reviews=reviews,
+        global_verifier_artifact=global_verifier,
         global_finalizer_artifact=global_finalizer,
         node_review_concurrency=1,
     )["node_review_artifact"]
@@ -415,6 +468,117 @@ def _global_finalizer_route() -> model_router.ModelRoute:
         api_key="test-only",
         timeout_seconds=1.0,
         model_params={},
+    )
+
+
+def _global_verifier_route() -> model_router.ModelRoute:
+    return model_router.ModelRoute(
+        agent_key=question_bank.QUESTION_REVIEWER_AGENT_KEY,
+        task="node_global_verifier",
+        provider="gpt",
+        model="gpt-5.4",
+        model_alias="gpt-5.4",
+        base_url="https://example.invalid",
+        api_key="test-only",
+        timeout_seconds=1.0,
+        model_params={},
+    )
+
+
+def _classification_for_item(item: dict, index: int) -> dict:
+    evidence_moves = list(question_bank.V12_PRIMARY_EVIDENCE_MOVES)
+    answer_paths = list(question_bank.V12_ANSWER_PATH_FAMILIES)
+    representations = list(question_bank.V12_REPRESENTATION_FAMILIES)
+    subject = question_bank.v12_item_review_subject_binding(item)
+    return {
+        **{
+            key: subject[key]
+            for key in (
+                "node_id",
+                "slot",
+                "item_id",
+                "candidate_sha256",
+                "child_surface_sha256",
+                "item_review_request_sha256",
+                "item_review_semantic_evidence_sha256",
+            )
+        },
+        "ownership_mode": "current_node_mainline",
+        "current_node_indispensable": "yes",
+        "primary_evidence_move": evidence_moves[index % len(evidence_moves)],
+        "answer_path_family": answer_paths[index % len(answer_paths)],
+        "representation_family": representations[index % len(representations)],
+        "difficulty_verdict": "L2" if index < 14 else "L3",
+        "difficulty_features": [],
+        "prompt_interaction_verdict": "aligned",
+        "reason": "fixture global classification",
+    }
+
+
+def _global_verifier_artifact(
+    module,
+    node_entry: dict,
+    reviews: list[dict],
+    graph_version: str,
+) -> dict:
+    contract, prompt_template = module._canonical_global_verifier_material()
+    route = _global_verifier_route()
+    item_by_slot = {
+        int(item["slot"]): item
+        for item in node_entry["items"]
+    }
+    shard_artifacts = []
+    for reviewed_slots in question_bank.v12_expected_global_verifier_shards():
+        classifications = [
+            _classification_for_item(item_by_slot[slot], slot - 1)
+            for slot in reviewed_slots
+        ]
+        model_judgment = {
+            "schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+            "node_id": node_entry["node_id"],
+            "graph_version": graph_version,
+            "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
+            "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION,
+            "reviewed_slots": list(reviewed_slots),
+            "item_classifications": classifications,
+            "homogeneous_clusters": [],
+            "distribution_scores": {
+                key: 0.95 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+            },
+            "repetitive_instruction_clusters": [],
+            "duplicate_groups": [],
+            "confidence": 0.95,
+            "reasons": ["global verifier shard approved"],
+            "repair_plan": [],
+        }
+        lineage = module._global_verifier_shard_expected_lineage(
+            node_entry,
+            reviews,
+            list(reviewed_slots),
+        )
+        result = model_router.StructuredJSONResult(
+            value=model_judgment,
+            mode="json_schema",
+            raw_response={"node_global_verifier": list(reviewed_slots)},
+        )
+        shard_artifacts.append(module._node_set_global_verifier_shard_artifact(
+            node_entry=node_entry,
+            constituent_reviews=reviews,
+            reviewed_slots=list(reviewed_slots),
+            model_judgment=model_judgment,
+            contract=contract,
+            prompt_template=prompt_template,
+            rendered_prompt=lineage["rendered_prompt"],
+            result=result,
+            route=route,
+            stage_attempt=1,
+        ))
+    return module._node_set_global_verifier_artifact(
+        node_entry=node_entry,
+        constituent_reviews=reviews,
+        shard_artifacts=shard_artifacts,
+        route=route,
+        stage_attempt=1,
     )
 
 
@@ -473,12 +637,25 @@ def _successful_node_set_batch_result(module, node_entry: dict, graph_version: s
 
 def _successful_global_finalizer_batch_result(module, kwargs: dict):
     trusted = kwargs["trusted_context"]
+    items = (
+        kwargs["untrusted_payload"].get("item_cards")
+        or kwargs["untrusted_payload"].get("items")
+        or kwargs["untrusted_payload"].get("full_items")
+        or []
+    )
+    classifications = [
+        _classification_for_item_card(item, index)
+        for index, item in enumerate(items)
+        if isinstance(item, dict)
+    ]
     judgment = {
         "schema_version": question_bank.V12_NODE_SET_GLOBAL_FINALIZER_RESPONSE_SCHEMA_VERSION,
         "node_id": trusted["node"]["id"],
         "graph_version": trusted["graph_version"],
         "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
         "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_FINALIZER_MODEL_EVIDENCE_VERSION,
+        "item_classifications": classifications,
+        "homogeneous_clusters": [],
         "distribution_scores": {
             key: 0.95 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
         },
@@ -497,6 +674,78 @@ def _successful_global_finalizer_batch_result(module, kwargs: dict):
         value=judgment,
         mode="json_schema",
         raw_response={"node_global_finalizer": "approved"},
+    ), rendered_prompt
+
+
+def _classification_for_item_card(card: dict, index: int) -> dict:
+    evidence_moves = list(question_bank.V12_PRIMARY_EVIDENCE_MOVES)
+    answer_paths = list(question_bank.V12_ANSWER_PATH_FAMILIES)
+    representations = list(question_bank.V12_REPRESENTATION_FAMILIES)
+    subject = card.get("review_subject") if isinstance(card.get("review_subject"), dict) else {}
+    return {
+        **{
+            key: subject[key]
+            for key in (
+                "node_id",
+                "slot",
+                "item_id",
+                "candidate_sha256",
+                "child_surface_sha256",
+                "item_review_request_sha256",
+                "item_review_semantic_evidence_sha256",
+            )
+        },
+        "ownership_mode": "current_node_mainline",
+        "current_node_indispensable": "yes",
+        "primary_evidence_move": evidence_moves[index % len(evidence_moves)],
+        "answer_path_family": answer_paths[index % len(answer_paths)],
+        "representation_family": representations[index % len(representations)],
+        "difficulty_verdict": "L2" if index < 14 else "L3",
+        "difficulty_features": [],
+        "prompt_interaction_verdict": "aligned",
+        "reason": "fixture global classification",
+    }
+
+
+def _successful_global_verifier_batch_result(module, kwargs: dict):
+    trusted = kwargs["trusted_context"]
+    cards = kwargs["untrusted_payload"].get("full_items") or []
+    reviewed_slots = list(trusted["reviewed_slots"])
+    classifications = [
+        _classification_for_item_card(
+            card,
+            int((card.get("review_subject") or {}).get("slot") or 1) - 1,
+        )
+        for card in cards
+        if isinstance(card, dict)
+    ]
+    judgment = {
+        "schema_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_RESPONSE_SCHEMA_VERSION,
+        "node_id": trusted["node"]["id"],
+        "graph_version": trusted["graph_version"],
+        "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
+        "semantic_evidence_version": question_bank.V12_NODE_SET_GLOBAL_VERIFIER_SHARD_MODEL_EVIDENCE_VERSION,
+        "reviewed_slots": reviewed_slots,
+        "item_classifications": classifications,
+        "homogeneous_clusters": [],
+        "distribution_scores": {
+            key: 0.95 for key in question_bank.V12_NODE_SET_DISTRIBUTION_SCORE_KEYS
+        },
+        "repetitive_instruction_clusters": [],
+        "duplicate_groups": [],
+        "confidence": 0.95,
+        "reasons": ["global verifier shard approved"],
+        "repair_plan": [],
+    }
+    rendered_prompt = module._render_prompt(
+        kwargs["prompt_template"],
+        trusted_context=trusted,
+        untrusted_payload=kwargs["untrusted_payload"],
+    )
+    return model_router.StructuredJSONResult(
+        value=judgment,
+        mode="json_schema",
+        raw_response={"node_global_verifier": reviewed_slots},
     ), rendered_prompt
 
 
@@ -520,10 +769,12 @@ def _build_live_node_from_checkpoint(
         designer_contract=json.loads(module.DESIGNER_CONTRACT_PATH.read_text(encoding="utf-8")),
         reviewer_contract=json.loads(module.REVIEWER_CONTRACT_PATH.read_text(encoding="utf-8")),
         node_set_reviewer_contract=json.loads(module.NODE_SET_REVIEWER_CONTRACT_PATH.read_text(encoding="utf-8")),
+        global_verifier_contract=module._load_global_verifier_contract(),
         global_finalizer_contract=json.loads(module.GLOBAL_FINALIZER_CONTRACT_PATH.read_text(encoding="utf-8")),
         designer_prompt_template=module.DESIGNER_PROMPT_PATH.read_text(encoding="utf-8"),
         reviewer_prompt_template=module.REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
         node_set_reviewer_prompt_template=module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+        global_verifier_prompt_template=module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(encoding="utf-8"),
         global_finalizer_prompt_template=module.GLOBAL_FINALIZER_PROMPT_PATH.read_text(encoding="utf-8"),
         accepted_core_summaries=[],
     )
@@ -647,6 +898,139 @@ def _pre_shard_policy_checkpoint(
     return _reseal_pre_shard_policy_checkpoint(module, checkpoint)
 
 
+def _legacy_v6_partial_focal_review_checkpoint(
+    module,
+    node_entry: dict,
+    *,
+    graph_version: str,
+) -> dict:
+    checkpoint_node = copy.deepcopy(node_entry)
+    reviews = _node_set_constituent_reviews(
+        module,
+        checkpoint_node,
+        graph_version=graph_version,
+        shard_size=question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
+    )
+    checkpoint_node["node_review_artifact"] = _partial_node_review_artifact(
+        module,
+        checkpoint_node,
+        reviews,
+    )
+    artifact = checkpoint_node["node_review_artifact"]
+    artifact.pop("global_verifier_shards", None)
+    coverage = question_bank.v12_node_set_semantic_evidence_coverage(
+        checkpoint_node,
+        reviews,
+    )
+    aggregation_payload = {
+        "strategy": "v4_focal_evidence_pending_global_finalizer",
+        "node_candidate_sha256": question_bank.v12_node_candidate_sha256(checkpoint_node),
+        "constituent_hashes": [
+            review.get("review_output_sha256", "")
+            for review in reviews
+        ],
+        "reviewed_slots": [
+            entry.get("slot")
+            for entry in coverage
+        ],
+        "global_finalizer_output_sha256": "",
+        "global_verifier_semantic_evidence_sha256": "",
+    }
+    artifact["aggregation"] = {
+        **aggregation_payload,
+        "aggregate_sha256": module._sha256_json(aggregation_payload),
+        "constituent_count": len(reviews),
+        "shard_size": question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
+        "expected_constituent_count": len(question_bank.v12_expected_node_set_review_shards()),
+    }
+    artifact["semantic_evidence_sha256"] = (
+        module._legacy_v6_partial_focal_review_semantic_evidence_sha256(
+            checkpoint_node,
+            reviews,
+        )
+    )
+    slot_rounds = {str(slot): 1 for slot in range(1, 21)}
+    checkpoint = {
+        "node_id": checkpoint_node["node_id"],
+        "graph_version": graph_version,
+        "status": "incomplete",
+        "rounds_used": 1,
+        "rejected_rounds": 0,
+        "issue_count": 0,
+        "blocking_issue_types": [],
+        "node": checkpoint_node,
+        "source_node_candidate_sha256": question_bank.v12_node_candidate_sha256(checkpoint_node),
+        "accepted_slots": {
+            str(item["slot"]): copy.deepcopy(item)
+            for item in checkpoint_node["items"]
+        },
+        "slot_rounds": slot_rounds,
+        "pending_repair_by_slot": {},
+        "node_set_rejected_slots": [],
+        "stage_counters": {
+            "local_item_rounds_by_slot": copy.deepcopy(slot_rounds),
+            "node_set_review_round": 1,
+            "node_set_repair_rounds_by_slot": {},
+            "cross_node_repair_rounds_by_slot": {},
+        },
+        "repair_chain_events": [],
+        "repair_chain_head_sha256": "",
+        "repair_chain_hash": module._repair_chain_commitment_hash([]),
+    }
+    checkpoint["semantic_evidence_commitment"] = (
+        module._legacy_v6_pre_global_verifier_shards_semantic_evidence_commitment(
+            checkpoint_node
+        )
+    )
+    checkpoint["checkpoint_integrity_sha256"] = module._checkpoint_integrity_sha256(checkpoint)
+    return checkpoint
+
+
+def _reseal_legacy_v6_partial_focal_review_checkpoint(module, checkpoint: dict) -> dict:
+    checkpoint["semantic_evidence_commitment"] = (
+        module._legacy_v6_pre_global_verifier_shards_semantic_evidence_commitment(
+            checkpoint["node"]
+        )
+    )
+    checkpoint["checkpoint_integrity_sha256"] = module._checkpoint_integrity_sha256(checkpoint)
+    return checkpoint
+
+
+def _focal_review_provenance_fingerprint(artifact: dict) -> list[dict]:
+    keys = (
+        "agent_key",
+        "artifact_role",
+        "batch_raw_response_sha256",
+        "contract_key",
+        "contract_version",
+        "model_alias",
+        "model_name",
+        "model_provider",
+        "node_candidate_sha256",
+        "phase",
+        "pipeline_stage",
+        "prompt_template_sha256",
+        "prompt_version_id",
+        "provider_mode",
+        "rendered_prompt_sha256",
+        "response_schema_sha256",
+        "response_schema_version",
+        "review_output_sha256",
+        "review_phase",
+        "reviewed_slots",
+        "semantic_evidence_sha256",
+        "semantic_evidence_version",
+        "shard_id",
+        "stage_attempt",
+        "structured_json_mode",
+    )
+    return [
+        {key: copy.deepcopy(review.get(key)) for key in keys}
+        for review in artifact.get("constituent_reviews") or []
+        if isinstance(review, dict)
+    ]
+
+
 def _write_checkpoint_file(checkpoint_dir: Path, checkpoint: dict) -> Path:
     path = checkpoint_dir / f"{checkpoint['node_id']}.json"
     path.write_text(json.dumps(checkpoint, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -703,24 +1087,22 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
         module = _load_builder()
         self.assertTrue(CURRENT_NUMBER_LINE_CHECKPOINT.is_file())
         original = CURRENT_NUMBER_LINE_CHECKPOINT.read_bytes()
-        completed = json.loads(original)
-        graph = json.loads(
-            (
-                PROJECT_ROOT
-                / "data/knowledge_graphs/math/math_knowledge_graph_v2.json"
-            ).read_text(encoding="utf-8")
-        )
+        manifest, graph = _v3_live_manifest(module)
+        completed = copy.deepcopy(manifest["nodes"][0])
         node = next(item for item in graph["nodes"] if item["id"] == completed["node_id"])
-        calls: list[str] = []
+        calls: list[tuple[str, list[int]]] = []
 
         def fake_call(**kwargs):
-            calls.append(kwargs["route"].task)
+            if kwargs["route"].task == "node_global_verifier":
+                calls.append((kwargs["route"].task, list(kwargs["trusted_context"]["reviewed_slots"])))
+                return _successful_global_verifier_batch_result(module, kwargs)
+            calls.append((kwargs["route"].task, []))
             self.assertEqual("node_global_finalizer", kwargs["route"].task)
             return _successful_global_finalizer_batch_result(module, kwargs)
 
         with tempfile.TemporaryDirectory() as tmp:
             checkpoint_dir = Path(tmp)
-            node_entry = copy.deepcopy(completed["node"])
+            node_entry = copy.deepcopy(completed)
             completed_artifact = node_entry["node_review_artifact"]
             focal_reviews = module._trusted_node_set_constituent_reviews(
                 completed_artifact,
@@ -739,23 +1121,23 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
             module._write_checkpoint(
                 checkpoint_dir,
                 node_id=completed["node_id"],
-                graph_version=completed["graph_version"],
-                rounds_used=int(completed.get("rounds_used") or 1),
-                rejected_rounds=int(completed.get("rejected_rounds") or 0),
+                graph_version=manifest["graph_version"],
+                rounds_used=1,
+                rejected_rounds=0,
                 report={},
                 node_entry=node_entry,
                 status="incomplete",
-                slot_rounds={int(slot): int(count) for slot, count in completed["slot_rounds"].items()},
+                slot_rounds={slot: 1 for slot in range(1, 21)},
                 pending_repair_by_slot={},
-                stage_counters=copy.deepcopy(completed["stage_counters"]),
-                repair_chain_events=copy.deepcopy(completed.get("repair_chain_events") or []),
-                checkpoint_migrations=copy.deepcopy(completed.get("checkpoint_migrations") or []),
+                stage_counters={"node_set_review_round": 1},
+                repair_chain_events=[],
+                checkpoint_migrations=[],
             )
             copied = checkpoint_dir / f"{completed['node_id']}.json"
             loaded = module._read_live_node_checkpoint(
                 checkpoint_dir,
                 node_id=completed["node_id"],
-                graph_version=completed["graph_version"],
+                graph_version=manifest["graph_version"],
             )
             artifact = loaded["node"]["node_review_artifact"]
             focal_reviews = module._trusted_node_set_constituent_reviews(
@@ -783,12 +1165,21 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                     module,
                     node=node,
                     graph=graph,
-                    graph_version=completed["graph_version"],
+                    graph_version=manifest["graph_version"],
                     checkpoint_dir=checkpoint_dir,
                 )
 
             current = json.loads(copied.read_text(encoding="utf-8"))
-            self.assertEqual(["node_global_finalizer"], calls)
+            self.assertEqual(
+                [
+                    ("node_global_verifier", [1, 2, 3, 4, 5]),
+                    ("node_global_verifier", [6, 7, 8, 9, 10]),
+                    ("node_global_verifier", [11, 12, 13, 14, 15]),
+                    ("node_global_verifier", [16, 17, 18, 19, 20]),
+                    ("node_global_finalizer", []),
+                ],
+                calls,
+            )
             self.assertEqual("completed", current["status"])
             self.assertEqual(
                 question_bank.V12_SEMANTIC_EVIDENCE_COMMITMENT_VERSION,
@@ -844,11 +1235,16 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
         global_calls = []
 
         def fake_call(**kwargs):
+            if kwargs["route"].task == "node_global_verifier":
+                slots = list(kwargs["trusted_context"]["reviewed_slots"])
+                global_calls.append(("node_global_verifier", slots))
+                return _successful_global_verifier_batch_result(module, kwargs)
             if kwargs["route"].task == "node_global_finalizer":
-                global_calls.append(kwargs["route"].task)
+                global_calls.append(("node_global_finalizer", []))
                 cards = kwargs["untrusted_payload"]["item_cards"]
                 self.assertEqual(20, len(cards))
-                self.assertTrue(all(set(card["child_visible"]) == {"prompt"} for card in cards))
+                self.assertTrue(all("prompt" in card["child_visible"] for card in cards))
+                self.assertTrue(all("expected_answer" not in card["child_visible"] for card in cards))
                 return _successful_global_finalizer_batch_result(module, kwargs)
             slots = list(kwargs["trusted_context"]["reviewed_slots"])
             focal = kwargs["untrusted_payload"]["items"]
@@ -878,6 +1274,10 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                 graph_version=manifest["graph_version"],
                 contract=contract,
                 prompt_template=module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+                global_verifier_contract=module._load_global_verifier_contract(),
+                global_verifier_prompt_template=module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(
+                    encoding="utf-8"
+                ),
                 global_finalizer_contract=json.loads(
                     module.GLOBAL_FINALIZER_CONTRACT_PATH.read_text(encoding="utf-8")
                 ),
@@ -889,7 +1289,16 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
             )
 
         self.assertEqual([list(range(start, start + 2)) for start in range(1, 21, 2)], calls)
-        self.assertEqual(["node_global_finalizer"], global_calls)
+        self.assertEqual(
+            [
+                ("node_global_verifier", [1, 2, 3, 4, 5]),
+                ("node_global_verifier", [6, 7, 8, 9, 10]),
+                ("node_global_verifier", [11, 12, 13, 14, 15]),
+                ("node_global_verifier", [16, 17, 18, 19, 20]),
+                ("node_global_finalizer", []),
+            ],
+            global_calls,
+        )
         self.assertEqual("approved", result["node_review_artifact"]["verdict"])
         self.assertEqual(10, len(result["node_review_artifact"]["constituent_reviews"]))
         self.assertEqual(1, result["node_review_artifact"]["execution_policy"]["node_review_concurrency"])
@@ -929,6 +1338,10 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                     graph_version=manifest["graph_version"],
                     contract=contract,
                     prompt_template=module.NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8"),
+                    global_verifier_contract=module._load_global_verifier_contract(),
+                    global_verifier_prompt_template=module.GLOBAL_VERIFIER_PROMPT_PATH.read_text(
+                        encoding="utf-8"
+                    ),
                     global_finalizer_contract=json.loads(
                         module.GLOBAL_FINALIZER_CONTRACT_PATH.read_text(encoding="utf-8")
                     ),
@@ -1030,6 +1443,9 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
 
             def resume_from_second_shard(**kwargs):
                 route = kwargs["route"]
+                if route.task == "node_global_verifier":
+                    global_resume_calls.append(f"{route.task}:{kwargs['trusted_context']['reviewed_slots']}")
+                    return _successful_global_verifier_batch_result(module, kwargs)
                 if route.task == "node_global_finalizer":
                     global_resume_calls.append(route.task)
                     return _successful_global_finalizer_batch_result(module, kwargs)
@@ -1067,7 +1483,16 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                 self.assertEqual(expected_shards[1:], resume_calls)
             with self.subTest(oracle="resume never regenerates accepted items"):
                 self.assertEqual([], unexpected_routes)
-                self.assertEqual(["node_global_finalizer"], global_resume_calls)
+                self.assertEqual(
+                    [
+                        "node_global_verifier:[1, 2, 3, 4, 5]",
+                        "node_global_verifier:[6, 7, 8, 9, 10]",
+                        "node_global_verifier:[11, 12, 13, 14, 15]",
+                        "node_global_verifier:[16, 17, 18, 19, 20]",
+                        "node_global_finalizer",
+                    ],
+                    global_resume_calls,
+                )
             with self.subTest(oracle="completed artifact contains all shards"):
                 self.assertEqual(10, len(result["node_review_artifact"]["constituent_reviews"]))
             with self.subTest(oracle="completed rewrite preserves migration history"):
@@ -1152,6 +1577,9 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
 
             def resume_last_shard(**kwargs):
                 route = kwargs["route"]
+                if route.task == "node_global_verifier":
+                    global_resume_calls.append(f"{route.task}:{kwargs['trusted_context']['reviewed_slots']}")
+                    return _successful_global_verifier_batch_result(module, kwargs)
                 if route.task == "node_global_finalizer":
                     global_resume_calls.append(route.task)
                     return _successful_global_finalizer_batch_result(module, kwargs)
@@ -1189,7 +1617,16 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                 self.assertEqual(expected_shards[-1:], resume_calls)
             with self.subTest(oracle="later failure resume never regenerates items"):
                 self.assertEqual([], unexpected_routes)
-                self.assertEqual(["node_global_finalizer"], global_resume_calls)
+                self.assertEqual(
+                    [
+                        "node_global_verifier:[1, 2, 3, 4, 5]",
+                        "node_global_verifier:[6, 7, 8, 9, 10]",
+                        "node_global_verifier:[11, 12, 13, 14, 15]",
+                        "node_global_verifier:[16, 17, 18, 19, 20]",
+                        "node_global_finalizer",
+                    ],
+                    global_resume_calls,
+                )
             with self.subTest(oracle="later completed rewrite preserves migration history"):
                 self.assertEqual(migration_history, completed_checkpoint.get("checkpoint_migrations"))
 
@@ -1313,8 +1750,11 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
             def fake_node_set_call(**kwargs):
                 route = kwargs["route"]
                 self.assertEqual(question_bank.QUESTION_REVIEWER_AGENT_KEY, route.agent_key)
+                if route.task == "node_global_verifier":
+                    global_calls.append((route.task, list(kwargs["trusted_context"]["reviewed_slots"])))
+                    return _successful_global_verifier_batch_result(module, kwargs)
                 if route.task == "node_global_finalizer":
-                    global_calls.append(route.task)
+                    global_calls.append((route.task, []))
                     return _successful_global_finalizer_batch_result(module, kwargs)
                 self.assertEqual("node_set_review", route.task)
                 if not migration_observed["value"]:
@@ -1372,7 +1812,16 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
             final_checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
             self.assertTrue(migration_observed["value"])
             self.assertEqual(expected_shards, reviewed_shards)
-            self.assertEqual(["node_global_finalizer"], global_calls)
+            self.assertEqual(
+                [
+                    ("node_global_verifier", [1, 2, 3, 4, 5]),
+                    ("node_global_verifier", [6, 7, 8, 9, 10]),
+                    ("node_global_verifier", [11, 12, 13, 14, 15]),
+                    ("node_global_verifier", [16, 17, 18, 19, 20]),
+                    ("node_global_finalizer", []),
+                ],
+                global_calls,
+            )
             self.assertEqual("completed", final_checkpoint["status"])
             self.assertEqual(20, len(final_checkpoint["accepted_slots"]))
             self.assertEqual(
@@ -1381,6 +1830,411 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
             )
             self.assertEqual(10, len(result["node_review_artifact"]["constituent_reviews"]))
             self.assertTrue(final_checkpoint.get("completed_node_receipt", {}).get("receipt_sha256"))
+
+    def test_legacy_v6_partial_focal_review_checkpoint_migrates_to_current_verifier_resume_state(self):
+        module = _load_builder()
+        manifest, graph = _v3_live_manifest(module)
+        source_node_entry = copy.deepcopy(manifest["nodes"][0])
+        source_node_entry.pop("node_review_artifact", None)
+        checkpoint = _legacy_v6_partial_focal_review_checkpoint(
+            module,
+            source_node_entry,
+            graph_version=manifest["graph_version"],
+        )
+        self.assertEqual(LEGACY_V6_PARTIAL_FIXTURE_NODE_ID, checkpoint["node_id"])
+        self.assertEqual(
+            LEGACY_V6_PARTIAL_FIXTURE_ARTIFACT_SHA256,
+            checkpoint["node"]["node_review_artifact"]["semantic_evidence_sha256"],
+        )
+        self.assertEqual(
+            LEGACY_V6_PARTIAL_FIXTURE_COMMITMENT_SHA256,
+            checkpoint["semantic_evidence_commitment"]["sha256"],
+        )
+        self.assertNotIn("global_verifier_shards", checkpoint["node"]["node_review_artifact"])
+        self.assertEqual(
+            LEGACY_V6_PARTIAL_FIXTURE_AGGREGATE_SHA256,
+            checkpoint["node"]["node_review_artifact"]["aggregation"]["aggregate_sha256"],
+        )
+        original_focal_provenance = _focal_review_provenance_fingerprint(
+            checkpoint["node"]["node_review_artifact"]
+        )
+        old_commitment = copy.deepcopy(checkpoint["semantic_evidence_commitment"])
+        self.assertEqual(
+            module._legacy_v6_pre_global_verifier_shards_semantic_evidence_commitment(
+                checkpoint["node"]
+            ),
+            old_commitment,
+        )
+        with self.assertRaisesRegex(
+            model_router.ModelCallError,
+            "commitment mismatch",
+        ):
+            module._validate_live_checkpoint_integrity(checkpoint)
+        self.assertEqual(
+            "legacy_v6_partial_focal_review_requires_verifier",
+            module._validate_live_checkpoint_integrity(
+                checkpoint,
+                allow_pre_shard_policy_migration=True,
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp)
+            checkpoint_path = _write_checkpoint_file(checkpoint_dir, checkpoint)
+            migrated = module._read_live_node_checkpoint(
+                checkpoint_dir,
+                node_id=checkpoint["node_id"],
+                graph_version=manifest["graph_version"],
+            )
+            self.assertIsNotNone(migrated)
+            persisted = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            question_bank.v12_node_semantic_evidence_commitment(persisted["node"]),
+            persisted["semantic_evidence_commitment"],
+        )
+        self.assertNotEqual(old_commitment, persisted["semantic_evidence_commitment"])
+        self.assertEqual(
+            module._checkpoint_integrity_sha256(persisted),
+            persisted["checkpoint_integrity_sha256"],
+        )
+        artifact = persisted["node"]["node_review_artifact"]
+        self.assertEqual(
+            original_focal_provenance,
+            _focal_review_provenance_fingerprint(artifact),
+        )
+        trusted_reviews = module._trusted_node_set_constituent_reviews(
+            artifact,
+            persisted["node"],
+        )
+        self.assertEqual(
+            [list(slots) for slots in question_bank.v12_expected_node_set_review_shards()],
+            [review["reviewed_slots"] for review in trusted_reviews],
+        )
+        self.assertEqual([], artifact["global_verifier_shards"])
+        self.assertIsNone(artifact["global_verifier"])
+        self.assertIsNone(artifact["global_finalizer"])
+        self.assertIn(
+            "global_verifier_shard_semantic_evidence_sha256s",
+            artifact["aggregation"],
+        )
+        self.assertEqual(
+            artifact["semantic_evidence_sha256"],
+            question_bank.v12_node_set_review_semantic_evidence_sha256(
+                persisted["node"],
+                trusted_reviews,
+                None,
+                None,
+            ),
+        )
+        self.assertEqual(
+            "legacy_v6_partial_focal_review_to_sharded_global_verifier_v1",
+            persisted["checkpoint_migrations"][-1]["migration_id"],
+        )
+        module._validate_live_checkpoint_integrity(persisted)
+        module._validate_checkpoint_item_policy(persisted)
+        reloaded_artifact = module._node_review_artifact_from_checkpoint(
+            persisted,
+            node_entry=persisted["node"],
+        )
+        self.assertIsNotNone(reloaded_artifact)
+        self.assertEqual(
+            [review["reviewed_slots"] for review in trusted_reviews],
+            [
+                review["reviewed_slots"]
+                for review in reloaded_artifact["constituent_reviews"]
+            ],
+        )
+
+    def test_legacy_v6_partial_focal_review_rejects_self_consistent_digest_tamper_without_write(self):
+        module = _load_builder()
+        manifest, _graph = _v3_live_manifest(module)
+        source_node_entry = copy.deepcopy(manifest["nodes"][0])
+        source_node_entry.pop("node_review_artifact", None)
+        checkpoint = _legacy_v6_partial_focal_review_checkpoint(
+            module,
+            source_node_entry,
+            graph_version=manifest["graph_version"],
+        )
+        checkpoint["node"]["node_review_artifact"]["semantic_evidence_sha256"] = "0" * 64
+        checkpoint["semantic_evidence_commitment"] = (
+            module._legacy_v6_pre_global_verifier_shards_semantic_evidence_commitment(
+                checkpoint["node"]
+            )
+        )
+        checkpoint["checkpoint_integrity_sha256"] = module._checkpoint_integrity_sha256(checkpoint)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp)
+            checkpoint_path = _write_checkpoint_file(checkpoint_dir, checkpoint)
+            before = checkpoint_path.read_bytes()
+            with self.assertRaisesRegex(
+                model_router.ModelCallError,
+                "commitment mismatch",
+            ):
+                module._read_live_node_checkpoint(
+                    checkpoint_dir,
+                    node_id=checkpoint["node_id"],
+                    graph_version=manifest["graph_version"],
+                )
+            self.assertEqual(before, checkpoint_path.read_bytes())
+
+    def test_legacy_v6_partial_focal_review_migration_rejects_ineligible_variants_without_write(self):
+        module = _load_builder()
+        manifest, _graph = _v3_live_manifest(module)
+        source_node_entry = copy.deepcopy(manifest["nodes"][0])
+        source_node_entry.pop("node_review_artifact", None)
+
+        def with_completed_receipt(checkpoint: dict) -> None:
+            checkpoint["completed_node_receipt"] = {"receipt_sha256": "not-trusted"}
+
+        def with_pending_repair(checkpoint: dict) -> None:
+            checkpoint["pending_repair_by_slot"] = {"1": {"slot": 1, "reason": "pending"}}
+
+        def with_rejected_slots(checkpoint: dict) -> None:
+            checkpoint["node_set_rejected_slots"] = [1]
+
+        def with_source_candidate_mismatch(checkpoint: dict) -> None:
+            checkpoint["source_node_candidate_sha256"] = "0" * 64
+
+        def with_accepted_payload_mismatch(checkpoint: dict) -> None:
+            checkpoint["accepted_slots"]["1"]["prompt"] = "tampered child prompt"
+
+        def with_missing_accepted_slot(checkpoint: dict) -> None:
+            checkpoint["accepted_slots"].pop("20")
+
+        def with_existing_global_verifier(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["global_verifier"] = {
+                "semantic_evidence_sha256": "0" * 64,
+            }
+
+        def with_existing_global_finalizer(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["global_finalizer"] = {
+                "review_output_sha256": "0" * 64,
+            }
+
+        def with_existing_verifier_shard(checkpoint: dict) -> None:
+            artifact = checkpoint["node"]["node_review_artifact"]
+            reviews = module._trusted_node_set_constituent_reviews(
+                artifact,
+                checkpoint["node"],
+            )
+            verifier = _global_verifier_artifact(
+                module,
+                checkpoint["node"],
+                reviews,
+                manifest["graph_version"],
+            )
+            artifact["global_verifier_shards"] = [verifier["shard_artifacts"][0]]
+
+        def with_current_only_empty_verifier_shard_field(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["global_verifier_shards"] = []
+
+        def with_bad_focal_coverage(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["constituent_reviews"][0][
+                "reviewed_slots"
+            ] = [1, 3]
+
+        def with_aggregate_hash_tamper(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["aggregation"]["aggregate_sha256"] = "0" * 64
+
+        def with_constituent_hash_tamper(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["aggregation"]["constituent_hashes"][0] = "0" * 64
+
+        def with_aggregate_reviewed_slots_tamper(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["aggregation"]["reviewed_slots"][0] = 99
+
+        def with_injected_global_hash(checkpoint: dict) -> None:
+            checkpoint["node"]["node_review_artifact"]["aggregation"][
+                "global_finalizer_output_sha256"
+            ] = "0" * 64
+
+        mutators = {
+            "completed_receipt": with_completed_receipt,
+            "pending_repair": with_pending_repair,
+            "node_set_rejected_slots": with_rejected_slots,
+            "source_candidate_mismatch": with_source_candidate_mismatch,
+            "accepted_payload_mismatch": with_accepted_payload_mismatch,
+            "missing_accepted_slot": with_missing_accepted_slot,
+            "existing_global_verifier": with_existing_global_verifier,
+            "existing_global_finalizer": with_existing_global_finalizer,
+            "existing_verifier_shard": with_existing_verifier_shard,
+            "current_only_empty_verifier_shard_field": with_current_only_empty_verifier_shard_field,
+            "bad_focal_coverage": with_bad_focal_coverage,
+            "aggregate_hash_tamper": with_aggregate_hash_tamper,
+            "aggregate_constituent_hash_tamper": with_constituent_hash_tamper,
+            "aggregate_reviewed_slots_tamper": with_aggregate_reviewed_slots_tamper,
+            "injected_global_hash": with_injected_global_hash,
+        }
+
+        for case_name, mutate in mutators.items():
+            with self.subTest(case=case_name):
+                checkpoint = _legacy_v6_partial_focal_review_checkpoint(
+                    module,
+                    source_node_entry,
+                    graph_version=manifest["graph_version"],
+                )
+                mutate(checkpoint)
+                _reseal_legacy_v6_partial_focal_review_checkpoint(module, checkpoint)
+
+                with tempfile.TemporaryDirectory() as tmp:
+                    checkpoint_dir = Path(tmp)
+                    checkpoint_path = _write_checkpoint_file(checkpoint_dir, checkpoint)
+                    before = checkpoint_path.read_bytes()
+                    with mock.patch.object(module, "_call_v12_batch_agent") as model_call:
+                        with self.assertRaises(model_router.ModelCallError):
+                            module._read_live_node_checkpoint(
+                                checkpoint_dir,
+                                node_id=checkpoint["node_id"],
+                                graph_version=manifest["graph_version"],
+                            )
+                    model_call.assert_not_called()
+                    self.assertEqual(before, checkpoint_path.read_bytes())
+
+    def test_legacy_v6_partial_focal_review_migration_then_verifier_504_resumes_remaining_shards(self):
+        module = _load_builder()
+        manifest, graph = _v3_live_manifest(module)
+        source_node_entry = copy.deepcopy(manifest["nodes"][0])
+        source_node_entry.pop("node_review_artifact", None)
+        graph_node = next(node for node in graph["nodes"] if node["id"] == source_node_entry["node_id"])
+        checkpoint = _legacy_v6_partial_focal_review_checkpoint(
+            module,
+            source_node_entry,
+            graph_version=manifest["graph_version"],
+        )
+        original_focal_provenance = _focal_review_provenance_fingerprint(
+            checkpoint["node"]["node_review_artifact"]
+        )
+        expected_verifier_shards = question_bank.v12_expected_global_verifier_shards()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp)
+            checkpoint_path = _write_checkpoint_file(checkpoint_dir, checkpoint)
+            first_calls: list[tuple[str, list[int]]] = []
+
+            def fail_third_verifier(**kwargs):
+                route = kwargs["route"]
+                if route.task == "node_set_review":
+                    raise AssertionError("migration resume must not replay focal review")
+                if route.task == "node_global_finalizer":
+                    raise AssertionError("finalizer must not run after verifier failure")
+                slots = list(kwargs["trusted_context"]["reviewed_slots"])
+                first_calls.append((route.task, slots))
+                if slots == expected_verifier_shards[2]:
+                    raise model_router.ModelCallError("HTTP 504 on migrated verifier shard")
+                return _successful_global_verifier_batch_result(module, kwargs)
+
+            with mock.patch.object(
+                module.model_router,
+                "question_node_set_review_route",
+                return_value=_node_set_route(),
+            ), mock.patch.object(
+                module.model_router,
+                "question_node_global_finalizer_route",
+                return_value=_global_finalizer_route(),
+            ), mock.patch.object(module, "_call_v12_batch_agent", side_effect=fail_third_verifier):
+                with self.assertRaises(module.NodeSetReviewShardError):
+                    _build_live_node_from_checkpoint(
+                        module,
+                        node=graph_node,
+                        graph=graph,
+                        graph_version=manifest["graph_version"],
+                        checkpoint_dir=checkpoint_dir,
+                    )
+
+            partial = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            artifact = partial["node"]["node_review_artifact"]
+            self.assertEqual(
+                original_focal_provenance,
+                _focal_review_provenance_fingerprint(artifact),
+            )
+            focal_reviews = module._trusted_node_set_constituent_reviews(artifact, partial["node"])
+            verifier_shards = module._trusted_node_set_global_verifier_shards(
+                artifact,
+                node_entry=partial["node"],
+                constituent_reviews=focal_reviews,
+            )
+            self.assertEqual(
+                [
+                    ("node_global_verifier", expected_verifier_shards[0]),
+                    ("node_global_verifier", expected_verifier_shards[1]),
+                    ("node_global_verifier", expected_verifier_shards[2]),
+                ],
+                first_calls,
+            )
+            self.assertEqual(10, len(focal_reviews))
+            self.assertEqual(
+                expected_verifier_shards[:2],
+                [shard["reviewed_slots"] for shard in verifier_shards],
+            )
+            self.assertIsNone(artifact["global_verifier"])
+            self.assertIsNone(artifact["global_finalizer"])
+            self.assertEqual(
+                ["legacy_v6_partial_focal_review_to_sharded_global_verifier_v1"],
+                [
+                    migration["migration_id"]
+                    for migration in partial["checkpoint_migrations"]
+                    if migration.get("migration_id")
+                    == "legacy_v6_partial_focal_review_to_sharded_global_verifier_v1"
+                ],
+            )
+
+            resume_calls: list[tuple[str, list[int]]] = []
+
+            def finish_after_verifier_resume(**kwargs):
+                route = kwargs["route"]
+                if route.task == "node_set_review":
+                    raise AssertionError("resume must not replay focal review")
+                if route.task == "node_global_verifier":
+                    slots = list(kwargs["trusted_context"]["reviewed_slots"])
+                    resume_calls.append((route.task, slots))
+                    return _successful_global_verifier_batch_result(module, kwargs)
+                resume_calls.append((route.task, []))
+                return _successful_global_finalizer_batch_result(module, kwargs)
+
+            with mock.patch.object(
+                module.model_router,
+                "question_node_set_review_route",
+                return_value=_node_set_route(),
+            ), mock.patch.object(
+                module.model_router,
+                "question_node_global_finalizer_route",
+                return_value=_global_finalizer_route(),
+            ), mock.patch.object(module, "_call_v12_batch_agent", side_effect=finish_after_verifier_resume):
+                result = _build_live_node_from_checkpoint(
+                    module,
+                    node=graph_node,
+                    graph=graph,
+                    graph_version=manifest["graph_version"],
+                    checkpoint_dir=checkpoint_dir,
+                )
+
+            completed = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                original_focal_provenance,
+                _focal_review_provenance_fingerprint(
+                    completed["node"]["node_review_artifact"]
+                ),
+            )
+            self.assertEqual(
+                [
+                    ("node_global_verifier", expected_verifier_shards[2]),
+                    ("node_global_verifier", expected_verifier_shards[3]),
+                    ("node_global_finalizer", []),
+                ],
+                resume_calls,
+            )
+            self.assertEqual("completed", completed["status"])
+            self.assertEqual("approved", result["node_review_artifact"]["verdict"])
+            self.assertEqual(
+                ["legacy_v6_partial_focal_review_to_sharded_global_verifier_v1"],
+                [
+                    migration["migration_id"]
+                    for migration in completed["checkpoint_migrations"]
+                    if migration.get("migration_id")
+                    == "legacy_v6_partial_focal_review_to_sharded_global_verifier_v1"
+                ],
+            )
 
     def test_pre_shard_policy_checkpoint_migration_rejects_ineligible_variants(self):
         module = _load_builder()
@@ -1969,6 +2823,7 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
             shard_size=question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
         )
         item = node_entry["items"][0]
+        other_item = node_entry["items"][5]
         voice = item["review_artifact"]["semantic_evidence"]["instruction_voice_family"]
         repair = {
             "slot": 1,
@@ -1994,6 +2849,10 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                     {
                         "group_id": "dg-1",
                         "slots": [1, 6],
+                        "subject_sha256s": [
+                            question_bank.v12_item_review_subject_binding(item)["subject_sha256"],
+                            question_bank.v12_item_review_subject_binding(other_item)["subject_sha256"],
+                        ],
                         "reason": "same actual relation and answer path",
                         "evidence_refs": ["slot:1", "slot:6"],
                     }
@@ -2002,9 +2861,16 @@ class QuestionBankV12V3ContractTest(unittest.TestCase):
                 "repair_plan": [repair],
             },
         )
+        global_verifier = _global_verifier_artifact(
+            module,
+            node_entry,
+            reviews,
+            manifest["graph_version"],
+        )
         result = module._aggregate_node_set_review_outputs(
             node_entry=node_entry,
             shard_reviews=copy.deepcopy(reviews),
+            global_verifier_artifact=global_verifier,
             global_finalizer_artifact=global_artifact,
             node_review_concurrency=1,
         )

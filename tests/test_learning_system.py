@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 from learning_system import (
     agents,
+    assessment_policy,
     auto_review,
     daily_runtime,
     db,
@@ -629,6 +630,14 @@ class LearningSystemTest(unittest.TestCase):
                 "判断答案、步骤、思路、替代解法、过程缺口，并产出可支撑评估与规划的证据摘要",
                 "不做字符串匹配、不更新掌握状态、不选择下一轮题目、不把分数当作掌握结论",
             ),
+            "answer_contract_designer_agent": (
+                "根据题目本质与参考解答，为本地评分槽位编写原子、可观察的语义判据",
+                "不分配分值、维度、通过条件，不改题、不重绑、不版本化或激活合同",
+            ),
+            "answer_contract_reviewer_agent": (
+                "独立审查题目正确性、节点与证据角色对齐，以及答案合同的原子评分标准",
+                "不修改题目、不重绑节点、不生成或批准自己的指纹与摘要哈希",
+            ),
             "evaluation_agent": (
                 "把有效答案分析证据转成节点掌握诊断与规划信号",
                 "不判原始答案、不直接出题或排题、不把一次做对或同构重复当完全掌握",
@@ -676,13 +685,15 @@ class LearningSystemTest(unittest.TestCase):
         )
         answer_contract = internal_agents.load_v5_contract_for_agent("answer_analysis_agent")
         answer_required = set(answer_contract["response_schema"]["required"])
-        self.assertIn("evaluation_support", answer_required)
-        self.assertIn("next_evidence_need", answer_required)
-        analysis_schema = answer_contract["response_schema"]["properties"]["answer_analysis"]
-        self.assertIn("comparison", analysis_schema["required"])
-        support_schema = answer_contract["response_schema"]["properties"]["evaluation_support"]
-        self.assertIn("evidence_strength", support_schema["properties"])
-        self.assertIn("reasoning_soundness", support_schema["properties"])
+        self.assertIn("criteria", answer_required)
+        self.assertIn("answer_gap", answer_required)
+        self.assertIn("improvement_direction", answer_required)
+        self.assertIn("expression_judgment", answer_required)
+        criteria_schema = answer_contract["response_schema"]["properties"]["criteria"]["items"]
+        self.assertIn("criterion_key", criteria_schema["required"])
+        self.assertIn("status", criteria_schema["required"])
+        self.assertIn("child_evidence", criteria_schema["required"])
+        self.assertIn("reason", criteria_schema["required"])
 
         planner_contract = internal_agents.load_v5_contract_for_agent("planner_agent")
         self.assertEqual("planner_next_step", planner_contract["contract_key"])
@@ -752,6 +763,14 @@ class LearningSystemTest(unittest.TestCase):
             "answer_analysis_agent": {
                 "does": ("semantic evidence", "reasoning quality"),
                 "does_not": ("do not update mastery", "choose the next step", "generate teaching"),
+            },
+            "answer_contract_designer_agent": {
+                "does": ("atomic observable criteria", "reference evidence"),
+                "does_not": ("do not assign points", "activate contracts", "change the question"),
+            },
+            "answer_contract_reviewer_agent": {
+                "does": ("independent solve", "atomic criteria"),
+                "does_not": ("do not edit the question", "output replacement content", "approve its own hashes"),
             },
             "evaluation_agent": {
                 "does": ("mastery recommendation", "planner signal"),
@@ -1396,12 +1415,41 @@ class LearningSystemTest(unittest.TestCase):
                 self.conn.commit()
 
                 def fake_answer_agent(request):
-                    output = json.loads(json.dumps(
-                        self._v5_msg004_contracts()["answer_analysis"],
-                        ensure_ascii=False,
-                    ))
-                    question_package = request.trusted_context["question_package"]
-                    output["answer_analysis"]["optimal_answer"] = question_package["reference_answer"]
+                    fallback_contract = None
+                    if not request.trusted_context.get("answer_contract"):
+                        question_package = request.trusted_context.get("question_package", {})
+                        if question_package.get("question_id"):
+                            fallback_contract = assessment_policy.build_answer_contract(
+                                {
+                                    "id": question_package.get("question_id"),
+                                    "item_version": "recorded-server-worker-v1",
+                                    "node_id": question_package.get("node_id") or "recorded-node",
+                                    "kind": question_package.get("kind") or "standard_example",
+                                    "expected_answer": question_package.get("reference_answer"),
+                                    "solution_steps": question_package.get("solution_steps") or [],
+                                }
+                            )
+                    criteria = [
+                        {
+                            "criterion_key": item.get("criterion_key") or item.get("key"),
+                            "status": "met",
+                            "child_evidence": "The recorded server worker answer supplies this criterion.",
+                            "reason": "Recorded fixture marks the criterion as satisfied.",
+                        }
+                        for item in (
+                            request.trusted_context.get("answer_contract", {}).get("criteria", [])
+                            or (fallback_contract or {}).get("score_points", [])
+                        )
+                    ]
+                    output = {
+                        "schema_version": "2026-07-14.answer-review.v5.schema.v3",
+                        "criteria": criteria,
+                        "answer_gap": "No mathematical gap affecting the score.",
+                        "improvement_direction": ["Keep writing the relation, steps, and check together."],
+                        "expression_judgment": "Equivalent expression is accepted.",
+                        "teaching_explanation": "The recorded answer gives enough evidence for this check.",
+                        "confidence": 0.94,
+                    }
                     return self._v5_strict_recorded_answer_envelope(
                         output,
                         fixture_id="server-v5-worker-answer",
@@ -1600,13 +1648,41 @@ class LearningSystemTest(unittest.TestCase):
                 blocked_run_count = blocked_job["run_count"]
 
                 def recovered_answer_agent(request):
-                    output = json.loads(json.dumps(
-                        self._v5_msg004_contracts()["answer_analysis"],
-                        ensure_ascii=False,
-                    ))
-                    question_package = request.trusted_context["question_package"]
-                    output["answer_analysis"]["optimal_answer"] = question_package["reference_answer"]
-                    output["confidence"] = 0.92
+                    fallback_contract = None
+                    if not request.trusted_context.get("answer_contract"):
+                        question_package = request.trusted_context.get("question_package", {})
+                        if question_package.get("question_id"):
+                            fallback_contract = assessment_policy.build_answer_contract(
+                                {
+                                    "id": question_package.get("question_id"),
+                                    "item_version": "recorded-server-recovery-v1",
+                                    "node_id": question_package.get("node_id") or "recorded-node",
+                                    "kind": question_package.get("kind") or "standard_example",
+                                    "expected_answer": question_package.get("reference_answer"),
+                                    "solution_steps": question_package.get("solution_steps") or [],
+                                }
+                            )
+                    criteria = [
+                        {
+                            "criterion_key": item.get("criterion_key") or item.get("key"),
+                            "status": "met",
+                            "child_evidence": "The recovered recorded answer supplies this criterion.",
+                            "reason": "Recorded recovery fixture marks the criterion as satisfied.",
+                        }
+                        for item in (
+                            request.trusted_context.get("answer_contract", {}).get("criteria", [])
+                            or (fallback_contract or {}).get("score_points", [])
+                        )
+                    ]
+                    output = {
+                        "schema_version": "2026-07-14.answer-review.v5.schema.v3",
+                        "criteria": criteria,
+                        "answer_gap": "No mathematical gap affecting the score.",
+                        "improvement_direction": ["Keep writing the relation, steps, and check together."],
+                        "expression_judgment": "Equivalent expression is accepted.",
+                        "teaching_explanation": "The recovered answer gives enough evidence for this check.",
+                        "confidence": 0.92,
+                    }
                     return self._v5_strict_recorded_answer_envelope(
                         output,
                         fixture_id="recorded-blocked-primary-recovery-answer",
@@ -2120,7 +2196,8 @@ class LearningSystemTest(unittest.TestCase):
         ).fetchone()[0])
 
     def test_v5_live_answer_analysis_advances_without_downstream_model_jobs(self):
-        runtime, _started, attempt = self._start_v5_attempt(day_key="2099-04-01-live-single-call")
+        with patch.dict(os.environ, {daily_runtime.ANSWER_ASSESSMENT_POLICY_ENV: "v5.1"}):
+            runtime, _started, attempt = self._start_v5_attempt(day_key="2099-04-01-live-single-call")
         flow_id = self.conn.execute(
             "select flow_id from flow_steps where id = ?",
             (attempt["flow_step_id"],),
@@ -2280,7 +2357,7 @@ class LearningSystemTest(unittest.TestCase):
         self.assertTrue(captured_call.get("payload", {}).get("input"), "The semantic adapter must make the captured model call.")
         rendered_prompt = captured_call["payload"]["input"][0]["content"][0]["text"]
         rendered_prompt_sha256 = hashlib.sha256(rendered_prompt.encode("utf-8")).hexdigest()
-        response_schema_sha256 = db._digest_json(captured_call["schema"])
+        response_schema_sha256 = internal_agents.canonical_json_sha256(captured_call["schema"])
         run = self.conn.execute(
             """
             select *
@@ -2296,8 +2373,8 @@ class LearningSystemTest(unittest.TestCase):
         self.assertIsNotNone(run)
         self.assertEqual(rendered_prompt_sha256, run["rendered_prompt_sha256"])
         self.assertEqual(response_schema_sha256, run["response_schema_sha256"])
-        self.assertEqual("2026-07-11.answer-review.v5.prompt.v2", run["prompt_version_id"])
-        self.assertEqual("2026-07-11.answer-review.v5.schema.v2", run["response_schema_version"])
+        self.assertEqual("2026-07-14.answer-review.v5.prompt.v3", run["prompt_version_id"])
+        self.assertEqual("2026-07-14.answer-review.v5.schema.v3", run["response_schema_version"])
 
     def test_v5_answer_worker_keeps_question_trusted_and_child_text_ocr_untrusted(self):
         injection = (
@@ -5770,17 +5847,13 @@ class LearningSystemTest(unittest.TestCase):
                     planner_action = "near_transfer_retest" if case["review"]["result"] == "correct" else "micro_teach"
                     if case.get("stuck"):
                         self.assertEqual("teaching", submitted["child_state"])
-                        self.assertEqual("wrong", attempt["result"])
-                        self.assertEqual("valid", attempt["analysis_status"])
+                        self.assertEqual("submitted", attempt["result"])
+                        self.assertEqual("not_scored", attempt["grading_status"])
+                        self.assertEqual("not_required", attempt["analysis_status"])
                         self.assertEqual("v3_stuck", attempt["answer_source"])
                         self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
-                        validation = self.conn.execute(
-                            "select gate_status, provider_mode from evidence_validations where attempt_id = ? order by created_at desc limit 1",
-                            (attempt["id"],),
-                        ).fetchone()
-                        self.assertIsNotNone(validation)
-                        self.assertEqual("passed", validation["gate_status"])
-                        self.assertEqual("deterministic_runtime", validation["provider_mode"])
+                        self.assertEqual(0, self.conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt["id"],)).fetchone()[0])
+                        self.assertEqual(0, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
                         decision = self.conn.execute(
                             "select action, provider_mode from next_step_decisions where source_attempt_ids_json like ? order by created_at desc limit 1",
                             (f"%{attempt['id']}%",),
@@ -6914,9 +6987,9 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual("none", result["current_step"]["answer_input_mode"])
         attempt = self.conn.execute("select * from attempts where client_idempotency_key = ?", ("submit-v3-stuck-only",)).fetchone()
         self.assertIsNotNone(attempt)
-        self.assertEqual("graded", attempt["grading_status"])
-        self.assertEqual("wrong", attempt["result"])
-        self.assertEqual("valid", attempt["analysis_status"])
+        self.assertEqual("not_scored", attempt["grading_status"])
+        self.assertEqual("submitted", attempt["result"])
+        self.assertEqual("not_required", attempt["analysis_status"])
         self.assertEqual("v3_stuck", attempt["answer_source"])
         self.assertIn("卡住", attempt["answer_raw"])
         self.assertNotEqual("QRR-stale-missing-for-stuck-test", attempt["review_record_id"])
@@ -6924,8 +6997,8 @@ class LearningSystemTest(unittest.TestCase):
         self.assertTrue(review_meta["stuck"])
         self.assertEqual("deterministic_runtime", review_meta["provider_mode"])
         self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
-        self.assertEqual(1, self.conn.execute("select count(*) from evidence_validations where attempt_id = ? and gate_status = 'passed'", (attempt["id"],)).fetchone()[0])
-        self.assertEqual(1, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
+        self.assertEqual(0, self.conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt["id"],)).fetchone()[0])
+        self.assertEqual(0, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
         decision = self.conn.execute(
             "select * from next_step_decisions where source_attempt_ids_json like ? order by created_at desc limit 1",
             (f"%{attempt['id']}%",),
@@ -13333,24 +13406,38 @@ class LearningSystemTest(unittest.TestCase):
 
     def test_background_job_reuses_waiting_or_error_attempt_job(self):
         session_id = db.create_session(self.conn, "job retry audit", mode="child_learning_group")
+        question = db.find_question_for_node(self.conn, "M-PRE-INTEGER-OPS")
+        attempt_id = db.record_attempt(
+            self.conn,
+            session_id=session_id,
+            question_id=question["id"],
+            node_id=question["node_id"],
+            result="submitted",
+            score_points=0,
+            max_points=2,
+            error_tags=[],
+            answer_raw="用于后台任务复用测试的真实 attempt。",
+            parent_note="queued for review",
+            grading_status="pending_review",
+        )
         job = db.enqueue_background_job(
             self.conn,
             job_type="answer_review",
             session_id=session_id,
-            attempt_id="A-job-retry",
+            attempt_id=attempt_id,
             payload={"try": 1},
         )
         db.mark_background_job_running(
             self.conn,
             job_type="answer_review",
             session_id=session_id,
-            attempt_id="A-job-retry",
+            attempt_id=attempt_id,
         )
         db.finish_background_job(
             self.conn,
             job_type="answer_review",
             session_id=session_id,
-            attempt_id="A-job-retry",
+            attempt_id=attempt_id,
             status="waiting",
             last_error="model asked to retry",
         )
@@ -13359,26 +13446,26 @@ class LearningSystemTest(unittest.TestCase):
             self.conn,
             job_type="answer_review",
             session_id=session_id,
-            attempt_id="A-job-retry",
+            attempt_id=attempt_id,
             payload={"try": 2},
         )
         db.mark_background_job_running(
             self.conn,
             job_type="answer_review",
             session_id=session_id,
-            attempt_id="A-job-retry",
+            attempt_id=attempt_id,
         )
         db.finish_background_job(
             self.conn,
             job_type="answer_review",
             session_id=session_id,
-            attempt_id="A-job-retry",
+            attempt_id=attempt_id,
             status="succeeded",
         )
 
         rows = self.conn.execute(
             "select * from background_jobs where session_id = ? and attempt_id = ?",
-            (session_id, "A-job-retry"),
+            (session_id, attempt_id),
         ).fetchall()
         self.assertEqual(job["id"], reused["id"])
         self.assertEqual(1, len(rows))
@@ -17318,6 +17405,8 @@ class LearningSystemTest(unittest.TestCase):
         self.assertFalse(execution["pre_read_fixed_question_list"])
         self.assertEqual(10, execution["interaction_budget"]["minimum"])
         self.assertEqual(20, execution["interaction_budget"]["maximum"])
+        self.assertIn("continue_assessment_feedback", execution["interaction_budget"]["counted_actions"])
+        self.assertIn("assessment_feedback", execution["condition_waiting"]["required_conclusions"])
         self.assertIn("time.sleep", execution["condition_waiting"]["forbidden_workflow_waits"])
 
         lessons = contract["lessons"]
@@ -17431,32 +17520,36 @@ class LearningSystemTest(unittest.TestCase):
         self.assertIn('return self.wait_for_states(CONCLUSION_STATES | {"analyzing_pending"})', source)
         self.assertIn("analyzing_reentry_count > 2", source)
 
-    def test_v5_10_lesson_recorded_answer_oracles_match_strict_v2_contract(self):
+    def test_v5_10_lesson_recorded_answer_oracles_match_active_answer_contract(self):
         scripts_path = str(PROJECT_ROOT / "scripts")
         if scripts_path not in sys.path:
             sys.path.insert(0, scripts_path)
         import live_child_v5_10_lessons as harness
 
         question = {
+            "id": "Q-recorded-review-contract",
+            "item_version": "test-v1",
+            "node_id": "M-PRE-NUMBER-SENSE",
+            "kind": "standard_example",
             "expected_answer": "38",
             "solution_steps": ["写出核心关系。", "完成计算。", "代回检查。"],
         }
-        expected_results = {
-            "correct": "correct",
-            "partial": "partial",
-            "wrong": "wrong",
-            "answer_only": "partial",
-            "right_answer_wrong_reason": "partial",
-            "stuck": "wrong",
-            "readable_photo": "correct",
-            "unclear_photo": "unclear",
-            "ocr_hallucination": "unclear",
-            "text_photo_conflict": "unclear",
-            "clarification_clear": "correct",
-            "clarify_cannot_provide": "unclear",
+        expected_statuses = {
+            "correct": {"met"},
+            "partial": {"met", "not_met"},
+            "wrong": {"not_met"},
+            "answer_only": {"met", "not_met"},
+            "right_answer_wrong_reason": {"met", "not_met"},
+            "stuck": {"not_met"},
+            "readable_photo": {"met"},
+            "unclear_photo": {"not_met"},
+            "ocr_hallucination": {"not_met"},
+            "text_photo_conflict": {"not_met"},
+            "clarification_clear": {"met"},
+            "clarify_cannot_provide": {"not_met"},
         }
         contract = internal_agents.load_v5_contract_for_agent("answer_analysis_agent")
-        for answer_class, expected_result in expected_results.items():
+        for answer_class, expected_status_set in expected_statuses.items():
             with self.subTest(answer_class=answer_class):
                 output = harness._recorded_review(question, answer_class)
                 semantic_agents._validate_output_against_contract(
@@ -17464,22 +17557,26 @@ class LearningSystemTest(unittest.TestCase):
                     output,
                     phase="answer_analysis",
                 )
-                self.assertEqual("2026-07-11.answer-review.v5.schema.v2", output["schema_version"])
-                self.assertEqual(expected_result, output["result"])
-                self.assertNotIn("agent_key", output["answer_analysis"])
-                self.assertNotIn("no_gap_observed", output["answer_analysis"])
-                self.assertNotIn("evaluation_support", output["answer_analysis"])
-                if expected_result == "unclear":
-                    self.assertFalse(output["evaluation_support"]["usable_for_evaluation"])
-                    self.assertEqual("insufficient", output["evaluation_support"]["evidence_strength"])
+                self.assertEqual("2026-07-14.answer-review.v5.schema.v3", output["schema_version"])
+                self.assertEqual(3, len(output["criteria"]))
+                self.assertEqual(
+                    expected_status_set,
+                    {criterion["status"] for criterion in output["criteria"]},
+                )
+                self.assertIn("answer_gap", output)
+                self.assertIn("improvement_direction", output)
+                self.assertIn("expression_judgment", output)
+                self.assertIn("teaching_explanation", output)
+                if "not_met" not in expected_status_set:
+                    self.assertGreaterEqual(output["confidence"], 0.9)
                 else:
-                    self.assertTrue(output["evaluation_support"]["usable_for_evaluation"])
+                    self.assertGreater(output["answer_gap"], "")
         answer_only = harness._recorded_review(question, "answer_only")
         wrong_reason = harness._recorded_review(question, "right_answer_wrong_reason")
-        self.assertEqual("matched", answer_only["answer_analysis"]["comparison"][0]["status"])
-        self.assertEqual("incomplete", answer_only["evaluation_support"]["reasoning_soundness"])
-        self.assertEqual("matched", wrong_reason["answer_analysis"]["comparison"][0]["status"])
-        self.assertEqual("unsound", wrong_reason["evaluation_support"]["reasoning_soundness"])
+        self.assertEqual("met", answer_only["criteria"][0]["status"])
+        self.assertIn("not_met", {criterion["status"] for criterion in answer_only["criteria"][1:]})
+        self.assertEqual("met", wrong_reason["criteria"][0]["status"])
+        self.assertIn("not_met", {criterion["status"] for criterion in wrong_reason["criteria"][1:]})
 
     def test_v5_10_lesson_recorded_downstream_oracles_match_active_contracts(self):
         scripts_path = str(PROJECT_ROOT / "scripts")
@@ -18616,22 +18713,25 @@ class LearningSystemTest(unittest.TestCase):
         return runtime, flow["id"], step
 
     def _v5_msg004_answer_output(self, attempt: dict) -> dict:
-        output = json.loads(json.dumps(self._v5_msg004_contracts()["answer_analysis"], ensure_ascii=False))
-        question = db.get_question(self.conn, attempt["question_id"])
-        output["answer_analysis"]["optimal_answer"] = question["expected_answer"]
-        solution_steps = [str(item) for item in (question.get("solution_steps") or []) if str(item).strip()]
-        if solution_steps:
-            output["answer_analysis"]["optimal_solution_steps"] = solution_steps[:6]
-        return output
+        return self._v51_answer_review_output(attempt)
 
     def _v51_answer_review_output(self, attempt: dict) -> dict:
-        from learning_system import assessment_store
+        from learning_system import assessment_policy, assessment_store
 
         contract = assessment_store.bound_active_contract_for_flow_step(
             self.conn,
             attempt["flow_step_id"],
         )
-        self.assertIsNotNone(contract)
+        if contract is None:
+            question = db.get_question(self.conn, attempt["question_id"])
+            contract = assessment_store.active_contract_for_question(
+                self.conn,
+                attempt["question_id"],
+                attempt.get("question_item_version") or question["item_version"],
+            )
+        if contract is None:
+            question = db.get_question(self.conn, attempt["question_id"])
+            contract = assessment_policy.build_answer_contract(question)
         criteria = [
             {
                 "criterion_key": point["key"],
@@ -18689,10 +18789,13 @@ class LearningSystemTest(unittest.TestCase):
     ) -> dict:
         output = self._v5_semantic_answer_output_from_review(attempt, None)
         output["confidence"] = confidence
-        output["answer_analysis"]["child_answer_summary"] = reason
-        output["answer_analysis"]["process_gap"] = reason
-        output["answer_analysis"]["teaching_explanation"] = "保留现有答案，先补充更清楚的过程证据。"
-        output["answer_analysis"]["next_child_prompt"] = "请补充一条关键关系，或说明现在仍无法补充。"
+        output["answer_gap"] = reason
+        output["teaching_explanation"] = "保留现有答案，先补充更清楚的过程证据。"
+        output["improvement_direction"] = ["请补充一条关键关系，或说明现在仍无法补充。"]
+        for criterion in output["criteria"]:
+            criterion["status"] = "unclear"
+            criterion["child_evidence"] = "The child evidence is not clear enough to judge."
+            criterion["reason"] = reason
         self._validate_v5_strict_answer_output(output)
         return output
 
@@ -18743,111 +18846,81 @@ class LearningSystemTest(unittest.TestCase):
         }
 
     def _v5_semantic_answer_output_from_review(self, attempt: dict, review: dict | None) -> dict:
-        if review is None:
-            question = db.get_question(self.conn, attempt["question_id"])
-            return {
-                "schema_version": "2026-07-11.answer-review.v5.schema.v2",
-                "result": "unclear",
-                "score_points": 0,
-                "max_points": 2,
-                "confidence": 0.0,
-                "error_tags": [],
-                "blocking_evidence": False,
-                "answer_analysis": {
-                    "optimal_answer": question["expected_answer"],
-                    "optimal_solution_steps": (question.get("solution_steps") or ["按题意写出核心关系。"])[0:6],
-                    "child_answer_summary": "当前 recorded fixture 没有可用判题输出。",
-                    "comparison": [
-                        {"dimension": "final_answer", "status": "unclear", "detail": "证据不足。"},
-                        {"dimension": "model_or_relation", "status": "unclear", "detail": "无法判断核心关系是否成立。"},
-                        {"dimension": "steps", "status": "unclear", "detail": "无法判断关键步骤是否完整。"},
-                        {"dimension": "symbols_units", "status": "unclear", "detail": "无法判断符号或单位表达。"},
-                        {"dimension": "check_or_explanation", "status": "unclear", "detail": "无法判断是否有有效检验。"},
-                    ],
-                    "alternative_solutions": [],
-                    "process_gap": "证据不足，不能判断。",
-                    "teaching_explanation": "先保留答案，等待更可靠的分析。",
-                    "next_child_prompt": "请补充一条关键关系或更清楚的步骤。"
-                },
-                "evaluation_support": {
-                    "usable_for_evaluation": False,
-                    "evidence_strength": "insufficient",
-                    "reasoning_soundness": "unclear",
-                    "dominant_gap_dimensions": []
-                },
-                "next_evidence_need": "clearer_solution_evidence"
-            }
-        analysis = json.loads(json.dumps(review.get("analysis") or {}, ensure_ascii=False))
-        allowed_analysis_keys = {
-            "optimal_answer",
-            "optimal_solution_steps",
-            "child_answer_summary",
-            "comparison",
-            "alternative_solutions",
-            "process_gap",
-            "teaching_explanation",
-            "next_child_prompt",
-        }
-        contract_analysis = {key: value for key, value in analysis.items() if key in allowed_analysis_keys}
+        from learning_system import assessment_policy, assessment_store
+
         question = db.get_question(self.conn, attempt["question_id"])
-        contract_analysis.setdefault("optimal_answer", question["expected_answer"])
-        contract_analysis.setdefault("optimal_solution_steps", (question.get("solution_steps") or ["按题意写出核心关系。"])[0:6])
-        contract_analysis.setdefault("child_answer_summary", "recorded fixture 已保存孩子答案。")
-        existing_comparison = contract_analysis.get("comparison") if isinstance(contract_analysis.get("comparison"), list) else []
-        comparison_by_dimension = {
-            str(item.get("dimension") or ""): item
-            for item in existing_comparison
-            if isinstance(item, dict)
-        }
-        required_dimensions = [
-            ("final_answer", "最终答案需要单独判断。"),
-            ("model_or_relation", "核心关系或模型需要单独判断。"),
-            ("steps", "关键步骤需要单独判断。"),
-            ("symbols_units", "符号、单位或表达格式需要单独判断。"),
-            ("check_or_explanation", "检验或解释需要单独判断。"),
-        ]
-        normalized_comparison = []
-        for dimension, detail in required_dimensions:
-            item = comparison_by_dimension.get(dimension)
-            if isinstance(item, dict):
-                normalized_comparison.append(item)
-            else:
-                normalized_comparison.append({"dimension": dimension, "status": "unclear", "detail": detail})
-        for item in existing_comparison:
-            if isinstance(item, dict) and str(item.get("dimension") or "") not in {entry["dimension"] for entry in normalized_comparison}:
-                normalized_comparison.append(item)
-        contract_analysis["comparison"] = normalized_comparison[:8]
-        contract_analysis.setdefault("alternative_solutions", [])
-        contract_analysis.setdefault("process_gap", "" if review.get("result") == "correct" else "证据不足，不能判断。")
-        contract_analysis.setdefault("teaching_explanation", "先保留答案，等待更可靠的分析。")
-        contract_analysis.setdefault("next_child_prompt", "请补充关键关系、步骤或检验。")
-        support = analysis.get("evaluation_support") if isinstance(analysis.get("evaluation_support"), dict) else db.derive_answer_evaluation_support(analysis)
-        next_evidence_need = str(support.get("next_evidence_need") or "clearer_solution_evidence")
-        if next_evidence_need not in {
-            "none",
-            "same_structure_confirmation",
-            "near_transfer_confirmation",
-            "prerequisite_probe",
-            "clearer_solution_evidence",
-            "targeted_reteach",
-        }:
-            next_evidence_need = "clearer_solution_evidence"
+        contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn,
+            attempt.get("flow_step_id") or "",
+        ) or assessment_store.active_contract_for_question(
+            self.conn,
+            question["id"],
+            question["item_version"],
+        )
+        if not contract:
+            contract = assessment_policy.build_answer_contract(question)
+        result = str((review or {}).get("result") or "unclear")
+        confidence = float((review or {}).get("confidence") or 0.0)
+        analysis = json.loads(json.dumps((review or {}).get("analysis") or {}, ensure_ascii=False))
+        support = analysis.get("evaluation_support") if isinstance(analysis.get("evaluation_support"), dict) else {}
+        gap_dimensions = set(str(item) for item in support.get("dominant_gap_dimensions") or [])
+
+        def status_for_point(index: int, point: dict) -> str:
+            if review is None or result == "unclear" or confidence < 0.35:
+                return "unclear"
+            if result == "correct":
+                return "met"
+            dimension = str(point.get("dimension") or "")
+            if result == "wrong":
+                return "not_met"
+            if dimension == "final_answer" and result in {"partial", "submitted"}:
+                return "met"
+            if dimension in gap_dimensions:
+                return "not_met"
+            score_points = float((review or {}).get("score_points") or 0)
+            if score_points <= 0:
+                return "not_met"
+            return "met" if index == 0 else "not_met"
+
+        criteria = []
+        for index, point in enumerate(contract["score_points"]):
+            status = status_for_point(index, point)
+            criteria.append({
+                "criterion_key": point["key"],
+                "status": status,
+                "child_evidence": (
+                    "The recorded child answer supports this scoring point."
+                    if status == "met"
+                    else "The recorded child answer does not safely establish this scoring point."
+                    if status == "not_met"
+                    else "The recorded child evidence is not clear enough to judge this scoring point."
+                ),
+                "reason": (
+                    "Recorded fixture marks this criterion as satisfied."
+                    if status == "met"
+                    else "Recorded fixture keeps this criterion below satisfied."
+                    if status == "not_met"
+                    else "Recorded fixture is intentionally unclear or low confidence."
+                ),
+            })
+        process_gap = str(analysis.get("process_gap") or "").strip()
+        if not process_gap:
+            process_gap = "No mathematical gap affecting the score." if result == "correct" else "关键得分点还没有被完整证明。"
         return {
-            "schema_version": "2026-07-11.answer-review.v5.schema.v2",
-            "result": str(review.get("result") or "unclear"),
-            "score_points": float(review.get("score_points") or 0),
-            "max_points": 2,
-            "confidence": float(review.get("confidence") or 0),
-            "error_tags": list(review.get("error_tags") or []),
-            "blocking_evidence": bool(review.get("blocking_evidence")),
-            "answer_analysis": contract_analysis,
-            "evaluation_support": {
-                "usable_for_evaluation": bool(support.get("usable_for_evaluation")),
-                "evidence_strength": str(support.get("evidence_strength") or "insufficient"),
-                "reasoning_soundness": str(support.get("reasoning_soundness") or "unclear"),
-                "dominant_gap_dimensions": list(support.get("dominant_gap_dimensions") or []),
-            },
-            "next_evidence_need": next_evidence_need,
+            "schema_version": "2026-07-14.answer-review.v5.schema.v3",
+            "criteria": criteria,
+            "answer_gap": process_gap,
+            "improvement_direction": [
+                str(analysis.get("next_child_prompt") or "先写清关键关系、步骤和检验。")
+            ],
+            "expression_judgment": (
+                "The expression is judged by mathematical intent, not exact wording."
+            ),
+            "teaching_explanation": str(
+                analysis.get("teaching_explanation")
+                or "对照标准答案，看关键关系是否真的写出来。"
+            ),
+            "confidence": confidence,
         }
 
     def _v5_msg004_teaching_output(self, payload: dict) -> dict:
@@ -19424,6 +19497,9 @@ class LearningSystemTest(unittest.TestCase):
         }
         review_artifact["candidate_sha256"] = question_bank.v12_external_candidate_sha256(external_item)
         external_item["review_artifact"] = review_artifact
+        review_binding = question_bank.v12_item_review_subject_binding(external_item)
+        review_artifact["child_surface_sha256"] = review_binding["child_surface_sha256"]
+        review_artifact["item_review_request_sha256"] = review_binding["item_review_request_sha256"]
         review_artifact["semantic_evidence_sha256"] = question_bank.v12_item_review_semantic_evidence_sha256(
             external_item,
             review_artifact,

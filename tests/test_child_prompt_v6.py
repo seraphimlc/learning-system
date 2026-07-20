@@ -242,23 +242,20 @@ class ChildPromptV6Tests(unittest.TestCase):
                 ]),
                 allow_legacy=False,
             )
-        with self.assertRaisesRegex(
-            child_prompt.ChildPromptContractError,
-            "required_explanation_instruction_missing",
-        ):
-            child_prompt.project_child_surface(
-                prompt="请选择所有正确答案。",
-                prompt_format=child_prompt.CHILD_PROMPT_FORMAT,
-                interaction_schema=_schema(
-                    "multi_choice",
-                    requires_explanation=True,
-                    choices=[
-                        {"id": "A", "label": "甲"},
-                        {"id": "B", "label": "乙"},
-                    ],
-                ),
-                allow_legacy=False,
-            )
+        projected = child_prompt.project_child_surface(
+            prompt="请选择所有正确答案。",
+            prompt_format=child_prompt.CHILD_PROMPT_FORMAT,
+            interaction_schema=_schema(
+                "multi_choice",
+                requires_explanation=True,
+                choices=[
+                    {"id": "A", "label": "甲"},
+                    {"id": "B", "label": "乙"},
+                ],
+            ),
+            allow_legacy=False,
+        )
+        self.assertTrue(projected["interaction_schema"]["requires_explanation"])
 
     def test_legacy_superscript_is_normalized_but_v2_source_is_rejected(self):
         legacy = child_prompt.project_child_surface(

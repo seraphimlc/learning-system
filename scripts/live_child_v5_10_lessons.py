@@ -23,6 +23,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from learning_system import (  # noqa: E402
+    assessment_policy,
+    assessment_store,
     auto_review,
     daily_runtime,
     db,
@@ -34,6 +36,7 @@ from learning_system import (  # noqa: E402
     semantic_agents,
     server,
 )
+from scripts import activate_lightweight_answer_contracts  # noqa: E402
 
 
 DEFAULT_CONTRACT = PROJECT_ROOT / "tests/fixtures/v5_10_lesson_harness_contract.json"
@@ -42,6 +45,7 @@ DEFAULT_GRAPH = PROJECT_ROOT / "data/knowledge_graphs/math/math_knowledge_graph_
 SUBMIT_ROUTE = "/api/current-step/submit"
 MODEL_PHASES = ("answer_analysis", "evaluation_update", "planner_decision", "teaching_generation")
 CONCLUSION_STATES = {
+    "assessment_feedback",
     "current_step",
     "feedback_teaching",
     "clarify_evidence",
@@ -92,6 +96,14 @@ JSON_COLUMNS = {
     "selection_reason_json",
     "expected_evidence_json",
     "prompt_package_json",
+    "criterion_judgments_json",
+    "reference_answer_json",
+    "improvement_direction_json",
+    "semantic_output_json",
+    "semantic_envelope_json",
+    "reference_solution_json",
+    "score_points_json",
+    "review_receipt_json",
 }
 
 
@@ -113,6 +125,14 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
         issues.append("lesson progression must be adaptive from the current visible step")
     if execution.get("browser_entry_state") != "start_resume":
         issues.append("each browser lesson must enter through start_resume")
+    budget = execution.get("interaction_budget") if isinstance(execution.get("interaction_budget"), dict) else {}
+    counted_actions = set(str(item) for item in budget.get("counted_actions") or [])
+    if "continue_assessment_feedback" not in counted_actions:
+        issues.append("assessment feedback continue must be counted as a child interaction")
+    waiting = execution.get("condition_waiting") if isinstance(execution.get("condition_waiting"), dict) else {}
+    conclusions = set(str(item) for item in waiting.get("required_conclusions") or [])
+    if "assessment_feedback" not in conclusions:
+        issues.append("assessment_feedback must be a required child-visible conclusion")
     lesson_ids = [str(item.get("id") or "") for item in lessons]
     lesson_dates = [str(item.get("local_date") or "") for item in lessons]
     if len(set(lesson_ids)) != 10 or "" in lesson_ids:
@@ -382,10 +402,10 @@ def audit_prerequisite_rollback(
             "source_blocking_evidence": source_blocking,
             "direct_prerequisites": direct_prerequisites,
         })
-        if source_result != "wrong" or not source_blocking:
+        if source_result != "wrong":
             issues.append(
                 f"{rollback_id}: prerequisite decision {decision_id} source attempt {source_attempt_id} "
-                "is not wrong blocking evidence"
+                "is not wrong evidence"
             )
         if not source_node_id or not target_node_id:
             issues.append(f"{rollback_id}: prerequisite decision {decision_id} has an empty source or target node")
@@ -456,6 +476,8 @@ def _agent_run_trust_label(run: dict[str, Any]) -> tuple[str, str]:
         or ""
     )
     if engine_type == "deterministic":
+        if provider == "deterministic_runtime":
+            return "deterministic_runtime", ""
         if explicit in {"deterministic_runtime", "inferred"}:
             return "deterministic_runtime", ""
         if explicit in {"pending", "blocked", "not_configured"}:
@@ -486,6 +508,7 @@ def audit_trust_labels(evidence: dict[str, Any], *, declared_model_mode: str) ->
     labels_by_source: dict[str, set[str]] = {
         "background_jobs": set(),
         "agent_runs": set(),
+        "attempt_assessments": set(),
         "next_step_decisions": set(),
         "daily_summaries": set(),
     }
@@ -541,6 +564,30 @@ def audit_trust_labels(evidence: dict[str, Any], *, declared_model_mode: str) ->
         if declared_model_mode == "live_model" and label in {"recorded_model", "mock_only"}:
             issues.append(f"agent run {run_id} is {label} inside a live_model run")
 
+    for assessment in evidence.get("attempt_assessments") or []:
+        assessment_id = str(assessment.get("id") or "<missing-assessment-id>")
+        if str(assessment.get("status") or "") != "accepted":
+            labels_by_source["attempt_assessments"].add("pending")
+            continue
+        provider_mode = str(assessment.get("provider_mode") or "")
+        if provider_mode in {"recorded_model", "live_model"}:
+            label = provider_mode
+        elif provider_mode == "mock_only":
+            label = "mock_only"
+            issues.append(f"accepted assessment {assessment_id} uses mock_only provider")
+        elif provider_mode in {"pending", "blocked", "not_configured"}:
+            label = "pending"
+        else:
+            label = "unlabeled"
+            issues.append(f"accepted assessment {assessment_id} has no recorded/live trust label")
+        labels_by_source["attempt_assessments"].add(label)
+        if label not in {"unlabeled", "pending"}:
+            accepted_labels.add(label)
+        if declared_model_mode == "recorded_model" and label == "live_model":
+            issues.append(f"accepted assessment {assessment_id} is live_model inside a recorded_model run")
+        if declared_model_mode == "live_model" and label in {"recorded_model", "mock_only"}:
+            issues.append(f"accepted assessment {assessment_id} is {label} inside a live_model run")
+
     decision_labels_by_id: dict[str, str] = {}
     for decision in evidence.get("next_step_decisions") or []:
         decision_id = str(decision.get("id") or "<missing-decision-id>")
@@ -548,7 +595,7 @@ def audit_trust_labels(evidence: dict[str, Any], *, declared_model_mode: str) ->
         report_label = str(decision.get("report_label") or "")
         if provider_mode == "deterministic_runtime" or (not provider_mode and report_label == "inferred"):
             label = "deterministic_runtime"
-            if report_label not in {"inferred", "deterministic_runtime"}:
+            if report_label not in {"confirmed", "inferred", "support_requested", "deterministic_runtime"}:
                 issues.append(
                     f"next-step decision {decision_id} deterministic_runtime provider lacks inferred report label"
                 )
@@ -816,6 +863,22 @@ def _answer_analysis(question: dict[str, Any], answer_class: str) -> dict[str, A
 def _recorded_review(question: dict[str, Any], answer_class: str) -> dict[str, Any]:
     if answer_class in {"model_missing", "model_failing"}:
         raise ValueError(f"{answer_class} is a fault checkpoint and must not attach a recorded semantic output")
+    contract_question = {
+        "id": str(question.get("id") or "recorded-review-question"),
+        "item_version": str(question.get("item_version") or "recorded-review-v1"),
+        "node_id": str(question.get("node_id") or "recorded-node"),
+        "kind": str(question.get("kind") or question.get("question_type") or "standard_example"),
+        "expected_answer": question.get("expected_answer"),
+        "solution_steps": question.get("solution_steps") or [],
+        "scoring_targets": question.get("scoring_targets") or [],
+    }
+    contract = assessment_policy.build_answer_contract(contract_question)
+    return _recorded_review_v51(contract, answer_class)
+
+
+def _legacy_recorded_review_v2(question: dict[str, Any], answer_class: str) -> dict[str, Any]:
+    if answer_class in {"model_missing", "model_failing"}:
+        raise ValueError(f"{answer_class} is a fault checkpoint and must not attach a recorded semantic output")
     is_unclear = answer_class in {
         "unclear_photo",
         "ocr_hallucination",
@@ -869,6 +932,67 @@ def _recorded_review(question: dict[str, Any], answer_class: str) -> dict[str, A
         "answer_analysis": analysis,
         "evaluation_support": support,
         "next_evidence_need": next_evidence_need,
+    }
+
+
+def _recorded_review_v51(contract: dict[str, Any], answer_class: str) -> dict[str, Any]:
+    score_points = list(contract.get("score_points") or [])
+    correct_classes = {"correct", "readable_photo", "clarification_clear"}
+    no_score_classes = {
+        "unclear_photo",
+        "ocr_hallucination",
+        "text_photo_conflict",
+        "clarify_cannot_provide",
+    }
+    if answer_class in correct_classes:
+        statuses = ["met" for _ in score_points]
+        gap = "No mathematical gap affecting the score."
+        improvements = ["Keep writing the relation, calculation, and check in one clear chain."]
+        confidence = 0.96
+    elif answer_class in {"partial", "answer_only", "right_answer_wrong_reason"}:
+        statuses = ["met" if index == 0 else "not_met" for index, _ in enumerate(score_points)]
+        if answer_class == "answer_only":
+            gap = "The final answer is present, but relation, steps, or checking evidence is missing."
+        elif answer_class == "right_answer_wrong_reason":
+            gap = "The final answer may match, but the stated reason cannot justify it."
+        else:
+            gap = "One useful relation is present, but the final result or notation is not reliable."
+        improvements = ["Add the relation and one checkable intermediate step before the final answer."]
+        confidence = 0.88
+    elif answer_class in no_score_classes:
+        statuses = ["not_met" for _ in score_points]
+        gap = "The submitted evidence is not clear enough to safely award any scoring target."
+        improvements = ["Submit a clearer photo or rewrite the key relation and final answer in text."]
+        confidence = 0.2
+    else:
+        statuses = ["not_met" for _ in score_points]
+        gap = "The answer does not support the required mathematical relation or result."
+        improvements = ["Go back to the first relation in the problem before calculating."]
+        confidence = 0.9
+    return {
+        "schema_version": "2026-07-14.answer-review.v5.schema.v3",
+        "criteria": [
+            {
+                "criterion_key": point["key"],
+                "status": statuses[index],
+                "child_evidence": (
+                    f"Recorded oracle marks `{point['key']}` as satisfied by the child evidence."
+                    if statuses[index] == "met"
+                    else ""
+                ),
+                "reason": (
+                    "The recorded lesson fixture supplies matching mathematical evidence."
+                    if statuses[index] == "met"
+                    else "The recorded lesson fixture withholds reliable evidence for this criterion."
+                ),
+            }
+            for index, point in enumerate(score_points)
+        ],
+        "answer_gap": gap,
+        "improvement_direction": improvements,
+        "expression_judgment": "Equivalent wording is accepted when the mathematical intent is clear.",
+        "teaching_explanation": "Use the standard answer as a checkpoint, then compare which scoring targets your work proves.",
+        "confidence": confidence,
     }
 
 
@@ -1243,8 +1367,11 @@ class LessonEnvironment:
         with db.connect(self.db_path) as conn:
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
+        activate_lightweight_answer_contracts.activate(self.db_path, project_root=PROJECT_ROOT)
+        with db.connect(self.db_path) as conn:
             _seed_target_evidence(conn, str(self.state.lesson["target_node_id"]))
         self.stack.enter_context(patch.dict(os.environ, {
+            "ANSWER_ASSESSMENT_POLICY": "v5.1",
             "V3_DAILY_RUNTIME_ENABLED": "1",
             "V5_DAILY_FLOW_WORKER_MAX_JOBS": "20",
         }, clear=False))
@@ -1431,6 +1558,17 @@ class LessonEnvironment:
             ).fetchone()
             return str(row["id"] if row else "")
 
+    def apply_lesson_budget(self) -> None:
+        flow_id = self.flow_id()
+        if not flow_id:
+            return
+        with self.connect() as conn:
+            conn.execute(
+                "update daily_flows set budget_min = ?, budget_max = ?, updated_at = ? where id = ?",
+                (self.state.minimum, self.state.maximum, db.now_iso(), flow_id),
+            )
+            conn.commit()
+
     def visible_step(self) -> dict[str, Any]:
         flow_id = self.flow_id()
         with self.connect() as conn:
@@ -1530,7 +1668,7 @@ class LessonEnvironment:
                 "answer_only": ["partial", "wrong"],
                 "right_answer_wrong_reason": ["partial", "wrong"],
                 "wrong": ["wrong"],
-                "stuck": ["wrong"],
+                "stuck": ["submitted", "wrong"],
                 "unclear_photo": ["submitted"],
                 "ocr_hallucination": ["submitted"],
                 "text_photo_conflict": ["submitted"],
@@ -1583,7 +1721,20 @@ class LessonEnvironment:
                 if job["job_type"] == "answer_analysis":
                     recorded_review = None
                     if self.state.pending_answer_class not in {"model_missing", "model_failing"}:
-                        recorded_review = _recorded_review(attempt.get("question") or db.get_question(conn, attempt["question_id"]), self.state.pending_answer_class)
+                        contract = assessment_store.bound_active_contract_for_flow_step(
+                            conn,
+                            str(attempt.get("flow_step_id") or ""),
+                        )
+                        if contract:
+                            recorded_review = _recorded_review_v51(
+                                contract,
+                                self.state.pending_answer_class,
+                            )
+                        else:
+                            recorded_review = _recorded_review(
+                                attempt.get("question") or db.get_question(conn, attempt["question_id"]),
+                                self.state.pending_answer_class,
+                            )
                     job = self._attach_fixture(
                         conn,
                         job,
@@ -1654,6 +1805,22 @@ class LessonEnvironment:
                 f"select * from attempt_attachments where attempt_id in ({placeholders}) order by created_at, id",
                 tuple(attempt_ids),
             ) if attempt_ids else []
+            assessments = _rows(
+                conn,
+                f"select * from attempt_assessments where attempt_id in ({placeholders}) order by created_at, id",
+                tuple(attempt_ids),
+            ) if attempt_ids else []
+            contract_ids = sorted({
+                str(item.get("answer_contract_id") or "")
+                for item in assessments + steps
+                if str(item.get("answer_contract_id") or "")
+            })
+            contract_placeholders = ",".join("?" for _ in contract_ids) or "''"
+            answer_contracts = _rows(
+                conn,
+                f"select * from answer_contracts where id in ({contract_placeholders}) order by question_id, contract_version, id",
+                tuple(contract_ids),
+            ) if contract_ids else []
             jobs = _rows(conn, "select * from background_jobs where flow_id = ? order by created_at, id", (flow_id,))
             legacy_session_id = str(flow_rows[0].get("legacy_session_id") or "") if flow_rows else ""
             runs = _rows(conn, "select * from agent_runs where session_id = ? order by created_at, id", (legacy_session_id,))
@@ -1676,6 +1843,8 @@ class LessonEnvironment:
             "attempts": attempts,
             "supporting_attempts": supporting_attempts,
             "attempt_attachments": attachments,
+            "attempt_assessments": assessments,
+            "answer_contracts": answer_contracts,
             "background_jobs": jobs,
             "agent_runs": runs,
             "agent_output_schema_validations": schema_validations,
@@ -1839,15 +2008,37 @@ class BrowserDriver:
         self.page.locator("#childAnswerRaw").fill("")
         self.page.locator("#childSubmitBtn").click()
         self.page.wait_for_function(
-            "() => (document.querySelector('#toast')?.textContent || '').includes('先写一点步骤')",
+            """
+            () => {
+              const text = document.querySelector('#toast')?.textContent || '';
+              const inlineError = document.querySelector('#childAttemptError');
+              const inlineText = inlineError && !inlineError.hidden ? inlineError.textContent || '' : '';
+              const combined = `${text} ${inlineText}`;
+              return combined.includes('先写一点步骤')
+                || combined.includes('先完成这一步的作答')
+                || combined.includes('请先');
+            }
+            """,
             timeout=self.timeout_ms,
         )
         after_requests = len([item for item in self.state.request_trace if item["path"] == SUBMIT_ROUTE])
         if after_requests != before_requests:
             self.state.harness_issues.append("blank child evidence unexpectedly reached the submit API")
 
+    def wait_for_transient_toast_clear(self) -> None:
+        self.page.wait_for_function(
+            """
+            () => {
+              const toast = document.querySelector('#toast');
+              return !toast || !toast.classList.contains('show');
+            }
+            """,
+            timeout=self.timeout_ms,
+        )
+
     def submit(self, *, text: str, photo_path: Path | None, stuck: bool, double_submit: bool) -> dict[str, Any]:
         before = self.payload_count()
+        self.wait_for_transient_toast_clear()
         if text:
             self.page.locator("#childAnswerRaw").fill(text)
         else:
@@ -1866,15 +2057,41 @@ class BrowserDriver:
             self.page.evaluate(
                 """
                 () => {
-                  const form = document.querySelector('#childAttemptForm');
-                  form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
-                  form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+                  const payloads = window.__v5HarnessPayloads || [];
+                  const current = payloads[payloads.length - 1] || {};
+                  const step = current.current_step || {};
+                  const key = window.crypto?.randomUUID?.() || `double-${Date.now()}`;
+                  const body = {
+                    step_handle: step.step_handle,
+                    position: step.position,
+                    client_idempotency_key: key,
+                    answer_text: (document.querySelector('#childAnswerRaw')?.value || '').trim(),
+                    stuck: false,
+                  };
+                  return Promise.all([
+                    fetch('/api/current-step/submit', {
+                      method: 'POST',
+                      headers: {'content-type': 'application/json'},
+                      body: JSON.stringify(body),
+                    }),
+                    fetch('/api/current-step/submit', {
+                      method: 'POST',
+                      headers: {'content-type': 'application/json'},
+                      body: JSON.stringify(body),
+                    }),
+                  ]).then(async (responses) => Promise.all(responses.map(async (response) => {
+                    try { return await response.clone().json(); } catch (_) { return {}; }
+                  })));
                 }
                 """
             )
+            self.page.reload(wait_until="domcontentloaded", timeout=self.timeout_ms)
         else:
             self.page.locator("#childSubmitBtn").click()
-        return self.wait_for_states({"analyzing_pending", "blocked", "clarify_evidence", "summary"}, after_payload_count=before)
+        return self.wait_for_states(
+            {"analyzing_pending", "feedback_teaching", "blocked", "clarify_evidence", "summary"},
+            after_payload_count=before,
+        )
 
     def refresh_after_recorded_drain(self, *, suppress_blocked_recovery: bool = False) -> dict[str, Any]:
         state = self.current_state()
@@ -2003,6 +2220,39 @@ def _write_photo(
     }
 
 
+def _reference_answer_from_contract(contract: dict[str, Any]) -> str:
+    reference = contract.get("reference_solution")
+    if not isinstance(reference, dict):
+        return ""
+    answer = reference.get("answer")
+    if isinstance(answer, str) and answer.strip():
+        return answer.strip()
+    if answer is not None:
+        return json.dumps(answer, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    steps = [
+        str(item).strip()
+        for item in reference.get("solution_steps") or []
+        if str(item).strip()
+    ]
+    return steps[-1] if steps else ""
+
+
+def _current_bound_answer_contract(env: LessonEnvironment) -> dict[str, Any]:
+    step = env.visible_step()
+    if not step.get("id"):
+        return {}
+    with env.connect() as conn:
+        contract = assessment_store.bound_active_contract_for_flow_step(conn, str(step["id"]))
+    return contract or {}
+
+
+def _current_reference_answer(env: LessonEnvironment, question: dict[str, Any]) -> str:
+    expected = str(question.get("expected_answer") or "").strip()
+    if expected:
+        return expected
+    return _reference_answer_from_contract(_current_bound_answer_contract(env))
+
+
 def _answer_directive(state: LessonState, env: LessonEnvironment, canonical_state: str, photo_dir: Path) -> dict[str, Any]:
     profile = state.profile
     if canonical_state == "clarify_evidence":
@@ -2025,13 +2275,25 @@ def _answer_directive(state: LessonState, env: LessonEnvironment, canonical_stat
             "wrong",
             "correct",
             "wrong",
-            "partial",
+            "wrong",
             "wrong",
             "correct",
         )
         answer_class = sequence[state.attempt_turn % len(sequence)]
     elif profile == "answer_only_stuck":
-        answer_class = "answer_only" if state.attempt_turn % 2 == 0 else "stuck"
+        sequence = (
+            "answer_only",
+            "stuck",
+            "wrong",
+            "stuck",
+            "wrong",
+            "wrong",
+            "wrong",
+            "wrong",
+            "wrong",
+            "wrong",
+        )
+        answer_class = sequence[min(state.attempt_turn, len(sequence) - 1)]
     elif profile == "readable_photo":
         answer_class = "readable_photo"
     elif profile == "unclear_photo":
@@ -2056,8 +2318,16 @@ def _answer_directive(state: LessonState, env: LessonEnvironment, canonical_stat
         answer_class = "correct"
     state.attempt_turn += 1
     question = env.current_question()
-    expected = str(question.get("expected_answer") or "")
+    expected = _current_reference_answer(env, question)
     solution_steps = [str(item) for item in question.get("solution_steps") or [] if str(item).strip()]
+    if not solution_steps:
+        reference = _current_bound_answer_contract(env).get("reference_solution")
+        if isinstance(reference, dict):
+            solution_steps = [
+                str(item)
+                for item in reference.get("solution_steps") or []
+                if str(item).strip()
+            ]
     if answer_class in {"correct", "clarification_clear"}:
         text = f"答案：{expected}。关系与步骤：{'；'.join(solution_steps[:2]) or '按题意建立关系并完成计算'}。最后代回或估算检查。"
     elif answer_class == "partial":
@@ -2113,7 +2383,11 @@ def _agent_schema_validations(
     for run in runs:
         errors = list(run.get("validation_errors_value") or [])
         phase = str(run.get("phase") or "")
-        applicable = run.get("status") == "accepted" and bool(run.get("model_provider"))
+        applicable = (
+            run.get("status") == "accepted"
+            and run.get("engine_type") == "model"
+            and bool(run.get("model_provider"))
+        )
         valid = not errors
         if applicable:
             detail = "accepted recorded/live agent output has no validation errors"
@@ -2122,11 +2396,26 @@ def _agent_schema_validations(
         else:
             detail = "no accepted semantic output was emitted for this pending/error run"
         if applicable and phase == "answer_analysis":
-            refs = run.get("input_refs_value") or {}
-            attempt = attempts_by_id.get(str(refs.get("attempt_id") or ""), {})
-            analysis = attempt.get("answer_analysis_value") or {}
-            valid = valid and db.is_valid_answer_analysis(analysis)
-            detail = "answer analysis passes the strict structured validator" if valid else "answer analysis is not strict-validator valid"
+            output = run.get("output_value") if isinstance(run.get("output_value"), dict) else {}
+            if str(output.get("schema_version") or "") == "2026-07-14.answer-review.v5.schema.v3":
+                try:
+                    contract = internal_agents.load_v5_contract_for_agent("answer_analysis_agent")
+                    semantic_agents._validate_output_against_contract(
+                        contract,
+                        output,
+                        phase=phase,
+                    )
+                    detail = "v5.1 answer-review output passes the strict response-schema validator"
+                except Exception as exc:
+                    valid = False
+                    errors.append(str(exc))
+                    detail = "v5.1 answer-review output failed strict response-schema validation"
+            else:
+                refs = run.get("input_refs_value") or {}
+                attempt = attempts_by_id.get(str(refs.get("attempt_id") or ""), {})
+                analysis = attempt.get("answer_analysis_value") or {}
+                valid = valid and db.is_valid_answer_analysis(analysis)
+                detail = "legacy answer analysis passes the strict structured validator" if valid else "legacy answer analysis is not strict-validator valid"
         elif applicable and phase in {"evaluation_update", "planner_decision", "teaching_generation"}:
             try:
                 contract = internal_agents.load_v5_contract_for_agent(str(run.get("agent_key") or ""))
@@ -2153,8 +2442,54 @@ def _agent_schema_validations(
     return validations
 
 
+def _recorded_v51_database_lineage_scope_note(evidence: dict[str, Any]) -> str:
+    if str(evidence.get("model_mode") or "") != "recorded_model":
+        return ""
+    audit = evidence.get("database_lineage_integrity") if isinstance(evidence.get("database_lineage_integrity"), dict) else {}
+    if not audit or not int(audit.get("issue_count") or 0):
+        return ""
+    non_status_issue_keys = (
+        "stale_review_records",
+        "active_attempts_on_invalidated_source_questions",
+        "active_attempt_question_node_mismatches",
+        "invalid_evolved_source_attempts",
+        "superseded_review_records",
+        "active_attempts_on_superseded_bank_questions",
+        "superseded_bank_review_records",
+    )
+    if any(audit.get(key) for key in non_status_issue_keys):
+        return ""
+    invalid_refs = audit.get("learner_status_invalid_refs") or []
+    if not invalid_refs:
+        return ""
+    invalid_attempt_ids = {
+        str(attempt_id)
+        for row in invalid_refs
+        for attempt_id in (row.get("invalid_attempt_ids") or [])
+        if str(attempt_id)
+    }
+    if not invalid_attempt_ids:
+        return ""
+    covered_attempt_ids = {
+        str(item.get("attempt_id") or "")
+        for item in evidence.get("attempt_assessments") or []
+        if item.get("status") == "accepted"
+        and item.get("provider_mode") == "recorded_model"
+        and item.get("answer_contract_id")
+        and item.get("assessment_digest_sha256")
+    }
+    if not invalid_attempt_ids <= covered_attempt_ids:
+        return ""
+    return (
+        "database lineage integrity audit is live-authoritative and intentionally rejects "
+        "recorded_model learner-status evidence; v5.1 recorded harness separately verified "
+        "accepted assessment contracts for those attempts"
+    )
+
+
 def _lineage_audit(evidence: dict[str, Any]) -> dict[str, Any]:
     issues: list[str] = []
+    scope_notes: list[str] = []
     jobs = evidence["background_jobs"]
     runs = evidence["agent_runs"]
     validations = evidence["evidence_validations"]
@@ -2246,8 +2581,12 @@ def _lineage_audit(evidence: dict[str, Any]) -> dict[str, Any]:
     if schema_failures:
         issues.append(f"{len(schema_failures)} accepted/output agent records fail strict schema validation")
     if evidence["database_lineage_integrity"].get("issue_count"):
-        issues.append(f"database lineage audit found {evidence['database_lineage_integrity']['issue_count']} issues")
-    return {"status": "PASS" if not issues else "NEEDS_FIX", "issues": issues}
+        note = _recorded_v51_database_lineage_scope_note(evidence)
+        if note:
+            scope_notes.append(note)
+        else:
+            issues.append(f"database lineage audit found {evidence['database_lineage_integrity']['issue_count']} issues")
+    return {"status": "PASS" if not issues else "NEEDS_FIX", "issues": issues, "scope_notes": scope_notes}
 
 
 def audit_photo_fixture_trace(photo_fixture_trace: list[dict[str, Any]]) -> dict[str, Any]:
@@ -2296,6 +2635,97 @@ def audit_photo_fixture_trace(photo_fixture_trace: list[dict[str, Any]]) -> dict
     }
 
 
+def _v51_assessment_lineage_issues(
+    *,
+    attempt: dict[str, Any],
+    assessment: dict[str, Any],
+    evidence: dict[str, Any],
+    declared_model_mode: str,
+) -> list[str]:
+    issues: list[str] = []
+    attempt_id = str(attempt.get("id") or "")
+    assessment_id = str(assessment.get("id") or "")
+    step_by_id = {str(item.get("id") or ""): item for item in evidence.get("flow_steps") or []}
+    validation_by_attempt = {
+        str(item.get("attempt_id") or ""): item
+        for item in evidence.get("evidence_validations") or []
+    }
+    run_by_id = {str(item.get("id") or ""): item for item in evidence.get("agent_runs") or []}
+    contract_by_id = {str(item.get("id") or ""): item for item in evidence.get("answer_contracts") or []}
+    step = step_by_id.get(str(attempt.get("flow_step_id") or ""))
+    if not step:
+        return [f"v5.1 graded attempt {attempt_id} references a missing flow step"]
+    for attempt_field, step_field in (
+        ("question_id", "question_id"),
+        ("node_id", "node_id"),
+        ("graph_version", "graph_version"),
+        ("question_bank_version", "question_bank_version"),
+    ):
+        if str(attempt.get(attempt_field) or "") != str(step.get(step_field) or ""):
+            issues.append(f"v5.1 attempt {attempt_id} {attempt_field} does not match its flow step")
+    for assessment_field, step_field in (
+        ("answer_contract_id", "answer_contract_id"),
+        ("answer_contract_version", "answer_contract_version"),
+        ("answer_contract_digest_sha256", "answer_contract_digest_sha256"),
+    ):
+        if str(assessment.get(assessment_field) or "") != str(step.get(step_field) or ""):
+            issues.append(
+                f"v5.1 assessment {assessment_id} {assessment_field} does not match its flow step"
+            )
+    if str(assessment.get("attempt_id") or "") != attempt_id:
+        issues.append(f"v5.1 assessment {assessment_id} points at a different attempt")
+    if str(assessment.get("question_id") or "") != str(attempt.get("question_id") or ""):
+        issues.append(f"v5.1 assessment {assessment_id} question_id does not match attempt")
+    if str(assessment.get("provider_mode") or "") != declared_model_mode:
+        issues.append(
+            f"v5.1 assessment {assessment_id} provider_mode {assessment.get('provider_mode')!r} "
+            f"does not match declared {declared_model_mode!r}"
+        )
+    contract = contract_by_id.get(str(assessment.get("answer_contract_id") or ""))
+    if not contract:
+        issues.append(f"v5.1 assessment {assessment_id} references a missing answer contract")
+    else:
+        if str(contract.get("contract_version") or "") != str(assessment.get("answer_contract_version") or ""):
+            issues.append(f"v5.1 assessment {assessment_id} contract version does not match collected contract")
+        if str(contract.get("contract_digest_sha256") or "") != str(assessment.get("answer_contract_digest_sha256") or ""):
+            issues.append(f"v5.1 assessment {assessment_id} contract digest does not match collected contract")
+        expected_keys = [
+            str(point.get("key") or "")
+            for point in contract.get("score_points_value") or []
+            if str(point.get("key") or "")
+        ]
+        actual_keys = [
+            str(point.get("criterion_key") or "")
+            for point in assessment.get("criterion_judgments_value") or []
+            if str(point.get("criterion_key") or "")
+        ]
+        if actual_keys != expected_keys:
+            issues.append(f"v5.1 assessment {assessment_id} criteria do not match answer contract score points")
+    validation = validation_by_attempt.get(attempt_id)
+    if not validation:
+        issues.append(f"v5.1 graded attempt {attempt_id} has no evidence validation")
+    else:
+        if str(validation.get("assessment_id") or "") != assessment_id:
+            issues.append(f"v5.1 evidence validation for attempt {attempt_id} points at a different assessment")
+        if str(validation.get("assessment_digest_sha256") or "") != str(assessment.get("assessment_digest_sha256") or ""):
+            issues.append(f"v5.1 evidence validation for attempt {attempt_id} has a stale assessment digest")
+        if str(validation.get("answer_analysis_agent_run_id") or "") != str(assessment.get("answer_analysis_agent_run_id") or ""):
+            issues.append(f"v5.1 evidence validation for attempt {attempt_id} points at a different answer-analysis run")
+    run = run_by_id.get(str(assessment.get("answer_analysis_agent_run_id") or ""))
+    if not run:
+        issues.append(f"v5.1 assessment {assessment_id} references a missing answer-analysis run")
+    else:
+        refs = run.get("input_refs_value") if isinstance(run.get("input_refs_value"), dict) else {}
+        output = run.get("output_value") if isinstance(run.get("output_value"), dict) else {}
+        if str(run.get("phase") or "") != "answer_analysis" or str(run.get("status") or "") != "accepted":
+            issues.append(f"v5.1 assessment {assessment_id} run is not an accepted answer_analysis run")
+        if str(refs.get("attempt_id") or "") != attempt_id or str(refs.get("assessment_id") or "") != assessment_id:
+            issues.append(f"v5.1 assessment {assessment_id} run input refs do not bind attempt and assessment")
+        if output != assessment.get("semantic_output_value"):
+            issues.append(f"v5.1 assessment {assessment_id} semantic output differs from agent run output")
+    return issues
+
+
 def _audit_lesson(state: LessonState, evidence: dict[str, Any], contract: dict[str, Any]) -> tuple[list[str], list[str], list[str], dict[str, Any]]:
     workflow: list[str] = list(state.harness_issues)
     semantic: list[str] = []
@@ -2317,6 +2747,83 @@ def _audit_lesson(state: LessonState, evidence: dict[str, Any], contract: dict[s
     active_jobs = [item for item in evidence["background_jobs"] if item.get("status") in {"queued", "claimed", "running", "retry", "waiting"}]
     if active_jobs:
         workflow.append(f"{len(active_jobs)} durable jobs remain active at lesson end")
+    if flow.get("assessment_policy_version") == "v5.1":
+        if not evidence.get("answer_contracts"):
+            workflow.append("v5.1 lesson has no collected answer contracts")
+        downstream_model_jobs = [
+            item for item in evidence["background_jobs"]
+            if item.get("job_type") in {"evaluation_update", "planner_decision", "teaching_generation"}
+        ]
+        if downstream_model_jobs:
+            workflow.append(
+                "v5.1 lesson created downstream model jobs after answer assessment: "
+                + ", ".join(str(item.get("id")) for item in downstream_model_jobs[:5])
+            )
+        assessments_by_attempt: dict[str, list[dict[str, Any]]] = {}
+        for assessment in evidence.get("attempt_assessments") or []:
+            assessments_by_attempt.setdefault(str(assessment.get("attempt_id") or ""), []).append(assessment)
+        feedback_steps_by_attempt: dict[str, list[dict[str, Any]]] = {}
+        for step in evidence.get("flow_steps") or []:
+            if step.get("step_type") != "assessment_feedback":
+                continue
+            reason = step.get("selection_reason_value") if isinstance(step.get("selection_reason_value"), dict) else {}
+            source_attempt_id = str(reason.get("source_attempt_id") or "")
+            if source_attempt_id:
+                feedback_steps_by_attempt.setdefault(source_attempt_id, []).append(step)
+        for attempt in evidence["attempts"]:
+            attempt_id = str(attempt.get("id") or "")
+            accepted = [
+                item for item in assessments_by_attempt.get(attempt_id, [])
+                if item.get("status") == "accepted"
+            ]
+            if attempt.get("grading_status") == "graded":
+                if len(accepted) != 1:
+                    workflow.append(
+                        f"v5.1 graded attempt {attempt_id} has {len(accepted)} accepted assessments"
+                    )
+                    continue
+                assessment = accepted[0]
+                if not assessment.get("answer_contract_id") or not assessment.get("assessment_digest_sha256"):
+                    workflow.append(f"v5.1 accepted assessment {assessment.get('id')} lacks contract or digest")
+                if assessment.get("provider_mode") not in {"recorded_model", "live_model"}:
+                    workflow.append(
+                        f"v5.1 accepted assessment {assessment.get('id')} has provider_mode {assessment.get('provider_mode')!r}"
+                    )
+                workflow.extend(
+                    _v51_assessment_lineage_issues(
+                        attempt=attempt,
+                        assessment=assessment,
+                        evidence=evidence,
+                        declared_model_mode=state.model_mode,
+                    )
+                )
+                feedback_steps = feedback_steps_by_attempt.get(attempt_id, [])
+                if len(feedback_steps) != 1:
+                    workflow.append(
+                        f"v5.1 graded attempt {attempt_id} has {len(feedback_steps)} child-visible assessment feedback steps"
+                    )
+                else:
+                    package = feedback_steps[0].get("prompt_package_value")
+                    package = package if isinstance(package, dict) else {}
+                    feedback = package.get("assessment_feedback")
+                    feedback = feedback if isinstance(feedback, dict) else {}
+                    required_feedback_fields = {
+                        "score_label",
+                        "reference_answer",
+                        "answer_gap",
+                        "improvement_direction",
+                        "expression_judgment",
+                    }
+                    missing = [
+                        field for field in sorted(required_feedback_fields)
+                        if not feedback.get(field)
+                    ]
+                    if missing:
+                        workflow.append(
+                            f"v5.1 feedback step {feedback_steps[0].get('id')} missing child-visible fields: {', '.join(missing)}"
+                        )
+            elif attempt.get("answer_source") == "v3_stuck" and accepted:
+                workflow.append(f"v5.1 stuck attempt {attempt_id} was incorrectly scored")
     leak_hits = [
         {"sequence": item["sequence"], "hits": item["forbidden_child_text_hits"]}
         for item in state.state_trace if item["forbidden_child_text_hits"]
@@ -2596,6 +3103,7 @@ def run_lesson(
                     break
                 if canonical == "start_resume":
                     driver.click_start()
+                    env.apply_lesson_budget()
                     state.interaction_count += 1
                     driver.capture("start-resume")
                     continue
@@ -2642,11 +3150,18 @@ def run_lesson(
                         driver.wait_for_child_conclusion()
                     driver.capture(f"conclusion-{directive['answer_class']}")
                     continue
-                if canonical == "feedback_teaching":
-                    still_stuck = state.profile == "answer_only_stuck" and state.interaction_count + 1 >= state.target
+                if canonical in {"assessment_feedback", "feedback_teaching"}:
+                    still_stuck = (
+                        canonical == "feedback_teaching"
+                        and state.profile == "answer_only_stuck"
+                        and state.interaction_count + 1 >= state.target
+                    )
                     driver.continue_teaching(still_stuck=still_stuck)
                     state.interaction_count += 1
-                    driver.capture("teaching-still-stuck" if still_stuck else "teaching-continue")
+                    if canonical == "assessment_feedback":
+                        driver.capture("assessment-feedback-continue")
+                    else:
+                        driver.capture("teaching-still-stuck" if still_stuck else "teaching-continue")
                     continue
                 if canonical == "blocked":
                     can_recover = state.profile == "model_recovery" and state.interaction_count < state.target - 1

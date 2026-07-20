@@ -142,13 +142,10 @@ def normalize_interaction_schema(
     interaction_type = str(schema.get("type") or "")
     if interaction_type not in INTERACTION_TYPES:
         errors.append("interaction_schema:type_invalid")
-    requires_explicit = "requires_explanation" in schema
     requires_explanation = bool(
         schema.get("requires_explanation", schema.get("explanation_required", False))
     )
     allow_explanation = bool(schema.get("allow_explanation", True))
-    if schema_version == QUESTION_INTERACTION_SCHEMA_V2 and not requires_explicit:
-        errors.append("interaction_schema.requires_explanation:explicit_boolean_required")
 
     fields: list[dict[str, str]] = []
     raw_fields = schema.get("fields") or []
@@ -390,8 +387,6 @@ def _prompt_schema_alignment_errors(prompt: str, schema: dict[str, Any]) -> list
     if "请选择一个" in prompt and interaction_type != "single_choice":
         errors.append("prompt_interaction:select_one_requires_single_choice")
     explanation_requested = bool(_EXPLANATION_INSTRUCTION.search(prompt))
-    if schema.get("requires_explanation") and not explanation_requested:
-        errors.append("prompt_interaction:required_explanation_instruction_missing")
     if explanation_requested and schema.get("allow_explanation") is False:
         errors.append("prompt_interaction:explanation_control_missing")
     return errors

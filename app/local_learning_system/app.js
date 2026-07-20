@@ -1992,16 +1992,10 @@ async function continueV3CurrentStep(stuck = false) {
     renderV3ChildState();
     toast(stuck ? "已记录卡住，系统会安全安排下一步" : "继续下一步");
   } catch (error) {
-    try {
-      await load();
-      renderV3ChildState();
-      toast("已重新连接到当前进度");
-    } catch (reloadError) {
-      state.uiState = CHILD_UI_STATES.CONTINUE_ERROR;
-      const message = "这次没有继续上，刚才看的内容还在。";
-      setErrorPanel(CHILD_UI_STATES.CONTINUE_ERROR, message);
-      toast(message);
-    }
+    state.uiState = CHILD_UI_STATES.CONTINUE_ERROR;
+    const message = "这次没有继续上，刚才看的内容还在。";
+    setErrorPanel(CHILD_UI_STATES.CONTINUE_ERROR, message);
+    toast(message);
   } finally {
     buttons.forEach((button) => { button.disabled = false; });
   }
@@ -2088,7 +2082,7 @@ function handleErrorActionClick() {
     return;
   }
   if (kind === CHILD_UI_STATES.CONTINUE_ERROR) {
-    retryLoadFromPanel();
+    continueV3CurrentStep(Boolean(state.v3ContinueStuck));
     return;
   }
   if (kind === CHILD_UI_STATES.START_REVIEW_ERROR) {

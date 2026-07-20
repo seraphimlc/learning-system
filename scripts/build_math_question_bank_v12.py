@@ -1903,6 +1903,12 @@ def build_live(
                 if integrity_state == "legacy_v5_global_finalizer_requires_verifier":
                     _validate_legacy_v5_candidate_source_checkpoint(checkpoint)
                     continue
+                if integrity_state == "legacy_v6_partial_focal_review_requires_verifier":
+                    _validate_checkpoint_item_policy(
+                        checkpoint,
+                        allow_legacy_global_finalizer_recovery=True,
+                    )
+                    continue
                 if (
                     _legacy_candidate_transition_record(checkpoint) is not None
                     and checkpoint.get("status") == "incomplete"
@@ -4874,6 +4880,15 @@ def _read_live_node_checkpoint(
         _validate_live_checkpoint_integrity(checkpoint)
         _validate_legacy_candidate_transition_checkpoint(checkpoint)
         return checkpoint
+    if integrity_state == "legacy_v6_partial_focal_review_requires_verifier":
+        _validate_checkpoint_item_policy(
+            checkpoint,
+            allow_legacy_global_finalizer_recovery=True,
+        )
+        _migrate_legacy_v6_partial_focal_review_checkpoint(checkpoint)
+        _validate_live_checkpoint_integrity(checkpoint)
+        _validate_checkpoint_item_policy(checkpoint)
+        _atomic_write_checkpoint(path, checkpoint)
     transition = _legacy_candidate_transition_record(checkpoint)
     if transition is not None and checkpoint.get("status") == "incomplete":
         _validate_legacy_candidate_transition_checkpoint(checkpoint)
@@ -6658,12 +6673,70 @@ def _legacy_v5_pre_verifier_semantic_evidence_commitment(
     return {**payload, "sha256": _sha256_json(payload)}
 
 
+def _legacy_v6_pre_global_verifier_shards_semantic_evidence_commitment(
+    node_entry: dict[str, Any],
+) -> dict[str, Any]:
+    current = question_bank.v12_node_semantic_evidence_commitment(node_entry)
+    payload = {key: value for key, value in current.items() if key != "sha256"}
+    node_set_review = dict(payload.get("node_set_review") or {})
+    global_verifier = dict(node_set_review.get("global_verifier") or {})
+    for key in (
+        "shard_policy_version",
+        "expected_shards",
+        "shard_artifacts_sha256",
+        "shard_semantic_evidence_sha256s",
+        "aggregate_commitment_sha256",
+    ):
+        global_verifier.pop(key, None)
+    node_set_review["global_verifier"] = global_verifier
+    payload["node_set_review"] = node_set_review
+    return {**payload, "sha256": _sha256_json(payload)}
+
+
 def _legacy_empty_node_set_semantic_evidence_sha256(node_entry: dict[str, Any]) -> str:
     return _sha256_json({
         "semantic_evidence_version": question_bank.V12_NODE_SET_REVIEW_SEMANTIC_EVIDENCE_VERSION,
         "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
         "constituent_semantic_evidence_sha256": [],
         "coverage": [],
+    })
+
+
+def _legacy_v6_partial_focal_review_semantic_evidence_sha256(
+    node_entry: dict[str, Any],
+    constituent_reviews: list[dict[str, Any]],
+) -> str:
+    return _sha256_json({
+        "semantic_evidence_version": question_bank.V12_NODE_SET_AGGREGATE_SEMANTIC_EVIDENCE_VERSION,
+        "agent_knowledge_version": question_bank.V12_AGENT_KNOWLEDGE_VERSION,
+        "agent_knowledge_sha256": question_bank.v12_agent_knowledge_sha256(),
+        "node_candidate_sha256": question_bank.v12_node_candidate_sha256(node_entry),
+        "shard_policy": {
+            "shard_size": question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
+            "expected_shard_count": len(question_bank.v12_expected_node_set_review_shards()),
+        },
+        "constituent_semantic_evidence_sha256": [
+            question_bank.v12_node_set_constituent_semantic_evidence_sha256(
+                node_entry,
+                review,
+            )
+            for review in constituent_reviews
+            if isinstance(review, dict)
+        ],
+        "coverage": question_bank.v12_node_set_semantic_evidence_coverage(
+            node_entry,
+            constituent_reviews,
+        ),
+        "global_verifier": {
+            "semantic_evidence_version": "",
+            "semantic_evidence_sha256": "",
+            "model_judgment_output_sha256": "",
+        },
+        "global_finalizer": {
+            "semantic_evidence_version": "",
+            "review_output_sha256": "",
+            "review_output": {},
+        },
     })
 
 
@@ -6770,6 +6843,121 @@ def _pre_shard_policy_migration_ineligibility_reason(checkpoint: dict[str, Any])
 
 def _is_migratable_pre_shard_policy_checkpoint(checkpoint: dict[str, Any]) -> bool:
     return not _pre_shard_policy_migration_ineligibility_reason(checkpoint)
+
+
+def _legacy_v6_partial_focal_review_ineligibility_reason(checkpoint: dict[str, Any]) -> str:
+    if checkpoint.get("status") != "incomplete":
+        return "migration requires an incomplete checkpoint"
+    if checkpoint.get("completed_node_receipt"):
+        return "completed checkpoint receipt is not migratable"
+    node_entry = checkpoint.get("node") if isinstance(checkpoint.get("node"), dict) else {}
+    artifact = node_entry.get("node_review_artifact") if isinstance(node_entry.get("node_review_artifact"), dict) else {}
+    if not node_entry or not artifact:
+        return "missing node or node-set review artifact"
+    expected_slots = set(range(1, question_bank.QUESTIONS_PER_GRAPH_NODE + 1))
+    accepted_slots = checkpoint.get("accepted_slots") if isinstance(checkpoint.get("accepted_slots"), dict) else {}
+    if set(accepted_slots) != {str(slot) for slot in expected_slots}:
+        return "accepted slots must be exact 1..20"
+    item_by_slot: dict[int, dict[str, Any]] = {}
+    for item in node_entry.get("items") or []:
+        if not isinstance(item, dict):
+            return "accepted node items are malformed"
+        try:
+            slot = int(item.get("slot") or 0)
+        except (TypeError, ValueError):
+            return "accepted node item slot is invalid"
+        if slot not in expected_slots or slot in item_by_slot:
+            return "accepted node item slots must be exact and unique"
+        item_by_slot[slot] = item
+    if set(item_by_slot) != expected_slots:
+        return "accepted node item slots must cover 1..20"
+    if any(accepted_slots[str(slot)] != item_by_slot[slot] for slot in expected_slots):
+        return "accepted slot payload does not match the node item"
+    node_candidate_sha256 = question_bank.v12_node_candidate_sha256(node_entry)
+    if checkpoint.get("source_node_candidate_sha256") != node_candidate_sha256:
+        return "source node candidate_sha256 mismatch"
+    if checkpoint.get("pending_repair_by_slot") or checkpoint.get("node_set_rejected_slots"):
+        return "pending repair state is not migratable"
+    if artifact.get("provider_mode") != "live_model" or artifact.get("verdict") != "pending":
+        return "node-set review artifact must be a live pending partial"
+    if artifact.get("node_candidate_sha256") != node_candidate_sha256:
+        return "node-set review artifact candidate_sha256 mismatch"
+    raw_global_verifier = artifact.get("global_verifier")
+    raw_global_finalizer = artifact.get("global_finalizer")
+    if raw_global_verifier not in (None, {}):
+        return "legacy partial already carries non-empty global verifier state"
+    if raw_global_finalizer not in (None, {}):
+        return "legacy partial already carries non-empty global finalizer state"
+    if "global_verifier_shards" in artifact:
+        return "legacy partial carries current global verifier shard field"
+    try:
+        reviews = _trusted_node_set_constituent_reviews(artifact, node_entry)
+        verifier_shards = _trusted_node_set_global_verifier_shards(
+            artifact,
+            node_entry=node_entry,
+            constituent_reviews=reviews,
+        )
+    except model_router.ModelCallError as exc:
+        return f"trusted node-set review evidence is invalid: {exc}"
+    expected_review_slots = [
+        list(slots)
+        for slots in question_bank.v12_expected_node_set_review_shards()
+    ]
+    if [list(review.get("reviewed_slots") or []) for review in reviews] != expected_review_slots:
+        return "trusted focal review shards must cover the full node"
+    if verifier_shards:
+        return "legacy partial already carries global verifier shard progress"
+    if _trusted_node_set_global_verifier(
+        artifact,
+        node_entry=node_entry,
+        constituent_reviews=reviews,
+    ):
+        return "legacy partial already carries trusted global verifier"
+    if _trusted_node_set_global_finalizer(
+        artifact,
+        node_entry=node_entry,
+        constituent_reviews=reviews,
+    ):
+        return "legacy partial already carries trusted global finalizer"
+    expected_coverage = question_bank.v12_node_set_semantic_evidence_coverage(node_entry, reviews)
+    expected_aggregation_payload = {
+        "strategy": "v4_focal_evidence_pending_global_finalizer",
+        "node_candidate_sha256": node_candidate_sha256,
+        "constituent_hashes": [
+            review.get("review_output_sha256", "")
+            for review in reviews
+        ],
+        "reviewed_slots": [
+            entry.get("slot")
+            for entry in expected_coverage
+        ],
+        "global_finalizer_output_sha256": "",
+        "global_verifier_semantic_evidence_sha256": "",
+    }
+    expected_aggregation = {
+        **expected_aggregation_payload,
+        "aggregate_sha256": _sha256_json(expected_aggregation_payload),
+        "constituent_count": len(reviews),
+        "shard_size": question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
+        "expected_constituent_count": len(question_bank.v12_expected_node_set_review_shards()),
+    }
+    aggregation = artifact.get("aggregation") if isinstance(artifact.get("aggregation"), dict) else {}
+    if aggregation != expected_aggregation:
+        return "legacy partial aggregate shape is not a completed focal-review partial"
+    if artifact.get("semantic_evidence_coverage") != expected_coverage:
+        return "legacy partial semantic coverage mismatch"
+    if artifact.get("semantic_evidence_version") != question_bank.V12_NODE_SET_AGGREGATE_SEMANTIC_EVIDENCE_VERSION:
+        return "legacy partial semantic evidence version mismatch"
+    if artifact.get("semantic_evidence_sha256") != _legacy_v6_partial_focal_review_semantic_evidence_sha256(
+        node_entry,
+        reviews,
+    ):
+        return "legacy partial semantic digest mismatch"
+    return ""
+
+
+def _is_migratable_legacy_v6_partial_focal_review_checkpoint(checkpoint: dict[str, Any]) -> bool:
+    return not _legacy_v6_partial_focal_review_ineligibility_reason(checkpoint)
 
 
 def _validate_live_checkpoint_integrity(
@@ -6884,6 +7072,12 @@ def _validate_checkpoint_semantic_evidence_commitment(
     if allow_pre_shard_policy_migration and stored == _legacy_pre_shard_policy_semantic_evidence_commitment(node_entry):
         if _is_migratable_pre_shard_policy_checkpoint(checkpoint):
             return "legacy_pre_shard_policy"
+    if (
+        allow_pre_shard_policy_migration
+        and stored == _legacy_v6_pre_global_verifier_shards_semantic_evidence_commitment(node_entry)
+    ):
+        if _is_migratable_legacy_v6_partial_focal_review_checkpoint(checkpoint):
+            return "legacy_v6_partial_focal_review_requires_verifier"
     raise model_router.ModelCallError("checkpoint semantic evidence failed: commitment mismatch")
 
 
@@ -7580,6 +7774,68 @@ def _migrate_pre_shard_policy_checkpoint(checkpoint: dict[str, Any]) -> None:
         "node_set_review_shard_size": question_bank.V12_NODE_SET_REVIEW_SHARD_SIZE,
         "node_set_review_expected_shards": len(question_bank.v12_expected_node_set_review_shards()),
     }]
+    checkpoint["checkpoint_integrity_sha256"] = _checkpoint_integrity_sha256(checkpoint)
+
+
+def _migrate_legacy_v6_partial_focal_review_checkpoint(checkpoint: dict[str, Any]) -> None:
+    reason = _legacy_v6_partial_focal_review_ineligibility_reason(checkpoint)
+    if reason:
+        raise model_router.ModelCallError(
+            "checkpoint semantic evidence migration failed: "
+            f"incompatible legacy v6 partial focal review: {reason}"
+        )
+    node_entry = checkpoint["node"]
+    artifact = node_entry["node_review_artifact"]
+    old_commitment = dict(checkpoint.get("semantic_evidence_commitment") or {})
+    reviews = _trusted_node_set_constituent_reviews(artifact, node_entry)
+    raw_execution_policy = artifact.get("execution_policy") if isinstance(artifact.get("execution_policy"), dict) else {}
+    node_review_concurrency = raw_execution_policy.get(
+        "node_review_concurrency",
+        question_bank.V12_NODE_SET_REVIEW_ACTIVATION_CONCURRENCY,
+    )
+    contract = _load_json(NODE_SET_REVIEWER_CONTRACT_PATH)
+    prompt_template = NODE_SET_REVIEWER_PROMPT_PATH.read_text(encoding="utf-8")
+    current_partial = _partial_node_set_review_artifact(
+        node_entry=node_entry,
+        shard_reviews=reviews,
+        contract=contract,
+        prompt_template=prompt_template,
+        route=model_router.question_node_set_review_route(),
+        node_review_concurrency=node_review_concurrency,
+        stage_attempt=int(artifact.get("stage_attempt") or 1),
+    )
+    node_entry["node_review_artifact"] = {
+        **current_partial,
+        "reasons": list(artifact.get("reasons") or current_partial.get("reasons") or []),
+    }
+    current_commitment = question_bank.v12_node_semantic_evidence_commitment(node_entry)
+    migrations = [
+        copy.deepcopy(migration)
+        for migration in (checkpoint.get("checkpoint_migrations") or [])
+        if isinstance(migration, dict)
+    ]
+    migrations.append({
+        "migration_id": "legacy_v6_partial_focal_review_to_sharded_global_verifier_v1",
+        "from_semantic_evidence_commitment_sha256": str(old_commitment.get("sha256") or ""),
+        "to_semantic_evidence_commitment_sha256": current_commitment["sha256"],
+        "preserved_focal_review_shards": [
+            list(review.get("reviewed_slots") or [])
+            for review in reviews
+        ],
+        "required_global_verifier_shards": question_bank.v12_expected_global_verifier_shards(),
+    })
+    checkpoint["semantic_evidence_commitment"] = current_commitment
+    checkpoint["checkpoint_migrations"] = migrations
+    transition = _legacy_candidate_transition_record(checkpoint)
+    if transition is not None:
+        checkpoint["checkpoint_state"] = _legacy_candidate_checkpoint_state(
+            status=str(checkpoint.get("status") or ""),
+            transition=transition,
+        )
+        checkpoint.pop("child_surface_projection_commitment", None)
+        checkpoint["candidate_only_surface_commitment"] = (
+            _candidate_only_surface_commitment(node_entry, transition)
+        )
     checkpoint["checkpoint_integrity_sha256"] = _checkpoint_integrity_sha256(checkpoint)
 
 
