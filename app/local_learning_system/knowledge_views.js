@@ -710,6 +710,10 @@
 
   function toggleMapExplorer() {
     state.mapExplorerOpen = !state.mapExplorerOpen;
+    if (!state.mapExplorerOpen) {
+      const detail = state.root?.querySelector("[data-knowledge-detail]");
+      if (detail && !detail.hidden) closeDetail(false);
+    }
     syncMapExplorer();
     if (!state.mapExplorerOpen) return;
     state.activeView = "mind_map";

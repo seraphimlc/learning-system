@@ -128,6 +128,22 @@ try {
     await page.locator("[data-knowledge-detail]").innerText().then((text) =>
       !/node_id|graph_version|provider|rubric|queue|job|agent/i.test(text)
     );
+  await page.getByRole("button", { name: "收起完整知识目录" }).click();
+  report.collapsed_directory_closes_detail_and_removes_extra_space =
+    await page.evaluate(() => {
+      const root = document.querySelector("[data-knowledge-home]");
+      const detail = document.querySelector("[data-knowledge-detail]");
+      const body = document.querySelector("[data-map-explorer-body]");
+      const explorer = document.querySelector("[data-knowledge-map-explorer]");
+      if (!root || !detail || !body || !explorer) return false;
+      const rootRect = root.getBoundingClientRect();
+      const explorerRect = explorer.getBoundingClientRect();
+      return detail.hidden &&
+        body.hidden &&
+        !root.matches(":has(.knowledge-detail:not([hidden]))") &&
+        Math.abs(rootRect.bottom - explorerRect.bottom) < 24;
+    });
+  await openKnowledgeMapExplorer();
   report.search_results_max_six = await page.locator("#knowledgeSearchInput").fill("数")
     .then(async () => page.locator(".mind-search-results .knowledge-node-button").count())
     .then((count) => count > 0 && count <= 6);

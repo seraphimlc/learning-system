@@ -2335,6 +2335,7 @@ class DualViewBrowserContractTests(KnowledgeViewsV51TestCase):
                 "child_dom_has_no_graph_surface",
                 "internal_process_module_hidden_in_dom",
                 "node_selection_opens_child_safe_detail",
+                "collapsed_directory_closes_detail_and_removes_extra_space",
                 "search_results_max_six",
                 "search_clear_preserves_child_surface",
                 "child_safe_dom",
