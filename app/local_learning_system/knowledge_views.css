@@ -447,7 +447,7 @@
   width: 20px;
   height: 20px;
   border: 1px solid currentColor;
-  border-radius: 50%;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 900;
 }
@@ -539,7 +539,7 @@
   min-height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 8px;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -555,7 +555,7 @@
   height: 22px;
   box-sizing: border-box;
   border: 2px solid #56635c;
-  border-radius: 50%;
+  border-radius: 7px;
   background: #f0f2f1;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, .8);
 }
@@ -565,17 +565,20 @@
 }
 .graph-overview-marker.state-developing::before {
   border-color: var(--kv-green);
+  border-radius: 4px 8px 8px 4px;
   background: var(--kv-green-soft);
 }
 .graph-overview-marker.state-needs_support::before {
   border-color: var(--kv-amber);
-  border-radius: 2px;
+  border-style: dashed;
+  border-radius: 5px;
   background: #fff4d6;
 }
 .graph-overview-marker.state-needs_prerequisite::before {
   border-color: #6b4e7a;
-  border-radius: 0 50% 50% 50%;
+  border-radius: 5px;
   background: #f3edf6;
+  transform: rotate(45deg);
 }
 .graph-overview-marker.is-context,
 .graph-overview-marker.is-filtered { opacity: .24; }

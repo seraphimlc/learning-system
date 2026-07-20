@@ -856,15 +856,15 @@
     button.tabIndex = -1;
     const stateIcons = {
       stable: "✓",
-      developing: "◐",
+      developing: "↗",
       needs_support: "!",
       needs_prerequisite: "↶",
-      untested: "○",
+      untested: "◇",
     };
     const icon = document.createElement("span");
     icon.className = "knowledge-state-icon";
     icon.setAttribute("aria-hidden", "true");
-    icon.textContent = stateIcons[node.learning_state] || "○";
+    icon.textContent = stateIcons[node.learning_state] || "◇";
     const label = document.createElement("span");
     label.className = "knowledge-node-label";
     label.textContent = node.name;
