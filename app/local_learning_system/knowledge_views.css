@@ -235,7 +235,7 @@
 
 .knowledge-toolbar {
   display: grid;
-  grid-template-columns: 190px minmax(220px, 1fr) 150px 170px auto;
+  grid-template-columns: minmax(260px, 1fr) 150px 170px auto;
   gap: 10px;
   align-items: end;
   margin-bottom: 10px;
@@ -1049,7 +1049,6 @@
     grid-template-columns: minmax(0, 1fr) 132px;
     gap: 8px;
   }
-  .knowledge-view-switch { grid-column: 1 / -1; }
   .knowledge-search { grid-column: 1; }
   .knowledge-filter { grid-column: 2; }
   .knowledge-module-filter { grid-column: 1 / -1; }

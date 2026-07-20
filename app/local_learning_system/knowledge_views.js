@@ -124,9 +124,9 @@
   function loadPreferences() {
     const legacyStoredView = window.localStorage.getItem(storageKey("active-view"));
     const storedView = window.localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY) || legacyStoredView;
-    state.activeView = VIEW_NAMES.has(storedView) ? storedView : state.projection.default_view;
-    if (VIEW_NAMES.has(storedView)) {
-      window.localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, storedView);
+    state.activeView = "mind_map";
+    if (storedView && storedView !== "mind_map") {
+      window.localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, "mind_map");
     }
     state.viewports.mind_map = clampViewport(
       loadJsonPreference(storageKey("mind_map:viewport"), { scale: 1, x: 0, y: 0 }),
@@ -348,25 +348,15 @@
           <section class="knowledge-map-explorer" data-knowledge-map-explorer>
           <div class="knowledge-map-heading">
             <div>
-              <p>完整知识地图</p>
+              <p>完整知识导图</p>
               <h3>想自己找知识点时再打开</h3>
             </div>
             <button type="button" data-map-explorer-toggle aria-expanded="false" aria-controls="knowledgeMapExplorerBody">
-              打开完整知识地图
+              打开完整知识导图
             </button>
           </div>
           <div id="knowledgeMapExplorerBody" data-map-explorer-body hidden>
           <div class="knowledge-toolbar">
-            <div class="knowledge-view-switch" role="radiogroup" aria-label="知识展示方式">
-              <label>
-                <input type="radio" name="knowledge-view-mode" value="mind_map">
-                <span>导图</span>
-              </label>
-              <label>
-                <input type="radio" name="knowledge-view-mode" value="graph">
-                <span>图谱</span>
-              </label>
-            </div>
             <form class="knowledge-search" role="search">
               <label for="knowledgeSearchInput">查找知识</label>
               <div>
@@ -397,18 +387,13 @@
             </div>
           </div>
           <div class="knowledge-legend" aria-label="图例">
-            <span><i class="legend-state" aria-hidden="true">●</i>状态由文字、图标、形状和颜色共同表示</span>
-            <span class="legend-incoming"><i class="legend-edge" aria-hidden="true">→</i>先会：进入所选知识</span>
-            <span class="legend-outgoing"><i class="legend-outgoing-icon" aria-hidden="true">→</i>后面会用：离开所选知识</span>
-            <span class="legend-bridge"><i aria-hidden="true">⇢</i>跨模块桥梁</span>
+            <span><i class="legend-state" aria-hidden="true">●</i>颜色和边框表示学习状态</span>
+            <span>点一个知识点，可以查看并开始学习</span>
           </div>
           <div class="knowledge-result-summary" role="status" aria-live="polite" data-result-summary></div>
           <div class="knowledge-workspace">
             <section class="knowledge-viewport" role="region" aria-label="我的数学知识导图" tabindex="0" data-knowledge-view="mind_map">
               <div class="knowledge-world mind-map-world" data-knowledge-world="mind_map"></div>
-            </section>
-            <section class="knowledge-viewport" role="region" aria-label="我的数学知识图谱" tabindex="0" data-knowledge-view="graph" hidden>
-              <div class="knowledge-world graph-world" data-knowledge-world="graph"></div>
             </section>
           </div>
           </div>
@@ -456,9 +441,7 @@
           }
         });
         announce(
-          radio.value === "mind_map"
-            ? "已打开知识导图"
-            : "已打开知识图谱。可以搜索或选择知识模块查看知识点。"
+          "已打开知识导图"
         );
       });
     });
@@ -521,8 +504,8 @@
         positionGraphOverviewAnchors();
       }
     };
-    graphWorld.addEventListener("transitionend", finishGraphCamera);
-    graphWorld.addEventListener("transitioncancel", finishGraphCamera);
+    graphWorld?.addEventListener("transitionend", finishGraphCamera);
+    graphWorld?.addEventListener("transitioncancel", finishGraphCamera);
   }
 
   function bindViewportGestures(region) {
@@ -741,25 +724,17 @@
     if (!body || !toggle) return;
     body.hidden = !state.mapExplorerOpen;
     toggle.setAttribute("aria-expanded", String(state.mapExplorerOpen));
-    toggle.textContent = state.mapExplorerOpen ? "收起完整知识地图" : "打开完整知识地图";
+    toggle.textContent = state.mapExplorerOpen ? "收起完整知识导图" : "打开完整知识导图";
   }
 
   function toggleMapExplorer() {
     state.mapExplorerOpen = !state.mapExplorerOpen;
     syncMapExplorer();
     if (!state.mapExplorerOpen) return;
+    state.activeView = "mind_map";
     renderActiveView();
     window.requestAnimationFrame(() => {
-      if (state.activeView === "graph") {
-        applyViewport("graph");
-        if (!state.graphViewportStored || (
-          state.graphFocusMode === "fit_all" && !graphFitAllViewportLooksValid()
-        )) {
-          fitAndPersistViewport("graph");
-        }
-      } else {
-        applyViewport(state.activeView);
-      }
+      applyViewport("mind_map");
       state.root?.querySelector(`[data-knowledge-view="${state.activeView}"]`)?.focus({ preventScroll: true });
     });
   }
