@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from . import agents, auto_review, daily_runtime, db, evolution, internal_agents, job_queue, knowledge_map, model_router, orchestrator, planner, question_bank
+from . import agents, auto_review, daily_runtime, db, evolution, internal_agents, job_queue, knowledge_cards, knowledge_map, model_router, orchestrator, planner, question_bank
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -876,6 +876,20 @@ class LearningHandler(BaseHTTPRequestHandler):
                     self._send_json(exc.child_payload(), status=exc.status)
                     return
                 self._send_json(payload)
+            return
+        if parsed.path == "/api/knowledge-cards/number-line":
+            try:
+                payload = knowledge_cards.KnowledgeCardService(
+                    project_root=PROJECT_ROOT,
+                ).child_projection_for_node("M-G7-NUMBER-LINE")
+            except knowledge_cards.KnowledgeCardError:
+                self._send_json({
+                    "schema_version": "knowledge-card-child.v1",
+                    "state": "unavailable",
+                    "message": "这张学习卡还在准备中。",
+                }, status=503)
+                return
+            self._send_json(payload)
             return
         if parsed.path == "/api/operator/daily-flow/today":
             with closing(self._conn()) as conn:

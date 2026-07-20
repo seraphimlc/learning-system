@@ -1,0 +1,162 @@
+{
+  "schema_version": "knowledge-card.v1",
+  "card_version": "2026-07-20.number-line.v1",
+  "node_id": "M-G7-NUMBER-LINE",
+  "status": "active",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [
+      "M-G7-POS-NEG"
+    ],
+    "unlocks_node_ids": [
+      "M-G7-OPPOSITE",
+      "M-G7-ABSOLUTE",
+      "M-G7-COMPARE"
+    ]
+  },
+  "child_card": {
+    "title": "数轴",
+    "one_sentence": "数轴把数变成位置：右边更大，左边更小，离 0 多远就是距离。",
+    "core_model": {
+      "title": "怎么想",
+      "body": "先确定 0、正方向和单位长度，再把每个数放到对应位置。比较大小时只看左右：越往右越大。",
+      "visual_model": "number_line"
+    },
+    "components": [
+      {
+        "type": "text_explanation",
+        "purpose": "essence",
+        "body": "数不是只在纸上计算，也可以看成一条线上从 0 出发的位置。正数在右边，负数在左边。"
+      },
+      {
+        "type": "number_line_visual",
+        "purpose": "representation",
+        "range": {
+          "min": -5,
+          "max": 5,
+          "unit": 1
+        },
+        "focus_points": [
+          -2.5,
+          0,
+          3
+        ],
+        "instruction": "把 -2.5、0、3 放到同一条线上，先看它们和 0 的相对位置。"
+      },
+      {
+        "type": "worked_example",
+        "purpose": "standard_example",
+        "problem": "点 A 表示 -2.5，点 C 在 A 的右边 3 个单位。C 表示多少？A、C、0 谁更靠右？",
+        "steps": [
+          "右边 3 个单位表示数值增加 3，所以 C=-2.5+3=0.5。",
+          "数轴上越往右越大，所以 A<C，且 0<C。",
+          "从左到右是 A、0、C。"
+        ],
+        "check": "如果写成 C=-2.5-3，就把“右移”看反了。"
+      },
+      {
+        "type": "micro_check",
+        "purpose": "evidence",
+        "prompt": "点 B 表示 1.2，向左移动 2 个单位到点 E。E 表示多少？E 和 0 谁更小？",
+        "expected_evidence": [
+          "知道向左是减小",
+          "能写出 1.2-2=-0.8",
+          "能判断 -0.8<0"
+        ]
+      },
+      {
+        "type": "common_mistake",
+        "purpose": "misconception",
+        "body": "最常见的错法是只看“2 个单位”就加 2，忘了方向。方向决定加还是减。"
+      }
+    ],
+    "default_teaching_sections": {
+      "essence": {
+        "title": "本质",
+        "body": "数轴把数变成位置：右边更大，左边更小，离 0 多远就是距离。"
+      },
+      "core_model": {
+        "title": "核心模型",
+        "body": "三件事先定好：0 在哪、向右是正方向、每一格代表多少。移动时，向右数值增加，向左数值减小。"
+      },
+      "worked_example": {
+        "title": "看一题",
+        "problem": "点 A 表示 -2.5，点 C 在 A 的右边 3 个单位。C 表示多少？",
+        "steps": [
+          "右边 3 个单位，就是在 -2.5 的基础上加 3。",
+          "C=-2.5+3=0.5。",
+          "数轴上从左到右数值增大，所以 A<0<C。"
+        ],
+        "check": "方向不能丢：右移加，左移减。"
+      },
+      "next_micro_check": {
+        "title": "试一下",
+        "prompt": "点 B 表示 1.2，向左移动 2 个单位到点 E。E 表示多少？E 和 0 谁更小？"
+      }
+    }
+  },
+  "internal_card": {
+    "teaching_goal": "让孩子把数轴理解为位置模型，而不是机械画线；能用方向、单位长度和左右顺序解释比较与移动。",
+    "core_evidence": [
+      {
+        "key": "axis_elements",
+        "dimension": "concept",
+        "description": "能说出数轴三要素：原点、正方向、单位长度。"
+      },
+      {
+        "key": "direction_value_relation",
+        "dimension": "model_relation",
+        "description": "能解释向右数值增大、向左数值减小。"
+      },
+      {
+        "key": "position_compare",
+        "dimension": "transfer",
+        "description": "能把小数、分数、负数放入同一位置顺序中比较。"
+      }
+    ],
+    "misconceptions": [
+      {
+        "tag": "direction_reversal",
+        "signal": "把向左移动理解为加，把向右移动理解为减。",
+        "repair": "回到温度计或尺子模型，只追问方向变化。"
+      },
+      {
+        "tag": "unit_length_inconsistent",
+        "signal": "标点时每格长度不一致，导致分数小数位置漂移。",
+        "repair": "先只标整数，再插入半格、小数点。"
+      },
+      {
+        "tag": "negative_order_confusion",
+        "signal": "认为 -3 比 -1 大，因为 3 比 1 大。",
+        "repair": "在数轴上看左右顺序，再引到绝对值比较。"
+      }
+    ],
+    "runtime_rules": {
+      "first_learning_sequence": [
+        "essence",
+        "core_model",
+        "worked_example",
+        "micro_check"
+      ],
+      "if_correct_with_reasoning": "进入近迁移或相反数/绝对值前置桥接，不继续刷同结构数轴题。",
+      "if_answer_only": "给一题微检查，要求说明方向和单位长度，不按错题处理。",
+      "if_direction_reversal": "先讲方向模型，再做一题只含移动方向的小检查。",
+      "if_position_compare_weak": "换成分数、小数、负数混合排序的近迁移题。",
+      "max_same_structure_checks": 2
+    },
+    "question_selection_hints": {
+      "foundation_check": [
+        "axis_elements",
+        "direction_value_relation"
+      ],
+      "near_transfer": [
+        "decimal_fraction_position",
+        "left_right_order"
+      ],
+      "stretch": [
+        "bridge_to_absolute_value",
+        "bridge_to_rational_add_sub"
+      ]
+    }
+  }
+}

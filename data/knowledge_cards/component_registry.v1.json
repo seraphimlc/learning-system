@@ -1,0 +1,651 @@
+{
+  "schema_version": "knowledge-card-component-registry.v1",
+  "registry_version": "2026-07-20.v1",
+  "cognitive_objects": {
+    "position_direction_distance": {
+      "label": "位置/方向/距离",
+      "default_components": [
+        "interactive_number_line",
+        "drag_point_to_value",
+        "directed_move",
+        "order_points",
+        "distance_to_zero",
+        "mirror_point"
+      ]
+    },
+    "structure_classification": {
+      "label": "结构/分类",
+      "default_components": [
+        "sort_cards",
+        "drag_grouping",
+        "attribute_toggle",
+        "counterexample_choice",
+        "definition_boundary_check"
+      ]
+    },
+    "symbol_transformation": {
+      "label": "符号变形/步骤",
+      "default_components": [
+        "step_animation",
+        "symbol_transform",
+        "color_term_tracking",
+        "operation_order_trace",
+        "error_spotting",
+        "fill_missing_step"
+      ]
+    },
+    "quantity_relation_modeling": {
+      "label": "数量关系/建模",
+      "default_components": [
+        "condition_cards",
+        "relation_diagram",
+        "segment_diagram",
+        "table_builder",
+        "equation_builder",
+        "known_unknown_mapper"
+      ]
+    },
+    "balance_equivalence": {
+      "label": "天平/等价",
+      "default_components": [
+        "balance_model",
+        "two_side_operation",
+        "equivalence_transform",
+        "solve_path_compare",
+        "substitution_check"
+      ]
+    },
+    "spatial_geometry": {
+      "label": "空间/几何对象",
+      "default_components": [
+        "geometry_canvas",
+        "label_point_line_angle",
+        "drag_measure",
+        "angle_sweep",
+        "fold_unfold",
+        "view_rotation",
+        "part_whole_highlight"
+      ]
+    },
+    "estimation_reasonableness": {
+      "label": "估算/合理性",
+      "default_components": [
+        "range_slider_estimate",
+        "benchmark_compare",
+        "reasonableness_meter",
+        "rough_compute_then_refine",
+        "choose_plausible_answer"
+      ]
+    },
+    "process_metacognition": {
+      "label": "解题习惯/元认知",
+      "default_components": [
+        "solution_audit_checklist",
+        "mark_key_relation",
+        "find_faulty_work",
+        "rewrite_solution",
+        "photo_answer_prompt",
+        "self_explanation_prompt"
+      ]
+    }
+  },
+  "component_types": {
+    "interactive_number_line": {
+      "family": "position_direction_distance",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "drag_point_to_value",
+        "directed_move",
+        "order_points",
+        "compare_positions",
+        "distance_to_zero",
+        "mirror_point"
+      ],
+      "evidence_examples": [
+        "position_accuracy",
+        "direction_value_relation",
+        "left_right_order",
+        "distance_without_sign_confusion"
+      ]
+    },
+    "drag_point_to_value": {
+      "family": "position_direction_distance",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "place_value"
+      ],
+      "evidence_examples": [
+        "position_accuracy",
+        "unit_length_consistency"
+      ]
+    },
+    "directed_move": {
+      "family": "position_direction_distance",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "move_left_or_right"
+      ],
+      "evidence_examples": [
+        "direction_value_relation",
+        "cross_zero_understanding"
+      ]
+    },
+    "order_points": {
+      "family": "position_direction_distance",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "sort_by_position"
+      ],
+      "evidence_examples": [
+        "left_right_order",
+        "negative_order_understanding"
+      ]
+    },
+    "distance_to_zero": {
+      "family": "position_direction_distance",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "compare_distance",
+        "mark_distance"
+      ],
+      "evidence_examples": [
+        "absolute_value_readiness",
+        "distance_without_sign_confusion"
+      ]
+    },
+    "mirror_point": {
+      "family": "position_direction_distance",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "reflect_across_zero"
+      ],
+      "evidence_examples": [
+        "opposite_number_symmetry",
+        "zero_as_mirror_center"
+      ]
+    },
+    "sort_cards": {
+      "family": "structure_classification",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "classify_examples"
+      ],
+      "evidence_examples": [
+        "definition_boundary",
+        "attribute_selection"
+      ]
+    },
+    "drag_grouping": {
+      "family": "structure_classification",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "group_by_attribute"
+      ],
+      "evidence_examples": [
+        "category_reasoning",
+        "shared_structure_identification"
+      ]
+    },
+    "attribute_toggle": {
+      "family": "structure_classification",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "toggle_relevant_attribute"
+      ],
+      "evidence_examples": [
+        "essential_attribute_identification",
+        "irrelevant_feature_rejection"
+      ]
+    },
+    "counterexample_choice": {
+      "family": "structure_classification",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "choose_counterexample"
+      ],
+      "evidence_examples": [
+        "definition_boundary",
+        "false_generalization_detection"
+      ]
+    },
+    "definition_boundary_check": {
+      "family": "structure_classification",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "judge_in_or_out"
+      ],
+      "evidence_examples": [
+        "necessary_condition_check",
+        "sufficient_condition_check"
+      ]
+    },
+    "step_animation": {
+      "family": "symbol_transformation",
+      "child_action_required": false,
+      "allowed_tasks": [
+        "watch_step_change"
+      ],
+      "evidence_examples": []
+    },
+    "symbol_transform": {
+      "family": "symbol_transformation",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "transform_expression"
+      ],
+      "evidence_examples": [
+        "operation_law_application",
+        "sign_preservation"
+      ]
+    },
+    "color_term_tracking": {
+      "family": "symbol_transformation",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "track_like_terms"
+      ],
+      "evidence_examples": [
+        "like_term_recognition",
+        "coefficient_sign_binding"
+      ]
+    },
+    "operation_order_trace": {
+      "family": "symbol_transformation",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "mark_next_operation"
+      ],
+      "evidence_examples": [
+        "operation_priority",
+        "parentheses_handling"
+      ]
+    },
+    "text_explanation": {
+      "family": "general",
+      "child_action_required": false,
+      "allowed_tasks": [
+        "read"
+      ],
+      "evidence_examples": []
+    },
+    "worked_example": {
+      "family": "general",
+      "child_action_required": false,
+      "allowed_tasks": [
+        "read_example",
+        "compare_example"
+      ],
+      "evidence_examples": []
+    },
+    "micro_check": {
+      "family": "general",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "short_answer",
+        "fill_blank",
+        "choice_with_reason",
+        "photo_answer"
+      ],
+      "evidence_examples": [
+        "core_evidence_confirmation",
+        "near_transfer_confirmation"
+      ]
+    },
+    "error_spotting": {
+      "family": "symbol_transformation",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "find_error",
+        "fix_error"
+      ],
+      "evidence_examples": [
+        "misconception_identification",
+        "repair_step_explanation"
+      ]
+    },
+    "fill_missing_step": {
+      "family": "symbol_transformation",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "complete_transformation_step"
+      ],
+      "evidence_examples": [
+        "step_reasoning",
+        "symbolic_continuity"
+      ]
+    },
+    "condition_cards": {
+      "family": "quantity_relation_modeling",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "select_known_conditions"
+      ],
+      "evidence_examples": [
+        "condition_extraction",
+        "irrelevant_condition_filtering"
+      ]
+    },
+    "balance_model": {
+      "family": "balance_equivalence",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "two_side_operation",
+        "equivalence_transform"
+      ],
+      "evidence_examples": [
+        "same_operation_both_sides",
+        "equivalence_preserved"
+      ]
+    },
+    "relation_diagram": {
+      "family": "quantity_relation_modeling",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "map_known_unknown",
+        "build_relation"
+      ],
+      "evidence_examples": [
+        "quantity_relation_identified",
+        "equation_readiness"
+      ]
+    },
+    "segment_diagram": {
+      "family": "quantity_relation_modeling",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "build_segment_relation"
+      ],
+      "evidence_examples": [
+        "part_whole_relation",
+        "ratio_relation_modeling"
+      ]
+    },
+    "table_builder": {
+      "family": "quantity_relation_modeling",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "fill_relation_table"
+      ],
+      "evidence_examples": [
+        "variable_dependency",
+        "pattern_generalization"
+      ]
+    },
+    "equation_builder": {
+      "family": "quantity_relation_modeling",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "build_equation"
+      ],
+      "evidence_examples": [
+        "unknown_quantity_mapping",
+        "equation_structure"
+      ]
+    },
+    "known_unknown_mapper": {
+      "family": "quantity_relation_modeling",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "map_known_unknown"
+      ],
+      "evidence_examples": [
+        "known_unknown_distinction",
+        "target_quantity_identification"
+      ]
+    },
+    "two_side_operation": {
+      "family": "balance_equivalence",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "apply_same_operation"
+      ],
+      "evidence_examples": [
+        "same_operation_both_sides",
+        "equivalence_preserved"
+      ]
+    },
+    "equivalence_transform": {
+      "family": "balance_equivalence",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "choose_equivalent_step"
+      ],
+      "evidence_examples": [
+        "equivalent_expression_choice",
+        "invalid_transform_rejection"
+      ]
+    },
+    "solve_path_compare": {
+      "family": "balance_equivalence",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "compare_solution_paths"
+      ],
+      "evidence_examples": [
+        "efficient_path_selection",
+        "equivalence_across_paths"
+      ]
+    },
+    "substitution_check": {
+      "family": "balance_equivalence",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "verify_by_substitution"
+      ],
+      "evidence_examples": [
+        "solution_verification",
+        "equation_truth_check"
+      ]
+    },
+    "geometry_canvas": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "label",
+        "drag",
+        "measure"
+      ],
+      "evidence_examples": [
+        "object_identification",
+        "part_whole_relation"
+      ]
+    },
+    "label_point_line_angle": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "label_geometry_object"
+      ],
+      "evidence_examples": [
+        "geometry_symbol_reading",
+        "object_identification"
+      ]
+    },
+    "drag_measure": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "measure_by_dragging"
+      ],
+      "evidence_examples": [
+        "measurement_consistency",
+        "unit_awareness"
+      ]
+    },
+    "angle_sweep": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "sweep_angle"
+      ],
+      "evidence_examples": [
+        "angle_size_sense",
+        "rotation_model"
+      ]
+    },
+    "fold_unfold": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "fold_or_unfold_shape"
+      ],
+      "evidence_examples": [
+        "spatial_invariance",
+        "part_correspondence"
+      ]
+    },
+    "view_rotation": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "rotate_view"
+      ],
+      "evidence_examples": [
+        "viewpoint_independence",
+        "spatial_orientation"
+      ]
+    },
+    "part_whole_highlight": {
+      "family": "spatial_geometry",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "highlight_part_whole"
+      ],
+      "evidence_examples": [
+        "part_whole_relation",
+        "composite_object_decomposition"
+      ]
+    },
+    "range_slider_estimate": {
+      "family": "estimation_reasonableness",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "choose_estimate_range"
+      ],
+      "evidence_examples": [
+        "magnitude_sense",
+        "reasonable_range"
+      ]
+    },
+    "benchmark_compare": {
+      "family": "estimation_reasonableness",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "compare_to_benchmark"
+      ],
+      "evidence_examples": [
+        "benchmark_selection",
+        "relative_size_reasoning"
+      ]
+    },
+    "reasonableness_meter": {
+      "family": "estimation_reasonableness",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "judge_reasonableness"
+      ],
+      "evidence_examples": [
+        "implausible_answer_detection",
+        "magnitude_check"
+      ]
+    },
+    "rough_compute_then_refine": {
+      "family": "estimation_reasonableness",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "estimate_then_compute"
+      ],
+      "evidence_examples": [
+        "estimate_before_exact",
+        "calculation_sanity_check"
+      ]
+    },
+    "choose_plausible_answer": {
+      "family": "estimation_reasonableness",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "choose_plausible_option"
+      ],
+      "evidence_examples": [
+        "option_elimination",
+        "reasonableness_judgment"
+      ]
+    },
+    "solution_audit_checklist": {
+      "family": "process_metacognition",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "audit_solution"
+      ],
+      "evidence_examples": [
+        "step_check_habit",
+        "answer_verification"
+      ]
+    },
+    "mark_key_relation": {
+      "family": "process_metacognition",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "mark_key_relation"
+      ],
+      "evidence_examples": [
+        "key_condition_identification",
+        "relation_focus"
+      ]
+    },
+    "find_faulty_work": {
+      "family": "process_metacognition",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "find_faulty_work"
+      ],
+      "evidence_examples": [
+        "error_location",
+        "cause_explanation"
+      ]
+    },
+    "rewrite_solution": {
+      "family": "process_metacognition",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "rewrite_solution"
+      ],
+      "evidence_examples": [
+        "expression_clarity",
+        "complete_reasoning"
+      ]
+    },
+    "photo_answer_prompt": {
+      "family": "process_metacognition",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "photo_answer"
+      ],
+      "evidence_examples": [
+        "written_work_capture",
+        "process_evidence"
+      ]
+    },
+    "self_explanation_prompt": {
+      "family": "process_metacognition",
+      "child_action_required": true,
+      "allowed_tasks": [
+        "self_explain"
+      ],
+      "evidence_examples": [
+        "reasoning_verbalization",
+        "metacognitive_monitoring"
+      ]
+    }
+  },
+  "required_storyboard_fields": [
+    "component_id",
+    "type",
+    "purpose",
+    "child_action",
+    "target_evidence",
+    "misconception_target",
+    "success_signal",
+    "fallback_if_failed"
+  ]
+}

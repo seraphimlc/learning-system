@@ -1,0 +1,253 @@
+{
+  "schema_version": "knowledge-card.v2",
+  "card_version": "2026-07-20.number-line.v2.draft",
+  "node_id": "M-G7-NUMBER-LINE",
+  "status": "draft",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [
+      "M-G7-POS-NEG"
+    ],
+    "unlocks_node_ids": [
+      "M-G7-OPPOSITE",
+      "M-G7-ABSOLUTE",
+      "M-G7-COMPARE",
+      "M-G7-RATIONAL-ADD-SUB"
+    ]
+  },
+  "design_brief": {
+    "cognitive_object": "position_direction_distance",
+    "core_mental_model": "数可以看成一条线上相对 0 的位置；右边更大，左边更小，移动方向决定数值增加或减少，离 0 的间隔是距离。",
+    "primary_misconceptions": [
+      "把向左移动理解成加",
+      "负数放到 0 的右边",
+      "单位长度不一致，导致小数或分数位置漂移",
+      "把负数大小比较当成自然数大小比较"
+    ],
+    "best_expression_family": [
+      "interactive_number_line",
+      "drag_point_to_value",
+      "directed_move",
+      "order_points"
+    ],
+    "why_this_expression": "数轴的本质是位置、方向和距离。让孩子拖点、移动和排序，比看静态图更能暴露他是否真正理解位置模型。",
+    "child_actions_for_evidence": [
+      "把 -2.5 拖到 0 左边两格半",
+      "从 1.2 向左移动 2 个单位得到 -0.8",
+      "把 -2.5、-0.5、0、3 按从左到右排序",
+      "用一句话说明右移为什么加、左移为什么减"
+    ],
+    "repair_expression_switches": [
+      "方向错时切换到只做左右移动的 directed_move，不混入排序和绝对值",
+      "单位长度错时切换到整数点定位，再进入半格和小数",
+      "负数比较错时切换到 order_points，再桥接绝对值"
+    ],
+    "near_transfer_direction": [
+      "相反数的关于 0 对称",
+      "绝对值的到 0 距离",
+      "有理数加减的方向移动"
+    ],
+    "exit_rule": "完成一个拖点定位、一个方向移动、一个混合排序，并能解释方向和左右顺序后，退出数轴基础卡，不继续刷同结构题。"
+  },
+  "teaching_contract": {
+    "essence": "数轴把数变成位置：右边更大，左边更小，离 0 多远就是距离。",
+    "core_model": "先确定 0、正方向和单位长度，再把数放到线上；移动看方向，比较看左右。",
+    "minimum_child_takeaway": "看到数轴题时，先问：0 在哪、往哪边、每格是多少。",
+    "must_not_teach_as": [
+      "背口诀式比较大小",
+      "只画线不让孩子操作",
+      "连续刷低价值标点题"
+    ]
+  },
+  "component_storyboard": [
+    {
+      "component_id": "nl-v2-essence",
+      "type": "text_explanation",
+      "purpose": "establish_position_model",
+      "child_action": "read_then_predict",
+      "target_evidence": [
+        "position_model_language"
+      ],
+      "misconception_target": [],
+      "success_signal": "孩子能说出数轴是位置模型，不只是画线。",
+      "fallback_if_failed": "换成温度计语境：0 度右边更暖，左边更冷。",
+      "child_surface": {
+        "title": "数轴到底是什么",
+        "body": "数轴就是把数放到一条线上。0 是起点，右边越来越大，左边越来越小。"
+      }
+    },
+    {
+      "component_id": "nl-v2-drag-point",
+      "type": "interactive_number_line",
+      "purpose": "position_accuracy",
+      "child_action": "drag_point_to_value",
+      "target_evidence": [
+        "position_accuracy",
+        "negative_direction_understanding",
+        "unit_length_consistency"
+      ],
+      "misconception_target": [
+        "negative_on_wrong_side",
+        "unit_length_inconsistent"
+      ],
+      "success_signal": "点落在 -2.5 附近，并位于 0 左侧两格半。",
+      "fallback_if_failed": "先只标 -2、-1、0、1、2，再插入 -2.5。",
+      "interaction": {
+        "task": "drag_point_to_value",
+        "range": {
+          "min": -5,
+          "max": 5,
+          "unit": 0.5
+        },
+        "target_value": -2.5,
+        "tolerance": 0.15,
+        "snap_unit": 0.5,
+        "prompt": "把点 A 拖到 -2.5 的位置。"
+      }
+    },
+    {
+      "component_id": "nl-v2-directed-move",
+      "type": "interactive_number_line",
+      "purpose": "direction_value_relation",
+      "child_action": "directed_move",
+      "target_evidence": [
+        "direction_value_relation",
+        "cross_zero_understanding"
+      ],
+      "misconception_target": [
+        "direction_reversal"
+      ],
+      "success_signal": "从 1.2 向左移动 2 个单位，到达 -0.8，并能说出向左是减小。",
+      "fallback_if_failed": "只保留整数起点和一步左移，先不跨 0。",
+      "interaction": {
+        "task": "move_left_or_right",
+        "range": {
+          "min": -4,
+          "max": 4,
+          "unit": 0.2
+        },
+        "start_value": 1.2,
+        "move": {
+          "direction": "left",
+          "distance": 2
+        },
+        "target_value": -0.8,
+        "tolerance": 0.12,
+        "prompt": "点 B 在 1.2，向左移动 2 个单位。把终点 E 拖出来。"
+      }
+    },
+    {
+      "component_id": "nl-v2-order",
+      "type": "order_points",
+      "purpose": "left_right_order",
+      "child_action": "sort_by_position",
+      "target_evidence": [
+        "left_right_order",
+        "negative_order_understanding"
+      ],
+      "misconception_target": [
+        "negative_order_confusion"
+      ],
+      "success_signal": "排序为 -2.5、-0.5、0、3，并能说出越往右越大。",
+      "fallback_if_failed": "把四个点直接放到数轴上，让孩子按左右读顺序。",
+      "interaction": {
+        "task": "sort_by_position",
+        "values": [
+          -2.5,
+          -0.5,
+          0,
+          3
+        ],
+        "prompt": "把这些数按从左到右排好。"
+      }
+    },
+    {
+      "component_id": "nl-v2-micro-check",
+      "type": "micro_check",
+      "purpose": "verbalize_model",
+      "child_action": "short_answer",
+      "target_evidence": [
+        "model_explanation",
+        "near_transfer_confirmation"
+      ],
+      "misconception_target": [
+        "answer_only_without_model"
+      ],
+      "success_signal": "答案正确，并能用方向或左右顺序解释。",
+      "fallback_if_failed": "让孩子补一句：我是按方向移动，还是按左右比较。",
+      "prompt": "点 C 表示 -1.5，向右移动 2 个单位到 D。D 表示多少？D 和 0 谁更靠右？请写一句理由。"
+    }
+  ],
+  "evidence_plan": {
+    "core_evidence": [
+      "position_accuracy",
+      "direction_value_relation",
+      "left_right_order"
+    ],
+    "near_transfer_evidence": [
+      "distance_to_zero_readiness",
+      "opposite_number_symmetry_readiness",
+      "rational_add_sub_movement_readiness"
+    ],
+    "insufficient_evidence_cases": [
+      "只点击继续，没有拖动或解释",
+      "拖动结果正确但无法说明方向",
+      "交互完成但文字答案与位置动作冲突",
+      "照片或文本证据低置信"
+    ]
+  },
+  "repair_paths": [
+    {
+      "trigger": "direction_reversal",
+      "switch_to": [
+        "nl-v2-directed-move"
+      ],
+      "rule": "先讲方向，不讲计算技巧。"
+    },
+    {
+      "trigger": "unit_length_inconsistent",
+      "switch_to": [
+        "nl-v2-drag-point"
+      ],
+      "rule": "先整数点，再半格和小数。"
+    },
+    {
+      "trigger": "negative_order_confusion",
+      "switch_to": [
+        "nl-v2-order"
+      ],
+      "rule": "先看左右顺序，再桥接绝对值。"
+    }
+  ],
+  "exit_rules": {
+    "max_same_structure_checks": 2,
+    "mastery_candidate_after": [
+      "position_accuracy",
+      "direction_value_relation",
+      "left_right_order",
+      "model_explanation"
+    ],
+    "after_mastery": [
+      "M-G7-OPPOSITE",
+      "M-G7-ABSOLUTE",
+      "M-G7-RATIONAL-ADD-SUB"
+    ],
+    "do_not_repeat_if": "已完成基础定位、方向移动和排序证据。"
+  },
+  "child_card": {
+    "title": "数轴",
+    "one_sentence": "数轴把数变成位置：右边更大，左边更小，离 0 多远就是距离。",
+    "default_sequence": [
+      "nl-v2-essence",
+      "nl-v2-drag-point",
+      "nl-v2-directed-move",
+      "nl-v2-order",
+      "nl-v2-micro-check"
+    ]
+  },
+  "internal_card": {
+    "teaching_goal": "建立位置、方向、距离三个模型，并为相反数、绝对值、有理数加减提供前置证据。",
+    "runtime_priority": "simple_foundation_short_path",
+    "planner_hint": "证据足够后不要继续刷数轴基础题，优先进入相反数、绝对值或有理数加减的桥接任务。"
+  }
+}

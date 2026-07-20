@@ -22,6 +22,7 @@ from . import (
     evidence_gate,
     internal_agents,
     job_queue,
+    knowledge_cards,
     model_router,
     question_bank,
     question_fingerprints,
@@ -672,6 +673,12 @@ class DailyLearningRuntime:
         flow_dict = dict(flow)
         question = asset["question"]
         contract = asset["contract"]
+        teaching_sections = (
+            knowledge_cards.KnowledgeCardService(project_root=self.project_root)
+            .teaching_sections_for_node(str(intent["node_id"]))
+            if action == "learn"
+            else None
+        )
         now = db.now_iso()
         position = int(
             planned_position
@@ -710,12 +717,15 @@ class DailyLearningRuntime:
             },
             candidate_packet={},
             support_hint=(
-                "先看清这个知识点的关键关系，再完成一题小检查。"
+                "先看这一张知识卡，抓住本质和例题，再做一题小检查。"
+                if action == "learn" and teaching_sections
+                else "先看清这个知识点的关键关系，再完成一题小检查。"
                 if action == "learn"
                 else "按你平时的方式完成，系统会根据过程判断下一步。"
             ),
             step_type=step_type,
             answer_input_mode="none" if action == "learn" else "text_photo",
+            teaching_sections=teaching_sections,
             initial_status=initial_status,
             answer_contract=contract,
         )
@@ -1701,6 +1711,9 @@ class DailyLearningRuntime:
             route = model_router.teaching_route()
             provider_mode = _provider_mode(route)
             graph_node = self._graph_node_teaching_packet(selected["question"]["node_id"])
+            knowledge_card = knowledge_cards.KnowledgeCardService(
+                project_root=self.project_root,
+            ).runtime_packet_for_node(selected["question"]["node_id"])
             payload = {
                 "payload_schema_version": job_queue.V5_JOB_PAYLOAD_SCHEMA_VERSION,
                 "legacy_session_id": flow["legacy_session_id"],
@@ -1721,6 +1734,7 @@ class DailyLearningRuntime:
                 "review_record_id": selected["review_record_id"],
                 "provider_mode": provider_mode,
                 "graph_node": graph_node,
+                "knowledge_card": knowledge_card or {},
                 "question_package": {
                     "question_id": selected["question"]["id"],
                     "prompt": selected["question"]["prompt"],
@@ -4642,6 +4656,7 @@ class DailyLearningRuntime:
         trusted_context = {
             "attempt_id": attempt_id,
             "graph_node": payload.get("graph_node") if isinstance(payload.get("graph_node"), dict) else {},
+            "knowledge_card": payload.get("knowledge_card") if isinstance(payload.get("knowledge_card"), dict) else {},
             "question_package": payload.get("question_package") if isinstance(payload.get("question_package"), dict) else {},
             "new_node_eligibility": payload.get("new_node_eligibility") if isinstance(payload.get("new_node_eligibility"), dict) else {},
         }
@@ -5572,6 +5587,25 @@ class DailyLearningRuntime:
         }
 
     def _default_recorded_teaching_output(self, attempt: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        card = payload.get("knowledge_card") if isinstance(payload.get("knowledge_card"), dict) else {}
+        card_summary = card.get("child_card_summary") if isinstance(card.get("child_card_summary"), dict) else {}
+        card_sections = (
+            card_summary.get("default_teaching_sections")
+            if isinstance(card_summary.get("default_teaching_sections"), dict)
+            else {}
+        )
+        if card_sections:
+            return {
+                "schema_version": "2026-07-12.teaching-step.v5.schema.v3",
+                "target_node_id": str(payload.get("target_node_id") or attempt.get("node_id") or ""),
+                "teaching_step_type": "worked_example" if payload.get("new_knowledge_request") else "teaching_repair",
+                "child_title": str(card_summary.get("one_sentence") or "先看这一张知识卡"),
+                "teaching_sections": card_sections,
+                "next_child_action": "看完后继续做一题小检查。",
+                "allowed_response_modes": ["continue", "stuck"],
+                "confidence": 0.86,
+                "source_reason": "knowledge_card_recorded_teaching",
+            }
         analysis = attempt.get("answer_analysis") or {}
         explanation = _child_safe_text(
             analysis.get("teaching_explanation")

@@ -794,7 +794,8 @@
 .knowledge-readiness p { margin: 0; }
 .knowledge-readiness p { margin-top: 3px; color: #654713; line-height: 1.5; }
 .knowledge-activity,
-.knowledge-mastery {
+.knowledge-mastery,
+.knowledge-learning-card {
   padding: 10px 0;
   border-top: 1px solid var(--kv-line);
 }
@@ -823,6 +824,32 @@
 }
 .knowledge-activity-segments i.is-complete { background: var(--kv-green); }
 .knowledge-mastery p { margin-top: 4px; color: var(--kv-muted); line-height: 1.55; }
+.knowledge-learning-card {
+  display: grid;
+  gap: 8px;
+}
+.knowledge-learning-card strong {
+  line-height: 1.45;
+}
+.knowledge-learning-card p {
+  margin: 0;
+  color: var(--kv-muted);
+  line-height: 1.6;
+}
+.knowledge-card-forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.knowledge-card-forms i {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: var(--kv-blue-soft);
+  color: var(--kv-blue);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 820;
+}
 .knowledge-relations {
   display: grid;
   gap: 10px;

@@ -1,7 +1,7 @@
 # Collaboration Inbox
 
 Status: current cross-context board
-Updated: 2026-07-19
+Updated: 2026-07-20
 
 Use this file only when a task, blocker, result, or handoff must persist across runtime contexts or manual sessions. Do not use it as chat history.
 
@@ -34,6 +34,38 @@ Search active messages by current `agentKey`, display name, `ALL`, or `全员`. 
 Write only when durable coordination is needed. Prefer direct runtime dispatch/reply for transient work.
 
 ## Open Messages
+
+### MSG-20260720-001 - TASK / KnowledgeCard v2 表达原则与拆解
+
+- From: 若命（agentKey: `ruoming`）
+- To: 若命 / 清秋 / 听云 / 镜花 / 观止（agentKey: `ALL`）
+- Status: OPEN
+- Related:
+  - `docs/design/specs/2026-07-20-knowledge-card-v2-generation-rules.md`
+  - `data/knowledge_cards/math/M-G7-NUMBER-LINE.v1.json`
+  - `learning_system/knowledge_cards.py`
+  - `app/local_learning_system/knowledge-card-preview.html`
+
+Objective or result:
+记录用户确认的知识卡设计原则，后续展开 KnowledgeCard v2 设计时必须从这里继续，而不是回到统一模板式页面。
+
+Scope:
+知识卡不是固定页面模板，而是“统一教学合同 + 自由表达组件编排”。每个知识点应根据数学本质、常见误解、掌握证据和迁移价值，选择最能帮助孩子建立正确心智模型的表达方式。
+
+Inputs or evidence:
+- 数轴示例已证明静态图只是第一步；数轴更适合拖点、方向移动、排序比较等交互，以产生位置模型证据。
+- 后续知识点可以使用不同表达：数轴/拖拽/动画/天平/关系图/线段图/几何标注/表格/拍照作答等。
+
+Expected result or next action:
+后续专门讨论并形成 KnowledgeCard v2 评估规则：
+1. 如何判断一个知识点适合哪类表达组件；
+2. 什么时候用交互、动画、图形、文字或拍照；
+3. 每个组件必须产生什么掌握证据；
+4. 如何避免纯装饰、炫技或过度复杂；
+5. runtime 如何根据孩子表现选择组件组合。
+
+Stop condition:
+在未完成上述评估规则前，不要把所有知识点批量生成成统一文字卡或统一页面模板。
 
 ### MSG-20260717-001 - REQUEST / v12 教学质量门与完整交付续作
 

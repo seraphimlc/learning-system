@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable
 
-from . import daily_runtime, db
+from . import daily_runtime, db, knowledge_cards
 from .graph_runtime import GraphRuntimeService
 from .knowledge_view_config import KnowledgeViewConfig
 
@@ -1163,6 +1163,7 @@ class KnowledgeMapService:
             module_id: index
             for index, module_id in enumerate(visible_module_ids)
         }
+        card_service = knowledge_cards.KnowledgeCardService(project_root=self.project_root)
         ordered_nodes = sorted(
             (
                 (node_id, node)
@@ -1209,6 +1210,7 @@ class KnowledgeMapService:
                 "module_handle": handles["module"][str(taxonomy.get("module_id") or "")],
                 "stage_label": str(node.get("stage") or ""),
                 "essence": str(node.get("essence_for_child") or ""),
+                "learning_card": card_service.child_directory_summary_for_node(node_id),
                 "learning_state": band,
                 "learning_state_label": summary,
                 "evidence_state": {"code": band, "label": evidence_label},

@@ -5384,6 +5384,11 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual(target_node_id, payload.get("graph_node", {}).get("id"))
         self.assertEqual(target_node.get("essence_for_child"), payload.get("graph_node", {}).get("essence_for_child"))
         self.assertTrue(payload.get("graph_node", {}).get("mastery_criteria"))
+        if payload.get("knowledge_card"):
+            self.assertEqual("knowledge-card-runtime.v1", payload.get("knowledge_card", {}).get("schema_version"))
+            self.assertEqual(target_node_id, payload.get("knowledge_card", {}).get("node_id"))
+            self.assertIn("internal_card", payload.get("knowledge_card", {}))
+            self.assertIn("default_teaching_sections", payload.get("knowledge_card", {}).get("child_card_summary", {}))
         self.assertTrue(payload.get("question_package", {}).get("question_id"))
         eligibility = payload.get("new_node_eligibility")
         self.assertIsInstance(eligibility, dict)

@@ -1296,6 +1296,25 @@ class KnowledgeMapProjectionTests(KnowledgeViewsV51TestCase):
         self.assertNotIn("解题步骤与检验习惯", serialized)
         self.assertNotIn("graph", payload["views"])
 
+    def test_projection_exposes_child_safe_learning_card_summary_for_active_card_nodes(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ):
+            with closing(db.connect(path)) as conn:
+                self._install_view_activation(conn, config_payload=config)
+                payload = self._projection_for_conn(conn)
+
+        number_line = next(node for node in payload["nodes"] if node["name"] == "数轴")
+        card = number_line["learning_card"]
+        self.assertIsInstance(card, dict)
+        self.assertTrue(card["available"])
+        self.assertEqual("数轴", card["title"])
+        self.assertIn("数轴把数变成位置", card["one_sentence"])
+        self.assertIn("数轴演示", card["forms"])
+        self.assertTrue(card["has_interaction"])
+        self._assert_child_safe_keys(card)
+
     def test_tampered_contract_review_lineage_blocks_db_audited_activation(self):
         config = self._load_view_config_json()
         with self._temp_database() as path, self._policy_env(

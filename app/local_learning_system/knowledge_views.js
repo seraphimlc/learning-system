@@ -1732,6 +1732,23 @@
     return { incoming, outgoing };
   }
 
+  function renderLearningCardSummary(node) {
+    const card = node?.learning_card;
+    if (!card?.available) return "";
+    const forms = Array.isArray(card.forms) ? card.forms.filter(Boolean).slice(0, 4) : [];
+    return `
+      <section class="knowledge-learning-card" aria-label="学习卡">
+        <div class="knowledge-detail-section-head">
+          <h4>学习卡</h4>
+          <span>${card.has_interaction ? "可互动" : "可阅读"}</span>
+        </div>
+        <strong>${escapeHtml(card.one_sentence || card.title || "这个知识点已经准备好学习卡。")}</strong>
+        <p>${escapeHtml(card.core_model_body || "先看懂核心模型，再用一小题确认。")}</p>
+        ${forms.length ? `<div class="knowledge-card-forms">${forms.map((item) => `<i>${escapeHtml(item)}</i>`).join("")}</div>` : ""}
+      </section>
+    `;
+  }
+
   function renderDetail() {
     const detail = state.root.querySelector("[data-knowledge-detail]");
     const node = state.nodeByHandle.get(state.selectedHandle);
@@ -1764,6 +1781,7 @@
         </section>
       ` : ""}
       <p class="knowledge-essence">${escapeHtml(node.essence || "先看清关系，再用一道小题确认。")}</p>
+      ${renderLearningCardSummary(node)}
       <section class="knowledge-activity" aria-label="${escapeHtml(node.activity?.label || `学习历程，完成 ${activityCompleted}/${activityTotal}`)}">
         <div class="knowledge-detail-section-head"><h4>学习历程</h4><span>${activityCompleted}/${activityTotal}</span></div>
         <div class="knowledge-activity-segments" aria-hidden="true">
