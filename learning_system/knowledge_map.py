@@ -21,6 +21,18 @@ ASSESSMENT_RECEIPT_KEY = "answer_assessment_active.v5.1"
 ASSESSMENT_RECEIPT_SCHEMA = "answer-assessment-activation.v1"
 HANDLE_POLICY_VERSION = "kv51-h1"
 PROJECTION_SCHEMA_VERSION = "5.1-knowledge-views"
+CHILD_PROJECTION_POLICY_VERSION = "child-map-only-v2"
+CHILD_HIDDEN_MODULE_IDS = {"Z_LEARNING_PROCESS"}
+CHILD_VISIBLE_MODULE_ORDER = [
+    "A_FOUNDATION",
+    "E_RATIONAL_NUMBERS",
+    "B_FRACTION_RATIO",
+    "C_ALGEBRA_BRIDGE",
+    "F_EXPRESSIONS",
+    "G_LINEAR_EQUATION",
+    "D_WORD_MODELS",
+    "H_GEOMETRY_INTRO",
+]
 ALLOWED_ACTIONS = {"diagnostic", "learn", "review", "challenge"}
 NONTERMINAL_INTENT_STATUSES = {"pending", "waiting_for_safe_boundary"}
 OVERVIEW_ANCHOR_PRIORITIES = {
@@ -77,6 +89,38 @@ def _row_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
 
 def _intent_digest(*, node_id: str, action: str) -> str:
     return _canonical_sha256({"node_id": node_id, "action": action})
+
+
+def _node_module_id(node: dict[str, Any]) -> str:
+    taxonomy = node.get("taxonomy") if isinstance(node.get("taxonomy"), dict) else {}
+    return str(taxonomy.get("module_id") or "")
+
+
+def _child_visible_module_ids(config: dict[str, Any], snapshot: dict[str, Any]) -> list[str]:
+    configured = [str(module_id) for module_id in config["root"]["module_order"]]
+    configured_set = set(configured)
+    ordered = [
+        module_id
+        for module_id in CHILD_VISIBLE_MODULE_ORDER
+        if module_id in configured_set and module_id in snapshot["modules"]
+    ]
+    ordered.extend(
+        module_id
+        for module_id in configured
+        if (
+            module_id not in ordered
+            and module_id not in CHILD_HIDDEN_MODULE_IDS
+            and module_id in snapshot["modules"]
+        )
+    )
+    return ordered
+
+
+def _child_projection_version(config: KnowledgeViewConfig) -> str:
+    return (
+        f"kv51:{CHILD_PROJECTION_POLICY_VERSION}:"
+        f"{config.config_version}:{config.canonical_sha256()[:16]}"
+    )
 
 
 def _sealed_receipt_valid(value: Any) -> bool:
@@ -1092,26 +1136,41 @@ class KnowledgeMapService:
             "C": ("needs_support", "待巩固", "适合再巩固关键步骤"),
             "D": ("needs_support", "待巩固", "适合先补一小步"),
         }
+        visible_module_ids = _child_visible_module_ids(config, snapshot)
+        visible_module_id_set = set(visible_module_ids)
+        visible_node_ids = {
+            node_id
+            for node_id, node in snapshot["nodes"].items()
+            if _node_module_id(node) in visible_module_id_set
+        }
+        child_module_order = {
+            module_id: (index + 1) * 10
+            for index, module_id in enumerate(visible_module_ids)
+        }
         modules = [
             {
                 "handle": handles["module"][module_id],
                 "name": str(snapshot["modules"][module_id]["name"]),
-                "order": int(config["mind_map"]["modules"][module_id]["order"]),
+                "order": child_module_order[module_id],
                 "collapsed_by_default": bool(
                     config["mind_map"]["modules"][module_id]["collapsed_by_default"]
                 ),
             }
-            for module_id in config["root"]["module_order"]
+            for module_id in visible_module_ids
         ]
         nodes: list[dict[str, Any]] = []
         module_order_index = {
             module_id: index
-            for index, module_id in enumerate(config["root"]["module_order"])
+            for index, module_id in enumerate(visible_module_ids)
         }
         ordered_nodes = sorted(
-            snapshot["nodes"].items(),
+            (
+                (node_id, node)
+                for node_id, node in snapshot["nodes"].items()
+                if node_id in visible_node_ids
+            ),
             key=lambda item: (
-                module_order_index.get(str((item[1].get("taxonomy") or {}).get("module_id") or ""), 999),
+                module_order_index.get(_node_module_id(item[1]), 999),
                 config["mind_map"]["nodes"][item[0]]["order"],
                 str(item[1].get("name") or ""),
             ),
@@ -1173,10 +1232,18 @@ class KnowledgeMapService:
                 "relation": "hard_prerequisite",
             }
             for edge in snapshot["strict_prerequisites"]
+            if edge["source"] in visible_node_ids and edge["target"] in visible_node_ids
         ]
         mind_placements = []
         for node_id, placement in config["mind_map"]["nodes"].items():
+            if node_id not in visible_node_ids:
+                continue
             parent = placement["primary_parent"]
+            if (
+                (parent["type"] == "module" and parent["id"] not in visible_module_id_set)
+                or (parent["type"] == "node" and parent["id"] not in visible_node_ids)
+            ):
+                continue
             parent_handle = (
                 handles["module"][parent["id"]]
                 if parent["type"] == "module"
@@ -1195,38 +1262,9 @@ class KnowledgeMapService:
                 "target_handle": handles["node"][edge["target"]],
             }
             for edge in config_object.mind_map_cross_links(snapshot["strict_prerequisites"])
+            if edge["source"] in visible_node_ids and edge["target"] in visible_node_ids
         ]
-        lanes = [
-            {
-                "handle": handles["lane"][lane["id"]],
-                "name": lane["label"],
-                "order": lane["order"],
-            }
-            for lane in config["graph"]["lanes"]
-        ]
-        graph_placements = []
-        for node_id, placement in config["graph"]["nodes"].items():
-            projected = {
-                "handle": handles["node"][node_id],
-                "rank": placement["rank"],
-                "lane_handle": handles["lane"][placement["lane"]],
-                "order": placement["order"],
-            }
-            if node_id in OVERVIEW_ANCHOR_PRIORITIES:
-                projected["overview_label_priority"] = OVERVIEW_ANCHOR_PRIORITIES[node_id]
-            graph_placements.append(projected)
-        edge_visibility = [
-            {
-                "source_handle": handles["node"][source],
-                "target_handle": handles["node"][target],
-                "overview_visible": config["graph"]["overview_edge_visibility"][f"{source}->{target}"],
-            }
-            for source, target in sorted(
-                (edge["source"], edge["target"])
-                for edge in snapshot["strict_prerequisites"]
-            )
-        ]
-        projection_version = f"kv51:{config_object.config_version}:{config_object.canonical_sha256()[:16]}"
+        projection_version = _child_projection_version(config_object)
         return {
             "schema_version": PROJECTION_SCHEMA_VERSION,
             "projection_version": projection_version,
@@ -1239,12 +1277,7 @@ class KnowledgeMapService:
                     "root_label": str(config["root"].get("label") or "我的数学知识体系"),
                     "placements": sorted(mind_placements, key=lambda item: (item["parent_handle"], item["order"])),
                     "cross_links": cross_links,
-                },
-                "graph": {
-                    "lanes": lanes,
-                    "placements": sorted(graph_placements, key=lambda item: (item["rank"], item["lane_handle"], item["order"])),
-                    "edge_visibility": edge_visibility,
-                },
+                }
             },
             "current_learning": current_learning_projection,
             "recommended_handles": [row["handle"] for row in nodes if row["recommended"]],
@@ -1273,9 +1306,7 @@ class KnowledgeMapService:
                 )
             authority = self._runtime_authority()
             config: KnowledgeViewConfig = authority["config"]
-            projection_version = (
-                f"kv51:{config.config_version}:{config.canonical_sha256()[:16]}"
-            )
+            projection_version = _child_projection_version(config)
             if request.get("projection_version") != projection_version:
                 raise KnowledgeMapError(
                     "知识首页已经更新，请刷新后重新选择。",
@@ -1300,6 +1331,13 @@ class KnowledgeMapService:
                     status=409,
                     state="conflict",
                 )
+            node = authority["snapshot"]["nodes"].get(node_id) or {}
+            if _node_module_id(node) in CHILD_HIDDEN_MODULE_IDS:
+                raise KnowledgeMapError(
+                    "这个学习目标暂时不能从首页选择，请换一个知识点。",
+                    status=409,
+                    state="conflict",
+                )
             graph_version = str(authority["snapshot"]["graph_lineage"])
             learner_states = self._learner_states(authority)
             status_code = str((learner_states.get(node_id) or {}).get("status_code") or "")
@@ -1310,7 +1348,7 @@ class KnowledgeMapService:
             )
             descriptors, _readiness = self._action_descriptors(
                 node_id=node_id,
-                node=authority["snapshot"]["nodes"].get(node_id) or {},
+                node=node,
                 status_code=status_code,
                 authority=authority,
                 target_context=target_context,

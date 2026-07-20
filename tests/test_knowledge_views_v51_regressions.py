@@ -42,7 +42,7 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
             return exc.code, json.loads(exc.read().decode("utf-8"))
 
     def _install_descriptor_action_fixture(self, conn, config: dict) -> list[str]:
-        selected_node_ids = sorted(self.node_ids)[:3]
+        selected_node_ids = sorted(self.child_visible_node_ids)[:3]
         assets = self._install_view_activation(
             conn,
             config_payload=config,
@@ -64,9 +64,9 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
 
     def _install_enabled_descriptor_post_fixture(self, conn, config: dict) -> list[str]:
         target_node_ids = [
-            "M-BRIDGE-SOLUTION-HABIT",
-            "M-BRIDGE-MOTION-BASIC",
             "M-PRE-NUMBER-SENSE",
+            "M-BRIDGE-MOTION-BASIC",
+            "M-PRE-ORDER-OPS",
         ]
         prerequisite_node_ids = [
             "M-PRE-QUANTITY-RELATION",
@@ -185,7 +185,7 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
             )
 
     def test_review_regressions_have_independent_browser_oracles(self):
-        self._require_file(BROWSER_REGRESSION_FIXTURE, "dual-view regression browser fixture")
+        self._require_file(BROWSER_REGRESSION_FIXTURE, "child map regression browser fixture")
         config = self._load_view_config_json()
 
         with (
@@ -251,41 +251,21 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
             payload = json.loads(completed.stdout)
             report = payload.get("report") or {}
             expected = {
-                "applied_focus_enters_learning_step",
-                "allowed_actions_change_invalidates_pending",
-                "destination_camera_is_preserved_exactly",
+                "child_map_only_projection",
                 "mobile_sheet_modal_cleanup",
-                "mobile_action_feedback_lifecycle",
-                "invalid_node_focus_recovers_to_fit_all",
-                "reinitialize_clears_transient_query_and_filter",
+                "graph_preference_is_ignored",
+                "hide_show_preserves_child_surface",
                 "search_selection_restores_context",
-                "selected_hidden_state_and_escape_focus",
-                "projection_preference_isolation",
                 "resume_requires_fresh_bootstrap_current_step",
-                "resume_failure_mobile_header_preserved",
                 "state_appropriate_action_descriptors",
-                "mobile_graph_visible_name_opens_target_node",
-                "mobile_graph_anchor_and_module_screen_geometry",
-                "resume_failure_layout_is_readable",
-                "applied_target_continuity",
             }
             self.assertEqual(expected, set(report), payload)
             self.assertEqual(
                 {
-                    "dual-v51-regression-mobile-sheet-cleanup.png",
-                    "dual-v51-regression-invalid-node-focus-fit-all.png",
-                    "dual-v51-regression-search-selection-restore.png",
-                    "dual-v51-regression-projection-preference-isolation.png",
-                    "dual-v51-regression-reinitialize-clears-transient-state.png",
-                    "dual-v51-regression-allowed-actions-invalidates-pending.png",
-                    "dual-v51-regression-selected-collapse-escape-focus.png",
-                    "dual-v51-regression-destination-camera-exact.png",
-                    "dual-v51-regression-applied-focus-learning-step.png",
-                    "dual-v51-regression-mobile-action-feedback.png",
-                    "dual-v51-regression-mobile-visible-node-name.png",
-                    "dual-v51-regression-mobile-graph-geometry.png",
-                    "dual-v51-regression-resume-failure-layout.png",
-                    "dual-v51-regression-applied-target-continuity.png",
+                    "knowledge-v51-regression-mobile-sheet-cleanup.png",
+                    "knowledge-v51-regression-graph-cache-ignored.png",
+                    "knowledge-v51-regression-search-selection-restore.png",
+                    "knowledge-v51-regression-hide-show-child-surface.png",
                 },
                 set(payload.get("screenshots") or {}),
                 payload,

@@ -93,9 +93,8 @@ try {
   if (await explorerToggle.isVisible() && await explorerToggle.getAttribute("aria-expanded") === "false") {
     await explorerToggle.click();
   }
-  await page.getByRole("radiogroup", { name: "知识展示方式" }).waitFor();
-  await page.getByRole("radio", { name: "导图", exact: true }).check();
   const mindRegion = page.getByRole("region", { name: "我的数学知识导图" });
+  await mindRegion.waitFor({ state: "visible" });
   const search = page.getByRole("search").getByRole("searchbox");
   await search.fill(targetNodeName);
   const visibleTarget = mindRegion.locator(

@@ -46,6 +46,17 @@ HANDLE_SECRET_ONE = "11" * 32
 HANDLE_SECRET_TWO = "22" * 32
 TEST_BANK_VERSION = "2026-07-15.kv51-authority-test"
 MUTATING_ACTIONS = {"diagnostic", "learn", "review", "challenge"}
+CHILD_HIDDEN_MODULE_IDS = {"Z_LEARNING_PROCESS"}
+EXPECTED_CHILD_MODULE_ORDER = [
+    "底层计算与数感",
+    "有理数概念与运算",
+    "分数百分数与比例",
+    "算术到代数桥梁",
+    "代数式与整式",
+    "一元一次方程",
+    "应用题模型",
+    "几何图形初步",
+]
 EXPECTED_PROJECTION_KEYS = {
     "schema_version",
     "projection_version",
@@ -145,6 +156,12 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
             if prior != module_name:
                 raise AssertionError(f"module name drift for {module_id}")
         cls.module_ids = set(cls.module_names)
+        cls.child_visible_node_ids = {
+            node_id
+            for node_id, node in cls.nodes.items()
+            if str(node["taxonomy"]["module_id"]) not in CHILD_HIDDEN_MODULE_IDS
+        }
+        cls.child_visible_module_ids = cls.module_ids - CHILD_HIDDEN_MODULE_IDS
         cls.strict_edges = {
             (str(prerequisite), node_id)
             for node_id, node in cls.nodes.items()
@@ -312,8 +329,14 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
         default_nodes = [
             node_id
             for node_id in sorted(self.node_ids)
-            if not self.nodes[node_id].get("prerequisites")
-        ][:2]
+            if node_id in self.child_visible_node_ids and not self.nodes[node_id].get("prerequisites")
+        ]
+        default_nodes.extend(
+            node_id
+            for node_id in sorted(self.child_visible_node_ids)
+            if node_id not in default_nodes
+        )
+        default_nodes = default_nodes[:2]
         selected_node_ids = list(node_ids or default_nodes)
         assets = []
         with conn:
@@ -920,33 +943,43 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
         self.assertEqual(EXPECTED_PROJECTION_KEYS, set(payload))
         self.assertEqual("5.1-knowledge-views", payload["schema_version"])
         self.assertEqual("mind_map", payload["default_view"])
-        self.assertEqual({"mind_map", "graph"}, set(payload["views"]))
-        self.assertEqual(56, len(payload["nodes"]))
-        self.assertEqual(9, len(payload["modules"]))
+        self.assertEqual({"mind_map"}, set(payload["views"]))
+        self.assertEqual(55, len(payload["nodes"]))
+        self.assertEqual(8, len(payload["modules"]))
         self.assertEqual(95, len(payload["relationships"]))
 
         node_names = [str(node["name"]) for node in payload["nodes"]]
         self.assertEqual(len(node_names), len(set(node_names)), "node names must identify exact projection rows")
-        expected_node_names = {str(node["name"]) for node in self.nodes.values()}
+        expected_node_names = {
+            str(self.nodes[node_id]["name"])
+            for node_id in self.child_visible_node_ids
+        }
         self.assertEqual(expected_node_names, set(node_names))
         node_handle_by_id = {
             node_id: next(row["handle"] for row in payload["nodes"] if row["name"] == node["name"])
             for node_id, node in self.nodes.items()
+            if node_id in self.child_visible_node_ids
         }
 
         module_names = [str(module["name"]) for module in payload["modules"]]
         self.assertEqual(len(module_names), len(set(module_names)))
-        self.assertEqual(set(self.module_names.values()), set(module_names))
+        self.assertEqual(EXPECTED_CHILD_MODULE_ORDER, module_names)
+        self.assertEqual(
+            {self.module_names[module_id] for module_id in self.child_visible_module_ids},
+            set(module_names),
+        )
         module_handle_by_id = {
             module_id: next(
                 row["handle"] for row in payload["modules"] if row["name"] == module_name
             )
             for module_id, module_name in self.module_names.items()
+            if module_id in self.child_visible_module_ids
         }
 
         expected_relationships = {
             (node_handle_by_id[source], node_handle_by_id[target], "hard_prerequisite")
             for source, target in self.strict_edges
+            if source in self.child_visible_node_ids and target in self.child_visible_node_ids
         }
         actual_relationships = {
             (row["source_handle"], row["target_handle"], row["relation"])
@@ -958,6 +991,8 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
         self.assertEqual(set(node_handle_by_id.values()), set(mind_rows))
         represented_edges = set()
         for node_id, placement in config["mind_map"]["nodes"].items():
+            if node_id not in self.child_visible_node_ids:
+                continue
             row = mind_rows[node_handle_by_id[node_id]]
             parent = placement["primary_parent"]
             expected_parent_handle = (
@@ -975,41 +1010,10 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
         expected_cross_links = {
             (node_handle_by_id[source], node_handle_by_id[target])
             for source, target in self.strict_edges - represented_edges
+            if source in self.child_visible_node_ids and target in self.child_visible_node_ids
         }
         actual_cross_links = _edge_set(payload["views"]["mind_map"]["cross_links"])
         self.assertEqual(expected_cross_links, actual_cross_links)
-
-        config_lanes = config["graph"]["lanes"]
-        payload_lanes = payload["views"]["graph"]["lanes"]
-        self.assertEqual(
-            {(lane["label"], lane["order"]) for lane in config_lanes},
-            {(lane["name"], lane["order"]) for lane in payload_lanes},
-        )
-        lane_handle_by_id = {
-            lane["id"]: next(row["handle"] for row in payload_lanes if row["name"] == lane["label"])
-            for lane in config_lanes
-        }
-        graph_rows = {row["handle"]: row for row in payload["views"]["graph"]["placements"]}
-        self.assertEqual(set(node_handle_by_id.values()), set(graph_rows))
-        for node_id, placement in config["graph"]["nodes"].items():
-            row = graph_rows[node_handle_by_id[node_id]]
-            self.assertEqual(placement["rank"], row["rank"])
-            self.assertEqual(lane_handle_by_id[placement["lane"]], row["lane_handle"])
-            self.assertEqual(placement["order"], row["order"])
-
-        expected_visibility = {
-            (
-                node_handle_by_id[source],
-                node_handle_by_id[target],
-                config["graph"]["overview_edge_visibility"][f"{source}->{target}"],
-            )
-            for source, target in self.strict_edges
-        }
-        actual_visibility = {
-            (row["source_handle"], row["target_handle"], row["overview_visible"])
-            for row in payload["views"]["graph"]["edge_visibility"]
-        }
-        self.assertEqual(expected_visibility, actual_visibility)
 
 
 class KnowledgeViewConfigTests(KnowledgeViewsV51TestCase):
@@ -1168,20 +1172,14 @@ class KnowledgeMapProjectionTests(KnowledgeViewsV51TestCase):
         second_nodes = {row["handle"] for row in second["nodes"]}
         other_nodes = {row["handle"] for row in other["nodes"]}
         module_handles = {row["handle"] for row in first["modules"]}
-        lane_handles = {row["handle"] for row in first["views"]["graph"]["lanes"]}
         self.assertEqual(first_nodes, second_nodes, "same receipt and secret must survive restart")
         self.assertTrue(first_nodes.isdisjoint(other_nodes), "different installations reused node handles")
         self.assertTrue(first_nodes.isdisjoint(module_handles))
-        self.assertTrue(first_nodes.isdisjoint(lane_handles))
-        self.assertTrue(module_handles.isdisjoint(lane_handles))
         prefixes = {
             "node": {handle.split(".", 1)[0] for handle in first_nodes},
             "module": {handle.split(".", 1)[0] for handle in module_handles},
-            "lane": {handle.split(".", 1)[0] for handle in lane_handles},
         }
         self.assertTrue(prefixes["node"].isdisjoint(prefixes["module"]))
-        self.assertTrue(prefixes["node"].isdisjoint(prefixes["lane"]))
-        self.assertTrue(prefixes["module"].isdisjoint(prefixes["lane"]))
         serialized = json.dumps(first, ensure_ascii=False, sort_keys=True)
         self.assertNotIn(HANDLE_SECRET_ONE, serialized)
         self.assertNotIn(HANDLE_SECRET_TWO, serialized)
@@ -1208,9 +1206,9 @@ class KnowledgeMapProjectionTests(KnowledgeViewsV51TestCase):
                 self.assertEqual("untested", stale_row["mastery_band"])
                 self.assertEqual("还没有留下学习记录", stale_row["mastery_summary"])
 
-    def test_projection_exposes_child_evidence_actions_and_reviewed_graph_anchors(self):
+    def test_projection_exposes_child_evidence_actions_and_learning_path_order(self):
         config = self._load_view_config_json()
-        selected_node_ids = sorted(self.node_ids)[:2]
+        selected_node_ids = sorted(self.child_visible_node_ids)[:2]
         with self._temp_database() as path, self._policy_env(
             map_policy="v5.1", assessment_policy="v5.1"
         ):
@@ -1289,26 +1287,14 @@ class KnowledgeMapProjectionTests(KnowledgeViewsV51TestCase):
         self.assertEqual("needs_prerequisite", prerequisite["action_readiness"]["code"])
         self.assertEqual("先补准备知识", prerequisite["action_descriptors"][0]["label"])
 
-        placements = payload["views"]["graph"]["placements"]
-        anchors = sorted(
-            (
-                placement["overview_label_priority"],
-                next(
-                    node["name"] for node in payload["nodes"]
-                    if node["handle"] == placement["handle"]
-                ),
-            )
-            for placement in placements
-            if "overview_label_priority" in placement
-        )
-        self.assertEqual(list(range(1, 7)), [priority for priority, _name in anchors])
         self.assertEqual(
-            [
-                "数感与估算", "等量关系与列式", "有理数加减",
-                "合并同类项", "解一元一次方程基础", "一元一次方程应用题",
-            ],
-            [name for _priority, name in anchors],
+            EXPECTED_CHILD_MODULE_ORDER,
+            [module["name"] for module in payload["modules"]],
         )
+        serialized = json.dumps(payload, ensure_ascii=False)
+        self.assertNotIn("学习流程与错因", serialized)
+        self.assertNotIn("解题步骤与检验习惯", serialized)
+        self.assertNotIn("graph", payload["views"])
 
     def test_tampered_contract_review_lineage_blocks_db_audited_activation(self):
         config = self._load_view_config_json()
@@ -1784,15 +1770,15 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
     def test_enabled_descriptors_share_runtime_eligibility_and_fulfill_result_behavior(self):
         config = self._load_view_config_json()
         foundation = next(
-            node_id for node_id in sorted(self.node_ids)
+            node_id for node_id in sorted(self.child_visible_node_ids)
             if not self.nodes[node_id].get("prerequisites")
         )
         blocked_target = max(
-            self.node_ids,
+            self.child_visible_node_ids,
             key=lambda node_id: len(self.nodes[node_id].get("prerequisites", [])),
         )
         missing_asset = next(
-            node_id for node_id in sorted(self.node_ids)
+            node_id for node_id in sorted(self.child_visible_node_ids)
             if node_id not in {foundation, blocked_target}
         )
         with self._temp_database() as path, self._policy_env(
@@ -1902,10 +1888,10 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
         config = self._load_view_config_json()
         target_node_id = next(
             node_id for node_id, node in self.nodes.items()
-            if node["name"] == "解题步骤与检验习惯"
+            if node_id in self.child_visible_node_ids and node["name"] == "数感与估算"
         )
         source_node_id = next(
-            node_id for node_id in sorted(self.node_ids)
+            node_id for node_id in sorted(self.child_visible_node_ids)
             if node_id != target_node_id
         )
         with self._temp_database() as path, self._policy_env(
@@ -2337,64 +2323,22 @@ class DualViewBrowserContractTests(KnowledgeViewsV51TestCase):
         self.assertEqual(
             {
                 "knowledge_projection_sets_connection_ready",
+                "child_projection_hides_internal_process",
+                "child_projection_learning_path_order",
                 "not_started_hides_resume_learning",
                 "child_home_defaults_to_simple_start",
-                "resumable_state_shows_resume_learning",
                 "first_visit_mind_map",
                 "desktop_1280_no_horizontal_scroll",
-                "desktop_1280_both_surfaces_render",
-                "mind_virtual_root_and_nine_modules_collapsed",
-                "mind_root_aria_matches_partial_expansion",
-                "mind_accessibility_snapshot_uses_disclosures",
-                "valid_preference_restored",
-                "independent_viewports_preserved",
-                "camera_roundtrip_and_sheet_baseline_preserved",
-                "selection_shared_across_views",
-                "graph_overview_markers_readable_selectable",
-                "graph_overview_hit_target_and_screen_boundary",
-                "graph_first_entry_auto_fit",
-                "graph_selected_switch_camera_persisted",
-                "graph_refresh_orphan_node_focus_auto_fits",
-                "status_text_icon_shape_color",
-                "desktop_detail_320_in_flow",
-                "escape_restores_origin_focus",
-                "mind_cross_prerequisites_57_directional_no_duplicate_buttons",
-                "mind_cross_prerequisites_390_no_overflow",
-                "graph_fit_all_readable_controls_zero_collision",
-                "graph_module_focus_is_bounded",
-                "graph_node_focus_is_bounded",
-                "graph_mobile_390_markers_zero_collision",
-                "graph_edge_boundary_and_direction_classes",
-                "edge_direction_strict_and_bridge_visible",
+                "mind_virtual_root_and_eight_modules_collapsed",
+                "mind_module_order_matches_learning_path",
+                "child_dom_has_no_graph_surface",
+                "internal_process_module_hidden_in_dom",
+                "node_selection_opens_child_safe_detail",
                 "search_results_max_six",
-                "search_accessibility_exposes_only_results",
-                "search_clear_preserves_selected_spatial_context",
-                "empty_result_can_clear",
-                "node_default_collapse_and_hidden_focus",
-                "selection_filter_collapse_and_focus_recovery",
-                "roving_tabindex_and_direction_keys",
-                "disabled_node_has_button_and_specific_reason",
-                "target_action_409_stale_clears_and_reloads",
-                "target_action_global_serialization_and_exact_settlement",
-                "target_action_key_survives_lost_response",
-                "target_action_production_response_settles_and_unlocks",
-                "invalid_pending_action_is_discarded",
+                "search_clear_preserves_child_surface",
+                "child_safe_dom",
                 "mobile_390_no_horizontal_scroll",
                 "mobile_controls_44px",
-                "mobile_detail_modal_and_inert",
-                "mobile_modal_focus_trap_and_page_inert",
-                "mobile_modal_initial_heading_focus_trapped",
-                "mobile_sheet_keeps_112px_map_and_sticky_actions",
-                "mobile_escape_focus_restore",
-                "mobile_sheet_resize_escape_restores_camera",
-                "mobile_applied_action_closes_sheet_and_releases_focus",
-                "drag_threshold_and_visible_zoom_control",
-                "reduced_motion_disables_camera_transition",
-                "child_safe_surface_states",
-                "child_safe_dom",
-                "active_view_preference_survives_projection_upgrade",
-                "reinitialize_resets_query_filter_controls",
-                "graph_not_nine_module_boxes",
                 "screenshots_written",
             },
             {key for key, value in report.items() if value is True},
@@ -2402,12 +2346,8 @@ class DualViewBrowserContractTests(KnowledgeViewsV51TestCase):
         )
         self.assertEqual(
             {
-                "dual-v51-1280-mind-fit.png",
-                "dual-v51-1280-graph-fit.png",
-                "dual-v51-1280-graph-node.png",
-                "dual-v51-390-mind-fit.png",
-                "dual-v51-390-graph-fit.png",
-                "dual-v51-390-graph-node-sheet.png",
+                "knowledge-v51-child-map-desktop.png",
+                "knowledge-v51-child-map-mobile.png",
             },
             set(report.get("screenshots") or {}),
         )
