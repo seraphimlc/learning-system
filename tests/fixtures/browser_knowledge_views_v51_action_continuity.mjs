@@ -88,6 +88,12 @@ try {
     throw new Error(`enabled enter_now action not found: ${targetNodeName}/${targetAction}`);
   }
 
+  const explorerToggle = page.locator("[data-map-explorer-toggle]");
+  await explorerToggle.waitFor({ state: "visible" });
+  if (await explorerToggle.isVisible() && await explorerToggle.getAttribute("aria-expanded") === "false") {
+    await explorerToggle.click();
+  }
+  await page.getByRole("radiogroup", { name: "知识展示方式" }).waitFor();
   await page.getByRole("radio", { name: "导图", exact: true }).check();
   const mindRegion = page.getByRole("region", { name: "我的数学知识导图" });
   const search = page.getByRole("search").getByRole("searchbox");

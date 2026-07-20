@@ -24,6 +24,7 @@
     graphFocusMode: "fit_all",
     graphViewportStored: false,
     graphHasEntered: false,
+    mapExplorerOpen: false,
     graphEdgeFrame: 0,
     rovingHandle: "",
     pendingAction: null,
@@ -326,7 +327,7 @@
         <header class="knowledge-home-header">
           <div>
             <p class="knowledge-kicker">我的数学知识</p>
-            <h2 tabindex="-1" data-knowledge-heading>从一张图里找到下一步</h2>
+            <h2 tabindex="-1" data-knowledge-heading>今天从这里开始</h2>
           </div>
           <div class="knowledge-current-wrap">
             <p class="knowledge-current" data-current-learning></p>
@@ -343,6 +344,18 @@
             <p data-map-state-body>正在核对知识关系和学习记录。</p>
             <button type="button" data-map-retry hidden>重新加载</button>
           </section>
+          <section class="knowledge-start-panel" aria-labelledby="knowledgeStartTitle" data-knowledge-start-panel></section>
+          <section class="knowledge-map-explorer" data-knowledge-map-explorer>
+          <div class="knowledge-map-heading">
+            <div>
+              <p>完整知识地图</p>
+              <h3>想自己找知识点时再打开</h3>
+            </div>
+            <button type="button" data-map-explorer-toggle aria-expanded="false" aria-controls="knowledgeMapExplorerBody">
+              打开完整知识地图
+            </button>
+          </div>
+          <div id="knowledgeMapExplorerBody" data-map-explorer-body hidden>
           <div class="knowledge-toolbar">
             <div class="knowledge-view-switch" role="radiogroup" aria-label="知识展示方式">
               <label>
@@ -398,6 +411,8 @@
               <div class="knowledge-world graph-world" data-knowledge-world="graph"></div>
             </section>
           </div>
+          </div>
+          </section>
         </div>
         <aside class="knowledge-detail" data-knowledge-detail hidden></aside>
         <div class="knowledge-live-region" role="status" aria-live="polite" aria-atomic="true" data-knowledge-live></div>
@@ -497,6 +512,7 @@
     state.root.querySelector("[data-map-retry]").addEventListener("click", () => {
       if (state.onRetry) state.onRetry();
     });
+    state.root.querySelector("[data-map-explorer-toggle]").addEventListener("click", toggleMapExplorer);
     state.root.querySelectorAll(".knowledge-viewport").forEach(bindViewportGestures);
     const graphWorld = state.root.querySelector('[data-knowledge-world="graph"]');
     const finishGraphCamera = (event) => {
@@ -616,6 +632,7 @@
     state.projectionStale = false;
     state.resumeAuthorityKnown = true;
     state.resumeInFlight = false;
+    state.mapExplorerOpen = false;
     setSurfaceState(projection.nodes.length ? "ready" : "empty");
     loadPreferences();
     state.graphHasEntered = state.activeView === "graph";
@@ -686,6 +703,11 @@
     const content = state.root.querySelector("[data-knowledge-content]");
     const toolbar = state.root.querySelector(".knowledge-toolbar");
     const workspace = state.root.querySelector(".knowledge-workspace");
+    const startPanel = state.root.querySelector("[data-knowledge-start-panel]");
+    const explorer = state.root.querySelector("[data-knowledge-map-explorer]");
+    const mapHeading = state.root.querySelector(".knowledge-map-heading");
+    const legend = state.root.querySelector(".knowledge-legend");
+    const summary = state.root.querySelector("[data-result-summary]");
     const retry = panel.querySelector("[data-map-retry]");
     const copy = {
       skeleton: ["正在准备知识首页", "正在核对知识关系和学习记录。"],
@@ -696,6 +718,11 @@
     };
     const ready = state.surfaceState === "ready";
     panel.hidden = ready;
+    if (startPanel) startPanel.hidden = !ready;
+    if (explorer) explorer.hidden = !ready;
+    if (mapHeading) mapHeading.hidden = !ready;
+    if (legend) legend.hidden = !ready;
+    if (summary) summary.hidden = !ready;
     toolbar.hidden = !ready;
     workspace.hidden = !ready;
     retry.hidden = !["unavailable", "stale"].includes(state.surfaceState);
@@ -705,6 +732,50 @@
       panel.querySelector("[data-map-state-body]").textContent = body;
     }
     content.dataset.mapState = state.surfaceState;
+    syncMapExplorer();
+  }
+
+  function syncMapExplorer() {
+    const body = state.root?.querySelector("[data-map-explorer-body]");
+    const toggle = state.root?.querySelector("[data-map-explorer-toggle]");
+    if (!body || !toggle) return;
+    body.hidden = !state.mapExplorerOpen;
+    toggle.setAttribute("aria-expanded", String(state.mapExplorerOpen));
+    toggle.textContent = state.mapExplorerOpen ? "收起完整知识地图" : "打开完整知识地图";
+  }
+
+  function toggleMapExplorer() {
+    state.mapExplorerOpen = !state.mapExplorerOpen;
+    syncMapExplorer();
+    if (!state.mapExplorerOpen) return;
+    renderActiveView();
+    window.requestAnimationFrame(() => {
+      if (state.activeView === "graph") {
+        applyViewport("graph");
+        if (!state.graphViewportStored || (
+          state.graphFocusMode === "fit_all" && !graphFitAllViewportLooksValid()
+        )) {
+          fitAndPersistViewport("graph");
+        }
+      } else {
+        applyViewport(state.activeView);
+      }
+      state.root?.querySelector(`[data-knowledge-view="${state.activeView}"]`)?.focus({ preventScroll: true });
+    });
+  }
+
+  function graphFitAllViewportLooksValid() {
+    const region = state.root?.querySelector('[data-knowledge-view="graph"]');
+    if (!region || region.hidden || !region.getClientRects().length) return false;
+    const regionRect = region.getBoundingClientRect();
+    const markers = [...region.querySelectorAll(".graph-overview-marker")];
+    return markers.length > 0 && markers.every((marker) => {
+      const rect = marker.getBoundingClientRect();
+      return rect.left >= regionRect.left - 1 &&
+        rect.right <= regionRect.right + 1 &&
+        rect.top >= regionRect.top - 1 &&
+        rect.bottom <= regionRect.bottom + 1;
+    });
   }
 
   function matchesFilter(node) {
@@ -726,6 +797,92 @@
   function visibleNodes() {
     const matches = matchingNodes();
     return state.query ? matches.slice(0, 6) : matches;
+  }
+
+  function recommendedStartNodes() {
+    const byHandle = state.nodeByHandle;
+    const currentTopic = String(state.projection?.current_learning?.topic_label || "").trim();
+    const currentNode = currentTopic
+      ? [...byHandle.values()].find((node) => node.name === currentTopic)
+      : null;
+    const learningProcessModules = new Set(
+      [...state.moduleByHandle.values()]
+        .filter((module) => /学习流程|错因/.test(module.name))
+        .map((module) => module.handle)
+    );
+    const learnerFacing = (node) => node && !learningProcessModules.has(node.module_handle);
+    const fromServer = Array.isArray(state.projection?.recommended_handles)
+      ? state.projection.recommended_handles
+          .map((handle) => byHandle.get(handle))
+          .filter(Boolean)
+      : [];
+    const ranked = [
+      currentNode,
+      ...fromServer,
+      ...[...byHandle.values()].filter((node) => node.recommended),
+      ...[...byHandle.values()].filter((node) =>
+        learnerFacing(node) && ["needs_prerequisite", "needs_support", "developing"].includes(node.learning_state)
+      ),
+      ...[...byHandle.values()].filter((node) => learnerFacing(node) && node.learning_state === "untested"),
+      ...[...byHandle.values()].filter(learnerFacing),
+      ...[...byHandle.values()],
+    ];
+    const seen = new Set();
+    return ranked.filter((node) => {
+      if (!node || seen.has(node.handle)) return false;
+      seen.add(node.handle);
+      return true;
+    }).slice(0, 3);
+  }
+
+  function primaryDescriptorForNode(node) {
+    return actionDescriptorsForNode(node).find((descriptor) => descriptor.role === "primary") ||
+      actionDescriptorsForNode(node).find((descriptor) => descriptor.enabled) ||
+      null;
+  }
+
+  function renderStartPanel() {
+    const panel = state.root?.querySelector("[data-knowledge-start-panel]");
+    if (!panel || !state.projection) return;
+    panel.replaceChildren();
+    const heading = document.createElement("div");
+    heading.className = "knowledge-start-head";
+    heading.innerHTML = `
+      <div>
+        <p>推荐学习</p>
+        <h3 id="knowledgeStartTitle">先选一个就行</h3>
+      </div>
+    `;
+    panel.append(heading);
+
+    const cards = document.createElement("div");
+    cards.className = "knowledge-start-cards";
+    const nodes = recommendedStartNodes();
+    nodes.forEach((node, index) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = `knowledge-start-card state-${node.learning_state || "untested"}`;
+      card.dataset.nodeHandle = node.handle;
+      const descriptor = primaryDescriptorForNode(node);
+      const moduleName = state.moduleByHandle.get(node.module_handle)?.name || "数学知识";
+      const stateText = node.evidence_state?.label || node.learning_state_label || "还没有留下学习记录";
+      card.innerHTML = `
+        <span class="knowledge-start-rank">${index + 1}</span>
+        <span class="knowledge-start-main">
+          <strong>${escapeHtml(node.name)}</strong>
+          <small>${escapeHtml(moduleName)} · ${escapeHtml(stateText)}</small>
+          <span>${escapeHtml(node.essence || "先用一道题确认掌握情况。")}</span>
+        </span>
+        <span class="knowledge-start-action">${escapeHtml(descriptor?.label || "查看")}</span>
+      `;
+      card.setAttribute(
+        "aria-label",
+        `${node.name}，${stateText}，${descriptor?.label || "查看"}`
+      );
+      card.addEventListener("click", () => selectNode(node.handle, card));
+      cards.append(card);
+    });
+    panel.append(cards);
   }
 
   function elementCanReceiveFocus(element) {
@@ -800,6 +957,8 @@
 
   function renderActiveView() {
     if (!state.root || !state.projection) return;
+    renderStartPanel();
+    syncMapExplorer();
     state.root.querySelectorAll('input[name="knowledge-view-mode"]').forEach((radio) => {
       radio.checked = radio.value === state.activeView;
     });
@@ -1930,7 +2089,7 @@
     [...firstByLane.entries()]
       .sort((left, right) => (laneIndex.get(left[0]) || 0) - (laneIndex.get(right[0]) || 0))
       .forEach(([, handle]) => add(handle));
-    return new Set([...handles].slice(0, isMobile() ? 3 : 18));
+    return new Set([...handles].slice(0, isMobile() ? 3 : 6));
   }
 
   function selectNode(handle, originButton) {
@@ -2405,6 +2564,7 @@
     state.visible = false;
     state.media = null;
     state.mediaListener = null;
+    state.mapExplorerOpen = false;
   }
 
   window.addEventListener("keydown", (event) => {

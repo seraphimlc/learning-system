@@ -2338,6 +2338,7 @@ class DualViewBrowserContractTests(KnowledgeViewsV51TestCase):
             {
                 "knowledge_projection_sets_connection_ready",
                 "not_started_hides_resume_learning",
+                "child_home_defaults_to_simple_start",
                 "resumable_state_shows_resume_learning",
                 "first_visit_mind_map",
                 "desktop_1280_no_horizontal_scroll",

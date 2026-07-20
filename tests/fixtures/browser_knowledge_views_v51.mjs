@@ -160,6 +160,15 @@ async function selectedNodeIsInside(region, handle) {
     nodeBox.y + nodeBox.height <= regionBox.y + regionBox.height;
 }
 
+async function openKnowledgeMapExplorer() {
+  const toggle = page.locator("[data-map-explorer-toggle]");
+  await toggle.waitFor({ state: "visible" });
+  if (await toggle.isVisible() && await toggle.getAttribute("aria-expanded") === "false") {
+    await toggle.click();
+  }
+  await page.getByRole("radiogroup", { name: "知识展示方式" }).waitFor();
+}
+
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => localStorage.clear());
@@ -170,7 +179,6 @@ try {
   const graph = page.getByRole("radio", { name: "图谱", exact: true });
   const mindRegion = page.getByRole("region", { name: "我的数学知识导图" });
   const graphRegion = page.getByRole("region", { name: "我的数学知识图谱" });
-  await switcher.waitFor();
 
   const projection = await page.evaluate(async () => {
     const response = await fetch("/api/knowledge-map");
@@ -185,6 +193,13 @@ try {
   report.not_started_hides_resume_learning =
     projection.current_learning?.state === "not_started" &&
     await page.getByRole("button", { name: "继续当前学习", exact: true }).isHidden();
+  report.child_home_defaults_to_simple_start =
+    await page.getByRole("heading", { name: "今天从这里开始", exact: true }).isVisible() &&
+    (await page.locator(".knowledge-start-card").count()) === 3 &&
+    await page.locator("[data-map-explorer-body]").evaluate((element) => element.hidden) &&
+    await page.getByRole("button", { name: "打开完整知识地图", exact: true }).isVisible();
+  await openKnowledgeMapExplorer();
+  await switcher.waitFor();
   report.first_visit_mind_map = await mindMap.isChecked();
   report.desktop_1280_no_horizontal_scroll = await page.evaluate(
     () => window.innerWidth === 1280 && document.documentElement.scrollWidth <= window.innerWidth
@@ -237,6 +252,7 @@ try {
     localStorage.setItem(`${keyPrefix}:graph:viewport`, JSON.stringify({ scale: 0.9, x: 21, y: 22 }));
   }, prefix);
   await page.reload({ waitUntil: "networkidle" });
+  await openKnowledgeMapExplorer();
   report.valid_preference_restored = await graph.isChecked();
   const beforeViewports = await page.evaluate((keyPrefix) => ({
     mindMap: localStorage.getItem(`${keyPrefix}:mind_map:viewport`),
@@ -430,6 +446,7 @@ try {
   await page.keyboard.press("Escape");
 
   await page.reload({ waitUntil: "networkidle" });
+  await openKnowledgeMapExplorer();
   await page.waitForTimeout(220);
   const desktopRefreshOverview = await graphOverviewEvidence(graphRegion);
   desktopOrphanFocusRefit =
@@ -749,6 +766,7 @@ try {
       body: JSON.stringify({ state: "stale", message: "projection changed" }),
     });
   });
+  await openKnowledgeMapExplorer();
   await graph.check();
   await page.evaluate((handle) => window.KnowledgeViews.focusNode(handle), actionableNode.handle);
   await page.getByRole("button", { name: actionName, exact: true }).click();
@@ -769,6 +787,7 @@ try {
   report.target_action_409_stale_clears_and_reloads =
     staleBeforeReload &&
     (await page.locator("[data-knowledge-content]").getAttribute("data-map-state")) === "ready";
+  await openKnowledgeMapExplorer();
 
   const actionRequests = [];
   let actionCall = 0;
@@ -859,6 +878,7 @@ try {
     localStorage.removeItem(`${keyPrefix}:mind_map:collapsed`);
   }, prefix);
   await page.reload({ waitUntil: "networkidle" });
+  await openKnowledgeMapExplorer();
   report.mobile_390_no_horizontal_scroll = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth
   );
@@ -978,6 +998,7 @@ try {
   await page.keyboard.press("Escape");
 
   await page.reload({ waitUntil: "networkidle" });
+  await openKnowledgeMapExplorer();
   await page.waitForTimeout(220);
   const mobileRefreshOverview = await graphOverviewEvidence(graphRegion);
   mobileOrphanFocusRefit =
@@ -1016,10 +1037,6 @@ try {
   );
   await page.locator("#knowledgeHomeBtn").evaluate((button) => button.click());
   await page.waitForFunction(() => document.getElementById("view-knowledge-home")?.hidden === false);
-  const knowledgeHomeUsableAgain = knowledgeHomeEntryUsable && await page.evaluate(() => {
-    const mind = document.querySelector('input[name="knowledge-view-mode"][value="mind_map"]');
-    return Boolean(mind && !mind.closest("[inert]") && !mind.disabled);
-  });
   await page.evaluate((payload) => {
     const resumable = structuredClone(payload);
     resumable.current_learning = {
@@ -1031,26 +1048,31 @@ try {
     };
     window.KnowledgeViews.setProjection(resumable);
   }, projection);
+  const mapToggleAfterReturn = page.getByRole("button", { name: "打开完整知识地图", exact: true });
+  const knowledgeHomeUsableAgain =
+    knowledgeHomeEntryUsable &&
+    await page.getByRole("heading", { name: "今天从这里开始", exact: true }).isVisible() &&
+    (await page.locator(".knowledge-start-card").count()) === 3 &&
+    await mapToggleAfterReturn.isVisible();
   report.resumable_state_shows_resume_learning =
     await page.getByRole("button", { name: "继续当前学习", exact: true }).isVisible();
-  const searchAfterReturn = page.locator("#knowledgeSearchInput");
-  await searchAfterReturn.focus();
-  await page.keyboard.press("Tab");
-  const mapTabMovesNormally = await page.evaluate(() => {
+  await mapToggleAfterReturn.focus();
+  const simpleHomeFocusReleased = await page.evaluate(() => {
     const active = document.activeElement;
     return Boolean(
-      active && active !== document.body && active.id !== "knowledgeSearchInput" &&
+      active && active.matches("[data-map-explorer-toggle]") &&
       active.closest("#view-knowledge-home") && !active.closest("[inert]")
     );
   });
   report.mobile_applied_action_closes_sheet_and_releases_focus =
-    modalReleasedForLearning && knowledgeHomeUsableAgain && mapTabMovesNormally;
+    modalReleasedForLearning && knowledgeHomeUsableAgain && simpleHomeFocusReleased;
   await page.unroute("**/api/knowledge-map/select");
   await page.evaluate((keyPrefix) => {
     localStorage.setItem("son-ai-knowledge-views:v5.1:active-view", "mind_map");
     localStorage.setItem(`${keyPrefix}:active-view`, "mind_map");
   }, prefix);
   await page.reload({ waitUntil: "networkidle" });
+  await openKnowledgeMapExplorer();
 
   await mindMap.check();
   const mobileRegionBox = await mobileMindRegion.boundingBox();

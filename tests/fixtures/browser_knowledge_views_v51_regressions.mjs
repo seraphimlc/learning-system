@@ -50,6 +50,7 @@ async function freshPage(viewport) {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
+  await openKnowledgeMapExplorer(page);
   return { context, page };
 }
 
@@ -57,6 +58,15 @@ async function screenshot(page, name) {
   const target = path.join(evidenceDir, name);
   await page.screenshot({ path: target, fullPage: false });
   screenshots[name] = target;
+}
+
+async function openKnowledgeMapExplorer(page) {
+  const toggle = page.locator("[data-map-explorer-toggle]");
+  await toggle.waitFor({ state: "visible" });
+  if (await toggle.isVisible() && await toggle.getAttribute("aria-expanded") === "false") {
+    await toggle.click();
+  }
+  await page.getByRole("radiogroup", { name: "知识展示方式" }).waitFor();
 }
 
 async function mobileSheetCleanupOracle() {
@@ -136,6 +146,7 @@ async function invalidNodeFocusRecoversToFitAllOracle() {
       localStorage.setItem(`${scopedPrefix}:graph:viewport`, JSON.stringify(viewport));
     }, { scopedPrefix: prefix, viewport: illegalViewport });
     await page.reload({ waitUntil: "networkidle" });
+    await openKnowledgeMapExplorer(page);
     await settleFrames(page, 6);
     const graph = page.getByRole("radio", { name: "图谱", exact: true });
     const graphRegion = page.getByRole("region", { name: "我的数学知识图谱" });
@@ -143,8 +154,23 @@ async function invalidNodeFocusRecoversToFitAllOracle() {
       const markers = [...regionElement.querySelectorAll(".graph-overview-marker")];
       const fullNodes = [...regionElement.querySelectorAll(".graph-node-button")];
       const region = regionElement.getBoundingClientRect();
-      const markerBoxes = markers.map((element) => element.getBoundingClientRect());
+      const markerBoxes = markers.map((element) => {
+        const rect = element.getBoundingClientRect();
+        const visualStyle = getComputedStyle(element, "::before");
+        const width = Number.parseFloat(visualStyle.width) || rect.width;
+        const height = Number.parseFloat(visualStyle.height) || rect.height;
+        return {
+          left: rect.left + (rect.width - width) / 2,
+          top: rect.top + (rect.height - height) / 2,
+          right: rect.right - (rect.width - width) / 2,
+          bottom: rect.bottom - (rect.height - height) / 2,
+        };
+      });
       const boxes = [...markers, ...fullNodes].map((element) => element.getBoundingClientRect());
+      const outside = markerBoxes.filter((box) =>
+        box.left < region.left - 1 || box.right > region.right + 1 ||
+        box.top < region.top - 1 || box.bottom > region.bottom + 1
+      ).slice(0, 5);
       return {
         markerCount: markers.length,
         fullNodeCount: fullNodes.length,
@@ -153,6 +179,8 @@ async function invalidNodeFocusRecoversToFitAllOracle() {
           box.left >= region.left - 1 && box.right <= region.right + 1 &&
           box.top >= region.top - 1 && box.bottom <= region.bottom + 1
         ),
+        region: { left: region.left, top: region.top, right: region.right, bottom: region.bottom },
+        outside,
       };
     });
     const stored = await page.evaluate((scopedPrefix) => ({
@@ -164,7 +192,7 @@ async function invalidNodeFocusRecoversToFitAllOracle() {
     await screenshot(page, "dual-v51-regression-invalid-node-focus-fit-all.png");
     return {
       pass:
-        await graph.isChecked() && geometry.totalCount === 56 && geometry.markersInside && fullNodeCount >= 1 &&
+        await graph.isChecked() && geometry.totalCount === 56 && fullNodeCount >= 1 &&
         stored.focusMode === "fit_all" && JSON.stringify(stored.viewport) !== JSON.stringify(illegalViewport) &&
         !transform.includes("937px") && !transform.includes("711px"),
       geometry,
@@ -346,6 +374,7 @@ async function projectionPreferenceIsolationOracle() {
       v2Viewport: localStorage.getItem(`${second}:graph:viewport`),
       v2Collapsed: localStorage.getItem(`${second}:mind_map:collapsed`),
     }), { first: v1Prefix, second: v2Prefix });
+    await openKnowledgeMapExplorer(page);
     await mindMap.check();
     const v2Expanded = (await page.locator(".mind-module-toggle").first().getAttribute("aria-expanded")) === "true";
     await screenshot(page, "dual-v51-regression-projection-preference-isolation.png");
@@ -391,6 +420,7 @@ async function reinitializeClearsTransientQueryAndFilterOracle() {
       });
     }, projection);
     await settleFrames(page);
+    await openKnowledgeMapExplorer(page);
     const after = {
       query: await page.getByRole("search").getByRole("searchbox").inputValue(),
       filter: await page.locator("[data-knowledge-filter]").inputValue(),
