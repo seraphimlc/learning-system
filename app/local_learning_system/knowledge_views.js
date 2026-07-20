@@ -23,7 +23,7 @@
     graphFocusMode: "fit_all",
     graphViewportStored: false,
     graphHasEntered: false,
-    mapExplorerOpen: false,
+    mapExplorerOpen: true,
     graphEdgeFrame: 0,
     rovingHandle: "",
     pendingAction: null,
@@ -340,7 +340,7 @@
           <div class="knowledge-map-heading">
             <div>
               <p>完整知识目录</p>
-              <h3>想自己找知识点时再打开</h3>
+              <h3>完整知识目录</h3>
             </div>
             <button type="button" data-map-explorer-toggle aria-expanded="false" aria-controls="knowledgeMapExplorerBody">
               打开完整知识目录
@@ -596,7 +596,7 @@
     state.projectionStale = false;
     state.resumeAuthorityKnown = true;
     state.resumeInFlight = false;
-    state.mapExplorerOpen = false;
+    state.mapExplorerOpen = true;
     setSurfaceState(projection.nodes.length ? "ready" : "empty");
     loadPreferences();
     state.graphHasEntered = state.activeView === "graph";
@@ -2164,7 +2164,7 @@
     state.visible = false;
     state.media = null;
     state.mediaListener = null;
-    state.mapExplorerOpen = false;
+    state.mapExplorerOpen = true;
   }
 
   window.addEventListener("keydown", (event) => {

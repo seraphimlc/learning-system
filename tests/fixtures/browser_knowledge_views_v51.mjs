@@ -52,6 +52,8 @@ async function projectionSnapshot() {
 }
 
 async function openKnowledgeMapExplorer() {
+  const alreadyOpen = await page.getByRole("region", { name: "我的数学知识目录" }).isVisible().catch(() => false);
+  if (alreadyOpen) return;
   const toggle = page.getByRole("button", { name: "打开完整知识目录" });
   await toggle.waitFor({ state: "visible" });
   await toggle.click();
@@ -83,7 +85,8 @@ try {
   report.child_home_defaults_to_simple_start =
     await page.locator("[data-knowledge-start-panel]").isVisible().catch(() => false);
   report.first_visit_mind_map =
-    await page.getByRole("button", { name: "打开完整知识目录" }).isVisible().catch(() => false) &&
+    await page.getByRole("button", { name: "收起完整知识目录" }).isVisible().catch(() => false) &&
+    await page.getByRole("region", { name: "我的数学知识目录" }).isVisible().catch(() => false) &&
     await page.getByRole("radiogroup", { name: "知识展示方式" }).count() === 0 &&
     await page.locator('input[value="graph"]').count() === 0;
   report.desktop_1280_no_horizontal_scroll = await page.evaluate(

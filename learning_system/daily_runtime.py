@@ -42,6 +42,16 @@ MAX_ANSWER_PHOTO_BYTES = 8 * 1024 * 1024
 DEFAULT_REVIEW_MINI_GROUP_SIZE = 5
 DEFAULT_MICRO_CHECK_MINI_GROUP_SIZE = 3
 MINI_GROUP_METADATA_VERSION = "2026-07-20.v5.1.short-question-group.v1"
+SIMPLE_FOUNDATION_NODE_PRACTICE_PROFILES = {
+    "M-G7-NUMBER-LINE": {
+        "review_group_size": 2,
+        "repair_group_size": 1,
+        "strong_item_score": 9,
+        "strong_average_score": 9,
+        "sufficient_strong_attempts": 4,
+        "essence_hint": "先抓住数轴本质：数是位置，向右变大，向左变小，距离看间隔；会这个以后就少做重复题，直接看迁移。",
+    },
+}
 ALLOWED_ANSWER_PHOTO_TYPES = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -2147,6 +2157,7 @@ class DailyLearningRuntime:
                 flow=flow,
                 step_type="question",
                 group_role="review_short_set",
+                target_node_id=str(question.get("node_id") or ""),
             ),
             candidate_packet=selected.get("candidate_packet") or {},
         )
@@ -2162,8 +2173,19 @@ class DailyLearningRuntime:
         group_id: str | None = None,
         group_index: int = 1,
         group_size: int | None = None,
+        target_node_id: str | None = None,
     ) -> dict[str, Any]:
-        size = int(group_size or self._default_mini_group_size(step_type))
+        node_id = str(
+            target_node_id
+            or selection_reason.get("target_node_id")
+            or selection_reason.get("source_node_id")
+            or ""
+        )
+        size = int(group_size or self._default_mini_group_size(
+            step_type,
+            target_node_id=node_id,
+            group_role=group_role,
+        ))
         size = max(1, min(size, 5))
         return {
             **selection_reason,
@@ -2175,15 +2197,33 @@ class DailyLearningRuntime:
                 "size": size,
                 "defer_analysis_until_group_end": size > 1,
                 "flow_revision_at_start": int(dict(flow).get("flow_revision") or 1),
+                "practice_profile": self._practice_profile_label(node_id),
             },
         }
 
-    def _default_mini_group_size(self, step_type: str) -> int:
+    def _default_mini_group_size(
+        self,
+        step_type: str,
+        *,
+        target_node_id: str = "",
+        group_role: str = "",
+    ) -> int:
+        profile = self._practice_profile_for_node(target_node_id)
+        if profile:
+            if group_role == "repair_micro_set" or step_type in {"micro_check", "standard_check", "variant_check"}:
+                return int(profile["repair_group_size"])
+            return int(profile["review_group_size"])
         if step_type in {"micro_check", "standard_check", "variant_check"}:
             return DEFAULT_MICRO_CHECK_MINI_GROUP_SIZE
         if step_type == "clarify_evidence":
             return 1
         return DEFAULT_REVIEW_MINI_GROUP_SIZE
+
+    def _practice_profile_for_node(self, node_id: str) -> dict[str, Any]:
+        return dict(SIMPLE_FOUNDATION_NODE_PRACTICE_PROFILES.get(str(node_id or ""), {}))
+
+    def _practice_profile_label(self, node_id: str) -> str:
+        return "simple_foundation" if self._practice_profile_for_node(node_id) else "default"
 
     def _mini_group_meta(self, step: sqlite3.Row | dict[str, Any] | None) -> dict[str, Any]:
         if not step:
@@ -2210,6 +2250,7 @@ class DailyLearningRuntime:
             "size": max(1, min(size, 5)),
             "defer_analysis_until_group_end": bool(meta.get("defer_analysis_until_group_end")),
             "flow_revision_at_start": int(meta.get("flow_revision_at_start") or 1),
+            "practice_profile": str(meta.get("practice_profile") or "default"),
         }
 
     def _mini_group_is_deferred(self, step: sqlite3.Row | dict[str, Any] | None) -> bool:
@@ -3410,7 +3451,18 @@ class DailyLearningRuntime:
             (flow_id,),
         ).fetchone()[0]) + 1
         budget = self._interaction_budget(flow)
-        if budget["completed_interactions"] >= budget["minimum"]:
+        weakest_node_id = str(weakest["attempt"].get("node_id") or "")
+        simple_node_evidence_sufficient = self._simple_foundation_node_evidence_sufficient(
+            flow_id=flow_id,
+            node_id=weakest_node_id,
+            scores=scores,
+        )
+        if budget["completed_interactions"] >= budget["minimum"] or simple_node_evidence_sufficient:
+            summary_reason = (
+                f"短题组平均 {average_score:g}/10，且该简单前置节点已有足够验证和迁移证据；不再重复刷题。"
+                if simple_node_evidence_sufficient
+                else "短题组已达到本次最小互动预算；先展示整组解析，然后进入总结。"
+            )
             decision = self._record_next_step_decision(
                 flow=flow,
                 action="summary",
@@ -3420,7 +3472,7 @@ class DailyLearningRuntime:
                 source_validation_ids=validation_ids,
                 source_mastery_ids=mastery_ids,
                 provider_mode="deterministic_runtime",
-                reason="短题组已达到本次最小互动预算；先展示整组解析，然后进入总结。",
+                reason=summary_reason,
                 target_node_id=str(weakest["attempt"].get("node_id") or ""),
             )
             planned_step_id = ""
@@ -3481,6 +3533,9 @@ class DailyLearningRuntime:
                                 if planned_step_type == "micro_check"
                                 else "review_short_set"
                             ),
+                            target_node_id=str(
+                                (next_selection["question"] or {}).get("node_id") or ""
+                            ),
                         ),
                         candidate_packet=next_selection.get("candidate_packet") or {},
                         support_hint=(
@@ -3525,6 +3580,84 @@ class DailyLearningRuntime:
             "feedback_step_id": feedback_step_id,
             "planned_step_id": planned_step_id,
         }
+
+    def _simple_foundation_node_evidence_sufficient(
+        self,
+        *,
+        flow_id: str,
+        node_id: str,
+        scores: list[int],
+    ) -> bool:
+        profile = self._practice_profile_for_node(node_id)
+        if not profile or not scores:
+            return False
+        strong_item_score = int(profile["strong_item_score"])
+        strong_average_score = float(profile["strong_average_score"])
+        if min(scores) < strong_item_score:
+            return False
+        if (sum(scores) / len(scores)) < strong_average_score:
+            return False
+        rows = self.conn.execute(
+            """
+            select a.id, a.result, a.score_points, a.max_points,
+                   q.kind, q.variant_level, q.raw_json, q.source_json
+            from flow_steps s
+            join attempts a on a.flow_step_id = s.id
+            join question_items q on q.id = a.question_id
+            where s.flow_id = ?
+              and a.node_id = ?
+              and a.evidence_status = 'active'
+              and a.grading_status = 'graded'
+            order by a.created_at, a.id
+            """,
+            (flow_id, node_id),
+        ).fetchall()
+        strong_attempts = 0
+        has_transfer_or_stretch = False
+        for row in rows:
+            max_points = float(row["max_points"] or 0)
+            if max_points <= 0:
+                continue
+            ratio = float(row["score_points"] or 0) / max_points
+            if row["result"] == "correct" and ratio >= 0.9:
+                strong_attempts += 1
+                question = {
+                    "kind": row["kind"],
+                    "variant_level": row["variant_level"],
+                    "raw": db.json_load(row["raw_json"], {}),
+                    "source": db.json_load(row["source_json"], {}),
+                }
+                if self._question_is_transfer_or_stretch(question):
+                    has_transfer_or_stretch = True
+        return (
+            strong_attempts >= int(profile["sufficient_strong_attempts"])
+            and has_transfer_or_stretch
+        )
+
+    def _question_is_transfer_or_stretch(self, question: dict[str, Any]) -> bool:
+        raw = question.get("raw") if isinstance(question.get("raw"), dict) else {}
+        source = question.get("source") if isinstance(question.get("source"), dict) else {}
+        role_text = " ".join(
+            str(value or "")
+            for value in (
+                question.get("kind"),
+                question.get("variant_level"),
+                raw.get("slot_role"),
+                raw.get("evidence_role"),
+                source.get("slot_role"),
+                source.get("evidence_role"),
+            )
+        ).lower()
+        return any(
+            token in role_text
+            for token in (
+                "near_transfer",
+                "transfer",
+                "stretch",
+                "variant",
+                "reverse_reasoning",
+            )
+        )
 
     def _create_v51_mini_group_feedback_step(
         self,
@@ -6298,6 +6431,7 @@ class DailyLearningRuntime:
                     group_id=meta["id"],
                     group_index=meta["index"] + 1,
                     group_size=meta["size"],
+                    target_node_id=str(step_dict.get("node_id") or ""),
                 ),
                 candidate_packet=next_selection.get("candidate_packet") or {},
                 step_type=step_dict["step_type"],
@@ -7330,7 +7464,8 @@ class DailyLearningRuntime:
             hint = "看完后点继续，系统会给一题很小的检查；如果还是卡住，也可以直接说卡住。"
         else:
             prompt = question_child_surface["prompt"]
-            hint = support_hint or (
+            profile = self._practice_profile_for_node(str(question.get("node_id") or ""))
+            hint = support_hint or str(profile.get("essence_hint") or "").strip() or (
                 "按你平时的方式完成；如果卡住了，也可以直接写卡在哪里。"
                 if unprompted_process
                 else "先写你能确定的规则或关系；如果卡住了，也可以直接写卡在哪里。"
@@ -8185,6 +8320,29 @@ class DailyLearningRuntime:
             )
             if selected:
                 return {**selected, "action": "same_structure_retest", "reason": "思路部分成立但不稳定，换一道同结构题确认。"}
+        simple_profile = self._practice_profile_for_node(str(attempt.get("node_id") or ""))
+        if attempt.get("result") == "correct" and simple_profile:
+            selected = self._select_question_for_node(
+                attempt["node_id"],
+                graph_version=flow["graph_version"],
+                flow_id=flow["id"],
+                flow_revision=int(flow.get("flow_revision") or 1) + 1,
+                reason={
+                    "reason": "simple_foundation_correct_prioritize_transfer",
+                    "source_attempt_id": attempt["id"],
+                    "practice_profile": "simple_foundation",
+                },
+                preferred_kinds=["stretch_transfer", "transfer_retest", "variant", "reverse_reasoning", "error_spotting"],
+                selection_intent="simple_foundation_extension",
+                next_evidence_goal="transfer_or_stretch_after_brief_validation",
+            )
+            if selected:
+                action = "stretch" if self._selection_looks_like_stretch(selected) else "near_transfer_retest"
+                return {
+                    **selected,
+                    "action": action,
+                    "reason": "这个知识点本身不难；基础题已做对，直接换迁移或拔高确认理解深度。",
+                }
         stable_context = self._stable_ready_context(str(attempt.get("node_id") or ""))
         if attempt.get("result") == "correct" and stable_context["supported"]:
             selected = self._select_question_for_node(

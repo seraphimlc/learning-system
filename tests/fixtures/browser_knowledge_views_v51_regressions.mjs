@@ -46,9 +46,6 @@ async function freshPage(viewport) {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
-  const toggle = page.getByRole("button", { name: "打开完整知识目录" });
-  await toggle.waitFor({ state: "visible" });
-  await toggle.click();
   await page.getByRole("region", { name: "我的数学知识目录" }).waitFor();
   return { context, page };
 }
@@ -116,7 +113,7 @@ async function graphPreferenceIsIgnoredOracle() {
       localStorage.setItem(`${scopedPrefix}:graph:viewport`, JSON.stringify({ scale: 1.2, x: 999, y: 777 }));
     }, prefix);
     await page.reload({ waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "打开完整知识目录" }).click();
+    await page.getByRole("region", { name: "我的数学知识目录" }).waitFor();
     const state = await page.evaluate(() => ({
       hasGraphText: /图谱/.test(document.body.textContent || ""),
       graphRegionCount: document.querySelectorAll('[data-knowledge-view="graph"]').length,

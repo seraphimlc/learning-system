@@ -5739,6 +5739,82 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ).fetchone()
         self.assertEqual("completed", first_step["status"])
 
+    def test_simple_foundation_node_uses_short_validation_profile(self):
+        flow = dict(self.conn.execute(
+            "select * from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone())
+
+        review_reason = self.runtime._mini_group_selection_reason(
+            {},
+            flow=flow,
+            step_type="question",
+            group_role="review_short_set",
+            target_node_id="M-G7-NUMBER-LINE",
+        )
+        review_group = review_reason["mini_group"]
+        self.assertEqual(2, review_group["size"])
+        self.assertTrue(review_group["defer_analysis_until_group_end"])
+        self.assertEqual("simple_foundation", review_group["practice_profile"])
+
+        repair_reason = self.runtime._mini_group_selection_reason(
+            {},
+            flow=flow,
+            step_type="micro_check",
+            group_role="repair_micro_set",
+            target_node_id="M-G7-NUMBER-LINE",
+        )
+        repair_group = repair_reason["mini_group"]
+        self.assertEqual(1, repair_group["size"])
+        self.assertFalse(repair_group["defer_analysis_until_group_end"])
+        self.assertEqual("simple_foundation", repair_group["practice_profile"])
+
+    def test_simple_foundation_correct_answer_prioritizes_transfer_not_same_structure(self):
+        flow = dict(self.conn.execute(
+            "select * from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone())
+        selected = {
+            "question": {
+                "id": "Q-simple-transfer",
+                "node_id": "M-G7-NUMBER-LINE",
+                "kind": "transfer_retest",
+            },
+            "review_record_id": "RR-simple-transfer",
+            "candidate_packet": {
+                "packet_id": "CP-simple-transfer",
+                "packet_hash": "h" * 64,
+                "candidates": [
+                    {
+                        "question_id": "Q-simple-transfer",
+                        "kind": "transfer_retest",
+                        "slot_role": "near_transfer",
+                    }
+                ],
+            },
+            "selection_reason": {"candidate_packet_id": "CP-simple-transfer"},
+        }
+        attempt = {
+            "id": "ATT-simple-correct",
+            "node_id": "M-G7-NUMBER-LINE",
+            "result": "correct",
+            "answer_analysis": {"evaluation_support": {"dominant_gap_dimensions": []}},
+            "error_tags": [],
+        }
+        with mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=selected,
+        ) as select_question:
+            planned = self.runtime._next_selection_after_attempt(flow, attempt=attempt)
+
+        self.assertEqual("near_transfer_retest", planned["action"])
+        self.assertIn("不难", planned["reason"])
+        kwargs = select_question.call_args.kwargs
+        self.assertEqual("simple_foundation_extension", kwargs["selection_intent"])
+        self.assertNotIn("standard_example", kwargs["preferred_kinds"])
+        self.assertIn("stretch_transfer", kwargs["preferred_kinds"])
+
     def test_group_final_submission_enqueues_attempts_and_waits_once(self):
         self._set_step_group_size(self.step["step_handle"], 2)
         with mock.patch.object(
