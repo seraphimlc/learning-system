@@ -2,7 +2,7 @@
   "agent_key": "answer_analysis_agent",
   "contract_key": "answer_review",
   "contract_version": "2026-07-14.answer-review.v5.1.v3",
-  "prompt_version_id": "2026-07-14.answer-review.v5.prompt.v3",
+  "prompt_version_id": "2026-07-20.answer-review.v5.prompt.v4",
   "prompt_template_path": "learning_system/prompts/answer_review.v3.md",
   "response_schema_version": "2026-07-14.answer-review.v5.schema.v3",
   "minimum_confidence_to_apply": 0.68,

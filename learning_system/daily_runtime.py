@@ -2888,11 +2888,35 @@ class DailyLearningRuntime:
             )
         reference_answer = self._assessment_reference_answer(contract)
         feedback = {
-            "reference_answer": reference_answer,
-            "answer_gap": output["answer_gap"],
-            "improvement_direction": list(output["improvement_direction"]),
-            "expression_judgment": output["expression_judgment"],
-            "teaching_explanation": output["teaching_explanation"],
+            "reference_answer": _child_safe_chinese_feedback_text(
+                reference_answer,
+                "标准答案暂时不能安全展示，请先看本题解析。",
+                limit=700,
+            ),
+            "answer_gap": _child_safe_chinese_feedback_text(
+                output["answer_gap"],
+                "这一步还缺少题目要求的关键说明，请补上对应理由。",
+                limit=700,
+            ),
+            "improvement_direction": _dedupe_child_safe_texts([
+                _child_safe_chinese_feedback_text(
+                    item,
+                    "补一句关键数学理由，再检查它是否回答了题目要求。",
+                    limit=260,
+                )
+                for item in output["improvement_direction"]
+                if str(item or "").strip()
+            ])[:6],
+            "expression_judgment": _child_safe_chinese_feedback_text(
+                output["expression_judgment"],
+                "表达按数学意图判断；能看出意思的非标准写法可以接受。",
+                limit=500,
+            ),
+            "teaching_explanation": _child_safe_chinese_feedback_text(
+                output["teaching_explanation"],
+                "先抓住本题的关键关系，再把理由和结论连起来。",
+                limit=700,
+            ),
         }
         with self.conn:
             latest = db.get_attempt(self.conn, attempt_id)
@@ -7332,7 +7356,7 @@ class DailyLearningRuntime:
             for item in (reference.get("solution_steps") or [])
             if str(item).strip()
         ][:5]
-        teaching_explanation = _child_safe_text(
+        teaching_explanation = _child_safe_chinese_feedback_text(
             assessment.get("teaching_explanation") or "先对照标准答案看清关键关系。",
             "先对照标准答案看清关键关系。",
             limit=520,
@@ -7349,8 +7373,15 @@ class DailyLearningRuntime:
                     "见标准答案",
                     limit=420,
                 ),
-                "steps": solution_steps,
-                "check": _child_safe_text(
+                "steps": [
+                    _child_safe_chinese_feedback_text(
+                        item,
+                        "按标准答案中的关键关系完成这一步。",
+                        limit=360,
+                    )
+                    for item in solution_steps
+                ],
+                "check": _child_safe_chinese_feedback_text(
                     feedback.get("expression_judgment") or "表达按数学意图判断。",
                     "表达按数学意图判断。",
                     limit=260,
@@ -8264,22 +8295,61 @@ def _child_safe_teaching_sections(sections: dict[str, Any]) -> dict[str, Any]:
             for child_key, child_value in value.items():
                 if isinstance(child_value, list):
                     projected_value[str(child_key)] = [
-                        _child_safe_text(item, "", limit=360)
+                        _child_safe_chinese_feedback_text(
+                            item,
+                            _child_safe_teaching_section_fallback(str(key), str(child_key), list_item=True),
+                            limit=360,
+                        )
                         for item in child_value
                         if str(item or "").strip()
                     ]
                 else:
-                    projected_value[str(child_key)] = _child_safe_text(child_value, "", limit=700)
+                    projected_value[str(child_key)] = _child_safe_chinese_feedback_text(
+                        child_value,
+                        _child_safe_teaching_section_fallback(str(key), str(child_key)),
+                        limit=700,
+                    )
             safe[projected_key] = projected_value
         elif isinstance(value, list):
             safe[projected_key] = [
-                _child_safe_text(item, "", limit=360)
+                _child_safe_chinese_feedback_text(
+                    item,
+                    _child_safe_teaching_section_fallback(str(key), "", list_item=True),
+                    limit=360,
+                )
                 for item in value
                 if str(item or "").strip()
             ]
         else:
-            safe[projected_key] = _child_safe_text(value, "", limit=700)
+            safe[projected_key] = _child_safe_chinese_feedback_text(
+                value,
+                _child_safe_teaching_section_fallback(str(key), ""),
+                limit=700,
+            )
     return safe
+
+
+def _child_safe_teaching_section_fallback(
+    section_key: str,
+    child_key: str,
+    *,
+    list_item: bool = False,
+) -> str:
+    if list_item:
+        return "按标准答案中的关键关系完成这一步。"
+    if child_key == "title":
+        return "说明"
+    if child_key == "problem":
+        return "见标准答案"
+    if child_key == "check":
+        return "表达按数学意图判断。"
+    if child_key == "prompt":
+        return "继续下一步。"
+    if child_key in {"body", "text", "explanation"}:
+        return "先对照标准答案看清关键关系。"
+    if section_key == "next_micro_check":
+        return "继续下一步。"
+    return "先抓住这一步的关键关系。"
 
 
 def _child_safe_interaction_schema(schema: dict[str, Any]) -> dict[str, Any]:
@@ -8370,14 +8440,30 @@ def child_teaching_step_dto(step: dict[str, Any]) -> dict[str, Any]:
     if feedback:
         dto["assessment_feedback"] = {
             "score_label": _child_safe_text(feedback.get("score_label") or "", "", limit=20),
-            "reference_answer": _child_safe_text(feedback.get("reference_answer") or "", "", limit=700),
-            "answer_gap": _child_safe_text(feedback.get("answer_gap") or "", "", limit=700),
-            "improvement_direction": [
-                _child_safe_text(item, "", limit=260)
+            "reference_answer": _child_safe_chinese_feedback_text(
+                feedback.get("reference_answer") or "",
+                "标准答案暂时不能安全展示，请先看本题解析。",
+                limit=700,
+            ),
+            "answer_gap": _child_safe_chinese_feedback_text(
+                feedback.get("answer_gap") or "",
+                "这一步还缺少题目要求的关键说明，请补上对应理由。",
+                limit=700,
+            ),
+            "improvement_direction": _dedupe_child_safe_texts([
+                _child_safe_chinese_feedback_text(
+                    item,
+                    "补一句关键数学理由，再检查它是否回答了题目要求。",
+                    limit=260,
+                )
                 for item in (feedback.get("improvement_direction") or [])
                 if str(item or "").strip()
-            ][:6],
-            "expression_judgment": _child_safe_text(feedback.get("expression_judgment") or "", "", limit=500),
+            ])[:6],
+            "expression_judgment": _child_safe_chinese_feedback_text(
+                feedback.get("expression_judgment") or "",
+                "表达按数学意图判断；能看出意思的非标准写法可以接受。",
+                limit=500,
+            ),
         }
     _assert_child_safe_projection(dto)
     return dto
@@ -8435,6 +8521,54 @@ def _child_safe_text(value: Any, fallback: str, *, limit: int = 600) -> str:
         text = text.replace(term, "")
     text = " ".join(text.split())
     return (text or fallback)[:limit]
+
+
+def _looks_like_english_feedback(text: str) -> bool:
+    ascii_words = re.findall(r"\b[A-Za-z][A-Za-z'-]{1,}\b", text)
+    if len(ascii_words) < 3:
+        return False
+    cjk_count = len(re.findall(r"[\u4e00-\u9fff]", text))
+    if cjk_count >= 4:
+        return False
+    math_tokens = {
+        "cm",
+        "dm",
+        "kg",
+        "km",
+        "mm",
+        "ml",
+        "m",
+        "l",
+    }
+    prose_words = [
+        word for word in ascii_words
+        if word.lower() not in math_tokens and len(word) > 1
+    ]
+    return len(prose_words) >= 3
+
+
+def _child_safe_chinese_feedback_text(
+    value: Any,
+    fallback: str,
+    *,
+    limit: int = 600,
+) -> str:
+    text = _child_safe_text(value, "", limit=limit)
+    if not text or _looks_like_english_feedback(text):
+        return fallback[:limit]
+    return text
+
+
+def _dedupe_child_safe_texts(items: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        text = str(item or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
 
 
 def _assert_child_safe_projection(value: Any) -> None:

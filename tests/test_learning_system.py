@@ -1444,10 +1444,10 @@ class LearningSystemTest(unittest.TestCase):
                     output = {
                         "schema_version": "2026-07-14.answer-review.v5.schema.v3",
                         "criteria": criteria,
-                        "answer_gap": "No mathematical gap affecting the score.",
-                        "improvement_direction": ["Keep writing the relation, steps, and check together."],
-                        "expression_judgment": "Equivalent expression is accepted.",
-                        "teaching_explanation": "The recorded answer gives enough evidence for this check.",
+                        "answer_gap": "没有影响得分的数学差距。",
+                        "improvement_direction": ["继续把关系、步骤和检验写在一起。"],
+                        "expression_judgment": "等价表达可以接受。",
+                        "teaching_explanation": "这次答案已经给出足够的判断证据。",
                         "confidence": 0.94,
                     }
                     return self._v5_strict_recorded_answer_envelope(
@@ -1677,10 +1677,10 @@ class LearningSystemTest(unittest.TestCase):
                     output = {
                         "schema_version": "2026-07-14.answer-review.v5.schema.v3",
                         "criteria": criteria,
-                        "answer_gap": "No mathematical gap affecting the score.",
-                        "improvement_direction": ["Keep writing the relation, steps, and check together."],
-                        "expression_judgment": "Equivalent expression is accepted.",
-                        "teaching_explanation": "The recovered answer gives enough evidence for this check.",
+                        "answer_gap": "没有影响得分的数学差距。",
+                        "improvement_direction": ["继续把关系、步骤和检验写在一起。"],
+                        "expression_judgment": "等价表达可以接受。",
+                        "teaching_explanation": "恢复后的答案已经给出足够的判断证据。",
                         "confidence": 0.92,
                     }
                     return self._v5_strict_recorded_answer_envelope(
@@ -2373,7 +2373,7 @@ class LearningSystemTest(unittest.TestCase):
         self.assertIsNotNone(run)
         self.assertEqual(rendered_prompt_sha256, run["rendered_prompt_sha256"])
         self.assertEqual(response_schema_sha256, run["response_schema_sha256"])
-        self.assertEqual("2026-07-14.answer-review.v5.prompt.v3", run["prompt_version_id"])
+        self.assertEqual("2026-07-20.answer-review.v5.prompt.v4", run["prompt_version_id"])
         self.assertEqual("2026-07-14.answer-review.v5.schema.v3", run["response_schema_version"])
 
     def test_v5_answer_worker_keeps_question_trusted_and_child_text_ocr_untrusted(self):
@@ -18802,12 +18802,12 @@ class LearningSystemTest(unittest.TestCase):
         return {
             "schema_version": "2026-07-14.answer-review.v5.schema.v3",
             "criteria": criteria,
-            "answer_gap": "No mathematical gap affecting the score.",
+            "answer_gap": "没有影响得分的数学差距。",
             "improvement_direction": [
-                "Keep writing the key relation before the calculation."
+                "继续在计算前写出关键关系。"
             ],
-            "expression_judgment": "The expression is mathematically equivalent and clear enough.",
-            "teaching_explanation": "The answer shows the target relation, execution, and check.",
+            "expression_judgment": "表达在数学上等价，也足够清楚。",
+            "teaching_explanation": "答案呈现了目标关系、执行过程和检验。",
             "confidence": 0.97,
         }
 
@@ -18963,7 +18963,7 @@ class LearningSystemTest(unittest.TestCase):
             })
         process_gap = str(analysis.get("process_gap") or "").strip()
         if not process_gap:
-            process_gap = "No mathematical gap affecting the score." if result == "correct" else "关键得分点还没有被完整证明。"
+            process_gap = "没有影响得分的数学差距。" if result == "correct" else "关键得分点还没有被完整证明。"
         return {
             "schema_version": "2026-07-14.answer-review.v5.schema.v3",
             "criteria": criteria,
@@ -18972,7 +18972,7 @@ class LearningSystemTest(unittest.TestCase):
                 str(analysis.get("next_child_prompt") or "先写清关键关系、步骤和检验。")
             ],
             "expression_judgment": (
-                "The expression is judged by mathematical intent, not exact wording."
+                "表达按数学意图判断，不按固定措辞判断。"
             ),
             "teaching_explanation": str(
                 analysis.get("teaching_explanation")

@@ -1261,10 +1261,10 @@ class AssessmentStoreTests(unittest.TestCase):
     def _feedback(self):
         return {
             "reference_answer": "C=0.5, A<C<B",
-            "answer_gap": "No mathematical gap affecting the score.",
-            "improvement_direction": ["Optional: show the substitution."],
-            "expression_judgment": "a,c,b is equivalent to A<C<B here.",
-            "teaching_explanation": "Moving right on a number line means adding.",
+            "answer_gap": "没有影响得分的数学差距。",
+            "improvement_direction": ["可以把代入过程写出来。"],
+            "expression_judgment": "a,c,b 在这里与 A<C<B 的数学意图一致。",
+            "teaching_explanation": "数轴上向右移动表示加。",
         }
 
     def _record_pending(self, contract, *, input_digest="i" * 64):
@@ -5419,6 +5419,7 @@ class AnswerReviewV3ArtifactTests(unittest.TestCase):
             ("child evidence", "孩子证据", "作答证据"),
             ("preloaded criteria", "预加载判据", "既定判据"),
             ("presentation", "表达形式", "格式偏好"),
+            ("simplified chinese", "中文输出", "简体中文"),
         )
         forbidden_authority = (
             ("do not calculate", "不得计算总分", "不要计算总分"),
@@ -5634,15 +5635,15 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "schema_version": "2026-07-14.answer-review.v5.schema.v3",
             "criteria": judgments,
             "answer_gap": (
-                "No mathematical gap affecting the score."
+                "没有影响得分的数学差距。"
                 if first_status == "met"
-                else "The first required relation is missing."
+                else "第一条关键关系还没有写出来。"
             ),
             "improvement_direction": [
-                "State the required mathematical relation before calculating."
+                "先写出题目需要的关键关系，再进行计算。"
             ],
-            "expression_judgment": "The mathematical intent is judged from the submitted evidence.",
-            "teaching_explanation": "Use the approved relation, then verify the conclusion.",
+            "expression_judgment": "按提交内容里的数学意图判断表达是否成立。",
+            "teaching_explanation": "先使用正确关系，再检验结论。",
             "confidence": confidence,
         }
 
@@ -5676,7 +5677,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.97,
             output=output,
             route_meta={"source": "runtime-v51-unit-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         job = dict(self.conn.execute(
@@ -5797,6 +5798,69 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.assertEqual(accepted["id"], replay["assessment_id"])
         self.assertEqual(result["feedback_step_id"], replay["feedback_step_id"])
 
+    def test_english_answer_feedback_is_replaced_before_child_projection(self):
+        from learning_system import model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "E=-0.8, E<0",
+            "submit-runtime-v51-english-feedback",
+        )
+        output = self._v3_output(attempt)
+        output["answer_gap"] = (
+            "Missing the requested error-spotting part: it does not state the common wrong step."
+        )
+        output["improvement_direction"] = [
+            "Add one sentence identifying the easiest mistake.",
+            "Briefly state the number-line rule.",
+        ]
+        output["expression_judgment"] = (
+            "The calculation and comparison are concise and mathematically clear."
+        )
+        output["teaching_explanation"] = (
+            "Use the approved relation, then verify the conclusion."
+        )
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.97,
+            output=output,
+            route_meta={"source": "runtime-v51-unit-english-feedback-fixture"},
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("succeeded", result["job_status"])
+        child_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        feedback = child_state["current_step"]["assessment_feedback"]
+        rendered = json.dumps(feedback, ensure_ascii=False)
+        for forbidden in ("Missing", "Add one sentence", "Briefly", "The calculation"):
+            self.assertNotIn(forbidden, rendered)
+        self.assertIn("关键说明", feedback["answer_gap"])
+        self.assertTrue(
+            all(re.search(r"[\u4e00-\u9fff]", item) for item in feedback["improvement_direction"])
+        )
+        self.assertIn("数学意图", feedback["expression_judgment"])
+
     def test_accepted_semantic_checkpoint_replays_without_second_model_call(self):
         from learning_system import assessment_store, model_router, semantic_agents
 
@@ -5814,7 +5878,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.97,
             output=output,
             route_meta={"source": "runtime-v51-checkpoint-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         job = dict(self.conn.execute(
@@ -5975,7 +6039,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.97,
             output=output,
             route_meta={"source": "runtime-v51-partial-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         job = dict(self.conn.execute(
@@ -6044,7 +6108,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.2,
             output=output,
             route_meta={"source": "runtime-v51-low-confidence-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         job = dict(self.conn.execute(
@@ -6165,7 +6229,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.91,
             output=output,
             route_meta={"source": "runtime-v51-unclear-criterion-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         job = dict(self.conn.execute(
@@ -6252,7 +6316,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.97,
             output=output,
             route_meta={"source": "runtime-v51-evidence-rejected-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         job = dict(self.conn.execute(
@@ -6341,7 +6405,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             confidence=0.2,
             output=output,
             route_meta={"source": "runtime-v51-clarify-then-stuck-fixture"},
-            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
             response_schema_version=output["schema_version"],
         )
         first_job = dict(self.conn.execute(
