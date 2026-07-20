@@ -5520,6 +5520,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
                 "update daily_flows set assessment_policy_version = 'v5.1' where id = ?",
                 (self.flow_id,),
             )
+            self._force_single_question_step(step_row["id"])
             self.conn.commit()
             self.contract = existing_contract
             self.contract_id = existing_contract["id"]
@@ -5588,10 +5589,57 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "update daily_flows set assessment_policy_version = 'v5.1' where id = ?",
             (self.flow_id,),
         )
+        self._force_single_question_step(step_row["id"])
         self.conn.commit()
         self.contract = versioned
         self.contract_id = contract_id
         self.contract_digest = contract_digest
+
+    def _force_single_question_step(self, step_id):
+        step_row = self.conn.execute(
+            "select selection_reason_json from flow_steps where id = ?",
+            (step_id,),
+        ).fetchone()
+        reason = json.loads(step_row["selection_reason_json"] or "{}")
+        mini_group = reason.get("mini_group")
+        if isinstance(mini_group, dict):
+            mini_group["size"] = 1
+            mini_group["defer_analysis_until_group_end"] = False
+            reason["mini_group"] = mini_group
+            self.conn.execute(
+                "update flow_steps set selection_reason_json = ? where id = ?",
+                (json.dumps(reason, ensure_ascii=False), step_id),
+            )
+
+    def _set_step_group_size(self, step_handle, size):
+        step_row = self.conn.execute(
+            "select id, selection_reason_json from flow_steps where step_handle = ?",
+            (step_handle,),
+        ).fetchone()
+        reason = json.loads(step_row["selection_reason_json"] or "{}")
+        mini_group = reason.get("mini_group")
+        self.assertIsInstance(mini_group, dict)
+        mini_group["size"] = int(size)
+        mini_group["defer_analysis_until_group_end"] = int(size) > 1
+        reason["mini_group"] = mini_group
+        self.conn.execute(
+            "update flow_steps set selection_reason_json = ? where id = ?",
+            (json.dumps(reason, ensure_ascii=False), step_row["id"]),
+        )
+        self.conn.commit()
+
+    def _submit_projected_step(self, state, answer_text, key):
+        from learning_system import daily_runtime
+
+        step = state["current_step"]
+        return self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=step["step_handle"],
+                position=step["position"],
+                client_idempotency_key=key,
+                answer_text=answer_text,
+            )
+        )
 
     def _submit_text(self, answer_text, key):
         from learning_system import daily_runtime
@@ -5659,6 +5707,87 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             timeout_seconds=120,
             model_params={"temperature": 0},
         )
+
+    def test_review_short_group_advances_without_analysis_until_group_end(self):
+        self._set_step_group_size(self.step["step_handle"], 2)
+
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            next_state = self._submit_projected_step(
+                self.started,
+                "先写关键关系，再计算并检验。",
+                "submit-runtime-v51-group-first",
+            )
+
+        self.assertEqual("current_step", next_state["child_state"])
+        self.assertGreater(next_state["current_step"]["position"], self.step["position"])
+        first_attempt = self.conn.execute(
+            "select * from attempts where client_idempotency_key = ?",
+            ("submit-runtime-v51-group-first",),
+        ).fetchone()
+        self.assertIsNotNone(first_attempt)
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where attempt_id = ?",
+            (first_attempt["id"],),
+        ).fetchone()[0])
+        first_step = self.conn.execute(
+            "select status from flow_steps where id = ?",
+            (first_attempt["flow_step_id"],),
+        ).fetchone()
+        self.assertEqual("completed", first_step["status"])
+
+    def test_group_final_submission_enqueues_attempts_and_waits_once(self):
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "先写关键关系，再计算并检验。",
+                "submit-runtime-v51-group-final-first",
+            )
+
+        analyzing_state = self._submit_projected_step(
+            second_state,
+            "换一个条件也用同一条关系，再检查结果。",
+            "submit-runtime-v51-group-final-second",
+        )
+
+        self.assertEqual("analyzing", analyzing_state["child_state"])
+        attempts = self.conn.execute(
+            """
+            select id
+            from attempts
+            where client_idempotency_key in (?, ?)
+            order by created_at, id
+            """,
+            (
+                "submit-runtime-v51-group-final-first",
+                "submit-runtime-v51-group-final-second",
+            ),
+        ).fetchall()
+        self.assertEqual(2, len(attempts))
+        jobs = self.conn.execute(
+            """
+            select id, attempt_id, depends_on_job_id, status
+            from background_jobs
+            where attempt_id in (?, ?)
+            order by created_at, id
+            """,
+            (attempts[0]["id"], attempts[1]["id"]),
+        ).fetchall()
+        self.assertEqual(2, len(jobs))
+        self.assertEqual(attempts[0]["id"], jobs[0]["attempt_id"])
+        self.assertEqual("", jobs[0]["depends_on_job_id"] or "")
+        self.assertEqual("queued", jobs[0]["status"])
+        self.assertEqual(attempts[1]["id"], jobs[1]["attempt_id"])
+        self.assertEqual(jobs[0]["id"], jobs[1]["depends_on_job_id"])
+        self.assertEqual("queued", jobs[1]["status"])
 
     def test_text_answer_uses_one_call_and_accepted_assessment_is_score_authority(self):
         from learning_system import assessment_store, model_router, semantic_agents

@@ -39,6 +39,9 @@ ACTIVE_FLOW_STATUSES = ("new", "reviewing", "ready_for_new_knowledge", "learning
 TERMINAL_FLOW_STATUSES = ("completed", "superseded")
 ANSWER_UPLOAD_RELATIVE_PREFIX = "data/uploads/answers"
 MAX_ANSWER_PHOTO_BYTES = 8 * 1024 * 1024
+DEFAULT_REVIEW_MINI_GROUP_SIZE = 5
+DEFAULT_MICRO_CHECK_MINI_GROUP_SIZE = 3
+MINI_GROUP_METADATA_VERSION = "2026-07-20.v5.1.short-question-group.v1"
 ALLOWED_ANSWER_PHOTO_TYPES = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -1029,9 +1032,19 @@ class DailyLearningRuntime:
             """,
             (command.step_handle, command.position),
         ).fetchone()
-        if not step or step["status"] not in {"selected", "displayed", "analyzing"}:
+        if not step:
             raise ChildSafeRuntimeError("当前没有可以提交的学习步骤，请刷新后继续。")
         step_dict = dict(step)
+        if step_dict["status"] == "completed":
+            duplicate = self._active_attempt_for_step(
+                step_dict["id"],
+                client_idempotency_key=command.client_idempotency_key,
+            )
+            if duplicate:
+                return self.project_child_state(self._flow_by_id(step_dict["flow_id"]))
+            raise ChildSafeRuntimeError("这一步已经保存过了，请刷新后继续。")
+        if step_dict["status"] not in {"selected", "displayed", "analyzing"}:
+            raise ChildSafeRuntimeError("当前没有可以提交的学习步骤，请刷新后继续。")
         if step_dict["step_type"] not in {"question", "micro_check", "standard_check", "variant_check", "clarify_evidence"}:
             raise ChildSafeRuntimeError("这一步不需要保存答案，请点继续。", status=400, child_action="继续")
         package = db.json_load(step_dict.get("prompt_package_json"), {})
@@ -1087,7 +1100,9 @@ class DailyLearningRuntime:
                     or ("我卡住了，需要先讲第一步。" if is_stuck_submission else "已上传纸面答案。")
                 )
                 review_meta = {
-                    "status": "queued",
+                    "status": "deferred_until_group_end"
+                    if self._mini_group_is_deferred(step_dict) and not is_stuck_submission
+                    else "queued",
                     "needs_ai_review": True,
                     "stuck": is_stuck_submission,
                     "has_photo": bool(command.answer_photo_data_url),
@@ -1177,6 +1192,12 @@ class DailyLearningRuntime:
                             step_dict=step_dict,
                             attempt_id=attempt_id,
                             answer_raw=answer_raw,
+                        )
+                    elif self._mini_group_is_deferred(step_dict):
+                        self._advance_or_close_mini_group_after_submission(
+                            step_dict=step_dict,
+                            attempt_id=attempt_id,
+                            force_close=bool(command.answer_photo_data_url),
                         )
                     else:
                         job_queue.JobQueue(self.conn).enqueue(
@@ -2121,10 +2142,84 @@ class DailyLearningRuntime:
             graph_version=graph_version,
             question=question,
             review_record_id=review_record_id,
-            selection_reason=selected.get("selection_reason") or {},
+            selection_reason=self._mini_group_selection_reason(
+                selected.get("selection_reason") or {},
+                flow=flow,
+                step_type="question",
+                group_role="review_short_set",
+            ),
             candidate_packet=selected.get("candidate_packet") or {},
         )
         return step_id
+
+    def _mini_group_selection_reason(
+        self,
+        selection_reason: dict[str, Any],
+        *,
+        flow: sqlite3.Row | dict[str, Any],
+        step_type: str,
+        group_role: str,
+        group_id: str | None = None,
+        group_index: int = 1,
+        group_size: int | None = None,
+    ) -> dict[str, Any]:
+        size = int(group_size or self._default_mini_group_size(step_type))
+        size = max(1, min(size, 5))
+        return {
+            **selection_reason,
+            "mini_group": {
+                "schema_version": MINI_GROUP_METADATA_VERSION,
+                "id": group_id or f"MG-{uuid.uuid4().hex[:12]}",
+                "role": group_role,
+                "index": int(group_index),
+                "size": size,
+                "defer_analysis_until_group_end": size > 1,
+                "flow_revision_at_start": int(dict(flow).get("flow_revision") or 1),
+            },
+        }
+
+    def _default_mini_group_size(self, step_type: str) -> int:
+        if step_type in {"micro_check", "standard_check", "variant_check"}:
+            return DEFAULT_MICRO_CHECK_MINI_GROUP_SIZE
+        if step_type == "clarify_evidence":
+            return 1
+        return DEFAULT_REVIEW_MINI_GROUP_SIZE
+
+    def _mini_group_meta(self, step: sqlite3.Row | dict[str, Any] | None) -> dict[str, Any]:
+        if not step:
+            return {}
+        raw = db.json_load(dict(step).get("selection_reason_json"), {})
+        meta = raw.get("mini_group") if isinstance(raw, dict) else None
+        if not isinstance(meta, dict):
+            return {}
+        if meta.get("schema_version") != MINI_GROUP_METADATA_VERSION:
+            return {}
+        group_id = str(meta.get("id") or "").strip()
+        if not group_id:
+            return {}
+        try:
+            index = int(meta.get("index") or 1)
+            size = int(meta.get("size") or 1)
+        except (TypeError, ValueError):
+            return {}
+        return {
+            "schema_version": MINI_GROUP_METADATA_VERSION,
+            "id": group_id,
+            "role": str(meta.get("role") or "review_short_set"),
+            "index": max(1, index),
+            "size": max(1, min(size, 5)),
+            "defer_analysis_until_group_end": bool(meta.get("defer_analysis_until_group_end")),
+            "flow_revision_at_start": int(meta.get("flow_revision_at_start") or 1),
+        }
+
+    def _mini_group_is_deferred(self, step: sqlite3.Row | dict[str, Any] | None) -> bool:
+        meta = self._mini_group_meta(step)
+        if not meta or not meta["defer_analysis_until_group_end"] or meta["size"] <= 1:
+            return False
+        step_dict = dict(step or {})
+        flow_id = str(step_dict.get("flow_id") or "")
+        flow = self._flow_by_id(flow_id) if flow_id else None
+        return bool(flow and str(dict(flow).get("assessment_policy_version") or "") == "v5.1")
 
     def _select_first_review_question(self, *, flow: sqlite3.Row | dict[str, Any] | None = None, graph_version: str | None = None) -> dict[str, Any]:
         graph_version = graph_version or self.graph.current_graph_version()
@@ -3056,6 +3151,33 @@ class DailyLearningRuntime:
                 not calculated["question_passed"]
                 or calculated["score_out_of_10"] < 8
             )
+            mini_group_result = self._maybe_handle_v51_mini_group_after_assessment(
+                job=job,
+                flow_id=flow_id,
+                source_step_id=str(graded.get("flow_step_id") or ""),
+                source_attempt=graded,
+                source_assessment=accepted,
+                source_contract=contract,
+                source_validation=validation,
+                source_evaluation=evaluation,
+                provider_mode=envelope.provider_mode,
+            )
+            if mini_group_result is not None:
+                return {
+                    "job_status": "succeeded",
+                    "attempt_id": attempt_id,
+                    "answer_analysis_job_id": job["id"],
+                    "answer_analysis_agent_run_id": answer_run["id"],
+                    "assessment_id": accepted["id"],
+                    "assessment_version": accepted["assessment_version"],
+                    "assessment_digest_sha256": accepted["assessment_digest_sha256"],
+                    "evidence_validation_id": validation.validation_id,
+                    "gate_status": validation.gate_status,
+                    "report_label": validation.predicate.report_label,
+                    "pipeline_mode": "v5.1_short_group_single_attempt_call",
+                    "mastery_decision_id": evaluation.get("mastery_decision_id", ""),
+                    **mini_group_result,
+                }
             feedback_position = int(self.conn.execute(
                 "select count(*) from flow_steps where flow_id = ?",
                 (flow_id,),
@@ -3203,6 +3325,290 @@ class DailyLearningRuntime:
             "next_action": "assessment_feedback",
             "teaching_explanation": output["teaching_explanation"],
         }
+
+    def _maybe_handle_v51_mini_group_after_assessment(
+        self,
+        *,
+        job: dict[str, Any],
+        flow_id: str,
+        source_step_id: str,
+        source_attempt: dict[str, Any],
+        source_assessment: dict[str, Any],
+        source_contract: dict[str, Any],
+        source_validation: evidence_gate.EvidenceValidationResult,
+        source_evaluation: dict[str, Any],
+        provider_mode: str,
+    ) -> dict[str, Any] | None:
+        source_step = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (source_step_id,),
+        ).fetchone()
+        meta = self._mini_group_meta(source_step)
+        if not meta or meta["size"] <= 1 or not meta["defer_analysis_until_group_end"]:
+            return None
+        if meta["index"] < meta["size"]:
+            return {
+                "next_action": "mini_group_accumulating",
+                "reason": "mini group assessment stored; feedback waits for group end",
+                "mini_group_id": meta["id"],
+                "mini_group_index": meta["index"],
+            }
+
+        pairs = self._mini_group_step_attempts(flow_id=flow_id, mini_group_id=meta["id"])
+        group_items: list[dict[str, Any]] = []
+        for index, (step, attempt) in enumerate(pairs, start=1):
+            assessment = assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt.get("attempt_version") or 1),
+            )
+            if not assessment:
+                self._block_flow(
+                    flow_id,
+                    "这一组答案还没有全部批阅完成，系统已经安全停下；稍后恢复后继续。",
+                )
+                return {
+                    "next_action": "blocked",
+                    "reason": "mini_group_missing_accepted_assessment",
+                    "mini_group_id": meta["id"],
+                }
+            group_items.append({
+                "index": index,
+                "step": step,
+                "attempt": attempt,
+                "assessment": assessment,
+            })
+        if not group_items:
+            return None
+
+        weakest = min(
+            group_items,
+            key=lambda item: (
+                int(item["assessment"].get("score_out_of_10") or 0),
+                item["index"],
+            ),
+        )
+        scores = [int(item["assessment"].get("score_out_of_10") or 0) for item in group_items]
+        average_score = round(sum(scores) / max(len(scores), 1), 1)
+        all_attempt_ids = [item["attempt"]["id"] for item in group_items]
+        validation_rows = self.conn.execute(
+            f"""
+            select id
+            from evidence_validations
+            where attempt_id in ({','.join('?' for _ in all_attempt_ids)})
+            order by created_at, id
+            """,
+            tuple(all_attempt_ids),
+        ).fetchall() if all_attempt_ids else []
+        validation_ids = [row["id"] for row in validation_rows]
+        mastery_ids = [
+            source_evaluation["mastery_decision_id"]
+        ] if source_evaluation.get("mastery_decision_id") else []
+        flow = dict(self._flow_by_id(flow_id))
+        feedback_position = int(self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ?",
+            (flow_id,),
+        ).fetchone()[0]) + 1
+        budget = self._interaction_budget(flow)
+        if budget["completed_interactions"] >= budget["minimum"]:
+            decision = self._record_next_step_decision(
+                flow=flow,
+                action="summary",
+                report_label=source_validation.predicate.report_label,
+                source_step_id=source_step_id,
+                source_attempt_ids=all_attempt_ids,
+                source_validation_ids=validation_ids,
+                source_mastery_ids=mastery_ids,
+                provider_mode="deterministic_runtime",
+                reason="短题组已达到本次最小互动预算；先展示整组解析，然后进入总结。",
+                target_node_id=str(weakest["attempt"].get("node_id") or ""),
+            )
+            planned_step_id = ""
+        else:
+            weakest_attempt = db.get_attempt(self.conn, weakest["attempt"]["id"])
+            next_selection = self._next_selection_after_attempt(flow, attempt=weakest_attempt)
+            action = str((next_selection or {}).get("action") or "summary")
+            decision = self._record_next_step_decision(
+                flow=flow,
+                action=action,
+                report_label=source_validation.predicate.report_label,
+                source_step_id=source_step_id,
+                source_attempt_ids=all_attempt_ids,
+                source_validation_ids=validation_ids,
+                source_mastery_ids=mastery_ids,
+                provider_mode="deterministic_runtime",
+                reason=(
+                    f"短题组平均 {average_score:g}/10；按第 {weakest['index']} 题的最弱证据安排下一步。"
+                    if next_selection
+                    else "短题组已批阅，但当前没有合适的下一题；先进入总结。"
+                ),
+                candidate_packet=(next_selection or {}).get("candidate_packet"),
+                target_node_id=str(
+                    ((next_selection or {}).get("question") or {}).get("node_id")
+                    or weakest_attempt.get("node_id")
+                    or ""
+                ),
+            )
+            planned_step_id = ""
+            if next_selection:
+                planned_contract = self._active_answer_contract_for_question(
+                    next_selection["question"]
+                )
+                if planned_contract is not None:
+                    planned_step_type = (
+                        "micro_check"
+                        if int(weakest["assessment"].get("score_out_of_10") or 0) < 8
+                        else "question"
+                    )
+                    planned_step_id = self._create_question_step(
+                        flow_id=flow_id,
+                        position=feedback_position + 1,
+                        graph_version=flow["graph_version"],
+                        question=next_selection["question"],
+                        review_record_id=next_selection["review_record_id"],
+                        selection_reason=self._mini_group_selection_reason(
+                            {
+                                **(next_selection.get("selection_reason") or {}),
+                                "reason": "planned_after_v5.1_mini_group_feedback",
+                                "source_next_step_decision_id": decision["id"],
+                                "source_attempt_id": weakest_attempt["id"],
+                                "source_mini_group_id": meta["id"],
+                            },
+                            flow=flow,
+                            step_type=planned_step_type,
+                            group_role=(
+                                "repair_micro_set"
+                                if planned_step_type == "micro_check"
+                                else "review_short_set"
+                            ),
+                        ),
+                        candidate_packet=next_selection.get("candidate_packet") or {},
+                        support_hint=(
+                            "先把这一组里最薄弱的点修稳，再做几道很短的小检查。"
+                            if planned_step_type == "micro_check"
+                            else "换一组结构相近的题，确认方法是否稳定。"
+                        ),
+                        step_type=planned_step_type,
+                        initial_status="planned",
+                        answer_contract=planned_contract,
+                    )
+        feedback_step_id = self._create_v51_mini_group_feedback_step(
+            flow=flow,
+            source_attempt=source_attempt,
+            source_contract=source_contract,
+            source_step_id=source_step_id,
+            planned_next_step_decision_id=decision["id"],
+            position=feedback_position,
+            group_items=group_items,
+            average_score=average_score,
+            weakest_index=int(weakest["index"]),
+        )
+        self.conn.execute(
+            """
+            update daily_flows
+            set status = 'reviewing',
+                current_step_id = ?,
+                flow_revision = flow_revision + 1,
+                updated_at = ?
+            where id = ?
+              and status not in ('completed','superseded')
+            """,
+            (feedback_step_id, db.now_iso(), flow_id),
+        )
+        return {
+            "next_action": "mini_group_assessment_feedback",
+            "mini_group_id": meta["id"],
+            "mini_group_size": len(group_items),
+            "average_score_out_of_10": average_score,
+            "weakest_attempt_id": weakest["attempt"]["id"],
+            "next_step_decision_id": decision["id"],
+            "feedback_step_id": feedback_step_id,
+            "planned_step_id": planned_step_id,
+        }
+
+    def _create_v51_mini_group_feedback_step(
+        self,
+        *,
+        flow: dict[str, Any],
+        source_attempt: dict[str, Any],
+        source_contract: dict[str, Any],
+        source_step_id: str,
+        planned_next_step_decision_id: str,
+        position: int,
+        group_items: list[dict[str, Any]],
+        average_score: float,
+        weakest_index: int,
+    ) -> str:
+        question = db.get_question(self.conn, source_attempt["question_id"])
+        per_question_lines: list[str] = []
+        improvement_items: list[str] = []
+        for item in group_items[:5]:
+            assessment = item["assessment"]
+            feedback = assessment_store.assessment_feedback_projection(assessment)
+            score_label = feedback.get("score_label") or f"{assessment.get('score_out_of_10', 0)}/10"
+            gap = _child_safe_chinese_feedback_text(
+                feedback.get("answer_gap") or "这一题按得分点看没有明显缺口。",
+                "这一题还缺少关键说明。",
+                limit=160,
+            )
+            per_question_lines.append(f"第 {item['index']} 题 {score_label}：{gap}")
+            for improvement in feedback.get("improvement_direction") or []:
+                improvement_items.append(
+                    _child_safe_chinese_feedback_text(
+                        improvement,
+                        "补一句关键数学理由，再检查是否回答题目要求。",
+                        limit=180,
+                    )
+                )
+        feedback = {
+            "score_label": f"{average_score:g}/10",
+            "reference_answer": (
+                f"这一组共 {len(group_items)} 题，平均 {average_score:g}/10。"
+                "每题标准答案和得分点已保存；先看下面的主要差距。"
+            ),
+            "answer_gap": "\n".join(per_question_lines) or "这一组已经完成批阅。",
+            "improvement_direction": _dedupe_child_safe_texts(improvement_items)[:5]
+            or ["先把关键关系写清楚，再做计算和检验。"],
+            "expression_judgment": (
+                "本组按数学意图和关键得分点判断；非标准写法只要意思清楚，"
+                "且不影响关键结论，就不单独扣分。"
+            ),
+        }
+        teaching_sections = {
+            "essence": {
+                "title": "这一组怎么看",
+                "body": (
+                    f"这一组最需要回看的位置是第 {weakest_index} 题。"
+                    "先修最影响得分的那一步，再决定继续巩固还是换到新结构。"
+                ),
+            },
+            "worked_example": {
+                "title": "参考方向",
+                "problem": self._assessment_reference_answer(source_contract),
+                "steps": feedback["improvement_direction"][:3],
+                "check": feedback["expression_judgment"],
+            },
+        }
+        return self._create_question_step(
+            flow_id=flow["id"],
+            position=position,
+            graph_version=flow["graph_version"],
+            question=question,
+            review_record_id=source_attempt.get("review_record_id") or "",
+            selection_reason={
+                "reason": "v5.1_assessment_feedback",
+                "feedback_scope": "mini_group",
+                "source_attempt_id": source_attempt["id"],
+                "source_step_id": source_step_id,
+                "planned_next_step_decision_id": planned_next_step_decision_id,
+            },
+            candidate_packet={},
+            support_hint="先看这一组的得分和差距，再继续下一步。",
+            step_type="assessment_feedback",
+            answer_input_mode="none",
+            teaching_sections=teaching_sections,
+            assessment_feedback=feedback,
+        )
 
     def _v51_deterministic_evaluation_output(
         self,
@@ -5815,7 +6221,199 @@ class DailyLearningRuntime:
             params,
         ).fetchone()
 
-    def _ensure_answer_analysis_job_for_attempt(self, step: dict[str, Any], attempt_id: str, *, source: str) -> None:
+    def _advance_or_close_mini_group_after_submission(
+        self,
+        *,
+        step_dict: dict[str, Any],
+        attempt_id: str,
+        force_close: bool = False,
+    ) -> None:
+        meta = self._mini_group_meta(step_dict)
+        if not meta or meta["size"] <= 1:
+            self._ensure_answer_analysis_job_for_attempt(
+                step_dict,
+                attempt_id,
+                source="mini_group_disabled",
+            )
+            self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
+            return
+        should_close = force_close or meta["index"] >= meta["size"]
+        next_selection: dict[str, Any] | None = None
+        flow = dict(self._flow_by_id(step_dict["flow_id"]))
+        if not should_close:
+            next_selection = self._select_question_for_node(
+                step_dict["node_id"],
+                graph_version=step_dict["graph_version"],
+                flow_id=step_dict["flow_id"],
+                flow_revision=int(flow.get("flow_revision") or 1) + 1,
+                reason={
+                    "reason": "mini_group_next_question",
+                    "mini_group_id": meta["id"],
+                    "mini_group_index": meta["index"] + 1,
+                    "source_step_id": step_dict["id"],
+                    "target_node_id": step_dict["node_id"],
+                },
+                selection_intent="short_group_review",
+                next_evidence_goal="collect_before_group_assessment",
+            )
+            should_close = next_selection is None
+            next_contract = (
+                self._active_answer_contract_for_question(next_selection["question"])
+                if next_selection
+                else None
+            )
+            flow_policy_version = str(flow.get("assessment_policy_version") or "")
+            if next_selection and flow_policy_version == "v5.1" and next_contract is None:
+                next_selection = None
+                should_close = True
+        else:
+            next_contract = None
+        now = db.now_iso()
+        if not should_close and next_selection:
+            self.conn.execute(
+                """
+                update flow_steps
+                set status = 'completed',
+                    attempt_id = ?,
+                    updated_at = ?
+                where id = ?
+                """,
+                (attempt_id, now, step_dict["id"]),
+            )
+            position_next = int(self.conn.execute(
+                "select count(*) from flow_steps where flow_id = ?",
+                (step_dict["flow_id"],),
+            ).fetchone()[0]) + 1
+            new_step_id = self._create_question_step(
+                flow_id=step_dict["flow_id"],
+                position=position_next,
+                graph_version=step_dict["graph_version"],
+                question=next_selection["question"],
+                review_record_id=next_selection["review_record_id"],
+                selection_reason=self._mini_group_selection_reason(
+                    next_selection.get("selection_reason") or {},
+                    flow=flow,
+                    step_type=step_dict["step_type"],
+                    group_role=meta["role"],
+                    group_id=meta["id"],
+                    group_index=meta["index"] + 1,
+                    group_size=meta["size"],
+                ),
+                candidate_packet=next_selection.get("candidate_packet") or {},
+                step_type=step_dict["step_type"],
+                answer_contract=next_contract,
+            )
+            self.conn.execute(
+                """
+                update daily_flows
+                set status = 'reviewing',
+                    current_step_id = ?,
+                    flow_revision = flow_revision + 1,
+                    updated_at = ?
+                where id = ?
+                """,
+                (new_step_id, now, step_dict["flow_id"]),
+            )
+            return
+        self._enqueue_mini_group_answer_analysis(
+            flow_id=step_dict["flow_id"],
+            mini_group_id=meta["id"],
+            current_step_id=step_dict["id"],
+            current_attempt_id=attempt_id,
+        )
+
+    def _mini_group_steps(self, *, flow_id: str, mini_group_id: str) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            """
+            select *
+            from flow_steps
+            where flow_id = ?
+              and superseded_by_step_id is null
+            order by position, created_at, id
+            """,
+            (flow_id,),
+        ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            step = dict(row)
+            meta = self._mini_group_meta(step)
+            if meta and meta["id"] == mini_group_id:
+                result.append(step)
+        return result
+
+    def _mini_group_step_attempts(self, *, flow_id: str, mini_group_id: str) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+        pairs: list[tuple[dict[str, Any], dict[str, Any]]] = []
+        for step in self._mini_group_steps(flow_id=flow_id, mini_group_id=mini_group_id):
+            attempt_row = self._active_attempt_for_step(step["id"])
+            if not attempt_row:
+                continue
+            pairs.append((step, db.get_attempt(self.conn, attempt_row["id"])))
+        return pairs
+
+    def _enqueue_mini_group_answer_analysis(
+        self,
+        *,
+        flow_id: str,
+        mini_group_id: str,
+        current_step_id: str,
+        current_attempt_id: str,
+    ) -> None:
+        pairs = self._mini_group_step_attempts(flow_id=flow_id, mini_group_id=mini_group_id)
+        if not pairs:
+            raise ChildSafeRuntimeError("这一组答案没有保存成功，请刷新后重试。")
+        now = db.now_iso()
+        previous_job_id: str | None = None
+        for index, (step, attempt) in enumerate(pairs):
+            job_id = self._ensure_answer_analysis_job_for_attempt(
+                step,
+                attempt["id"],
+                source="mini_group_close" if index == len(pairs) - 1 else "mini_group_deferred",
+                depends_on_job_id=previous_job_id,
+            )
+            previous_job_id = job_id
+        for step, attempt in pairs:
+            if step["id"] == current_step_id:
+                continue
+            self.conn.execute(
+                """
+                update flow_steps
+                set status = 'completed',
+                    attempt_id = ?,
+                    updated_at = ?
+                where id = ?
+                  and status in ('selected','displayed','completed')
+                """,
+                (attempt["id"], now, step["id"]),
+            )
+        self.conn.execute(
+            """
+            update flow_steps
+            set status = 'analyzing',
+                attempt_id = ?,
+                updated_at = ?
+            where id = ?
+            """,
+            (current_attempt_id, now, current_step_id),
+        )
+        self.conn.execute(
+            """
+            update daily_flows
+            set status = 'reviewing',
+                current_step_id = ?,
+                updated_at = ?
+            where id = ?
+            """,
+            (current_step_id, now, flow_id),
+        )
+
+    def _ensure_answer_analysis_job_for_attempt(
+        self,
+        step: dict[str, Any],
+        attempt_id: str,
+        *,
+        source: str,
+        depends_on_job_id: str | None = None,
+    ) -> str:
         attempt = db.get_attempt(self.conn, attempt_id)
         attempt_version = int(attempt.get("attempt_version") or 1)
         step_revision = int(step.get("step_revision") or 1)
@@ -5853,7 +6451,7 @@ class DailyLearningRuntime:
                 attempt_id,
             ),
         )
-        job_queue.JobQueue(self.conn).enqueue(
+        result = job_queue.JobQueue(self.conn).enqueue(
             "answer_analysis",
             f"v5:answer_analysis:{attempt_id}:{attempt_version}:{evidence_digest}",
             {
@@ -5875,8 +6473,10 @@ class DailyLearningRuntime:
                 "provider_mode": _provider_mode(model_router.answer_analysis_route()),
                 "route_meta": {"route": "answer_analysis", "source": source},
             },
+            depends_on_job_id=depends_on_job_id,
             commit=False,
         )
+        return result.job_id
 
     def _mark_step_analyzing(self, step_id: str, attempt_id: str, flow_id: str) -> None:
         now = db.now_iso()
@@ -5955,6 +6555,17 @@ class DailyLearningRuntime:
     ) -> dict[str, Any]:
         job_state = self._analyzing_step_job_state(step)
         if job_state["state"] == "active":
+            meta = self._mini_group_meta(step)
+            if meta and meta["size"] > 1:
+                return {
+                    **base,
+                    "child_state": "analyzing",
+                    "message": {
+                        "title": "正在统一看这一组答案",
+                        "body": f"这一组 {meta['index']} 道答案已经保存，正在统一批阅和整理下一步。页面会自动刷新；如果有照片会更慢一些。",
+                        "action_label": "刷新看看",
+                    },
+                }
             return {
                 **base,
                 "child_state": "analyzing",
@@ -6009,6 +6620,39 @@ class DailyLearningRuntime:
         ).fetchall()]
         if not rows:
             return {"state": "missing_job", "status": "", "attempt_id": attempt_id, "reason": "no model job for analyzing step"}
+        dependency_ids: set[str] = set()
+        for row in rows:
+            job = self.conn.execute(
+                "select depends_on_job_id, depends_on_json from background_jobs where id = ?",
+                (row["id"],),
+            ).fetchone()
+            if not job:
+                continue
+            if job["depends_on_job_id"]:
+                dependency_ids.add(str(job["depends_on_job_id"]))
+            for dependency_id in db.json_load(job["depends_on_json"], []):
+                if str(dependency_id or "").strip():
+                    dependency_ids.add(str(dependency_id))
+        if dependency_ids:
+            placeholders = ",".join("?" for _ in dependency_ids)
+            deps = [dict(row) for row in self.conn.execute(
+                f"""
+                select id, status, blocked_reason, dead_letter_reason, last_error
+                from background_jobs
+                where id in ({placeholders})
+                """,
+                tuple(sorted(dependency_ids)),
+            ).fetchall()]
+            for dep in deps:
+                if dep["status"] in {"blocked", "dead_letter"}:
+                    return {
+                        "state": dep["status"],
+                        "status": dep["status"],
+                        "attempt_id": attempt_id,
+                        "job_id": dep["id"],
+                        "job_type": "answer_analysis",
+                        "reason": dep.get("blocked_reason") or dep.get("dead_letter_reason") or dep.get("last_error") or "group dependency is not runnable",
+                    }
         active_statuses = {"queued", "retry", "claimed", "running"}
         if any(row["status"] in active_statuses for row in rows):
             return {"state": "active", "status": "active", "attempt_id": attempt_id}

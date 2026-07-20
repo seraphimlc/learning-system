@@ -17696,6 +17696,21 @@ class LearningSystemTest(unittest.TestCase):
                 with env.connect() as conn:
                     runtime = daily_runtime.DailyLearningRuntime(conn, project_root=PROJECT_ROOT)
                     started = runtime.start_review_mode(client_day_key=lesson["local_date"])
+                    step_row = conn.execute(
+                        "select id, selection_reason_json from flow_steps where step_handle = ?",
+                        (started["current_step"]["step_handle"],),
+                    ).fetchone()
+                    reason = db.json_load(step_row["selection_reason_json"], {})
+                    mini_group = reason.get("mini_group") if isinstance(reason, dict) else None
+                    if isinstance(mini_group, dict):
+                        mini_group["size"] = 1
+                        mini_group["defer_analysis_until_group_end"] = False
+                        reason["mini_group"] = mini_group
+                        conn.execute(
+                            "update flow_steps set selection_reason_json = ? where id = ?",
+                            (db.json_dump(reason), step_row["id"]),
+                        )
+                        conn.commit()
                     submitted = runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
                         step_handle=started["current_step"]["step_handle"],
                         position=started["current_step"]["position"],
@@ -20146,6 +20161,21 @@ class LearningSystemTest(unittest.TestCase):
     def _start_v5_attempt(self, *, day_key="2099-04-01", answer_text="我写出关系、步骤和检验。"):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         started = runtime.start_review_mode(client_day_key=day_key)
+        step_row = self.conn.execute(
+            "select id, selection_reason_json from flow_steps where step_handle = ?",
+            (started["current_step"]["step_handle"],),
+        ).fetchone()
+        reason = db.json_load(step_row["selection_reason_json"], {})
+        mini_group = reason.get("mini_group") if isinstance(reason, dict) else None
+        if isinstance(mini_group, dict):
+            mini_group["size"] = 1
+            mini_group["defer_analysis_until_group_end"] = False
+            reason["mini_group"] = mini_group
+            self.conn.execute(
+                "update flow_steps set selection_reason_json = ? where id = ?",
+                (db.json_dump(reason), step_row["id"]),
+            )
+            self.conn.commit()
         runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
             step_handle=started["current_step"]["step_handle"],
             position=started["current_step"]["position"],
