@@ -4650,6 +4650,11 @@ class LearningSystemTest(unittest.TestCase):
 
     def test_v5_retryable_model_error_keeps_flow_pending_for_retry(self):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
+        self.assertTrue(model_router.is_retryable_model_call_error(
+            model_router.ModelCallError(
+                "answer_analysis_agent:answer_review HTTP worker exited without a result"
+            )
+        ))
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test", "AI_EVALUATOR_MODEL": "gpt-5.5"}):
             started = runtime.start_review_mode(client_day_key="2099-02-27")
             step = started["current_step"]
@@ -4691,6 +4696,59 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual(1, job["run_count"])
         self.assertIn("HTTP 504", job["last_error"])
         self.assertTrue(job["retry_after"])
+        flow = self.conn.execute(
+            "select * from daily_flows where id = (select flow_id from flow_steps where id = ?)",
+            (attempt["flow_step_id"],),
+        ).fetchone()
+        self.assertEqual("reviewing", flow["status"])
+        child_state = runtime.project_child_state(flow)
+        self.assertEqual("analyzing", child_state["child_state"])
+        self._assert_no_v3_child_internals(child_state)
+
+    def test_v5_broken_pipe_keeps_flow_pending_for_retry(self):
+        runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test", "AI_EVALUATOR_MODEL": "gpt-5.5"}):
+            started = runtime.start_review_mode(client_day_key="2099-02-27-broken-pipe")
+            step = started["current_step"]
+            runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
+                step_handle=step["step_handle"],
+                position=step["position"],
+                client_idempotency_key="submit-v5-broken-pipe-retry",
+                answer_text="我写了步骤，模型连接这次断开。",
+            ))
+            attempt = db.get_attempt(
+                self.conn,
+                self.conn.execute(
+                    "select id from attempts where client_idempotency_key = ?",
+                    ("submit-v5-broken-pipe-retry",),
+                ).fetchone()["id"],
+            )
+            with patch.object(
+                model_router,
+                "answer_analysis_route",
+                return_value=self._live_model_route(
+                    agent_key="answer_analysis_agent",
+                    task="answer_review",
+                ),
+            ), patch.object(
+                model_router,
+                "call_structured_json",
+                side_effect=BrokenPipeError("connection closed while reading model response"),
+            ) as structured_call:
+                result = runtime.process_next_background_job(worker_id="test-v5-broken-pipe-retry")
+
+        self.assertEqual(1, result["processed"])
+        self.assertEqual("retry", result["status"])
+        self.assertEqual(1, structured_call.call_count)
+        job = self.conn.execute(
+            "select status, run_count, last_error, retry_after, dead_letter_reason from background_jobs where attempt_id = ?",
+            (attempt["id"],),
+        ).fetchone()
+        self.assertEqual("retry", job["status"])
+        self.assertEqual(1, job["run_count"])
+        self.assertIn("BrokenPipeError", job["last_error"])
+        self.assertTrue(job["retry_after"])
+        self.assertFalse(job["dead_letter_reason"])
         flow = self.conn.execute(
             "select * from daily_flows where id = (select flow_id from flow_steps where id = ?)",
             (attempt["flow_step_id"],),

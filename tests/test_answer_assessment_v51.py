@@ -6148,6 +6148,93 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             (self.flow_id,),
         ).fetchone()[0])
 
+    def test_unclear_v51_criterion_clarifies_without_model_retry(self):
+        from learning_system import assessment_store, model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "I gave an answer, but one key step is ambiguous.",
+            "submit-runtime-v51-unclear-criterion",
+        )
+        output = self._v3_output(attempt, first_status="unclear", confidence=0.91)
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.91,
+            output=output,
+            route_meta={"source": "runtime-v51-unclear-criterion-fixture"},
+            prompt_version_id="2026-07-14.answer-review.v5.prompt.v3",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ) as semantic_call, mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("unclear criterion must not call evaluation model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("unclear criterion must not call planner model"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("unclear criterion must not call teaching model"),
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual(1, semantic_call.call_count)
+        self.assertEqual("clarify_evidence", result["next_action"])
+        self.assertIsNone(
+            assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt["attempt_version"]),
+            )
+        )
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{attempt['id']}%",),
+        ).fetchone()[0])
+        pending = self.conn.execute(
+            """
+            select status, score_out_of_10, semantic_output_digest_sha256
+            from attempt_assessments
+            where attempt_id = ?
+            """,
+            (attempt["id"],),
+        ).fetchone()
+        self.assertEqual("pending", pending["status"])
+        self.assertIsNone(pending["score_out_of_10"])
+        self.assertTrue(pending["semantic_output_digest_sha256"])
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("retry must reuse unclear semantic checkpoint"),
+        ):
+            replay = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("clarify_evidence", replay["next_action"])
+        self.assertEqual("existing_clarify_step_replayed", replay["reason"])
+
     def test_v51_accepted_assessment_with_unusable_evidence_does_not_drive_flow(self):
         from learning_system import assessment_store, evidence_gate, model_router, semantic_agents
 

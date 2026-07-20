@@ -1134,6 +1134,7 @@ def _is_endpoint_retryable_error(exc: Exception) -> bool:
         "http 502",
         "http 503",
         "http 504",
+        "http worker exited without a result",
         "rate limit",
         "temporarily unavailable",
         "gateway timeout",

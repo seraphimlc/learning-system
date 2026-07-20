@@ -1831,6 +1831,25 @@ class DailyLearningRuntime:
             return {"processed": 1, "status": "retry", "job_id": job["id"], "reason": str(exc)[:240]}
         except Exception as exc:
             reason = f"{type(exc).__name__}: {exc}"
+            if isinstance(exc, (BrokenPipeError, ConnectionError, TimeoutError)):
+                current = self.conn.execute(
+                    "select run_count from background_jobs where id = ?",
+                    (job["id"],),
+                ).fetchone()
+                run_count = int(
+                    current["run_count"] if current else (job.get("run_count") or 0)
+                )
+                retry_after = _iso_add_seconds(
+                    db.now_iso(),
+                    job_queue.JobQueue.v5_retry_after_seconds(run_count),
+                )
+                queue.retry(job["id"], worker_id, reason, retry_after)
+                return {
+                    "processed": 1,
+                    "status": "retry",
+                    "job_id": job["id"],
+                    "reason": reason[:240],
+                }
             with self.conn:
                 queue.dead_letter(job["id"], worker_id, reason, commit=False)
                 self._block_flow_after_dead_letter(job, reason)
@@ -3239,6 +3258,13 @@ class DailyLearningRuntime:
         *,
         photo_ocr: dict[str, Any] | None = None,
     ) -> bool:
+        criteria = output.get("criteria")
+        if isinstance(criteria, list) and any(
+            str(item.get("status") or "") == "unclear"
+            for item in criteria
+            if isinstance(item, dict)
+        ):
+            return True
         if float(output.get("confidence") or 0.0) < 0.35:
             return True
         if isinstance(photo_ocr, dict):
