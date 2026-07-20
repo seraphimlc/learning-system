@@ -2359,7 +2359,7 @@ class DualViewBrowserContractTests(KnowledgeViewsV51TestCase):
                 "escape_restores_origin_focus",
                 "mind_cross_prerequisites_57_directional_no_duplicate_buttons",
                 "mind_cross_prerequisites_390_no_overflow",
-                "graph_fit_all_56_markers_zero_collision",
+                "graph_fit_all_readable_controls_zero_collision",
                 "graph_module_focus_is_bounded",
                 "graph_node_focus_is_bounded",
                 "graph_mobile_390_markers_zero_collision",

@@ -93,7 +93,7 @@
   }
 
   function minimumScaleFor(view) {
-    if (view === "graph") return isMobile() ? 0.08 : 0.14;
+    if (view === "graph") return isMobile() ? 0.6 : 0.14;
     return isMobile() ? 0.28 : 0.35;
   }
 
@@ -886,13 +886,13 @@
   }
 
   function focusableNodeButtons() {
-    return [...state.root.querySelectorAll(".knowledge-node-button")].filter(
+    return [...state.root.querySelectorAll(".knowledge-node-button, .graph-overview-marker")].filter(
       (button) => !button.disabled && !button.closest("[hidden]") && button.getClientRects().length > 0
     );
   }
 
   function syncRovingTabindex() {
-    const allButtons = [...state.root.querySelectorAll(".knowledge-node-button")];
+    const allButtons = [...state.root.querySelectorAll(".knowledge-node-button, .graph-overview-marker")];
     allButtons.forEach((button) => { button.tabIndex = -1; });
     const buttons = focusableNodeButtons();
     if (!buttons.length) {
@@ -1473,14 +1473,14 @@
     }
     const fitAll = !state.query && state.graphFocusMode === "fit_all";
     const reviewedAnchors = fitAll ? graphOverviewAnchors() : [];
-    const fullHandles = fitAll
-      ? new Set()
-      : new Set(graphNodes.map((node) => node.handle));
     const placements = new Map(
       state.projection.views.graph.placements.map((placement) => [placement.handle, placement])
     );
     const lanes = [...state.projection.views.graph.lanes].sort((a, b) => a.order - b.order);
     const laneIndex = new Map(lanes.map((lane, index) => [lane.handle, index]));
+    const fullHandles = fitAll
+      ? graphOverviewReadableHandles(matchedHandles, reviewedAnchors, laneIndex)
+      : new Set(graphNodes.map((node) => node.handle));
     const maxRank = Math.max(0, ...state.projection.views.graph.placements.map((item) => item.rank));
     const nodeWidth = 148;
     const nodeHeight = 48;
@@ -1522,12 +1522,21 @@
     const overviewWidth = desktopOverview ? 1680 : 620;
     const overviewRankGap = desktopOverview ? 140 : 50;
     if (fitAll) {
-      const used = [];
-      const offsets = [];
-      for (let dx = -3; dx <= 3; dx += 1) {
-        for (let dy = -3; dy <= 3; dy += 1) offsets.push({ dx: dx * 44, dy: dy * 44 });
+      const usedMarkers = [];
+      const usedReadable = [];
+      const markerOffsets = [];
+      const readableOffsets = [];
+      for (let dx = -4; dx <= 4; dx += 1) {
+        for (let dy = -4; dy <= 4; dy += 1) markerOffsets.push({ dx: dx * 42, dy: dy * 42 });
       }
-      offsets.sort((left, right) =>
+      for (let dx = -5; dx <= 5; dx += 1) {
+        for (let dy = -4; dy <= 4; dy += 1) readableOffsets.push({ dx: dx * 120, dy: dy * 92 });
+      }
+      markerOffsets.sort((left, right) =>
+        Math.hypot(left.dx, left.dy) - Math.hypot(right.dx, right.dy) ||
+        Math.abs(left.dy) - Math.abs(right.dy) || left.dx - right.dx || left.dy - right.dy
+      );
+      readableOffsets.sort((left, right) =>
         Math.hypot(left.dx, left.dy) - Math.hypot(right.dx, right.dy) ||
         Math.abs(left.dy) - Math.abs(right.dy) || left.dx - right.dx || left.dy - right.dy
       );
@@ -1537,16 +1546,34 @@
         left.order - right.order || left.handle.localeCompare(right.handle)
       );
       for (const placement of orderedPlacements) {
-        const baseX = (desktopOverview ? 70 : 34) + placement.rank * overviewRankGap;
+        const readable = fullHandles.has(placement.handle);
+        const visualWidth = readable ? (desktopOverview ? 248 : 156) : 34;
+        const visualHeight = readable ? (desktopOverview ? 86 : 58) : 34;
+        const baseX = (desktopOverview ? 168 : 46) + placement.rank * overviewRankGap;
         const baseY = 34 + (laneIndex.get(placement.lane_handle) || 0) * 91;
+        const offsets = readable ? readableOffsets : markerOffsets;
         const coordinate = offsets
           .map((offset) => ({ x: baseX + offset.dx, y: baseY + offset.dy }))
           .find((candidate) =>
-            candidate.x >= 18 && candidate.x <= overviewWidth - 18 &&
-            candidate.y >= 18 && candidate.y <= 782 &&
-            used.every((point) => Math.hypot(candidate.x - point.x, candidate.y - point.y) >= 44)
+            candidate.x >= visualWidth / 2 && candidate.x <= overviewWidth - visualWidth / 2 &&
+            candidate.y >= visualHeight / 2 && candidate.y <= 800 - visualHeight / 2 &&
+            usedMarkers.every((point) => Math.hypot(candidate.x - point.x, candidate.y - point.y) >= 34) &&
+            (!readable || usedReadable.every((rect) =>
+              candidate.x + visualWidth / 2 + 12 <= rect.left ||
+              rect.right + 12 <= candidate.x - visualWidth / 2 ||
+              candidate.y + visualHeight / 2 + 8 <= rect.top ||
+              rect.bottom + 8 <= candidate.y - visualHeight / 2
+            ))
           ) || { x: baseX, y: baseY };
-        used.push(coordinate);
+        usedMarkers.push(coordinate);
+        if (readable) {
+          usedReadable.push({
+            left: coordinate.x - visualWidth / 2,
+            right: coordinate.x + visualWidth / 2,
+            top: coordinate.y - visualHeight / 2,
+            bottom: coordinate.y + visualHeight / 2,
+          });
+        }
         overviewCoordinates.set(placement.handle, coordinate);
       }
     }
@@ -1666,12 +1693,27 @@
       if (fullHandles.has(node.handle) && matchedHandles.has(node.handle)) {
         representation = nodeButton(node);
         representation.classList.add("graph-node-button");
-        representation.style.left = `${position.x}px`;
-        representation.style.top = `${position.y}px`;
+        if (fitAll) representation.classList.add("graph-overview-callout");
+        representation.style.left = fitAll
+          ? `${position.centerX - nodeWidth / 2}px`
+          : `${position.x}px`;
+        representation.style.top = fitAll
+          ? `${position.centerY - nodeHeight / 2}px`
+          : `${position.y}px`;
       } else {
-        representation = document.createElement("span");
-        representation.setAttribute("aria-hidden", "true");
+        representation = document.createElement("button");
+        representation.type = "button";
         representation.className = `graph-overview-marker state-${node.learning_state || "untested"}`;
+        representation.tabIndex = -1;
+        representation.dataset.label = node.name;
+        representation.title = node.name;
+        representation.setAttribute(
+          "aria-label",
+          `${node.name}，状态：${node.learning_state_label || "还没有留下学习记录"}`
+        );
+        representation.setAttribute("aria-pressed", String(node.handle === state.selectedHandle));
+        representation.addEventListener("click", () => selectNode(node.handle, representation));
+        representation.addEventListener("keydown", handleNodeKeydown);
         representation.style.left = `${position.centerX - 22}px`;
         representation.style.top = `${position.centerY - 22}px`;
         if (node.handle === state.selectedHandle) representation.classList.add("is-selected", "is-callout");
@@ -1685,19 +1727,7 @@
       representation.dataset.graphSlot = String(position.slot);
       world.append(representation);
     }
-    if (fitAll && reviewedAnchors.length) {
-      const anchorLayer = document.createElement("div");
-      anchorLayer.className = "graph-overview-anchor-layer";
-      for (const anchor of reviewedAnchors) {
-        const label = document.createElement("span");
-        label.className = `graph-overview-anchor priority-${anchor.priority}`;
-        label.dataset.anchorHandle = anchor.handle;
-        label.dataset.anchorPriority = String(anchor.priority);
-        label.textContent = anchor.name;
-        anchorLayer.append(label);
-      }
-      region?.append(anchorLayer);
-    } else if (fitAll) {
+    if (fitAll && !fullHandles.size) {
       const fallback = document.createElement("p");
       fallback.className = "graph-overview-fallback";
       fallback.textContent = "选择一个知识模块查看知识点。";
@@ -1875,6 +1905,32 @@
     return valid
       ? candidates.sort((left, right) => left.priority - right.priority)
       : [];
+  }
+
+  function graphOverviewReadableHandles(matchedHandles, reviewedAnchors, laneIndex) {
+    const handles = new Set();
+    const add = (handle) => {
+      if (handle && state.nodeByHandle.has(handle) && matchedHandles.has(handle)) handles.add(handle);
+    };
+    add(state.selectedHandle);
+    reviewedAnchors.forEach((anchor) => add(anchor.handle));
+    [...state.nodeByHandle.values()]
+      .filter((node) => node.recommended)
+      .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"))
+      .forEach((node) => add(node.handle));
+    const firstByLane = new Map();
+    for (const placement of [...state.projection.views.graph.placements].sort((left, right) =>
+      left.rank - right.rank ||
+      left.order - right.order ||
+      left.handle.localeCompare(right.handle)
+    )) {
+      if (!matchedHandles.has(placement.handle) || firstByLane.has(placement.lane_handle)) continue;
+      firstByLane.set(placement.lane_handle, placement.handle);
+    }
+    [...firstByLane.entries()]
+      .sort((left, right) => (laneIndex.get(left[0]) || 0) - (laneIndex.get(right[0]) || 0))
+      .forEach(([, handle]) => add(handle));
+    return new Set([...handles].slice(0, isMobile() ? 3 : 18));
   }
 
   function selectNode(handle, originButton) {
@@ -2172,6 +2228,13 @@
     world.style.setProperty("--kv-cross-scale", String(Math.min(1, 1 / viewport.scale)));
     if (view === "graph") {
       world.querySelectorAll(".graph-node-button").forEach((button) => {
+        if (button.classList.contains("graph-overview-callout")) {
+          button.style.width = "";
+          button.style.height = "";
+          button.style.minHeight = "";
+          button.querySelector(".knowledge-node-label")?.style.setProperty("font-size", "");
+          return;
+        }
         const inverseScale = isMobile() ? 1 / viewport.scale : 1;
         button.style.width = isMobile() ? `${148 * inverseScale}px` : "";
         button.style.height = isMobile() ? `${48 * inverseScale}px` : "";

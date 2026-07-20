@@ -519,6 +519,16 @@
   white-space: nowrap;
 }
 .graph-node-button.is-recommended::after { display: none; }
+.graph-node-button.graph-overview-callout {
+  z-index: 4;
+  width: 148px;
+  height: 48px;
+  transform: scale(var(--kv-inverse-scale, 1));
+  transform-origin: center;
+}
+.graph-node-button.graph-overview-callout .knowledge-node-label {
+  font-size: 13px;
+}
 
 .graph-overview-marker {
   position: absolute;
@@ -531,9 +541,10 @@
   border: 0;
   border-radius: 50%;
   background: transparent;
+  color: inherit;
+  cursor: pointer;
   transform: scale(var(--kv-inverse-scale, 1));
   transform-origin: center;
-  pointer-events: none;
 }
 .graph-overview-marker::before {
   content: "";
@@ -570,6 +581,37 @@
 .graph-overview-marker.is-filtered { opacity: .24; }
 .graph-overview-marker.is-callout::before { box-shadow: 0 0 0 4px rgba(19, 63, 104, .28); }
 .graph-overview-marker.is-selected::before { border-width: 3px; border-color: #173f68; }
+.graph-overview-marker:hover::before,
+.graph-overview-marker:focus-visible::before {
+  border-color: #173f68;
+  box-shadow: 0 0 0 4px rgba(19, 63, 104, .22);
+}
+.graph-overview-marker:focus-visible {
+  outline: 3px solid #0b6ed0;
+  outline-offset: 2px;
+}
+.graph-overview-marker:hover::after,
+.graph-overview-marker:focus-visible::after,
+.graph-overview-marker.is-selected::after {
+  content: attr(data-label);
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  width: max-content;
+  max-width: 150px;
+  padding: 3px 6px;
+  border: 1px solid #c7d4dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #263d4b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 12px rgba(23, 32, 27, .12);
+}
 .graph-overview-anchor-layer {
   position: absolute;
   inset: 0;
@@ -896,6 +938,14 @@
   }
   .knowledge-node-button { font-size: 15px; }
   .graph-node-button .knowledge-node-label { font-size: 15px; }
+  .graph-node-button.graph-overview-callout {
+    height: 58px;
+    min-height: 58px;
+    transform: none;
+  }
+  .graph-node-button.graph-overview-callout .knowledge-node-label {
+    font-size: 13px;
+  }
   .knowledge-detail {
     position: fixed;
     z-index: 40;

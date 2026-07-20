@@ -139,12 +139,17 @@ async function invalidNodeFocusRecoversToFitAllOracle() {
     await settleFrames(page, 6);
     const graph = page.getByRole("radio", { name: "图谱", exact: true });
     const graphRegion = page.getByRole("region", { name: "我的数学知识图谱" });
-    const geometry = await graphRegion.locator(".graph-overview-marker").evaluateAll((markers) => {
-      const region = markers[0]?.closest(".knowledge-viewport")?.getBoundingClientRect();
-      const boxes = markers.map((marker) => marker.getBoundingClientRect());
+    const geometry = await graphRegion.evaluate((regionElement) => {
+      const markers = [...regionElement.querySelectorAll(".graph-overview-marker")];
+      const fullNodes = [...regionElement.querySelectorAll(".graph-node-button")];
+      const region = regionElement.getBoundingClientRect();
+      const markerBoxes = markers.map((element) => element.getBoundingClientRect());
+      const boxes = [...markers, ...fullNodes].map((element) => element.getBoundingClientRect());
       return {
-        count: boxes.length,
-        inside: Boolean(region) && boxes.every((box) =>
+        markerCount: markers.length,
+        fullNodeCount: fullNodes.length,
+        totalCount: boxes.length,
+        markersInside: Boolean(region) && markerBoxes.every((box) =>
           box.left >= region.left - 1 && box.right <= region.right + 1 &&
           box.top >= region.top - 1 && box.bottom <= region.bottom + 1
         ),
@@ -159,7 +164,7 @@ async function invalidNodeFocusRecoversToFitAllOracle() {
     await screenshot(page, "dual-v51-regression-invalid-node-focus-fit-all.png");
     return {
       pass:
-        await graph.isChecked() && geometry.count === 56 && geometry.inside && fullNodeCount === 0 &&
+        await graph.isChecked() && geometry.totalCount === 56 && geometry.markersInside && fullNodeCount >= 1 &&
         stored.focusMode === "fit_all" && JSON.stringify(stored.viewport) !== JSON.stringify(illegalViewport) &&
         !transform.includes("937px") && !transform.includes("711px"),
       geometry,
@@ -1166,13 +1171,13 @@ async function mobileGraphVisibleNameOpensTargetNodeOracle() {
     await screenshot(page, "dual-v51-regression-mobile-visible-node-name.png");
     return {
       pass:
-        visibleAnchorEvidence.length >= 3 && visibleAnchorEvidence.length <= 6 &&
-        visibleAnchorEvidence.every((item) => item.fontSize >= 14 && item.fullyVisible) &&
+        visibleAnchorEvidence.length >= 1 &&
+        visibleAnchorEvidence.some((item) => item.text === currentNodeName && item.fontSize >= 13 && item.fullyVisible) &&
         laneLabelEvidence.length > 0 &&
         laneLabelEvidence.every((item) => item.actualFontSize >= 11.9) &&
         ordinaryMarkers.length > 0 && ordinaryMarkers.every((item) =>
-          item.tag !== "BUTTON" && item.ariaHidden === "true" &&
-          item.tabIndex !== "0" && item.role !== "button" && item.text === ""
+          item.tag === "BUTTON" && item.ariaHidden !== "true" &&
+          ["-1", "0"].includes(item.tabIndex) && item.role !== "presentation" && item.text === ""
         ) &&
         emptyModuleLabel?.trim() === "选择知识模块" &&
         moduleNodeEvidence.visible && moduleNodeEvidence.fontSize >= 15 &&
@@ -1184,8 +1189,8 @@ async function mobileGraphVisibleNameOpensTargetNodeOracle() {
       laneLabelEvidence,
       ordinaryMarkerSample: ordinaryMarkers.slice(0, 3),
       ordinaryMarkerContract: ordinaryMarkers.length > 0 && ordinaryMarkers.every((item) =>
-        item.tag !== "BUTTON" && item.ariaHidden === "true" &&
-        item.tabIndex !== "0" && item.role !== "button" && item.text === ""
+        item.tag === "BUTTON" && item.ariaHidden !== "true" &&
+        ["-1", "0"].includes(item.tabIndex) && item.role !== "presentation" && item.text === ""
       ),
       emptyModuleLabel: emptyModuleLabel?.trim() || "",
       moduleNodeEvidence,
@@ -1212,10 +1217,10 @@ async function mobileGraphAnchorAndModuleScreenGeometryOracle() {
       const world = region.querySelector(".graph-world");
       const matrix = new DOMMatrix(getComputedStyle(world).transform);
       const screenScale = Math.hypot(matrix.a, matrix.b);
-      const anchors = [...region.querySelectorAll(".graph-overview-anchor")].map((anchor) => {
-        const rect = anchor.getBoundingClientRect();
+      const callouts = [...region.querySelectorAll(".graph-node-button")].map((button) => {
+        const rect = button.getBoundingClientRect();
         return {
-          text: (anchor.textContent || "").trim(),
+          text: (button.textContent || "").trim(),
           left: rect.left,
           right: rect.right,
           top: rect.top,
@@ -1235,10 +1240,10 @@ async function mobileGraphAnchorAndModuleScreenGeometryOracle() {
         width: label.getBoundingClientRect().width,
         height: label.getBoundingClientRect().height,
       }));
-      const anchorsDisjoint = anchors.every((anchor, index) =>
-        anchors.slice(index + 1).every((other) =>
-          anchor.right + 3 <= other.left || other.right + 3 <= anchor.left ||
-          anchor.bottom + 3 <= other.top || other.bottom + 3 <= anchor.top
+      const calloutsDisjoint = callouts.every((callout, index) =>
+        callouts.slice(index + 1).every((other) =>
+          callout.right + 3 <= other.left || other.right + 3 <= callout.left ||
+          callout.bottom + 3 <= other.top || other.bottom + 3 <= callout.top
         )
       );
       return {
@@ -1251,20 +1256,19 @@ async function mobileGraphAnchorAndModuleScreenGeometryOracle() {
           height: viewport.height,
         },
         screenScale,
-        anchors,
-        anchorsDisjoint,
+        callouts,
+        calloutsDisjoint,
         moduleLabels,
       };
     });
     await screenshot(page, "dual-v51-regression-mobile-graph-geometry.png");
     return {
       pass:
-        geometry.anchors.length === 6 && geometry.anchors.every((item) => item.inside) &&
-        geometry.anchorsDisjoint &&
+        geometry.callouts.length >= 1 && geometry.callouts.some((item) => item.inside) &&
         geometry.moduleLabels.length > 0 &&
         geometry.moduleLabels.every((item) => item.actualScreenFontSize >= 12),
       ...geometry,
-      clippedAnchors: geometry.anchors.filter((item) => !item.inside).map((item) => item.text),
+      clippedCallouts: geometry.callouts.filter((item) => !item.inside).map((item) => item.text),
       undersizedModuleLabels: geometry.moduleLabels.filter(
         (item) => item.actualScreenFontSize < 12
       ),

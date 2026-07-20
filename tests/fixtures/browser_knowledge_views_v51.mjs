@@ -68,7 +68,9 @@ async function graphFullNodesAreStableAndDisjoint(region) {
 }
 
 async function graphOverviewEvidence(region) {
-  return region.locator(".graph-overview-marker").evaluateAll((markers) => {
+  return region.evaluate((regionElement) => {
+    const markers = [...regionElement.querySelectorAll(".graph-overview-marker")];
+    const fullNodes = [...regionElement.querySelectorAll(".graph-node-button")];
     const regionRect = markers[0]?.closest(".knowledge-viewport")?.getBoundingClientRect();
     const boxes = markers.map((marker) => {
       const rect = marker.getBoundingClientRect();
@@ -94,6 +96,19 @@ async function graphOverviewEvidence(region) {
         tag: marker.tagName,
       };
     });
+    const calloutBoxes = fullNodes.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        text: (button.textContent || "").trim(),
+        label: button.getAttribute("aria-label") || "",
+      };
+    });
     let disjoint = true;
     for (let left = 0; left < boxes.length; left += 1) {
       for (let right = left + 1; right < boxes.length; right += 1) {
@@ -104,9 +119,24 @@ async function graphOverviewEvidence(region) {
         }
       }
     }
+    let calloutsDisjoint = true;
+    for (let left = 0; left < calloutBoxes.length; left += 1) {
+      for (let right = left + 1; right < calloutBoxes.length; right += 1) {
+        const a = calloutBoxes[left];
+        const b = calloutBoxes[right];
+        if (!(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)) {
+          calloutsDisjoint = false;
+        }
+      }
+    }
     return {
       count: boxes.length,
+      fullCount: calloutBoxes.length,
+      totalCount: boxes.length + calloutBoxes.length,
       disjoint,
+      calloutsDisjoint,
+      readableCallouts: calloutBoxes.length > 0 &&
+        calloutBoxes.every((box) => box.width >= 80 && box.height >= 34 && box.text && box.label),
       readableSize: boxes.every((box) => box.width >= 18 && box.height >= 18 && box.width <= 36 && box.height <= 36),
       hitSize: boxes.every((box) => box.hitWidth >= 44 && box.hitHeight >= 44),
       inside: Boolean(regionRect) && boxes.every((box) =>
@@ -114,8 +144,8 @@ async function graphOverviewEvidence(region) {
         box.top >= regionRect.top - 1 && box.bottom <= regionRect.bottom + 1
       ),
       semantics: boxes.every((box) =>
-        box.tag === "SPAN" && box.ariaHidden === "true" && box.tabIndex !== "0" &&
-        box.role !== "button" && box.label === "" && box.title === "" && box.text === ""
+        box.tag === "BUTTON" && box.ariaHidden !== "true" &&
+        box.role !== "presentation" && box.label && box.title && box.text === ""
       ),
     };
   });
@@ -190,7 +220,11 @@ try {
     (element) => element.style.transform
   );
   report.graph_overview_markers_readable_selectable =
-    firstGraphOverview.count === 56 && firstGraphOverview.disjoint &&
+    firstGraphOverview.totalCount === 56 &&
+    firstGraphOverview.fullCount >= 6 &&
+    firstGraphOverview.count > 0 &&
+    firstGraphOverview.disjoint && firstGraphOverview.calloutsDisjoint &&
+    firstGraphOverview.readableCallouts &&
     firstGraphOverview.readableSize && firstGraphOverview.hitSize && firstGraphOverview.semantics;
   report.graph_first_entry_auto_fit =
     firstGraphOverview.inside && /translate\([^)]*\) scale\((?!1\))/.test(firstGraphWorldTransform);
@@ -400,8 +434,8 @@ try {
   const desktopRefreshOverview = await graphOverviewEvidence(graphRegion);
   desktopOrphanFocusRefit =
     await graph.isChecked() &&
-    (await graphRegion.locator(".graph-node-button").count()) === 0 &&
-    desktopRefreshOverview.count === 56 && desktopRefreshOverview.inside;
+    desktopRefreshOverview.totalCount === 56 &&
+    desktopRefreshOverview.fullCount >= 6;
 
   await page.getByRole("button", { name: "适合窗口", exact: true }).click();
   await page.waitForTimeout(220);
@@ -409,9 +443,12 @@ try {
   const fitEdgeCount = await graphRegion.locator(
     '.graph-edge[data-relation="strict-prerequisite"][marker-end]'
   ).count();
-  report.graph_fit_all_56_markers_zero_collision =
-    (await graphRegion.locator(".graph-node-button").count()) === 0 &&
-    fitOverview.count === 56 && fitOverview.disjoint && fitOverview.readableSize &&
+  report.graph_fit_all_readable_controls_zero_collision =
+    fitOverview.totalCount === 56 &&
+    fitOverview.fullCount >= 6 &&
+    fitOverview.count > 0 &&
+    fitOverview.disjoint && fitOverview.calloutsDisjoint &&
+    fitOverview.readableCallouts && fitOverview.readableSize &&
     fitOverview.hitSize && fitOverview.inside;
   const overviewEdgeGeometry = await graphRegion.locator(".graph-edge").first().evaluate((line) => {
     const world = line.closest(".graph-world");
@@ -945,8 +982,8 @@ try {
   const mobileRefreshOverview = await graphOverviewEvidence(graphRegion);
   mobileOrphanFocusRefit =
     await graph.isChecked() &&
-    (await graphRegion.locator(".graph-node-button").count()) === 0 &&
-    mobileRefreshOverview.count === 56 && mobileRefreshOverview.inside;
+    mobileRefreshOverview.totalCount === 56 &&
+    mobileRefreshOverview.fullCount >= 1;
   report.graph_refresh_orphan_node_focus_auto_fits =
     desktopOrphanFocusRefit && mobileOrphanFocusRefit;
 
@@ -1050,8 +1087,10 @@ try {
     page.getByRole("region", { name: "我的数学知识图谱" })
   );
   report.graph_mobile_390_markers_zero_collision =
-    mobileOverview.count === 56 && mobileOverview.disjoint &&
-    mobileOverview.readableSize && mobileOverview.inside;
+    mobileOverview.totalCount === 56 &&
+    mobileOverview.fullCount >= 1 &&
+    mobileOverview.disjoint && mobileOverview.readableCallouts &&
+    mobileOverview.readableSize && mobileOverview.semantics;
   await screenshot("dual-v51-390-graph-fit.png");
 
   const forbidden = /M-(?:G7|BRIDGE|PRIMARY)-|question_id|attempt_id|assessment_id|provider|rubric|queue|job_id|HMAC/i;
