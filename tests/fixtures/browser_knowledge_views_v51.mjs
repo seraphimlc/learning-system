@@ -104,6 +104,14 @@ try {
     await page.locator(".mind-node-children").count() === 0 &&
     await page.locator(".mind-module-list:not([hidden])").count() === 8 &&
     await page.locator(".mind-module-list .knowledge-node-button:visible").count() === 55;
+  report.directory_uses_masonry_columns =
+    await page.locator(".mind-module-root-list").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return style.display === "block" &&
+        style.gridTemplateColumns === "none" &&
+        style.columnWidth !== "auto" &&
+        Number.parseFloat(style.columnWidth) >= 240;
+    });
   report.mind_module_order_matches_learning_path =
     JSON.stringify(moduleTitles) === JSON.stringify(expectedModuleOrder);
   report.child_dom_has_no_graph_surface =
@@ -135,6 +143,11 @@ try {
   report.mobile_390_no_horizontal_scroll = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth
   );
+  report.mobile_directory_stays_single_column =
+    await page.locator(".mind-module-root-list").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return style.columnCount === "1" && style.columnWidth === "auto";
+    });
   report.mobile_controls_44px = await page.locator("button").evaluateAll((buttons) =>
     buttons.filter((button) => button.offsetParent !== null).every((button) => {
       const rect = button.getBoundingClientRect();
