@@ -93,7 +93,7 @@ try {
   if (await explorerToggle.isVisible() && await explorerToggle.getAttribute("aria-expanded") === "false") {
     await explorerToggle.click();
   }
-  const mindRegion = page.getByRole("region", { name: "我的数学知识导图" });
+  const mindRegion = page.getByRole("region", { name: "我的数学知识目录" });
   await mindRegion.waitFor({ state: "visible" });
   const search = page.getByRole("search").getByRole("searchbox");
   await search.fill(targetNodeName);

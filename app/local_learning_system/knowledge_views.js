@@ -128,10 +128,8 @@
     if (storedView && storedView !== "mind_map") {
       window.localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, "mind_map");
     }
-    state.viewports.mind_map = clampViewport(
-      loadJsonPreference(storageKey("mind_map:viewport"), { scale: 1, x: 0, y: 0 }),
-      "mind_map"
-    );
+    window.localStorage.removeItem(storageKey("mind_map:viewport"));
+    state.viewports.mind_map = { scale: 1, x: 0, y: 0 };
     const graphViewportKey = storageKey("graph:viewport");
     const storedGraphFocusMode = window.localStorage.getItem(storageKey("graph:focus-mode"));
     const normalizedGraphFocusMode = ["fit_all", "node_focus", "module_focus"].includes(storedGraphFocusMode)
@@ -348,11 +346,11 @@
           <section class="knowledge-map-explorer" data-knowledge-map-explorer>
           <div class="knowledge-map-heading">
             <div>
-              <p>完整知识导图</p>
+              <p>完整知识目录</p>
               <h3>想自己找知识点时再打开</h3>
             </div>
             <button type="button" data-map-explorer-toggle aria-expanded="false" aria-controls="knowledgeMapExplorerBody">
-              打开完整知识导图
+              打开完整知识目录
             </button>
           </div>
           <div id="knowledgeMapExplorerBody" data-map-explorer-body hidden>
@@ -379,20 +377,14 @@
                 <option value="">选择知识模块</option>
               </select>
             </label>
-            <div class="knowledge-viewport-tools" role="toolbar" aria-label="视图大小">
-              <button type="button" aria-label="缩小" data-viewport-action="zoom-out">−</button>
-              <button type="button" aria-label="适合窗口" data-viewport-action="fit">□</button>
-              <button type="button" aria-label="放大" data-viewport-action="zoom-in">＋</button>
-              <button type="button" aria-label="聚焦已选知识" data-viewport-action="focus-selected">◎</button>
-            </div>
           </div>
           <div class="knowledge-legend" aria-label="图例">
-            <span><i class="legend-state" aria-hidden="true">●</i>颜色和边框表示学习状态</span>
+            <span><i class="legend-state" aria-hidden="true">●</i>颜色表示学习状态</span>
             <span>点一个知识点，可以查看并开始学习</span>
           </div>
           <div class="knowledge-result-summary" role="status" aria-live="polite" data-result-summary></div>
           <div class="knowledge-workspace">
-            <section class="knowledge-viewport" role="region" aria-label="我的数学知识导图" tabindex="0" data-knowledge-view="mind_map">
+            <section class="knowledge-viewport" role="region" aria-label="我的数学知识目录" tabindex="0" data-knowledge-view="mind_map">
               <div class="knowledge-world mind-map-world" data-knowledge-world="mind_map"></div>
             </section>
           </div>
@@ -441,7 +433,7 @@
           }
         });
         announce(
-          "已打开知识导图"
+          "已打开知识目录"
         );
       });
     });
@@ -487,16 +479,12 @@
       renderWithSelectionGuard();
       if (state.activeView === "graph" && state.selectedModuleHandle) fitReadableGraphNodes();
     });
-    state.root.querySelectorAll("[data-viewport-action]").forEach((button) => {
-      button.addEventListener("click", () => updateViewport(button.dataset.viewportAction));
-    });
     state.root.querySelector("[data-resume-learning]").addEventListener("click", requestResume);
     state.root.querySelector("[data-resume-retry]").addEventListener("click", requestResume);
     state.root.querySelector("[data-map-retry]").addEventListener("click", () => {
       if (state.onRetry) state.onRetry();
     });
     state.root.querySelector("[data-map-explorer-toggle]").addEventListener("click", toggleMapExplorer);
-    state.root.querySelectorAll(".knowledge-viewport").forEach(bindViewportGestures);
     const graphWorld = state.root.querySelector('[data-knowledge-world="graph"]');
     const finishGraphCamera = (event) => {
       if (event.propertyName === "transform") {
@@ -724,7 +712,7 @@
     if (!body || !toggle) return;
     body.hidden = !state.mapExplorerOpen;
     toggle.setAttribute("aria-expanded", String(state.mapExplorerOpen));
-    toggle.textContent = state.mapExplorerOpen ? "收起完整知识导图" : "打开完整知识导图";
+    toggle.textContent = state.mapExplorerOpen ? "收起完整知识目录" : "打开完整知识目录";
   }
 
   function toggleMapExplorer() {
@@ -895,14 +883,7 @@
     const region = state.root?.querySelector('[data-knowledge-view="mind_map"]');
     const selected = region?.querySelector(`[data-node-handle="${state.selectedHandle}"]`);
     if (!region || !elementCanReceiveFocus(selected)) return;
-    const regionRect = region.getBoundingClientRect();
-    const selectedRect = selected.getBoundingClientRect();
-    const viewport = state.viewports.mind_map;
-    viewport.x += regionRect.left + regionRect.width / 2 - (selectedRect.left + selectedRect.width / 2);
-    viewport.y += regionRect.top + regionRect.height / 2 - (selectedRect.top + selectedRect.height / 2);
-    state.viewports.mind_map = clampViewport(viewport, "mind_map");
-    saveViewport("mind_map");
-    applyViewport("mind_map");
+    selected.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   }
 
   function clearSelectionAndDetail() {
@@ -1388,46 +1369,15 @@
   }
 
   function fitSelectedMindContext(details, target) {
-    const region = state.root?.querySelector('[data-knowledge-view="mind_map"]');
-    const world = state.root?.querySelector('[data-knowledge-world="mind_map"]');
-    if (!region || !world || !target?.getClientRects().length) return;
-    // Focus navigation may scroll the viewport element. Normalize that transient
-    // browser scroll so the persisted camera transform remains authoritative.
-    region.scrollLeft = 0;
-    region.scrollTop = 0;
-    const elements = [target];
-    if (details?.open && details.getClientRects().length) elements.push(details);
-    const localRects = elements.map((element) => layoutRectWithin(element, world));
-    if (localRects.some((rect) => !rect)) return;
-    const left = Math.min(...localRects.map((rect) => rect.left));
-    const top = Math.min(...localRects.map((rect) => rect.top));
-    const right = Math.max(...localRects.map((rect) => rect.right));
-    const bottom = Math.max(...localRects.map((rect) => rect.bottom));
-    const availableWidth = Math.max(1, region.clientWidth - 48);
-    const availableHeight = Math.max(1, region.clientHeight - 48);
-    const scale = Math.min(
-      1.25,
-      Math.max(
-        minimumScaleFor("mind_map"),
-        Math.min(
-          availableWidth / Math.max(1, right - left),
-          availableHeight / Math.max(1, bottom - top)
-        )
-      )
-    );
-    state.viewports.mind_map = clampViewport({
-      scale,
-      x: region.clientWidth / 2 - ((left + right) / 2) * scale,
-      y: region.clientHeight / 2 - ((top + bottom) / 2) * scale,
-    }, "mind_map");
-    saveViewport("mind_map");
-    const priorTransition = world.style.transition;
-    world.style.transition = "none";
-    applyViewport("mind_map");
-    void world.offsetWidth;
-    window.requestAnimationFrame(() => {
-      if (world.isConnected) world.style.transition = priorTransition;
-    });
+    if (!target?.getClientRects().length) return;
+    target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    if (details?.open && details.getClientRects().length) {
+      window.requestAnimationFrame(() => details.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "smooth",
+      }));
+    }
   }
 
   function layoutRectWithin(element, ancestor) {
@@ -2247,20 +2197,6 @@
       const viewportTop = activeViewport?.getBoundingClientRect().top || 0;
       const minimumSheetTop = Math.min(window.innerHeight - 168, viewportTop + 112);
       detail.style.maxHeight = `${Math.max(168, window.innerHeight - minimumSheetTop)}px`;
-      const selectedButton = activeViewport?.querySelector(
-        `.knowledge-node-button[data-node-handle="${state.selectedHandle}"]`
-      );
-      if (selectedButton && !state.sheetCameraAdjusted) {
-        const view = activeViewport.dataset.knowledgeView;
-        const viewport = state.viewports[view];
-        const visibleStrip = Math.max(112, minimumSheetTop - viewportTop);
-        viewport.x = activeViewport.clientWidth / 2 -
-          (selectedButton.offsetLeft + selectedButton.offsetWidth / 2) * viewport.scale;
-        viewport.y = visibleStrip / 2 -
-          (selectedButton.offsetTop + selectedButton.offsetHeight / 2) * viewport.scale;
-        applyViewport(view);
-        state.sheetCameraAdjusted = true;
-      }
     } else {
       detail.setAttribute("role", "complementary");
       detail.removeAttribute("aria-modal");
@@ -2358,6 +2294,13 @@
     const world = state.root.querySelector(`[data-knowledge-world="${view}"]`);
     if (!world) return;
     const viewport = state.viewports[view];
+    if (view === "mind_map") {
+      state.viewports.mind_map = { scale: 1, x: 0, y: 0 };
+      world.style.setProperty("--kv-inverse-scale", "1");
+      world.style.setProperty("--kv-cross-scale", "1");
+      world.style.transform = "none";
+      return;
+    }
     world.style.setProperty("--kv-inverse-scale", String(1 / viewport.scale));
     world.style.setProperty("--kv-cross-scale", String(Math.min(1, 1 / viewport.scale)));
     if (view === "graph") {
