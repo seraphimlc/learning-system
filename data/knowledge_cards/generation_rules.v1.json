@@ -1,0 +1,66 @@
+{
+  "schema_version": "knowledge-card-generation-rules.v1",
+  "rules_version": "2026-07-21.v1",
+  "principles": [
+    "知识卡是绑定图谱节点的教学设计包，不是固定 UI 模板。",
+    "每张卡必须先建立数学心智模型，再安排能留下证据的孩子动作。",
+    "组件只在能解释知识本质或暴露掌握证据时使用，不做装饰性交互。",
+    "简单节点要短路径通过，复杂节点才使用多表示和多步交互。"
+  ],
+  "taxonomy_defaults": {
+    "process": "process_metacognition",
+    "procedure": "symbol_transformation",
+    "concept": "structure_classification",
+    "mixed": "quantity_relation_modeling"
+  },
+  "node_overrides": {
+    "M-BRIDGE-SOLUTION-HABIT": "process_metacognition",
+    "M-PRE-DECIMAL-OPS": "estimation_reasonableness",
+    "M-PRE-NUMBER-SENSE": "estimation_reasonableness",
+    "M-PRE-UNIT-CONVERSION": "process_metacognition",
+    "M-PRE-SIMPLE-EQUATION": "balance_equivalence",
+    "M-PRE-LETTER-NUMBER": "quantity_relation_modeling",
+    "M-BRIDGE-EQUATION-RELATION": "quantity_relation_modeling",
+    "M-BRIDGE-WORD-PROBLEM-READING": "process_metacognition",
+    "M-WORD-TRAVEL-BASIC": "quantity_relation_modeling",
+    "M-WORD-CATCH-MEET": "quantity_relation_modeling",
+    "M-WORD-CLOCK-ANGLE": "spatial_geometry",
+    "M-G7-POS-NEG": "structure_classification",
+    "M-G7-RATIONAL-CLASSIFY": "structure_classification",
+    "M-G7-NUMBER-LINE": "position_direction_distance",
+    "M-G7-OPPOSITE": "position_direction_distance",
+    "M-G7-ABSOLUTE": "position_direction_distance",
+    "M-G7-COMPARE": "position_direction_distance",
+    "M-G7-RATIONAL-ADD-SUB": "position_direction_distance",
+    "M-G7-EQ-PROPERTY": "balance_equivalence",
+    "M-G7-EQ-BASIC": "balance_equivalence",
+    "M-G7-EQ-PAREN": "balance_equivalence",
+    "M-G7-EQ-DENOM": "balance_equivalence",
+    "M-G7-EQ-WORD": "quantity_relation_modeling",
+    "M-G7-LIKE-TERMS": "structure_classification",
+    "M-G7-COMBINE-LIKE": "symbol_transformation",
+    "M-G7-REMOVE-PAREN": "symbol_transformation",
+    "M-G7-EXPR-ADD-SUB": "symbol_transformation",
+    "M-G7-GEO-POINT-LINE-PLANE": "spatial_geometry",
+    "M-G7-GEO-LINE-RAY-SEGMENT": "spatial_geometry",
+    "M-G7-GEO-ANGLE-CONCEPT": "spatial_geometry",
+    "M-G7-GEO-ANGLE-CALC": "spatial_geometry"
+  },
+  "required_packet_fields": [
+    "graph_node",
+    "graph_context",
+    "teaching_inputs",
+    "diagnosis_inputs",
+    "generation_guidance",
+    "review_gates"
+  ],
+  "review_gates": {
+    "min_storyboard_components": 3,
+    "requires_design_brief_before_child_card": true,
+    "requires_child_action_evidence": true,
+    "reject_text_only_template": true,
+    "reject_decorative_interaction": true,
+    "requires_direct_prerequisite_coverage": true,
+    "max_default_sequence_components": 7
+  }
+}
