@@ -153,9 +153,23 @@ class KnowledgeCardsTest(unittest.TestCase):
                 self.assertEqual("数轴", payload["title"])
                 self._assert_no_forbidden_keys(payload)
 
+                with urllib.request.urlopen(
+                    f"{base_url}/api/knowledge-cards/preview?node_id=M-PRE-NUMBER-SENSE&draft=1",
+                    timeout=5,
+                ) as response:
+                    draft_payload = json.loads(response.read().decode("utf-8"))
+                self.assertEqual("knowledge-card-child-draft.v2", draft_payload["schema_version"])
+                self.assertEqual("数感与估算", draft_payload["title"])
+                self.assertIn("components", draft_payload)
+                self._assert_no_forbidden_keys(draft_payload)
+                serialized = json.dumps(draft_payload, ensure_ascii=False)
+                self.assertNotIn("correct_range", serialized)
+                self.assertNotIn('"answer"', serialized)
+                self.assertNotIn("target_evidence", serialized)
+
                 with urllib.request.urlopen(f"{base_url}/knowledge-card-preview.html", timeout=5) as response:
                     html = response.read().decode("utf-8")
-                self.assertIn("数轴学习卡", html)
+                self.assertIn("知识卡预览", html)
                 self.assertIn("knowledge_card_preview.js", html)
             finally:
                 httpd.shutdown()

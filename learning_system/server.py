@@ -17,7 +17,7 @@ from contextlib import closing
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from . import agents, auto_review, daily_runtime, db, evolution, internal_agents, job_queue, knowledge_cards, knowledge_map, model_router, orchestrator, planner, question_bank
 
@@ -885,6 +885,26 @@ class LearningHandler(BaseHTTPRequestHandler):
             except knowledge_cards.KnowledgeCardError:
                 self._send_json({
                     "schema_version": "knowledge-card-child.v1",
+                    "state": "unavailable",
+                    "message": "这张学习卡还在准备中。",
+                }, status=503)
+                return
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/knowledge-cards/preview":
+            query = parse_qs(parsed.query)
+            node_id = str((query.get("node_id") or ["M-G7-NUMBER-LINE"])[0] or "M-G7-NUMBER-LINE")
+            draft = str((query.get("draft") or [""])[0]).lower() in {"1", "true", "yes"}
+            try:
+                service = knowledge_cards.KnowledgeCardService(project_root=PROJECT_ROOT)
+                payload = (
+                    service.child_projection_for_v2_draft_node(node_id)
+                    if draft
+                    else service.child_projection_for_node(node_id)
+                )
+            except (FileNotFoundError, json.JSONDecodeError, knowledge_cards.KnowledgeCardError):
+                self._send_json({
+                    "schema_version": "knowledge-card-child-preview.v1",
                     "state": "unavailable",
                     "message": "这张学习卡还在准备中。",
                 }, status=503)

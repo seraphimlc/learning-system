@@ -100,6 +100,9 @@ class KnowledgeCardGenerationTest(unittest.TestCase):
         for node_id, filename in [
             ("M-BRIDGE-SOLUTION-HABIT", "M-BRIDGE-SOLUTION-HABIT.v2.draft.json"),
             ("M-PRE-DECIMAL-OPS", "M-PRE-DECIMAL-OPS.v2.draft.json"),
+            ("M-PRE-INTEGER-OPS", "M-PRE-INTEGER-OPS.v2.draft.json"),
+            ("M-PRE-NUMBER-SENSE", "M-PRE-NUMBER-SENSE.v2.draft.json"),
+            ("M-PRE-ORDER-OPS", "M-PRE-ORDER-OPS.v2.draft.json"),
         ]:
             with self.subTest(node_id=node_id):
                 report = knowledge_card_generation.review_draft_v2(

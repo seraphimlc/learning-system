@@ -558,6 +558,61 @@ class KnowledgeCardService:
             expected_node_id=node_id,
         )
 
+    def child_projection_for_v2_draft_node(self, node_id: str) -> dict[str, Any]:
+        card = self.load_v2_draft_card(node_id)
+        teaching_contract = card.get("teaching_contract") if isinstance(card.get("teaching_contract"), dict) else {}
+        storyboard_by_id = {
+            str(component.get("component_id")): component
+            for component in card["component_storyboard"]
+            if isinstance(component, dict)
+        }
+        components: list[dict[str, Any]] = []
+        for component_id in card["child_card"]["default_sequence"]:
+            component = storyboard_by_id.get(str(component_id))
+            if not component:
+                continue
+            child_surface = component.get("child_surface") if isinstance(component.get("child_surface"), dict) else {}
+            interaction = component.get("interaction") if isinstance(component.get("interaction"), dict) else {}
+            safe_interaction = {
+                key: json.loads(json.dumps(interaction[key], ensure_ascii=False))
+                for key in (
+                    "task",
+                    "prompt",
+                    "problem",
+                    "expression",
+                    "ranges",
+                    "options",
+                    "benchmark",
+                    "check_items",
+                    "expected_check",
+                )
+                if key in interaction
+            }
+            safe_component = {
+                "type": str(component.get("type") or ""),
+                "purpose": str(component.get("purpose") or ""),
+                "title": str(child_surface.get("title") or ""),
+                "body": str(child_surface.get("body") or ""),
+                "prompt": str(component.get("prompt") or interaction.get("prompt") or ""),
+                "interaction": safe_interaction,
+            }
+            _assert_no_child_forbidden_keys(safe_component)
+            components.append(safe_component)
+        projection = {
+            "schema_version": "knowledge-card-child-draft.v2",
+            "card_version": str(card["card_version"]),
+            "status": "draft_preview",
+            "title": str(card["child_card"]["title"]),
+            "one_sentence": str(card["child_card"]["one_sentence"]),
+            "core_model": {
+                "title": "怎么想",
+                "body": str(teaching_contract.get("core_model") or teaching_contract.get("essence") or ""),
+            },
+            "components": components,
+        }
+        _assert_no_child_forbidden_keys(projection)
+        return projection
+
     def maybe_load_active_card(self, node_id: str) -> KnowledgeCard | None:
         try:
             return self.load_active_card(node_id)

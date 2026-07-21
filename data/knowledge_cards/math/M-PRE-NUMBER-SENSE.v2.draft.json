@@ -1,0 +1,243 @@
+{
+  "schema_version": "knowledge-card.v2",
+  "card_version": "2026-07-21.number-sense.v2.draft",
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "status": "draft",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [],
+    "unlocks_node_ids": [
+      "M-PRE-ORDER-OPS",
+      "M-PRE-INTEGER-OPS",
+      "M-PRE-DECIMAL-OPS",
+      "M-PRE-FRACTION-MEANING",
+      "M-PRE-ANGLE-BASIC",
+      "M-G7-POS-NEG",
+      "M-G7-SCI-NOTATION-APPROX"
+    ]
+  },
+  "design_brief": {
+    "cognitive_object": "estimation_reasonableness",
+    "core_mental_model": "数感是在精算前先判断结果大约在哪里，精算后再检查答案是否说得通。",
+    "primary_misconceptions": [
+      "只机械计算不估算",
+      "小数点位置离谱也不检查",
+      "看到复杂数字就放弃判断范围",
+      "把估算当成不严谨的猜"
+    ],
+    "best_expression_family": [
+      "range_slider_estimate",
+      "benchmark_compare",
+      "reasonableness_meter",
+      "choose_plausible_answer"
+    ],
+    "why_this_expression": "数感的证据不是算得快，而是能选基准、判断量级、排除离谱答案；因此需要范围选择和合理性判断。",
+    "child_actions_for_evidence": [
+      "先选一个合理范围",
+      "说出使用的基准数",
+      "排除明显不可能的答案",
+      "精算后用估算反查"
+    ],
+    "repair_expression_switches": [
+      "范围错时切换到 range_slider_estimate",
+      "不会选基准时切换到 benchmark_compare",
+      "接受离谱答案时切换到 reasonableness_meter",
+      "无法说明理由时切换到 choose_plausible_answer"
+    ],
+    "near_transfer_direction": [
+      "小数乘除小数点检查",
+      "分数大小与单位1判断",
+      "科学记数法数量级",
+      "有理数正负结果合理性"
+    ],
+    "exit_rule": "能在乘除、小数、单位或角度语境中各完成一次范围判断和理由说明后退出。"
+  },
+  "teaching_contract": {
+    "essence": "数感就是先知道答案大概在哪，防止算出明显不合理的结果。",
+    "core_model": "找一个接近的基准数，先算大概，再看精算答案和大概结果是否同一量级。",
+    "minimum_child_takeaway": "精算前先估，精算后要能说：这个答案为什么不离谱。",
+    "must_not_teach_as": [
+      "把估算当成随便猜",
+      "只训练口算速度",
+      "所有题都要求精确计算后才判断"
+    ]
+  },
+  "component_storyboard": [
+    {
+      "component_id": "sense-essence",
+      "type": "text_explanation",
+      "purpose": "establish_reasonableness_model",
+      "child_action": "read",
+      "target_evidence": [],
+      "misconception_target": [],
+      "success_signal": "孩子能说出估算是防错工具。",
+      "fallback_if_failed": "用 49.8×20.4 得 101.592 的例子说明量级错误。",
+      "child_surface": {
+        "title": "先别急着算",
+        "body": "先判断答案大约多大，再精算。这样小数点、符号、单位错了，马上能发现。"
+      }
+    },
+    {
+      "component_id": "sense-range",
+      "type": "range_slider_estimate",
+      "purpose": "reasonable_range",
+      "child_action": "choose_estimate_range",
+      "target_evidence": [
+        "magnitude_sense",
+        "reasonable_range"
+      ],
+      "misconception_target": [
+        "range_blindness"
+      ],
+      "success_signal": "能选出同一量级的范围，并拒绝差十倍或百倍的答案。",
+      "fallback_if_failed": "先把数字改成整十整百基准。",
+      "interaction": {
+        "task": "choose_estimate_range",
+        "problem": "198×51 的结果大约是多少？",
+        "ranges": [
+          "大约 1000",
+          "大约 10000",
+          "大约 100000"
+        ],
+        "correct_range": "大约 10000"
+      }
+    },
+    {
+      "component_id": "sense-benchmark",
+      "type": "benchmark_compare",
+      "purpose": "benchmark_selection",
+      "child_action": "compare_to_benchmark",
+      "target_evidence": [
+        "benchmark_selection",
+        "relative_size_reasoning"
+      ],
+      "misconception_target": [
+        "poor_benchmark_choice"
+      ],
+      "success_signal": "能把 198×51 转成 200×50 作为基准，并解释真实结果接近它。",
+      "fallback_if_failed": "给出 200×50 和 20×500 两个基准，比较哪个更自然。",
+      "interaction": {
+        "task": "compare_to_benchmark",
+        "prompt": "估 198×51 时，你会选哪个基准？为什么？"
+      }
+    },
+    {
+      "component_id": "sense-plausible",
+      "type": "choose_plausible_answer",
+      "purpose": "option_elimination",
+      "child_action": "choose_plausible_option",
+      "target_evidence": [
+        "option_elimination",
+        "reasonableness_judgment"
+      ],
+      "misconception_target": [
+        "accept_implausible_result"
+      ],
+      "success_signal": "能不精算就排除量级明显错误的选项。",
+      "fallback_if_failed": "把每个选项和基准结果比较大小级别。",
+      "interaction": {
+        "task": "choose_plausible_option",
+        "prompt": "不精算，判断 3.98×52.1 最可能接近哪个数，并说理由。",
+        "options": [
+          "20",
+          "200",
+          "2000"
+        ],
+        "answer": "200"
+      }
+    },
+    {
+      "component_id": "sense-meter",
+      "type": "reasonableness_meter",
+      "purpose": "calculation_sanity_check",
+      "child_action": "judge_reasonableness",
+      "target_evidence": [
+        "implausible_answer_detection",
+        "magnitude_check"
+      ],
+      "misconception_target": [
+        "no_sanity_check"
+      ],
+      "success_signal": "能指出精算答案是否和估算同量级。",
+      "fallback_if_failed": "只问比基准大很多、差不多、还是小很多。",
+      "interaction": {
+        "task": "judge_reasonableness",
+        "prompt": "有人说 3.98×52.1=2073.58。先不精算，这个结果合理吗？为什么？"
+      }
+    }
+  ],
+  "evidence_plan": {
+    "core_evidence": [
+      "reasonable_range",
+      "benchmark_selection",
+      "option_elimination",
+      "magnitude_check"
+    ],
+    "near_transfer_evidence": [
+      "decimal_point_reasonableness",
+      "scientific_notation_magnitude",
+      "unit_conversion_scale_check"
+    ],
+    "insufficient_evidence_cases": [
+      "只精算不估算",
+      "选择范围但说不出基准",
+      "理由只写感觉差不多",
+      "精算和估算冲突但不检查"
+    ]
+  },
+  "repair_paths": [
+    {
+      "trigger": "range_blindness",
+      "switch_to": [
+        "sense-range"
+      ],
+      "rule": "先只练量级范围，不精算。"
+    },
+    {
+      "trigger": "poor_benchmark_choice",
+      "switch_to": [
+        "sense-benchmark"
+      ],
+      "rule": "先训练选接近且好算的基准数。"
+    },
+    {
+      "trigger": "accept_implausible_result",
+      "switch_to": [
+        "sense-plausible",
+        "sense-meter"
+      ],
+      "rule": "先排除明显不可能的答案，再回到精算。"
+    }
+  ],
+  "exit_rules": {
+    "max_same_structure_checks": 2,
+    "mastery_candidate_after": [
+      "reasonable_range",
+      "benchmark_selection",
+      "option_elimination",
+      "magnitude_check"
+    ],
+    "after_mastery": [
+      "M-PRE-DECIMAL-OPS",
+      "M-G7-SCI-NOTATION-APPROX",
+      "M-G7-POS-NEG"
+    ],
+    "do_not_repeat_if": "孩子能稳定选择基准、判断量级并用估算检查精算。"
+  },
+  "child_card": {
+    "title": "数感与估算",
+    "one_sentence": "先判断答案大概在哪，再计算；这样结果离谱时你能马上发现。",
+    "default_sequence": [
+      "sense-essence",
+      "sense-range",
+      "sense-benchmark",
+      "sense-plausible",
+      "sense-meter"
+    ]
+  },
+  "internal_card": {
+    "teaching_goal": "建立估算作为错误检测工具的意识，为小数、科学记数法、单位换算和有理数运算提供量级证据。",
+    "runtime_priority": "foundation_gateway",
+    "planner_hint": "数感稳定后可以显著减少底层计算题数量；若不稳，优先做范围和基准选择，不急着精算。"
+  }
+}

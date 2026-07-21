@@ -1,0 +1,233 @@
+{
+  "schema_version": "knowledge-card.v2",
+  "card_version": "2026-07-21.order-ops.v2.draft",
+  "node_id": "M-PRE-ORDER-OPS",
+  "status": "draft",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [
+      "M-PRE-NUMBER-SENSE"
+    ],
+    "unlocks_node_ids": [
+      "M-G7-RATIONAL-MIXED",
+      "M-G7-EXPR-VALUE",
+      "M-G7-EQ-SOLVE",
+      "M-PRE-DISTRIBUTIVE",
+      "M-PRE-EQUATION-BASIC",
+      "M-PRE-GEO-AREA-VOLUME"
+    ]
+  },
+  "design_brief": {
+    "cognitive_object": "symbol_transformation",
+    "core_mental_model": "混合运算是一套保持算式意义不变的执行规则：括号先定局部，乘除优先，同级从左到右，每一步只能改当前该算的部分。",
+    "primary_misconceptions": [
+      "看到前面就先算，忽略乘除优先",
+      "同级运算不从左到右",
+      "括号去掉后符号或结构改变",
+      "跳步导致过程无法检查"
+    ],
+    "best_expression_family": [
+      "operation_order_trace",
+      "step_animation",
+      "fill_missing_step",
+      "error_spotting",
+      "symbol_transform"
+    ],
+    "why_this_expression": "这个节点的关键不是计算量，而是能不能在每一步指出合法的下一步。用步骤追踪和错误定位比刷长算式更能暴露理解。",
+    "child_actions_for_evidence": [
+      "标出下一步应该算的部分",
+      "解释为什么这一部分优先",
+      "补全一个不跳步的中间步骤",
+      "找出一个错误过程破坏了哪条规则"
+    ],
+    "repair_expression_switches": [
+      "顺序错时切换到 operation_order_trace",
+      "跳步时切换到 fill_missing_step",
+      "括号错误时切换到 error_spotting",
+      "运算律错用时切换到 symbol_transform"
+    ],
+    "near_transfer_direction": [
+      "有理数混合运算",
+      "代数式求值",
+      "方程求解中的同级步骤",
+      "整式去括号"
+    ],
+    "exit_rule": "能连续完成标下一步、补中间步、找错因三类证据后退出，不继续刷长算式。"
+  },
+  "teaching_contract": {
+    "essence": "混合运算有交通规则：括号优先，先乘除后加减，同级从左到右。",
+    "core_model": "每一步只问一个问题：现在合法的下一步是哪一块？为什么它先算？",
+    "minimum_child_takeaway": "不要急着把整题算完；先标下一步，保证每一步都合法。",
+    "must_not_teach_as": [
+      "只背口诀不看结构",
+      "连续刷很长算式",
+      "跳步后只看最终答案"
+    ]
+  },
+  "component_storyboard": [
+    {
+      "component_id": "order-essence",
+      "type": "text_explanation",
+      "purpose": "establish_operation_priority_model",
+      "child_action": "read",
+      "target_evidence": [],
+      "misconception_target": [],
+      "success_signal": "孩子能说出混合运算先看结构，不是从左随便算。",
+      "fallback_if_failed": "用交通灯类比：不是谁在前谁先走。",
+      "child_surface": {
+        "title": "算式也有交通规则",
+        "body": "括号像围起来的局部路口，乘除比加减优先，同级才从左到右。"
+      }
+    },
+    {
+      "component_id": "order-trace",
+      "type": "operation_order_trace",
+      "purpose": "operation_priority",
+      "child_action": "mark_next_operation",
+      "target_evidence": [
+        "operation_priority",
+        "parentheses_handling"
+      ],
+      "misconception_target": [
+        "left_to_right_overgeneralization",
+        "parentheses_ignored"
+      ],
+      "success_signal": "能准确标出下一步应计算的局部，并说明规则。",
+      "fallback_if_failed": "先只给含一个括号和一个乘法的短式。",
+      "interaction": {
+        "task": "mark_next_operation",
+        "expression": "36 - 4×(3+5) ÷ 2",
+        "prompt": "先不算结果，只标出第一步该算哪一部分，并说明为什么。"
+      }
+    },
+    {
+      "component_id": "order-fill-step",
+      "type": "fill_missing_step",
+      "purpose": "step_reasoning",
+      "child_action": "complete_transformation_step",
+      "target_evidence": [
+        "step_reasoning",
+        "symbolic_continuity"
+      ],
+      "misconception_target": [
+        "skipped_step",
+        "structure_changed"
+      ],
+      "success_signal": "能补出只改变当前局部、其他部分照抄的下一行。",
+      "fallback_if_failed": "用颜色固定不变部分，只让孩子填被计算部分。",
+      "interaction": {
+        "task": "complete_transformation_step",
+        "prompt": "把 36 - 4×(3+5) ÷ 2 的第一步写成下一行，只改该算的部分。"
+      }
+    },
+    {
+      "component_id": "order-error",
+      "type": "error_spotting",
+      "purpose": "misconception_identification",
+      "child_action": "find_error",
+      "target_evidence": [
+        "misconception_identification",
+        "repair_step_explanation"
+      ],
+      "misconception_target": [
+        "same_level_order_error",
+        "parentheses_sign_error"
+      ],
+      "success_signal": "能指出错误过程违反了哪条顺序或括号规则。",
+      "fallback_if_failed": "把错误类型缩小为同级顺序和括号处理两类。",
+      "interaction": {
+        "task": "find_error",
+        "prompt": "有人把 24÷3×2 算成 24÷6=4。错在哪里？正确第一步是什么？"
+      }
+    },
+    {
+      "component_id": "order-micro-check",
+      "type": "micro_check",
+      "purpose": "priority_confirmation",
+      "child_action": "short_answer",
+      "target_evidence": [
+        "operation_priority",
+        "model_explanation"
+      ],
+      "misconception_target": [
+        "answer_only_without_rule"
+      ],
+      "success_signal": "能给出下一步，并用规则解释。",
+      "fallback_if_failed": "只要求写第一步，不要求算完整题。",
+      "prompt": "算式 18 + 6÷3×4 - 5，第一步算什么？为什么？"
+    }
+  ],
+  "evidence_plan": {
+    "core_evidence": [
+      "operation_priority",
+      "parentheses_handling",
+      "step_reasoning",
+      "misconception_identification"
+    ],
+    "near_transfer_evidence": [
+      "rational_mixed_operation_order",
+      "expression_value_substitution_order",
+      "equation_step_order_readiness"
+    ],
+    "insufficient_evidence_cases": [
+      "只给最终答案，不说明第一步",
+      "跳过中间步骤导致无法判断顺序",
+      "同级乘除从右往左或先合并",
+      "括号处理后改变未计算部分"
+    ]
+  },
+  "repair_paths": [
+    {
+      "trigger": "left_to_right_overgeneralization",
+      "switch_to": [
+        "order-trace"
+      ],
+      "rule": "先标优先级，不做完整计算。"
+    },
+    {
+      "trigger": "skipped_step",
+      "switch_to": [
+        "order-fill-step"
+      ],
+      "rule": "训练下一行只改当前局部，其余照抄。"
+    },
+    {
+      "trigger": "same_level_order_error",
+      "switch_to": [
+        "order-error"
+      ],
+      "rule": "用反例说明同级必须从左到右。"
+    }
+  ],
+  "exit_rules": {
+    "max_same_structure_checks": 2,
+    "mastery_candidate_after": [
+      "operation_priority",
+      "parentheses_handling",
+      "step_reasoning",
+      "misconception_identification"
+    ],
+    "after_mastery": [
+      "M-G7-RATIONAL-MIXED",
+      "M-G7-EXPR-VALUE",
+      "M-PRE-DISTRIBUTIVE"
+    ],
+    "do_not_repeat_if": "孩子能稳定标下一步、补中间步并解释错因。"
+  },
+  "child_card": {
+    "title": "四则混合运算与括号",
+    "one_sentence": "混合运算先看结构：括号、乘除、同级顺序决定每一步。",
+    "default_sequence": [
+      "order-essence",
+      "order-trace",
+      "order-fill-step",
+      "order-error",
+      "order-micro-check"
+    ]
+  },
+  "internal_card": {
+    "teaching_goal": "建立运算顺序的结构化执行模型，减少跳步和括号错误。",
+    "runtime_priority": "procedure_gate_before_rational_mixed",
+    "planner_hint": "若只错计算不懂顺序，回整数或分数；若顺序稳定，应进入有理数混合运算和代数式求值。"
+  }
+}

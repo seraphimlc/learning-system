@@ -1,0 +1,229 @@
+{
+  "schema_version": "knowledge-card.v2",
+  "card_version": "2026-07-21.integer-ops.v2.draft",
+  "node_id": "M-PRE-INTEGER-OPS",
+  "status": "draft",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [
+      "M-PRE-NUMBER-SENSE"
+    ],
+    "unlocks_node_ids": [
+      "M-G7-RATIONAL-ADD-SUB",
+      "M-G7-RATIONAL-MUL-DIV",
+      "M-PRE-DECIMAL-OPS",
+      "M-PRE-FRACTION-OPS",
+      "M-PRE-DISTRIBUTIVE",
+      "M-PRE-QUANTITY-RELATION"
+    ]
+  },
+  "design_brief": {
+    "cognitive_object": "symbol_transformation",
+    "core_mental_model": "整数四则不是低级口算训练，而是检查计算链条是否可靠：位值、运算意义、余数边界、验算能不能闭环。",
+    "primary_misconceptions": [
+      "竖式漏位或错位",
+      "有余数除法只写商不检验余数边界",
+      "会算但不发现离谱结果",
+      "简便运算乱用运算律"
+    ],
+    "best_expression_family": [
+      "operation_order_trace",
+      "error_spotting",
+      "fill_missing_step",
+      "symbol_transform"
+    ],
+    "why_this_expression": "对准初中生，整数四则只在计算可靠性薄弱时治理；卡片要暴露错因和验算习惯，不能用低龄机械算题羞辱孩子。",
+    "child_actions_for_evidence": [
+      "在一份错误竖式中定位漏位或余数问题",
+      "补全验算式并判断余数是否小于除数",
+      "判断一个简便运算变形是否合法",
+      "用估算检查结果量级"
+    ],
+    "repair_expression_switches": [
+      "漏位时切换到 color_term_tracking 或位值标记",
+      "余数错误时切换到 error_spotting",
+      "简便运算错用时切换到 symbol_transform",
+      "结果离谱时切换到估算检查"
+    ],
+    "near_transfer_direction": [
+      "有理数加减中的符号和绝对值计算",
+      "小数乘除中的整数底层计算",
+      "分数通分后的整数计算",
+      "整式运算中的系数计算"
+    ],
+    "exit_rule": "能完成一题错误定位、一题验算闭环、一题合法变形判断后退出，不继续刷普通整数算术。"
+  },
+  "teaching_contract": {
+    "essence": "整数计算是底层肌肉，但初中前要检查的是可靠性，不是重复做低级算术。",
+    "core_model": "先估范围，再按位值和运算意义计算，最后用逆运算或余数边界验算。",
+    "minimum_child_takeaway": "会算不等于稳；稳是能发现漏位、余数、量级和运算律错误。",
+    "must_not_teach_as": [
+      "连续刷低龄整数竖式",
+      "只看最终答案",
+      "把简便运算当成套技巧"
+    ]
+  },
+  "component_storyboard": [
+    {
+      "component_id": "int-essence",
+      "type": "text_explanation",
+      "purpose": "establish_reliability_model",
+      "child_action": "read",
+      "target_evidence": [],
+      "misconception_target": [],
+      "success_signal": "孩子知道这张卡检查的是可靠性，不是低级口算。",
+      "fallback_if_failed": "用一个答案接近但漏位的例子说明风险。",
+      "child_surface": {
+        "title": "整数计算为什么还要看",
+        "body": "不是因为你不会算，而是因为后面的代数、方程、分数都会借用这块底层计算。"
+      }
+    },
+    {
+      "component_id": "int-error-spot",
+      "type": "error_spotting",
+      "purpose": "calculation_fault_location",
+      "child_action": "find_error",
+      "target_evidence": [
+        "error_location",
+        "calculation_reliability"
+      ],
+      "misconception_target": [
+        "place_value_shift_error",
+        "multiplication_partial_product_omission"
+      ],
+      "success_signal": "能指出错在位值、漏项还是进退位，而不是笼统说算错。",
+      "fallback_if_failed": "把每一步部分积或减法过程用颜色分开。",
+      "interaction": {
+        "task": "find_error",
+        "prompt": "这份竖式结果不对。先别重算，指出最可能错在哪一步，并说明理由。"
+      }
+    },
+    {
+      "component_id": "int-remainder-check",
+      "type": "fill_missing_step",
+      "purpose": "division_verification",
+      "child_action": "complete_transformation_step",
+      "target_evidence": [
+        "inverse_operation_check",
+        "remainder_boundary"
+      ],
+      "misconception_target": [
+        "remainder_greater_than_divisor",
+        "no_inverse_check"
+      ],
+      "success_signal": "能写出 被除数=除数×商+余数，并确认余数小于除数。",
+      "fallback_if_failed": "先用小数例子解释余数必须小于除数。",
+      "interaction": {
+        "task": "complete_transformation_step",
+        "prompt": "某题除数是 37，商是 128，余数是 42。这个结果可能对吗？请补一句验算理由。"
+      }
+    },
+    {
+      "component_id": "int-law-check",
+      "type": "symbol_transform",
+      "purpose": "operation_law_legality",
+      "child_action": "transform_expression",
+      "target_evidence": [
+        "operation_law_application",
+        "invalid_transform_rejection"
+      ],
+      "misconception_target": [
+        "misuse_distributive_law",
+        "illegal_reordering"
+      ],
+      "success_signal": "能判断简便运算变形是否保持等值。",
+      "fallback_if_failed": "代入小数字验证变形前后是否相等。",
+      "interaction": {
+        "task": "transform_expression",
+        "prompt": "判断 25×(40+4)=25×40+4 是否等值；如果不对，改成正确变形。"
+      }
+    },
+    {
+      "component_id": "int-micro-check",
+      "type": "micro_check",
+      "purpose": "reliability_confirmation",
+      "child_action": "short_answer",
+      "target_evidence": [
+        "calculation_sanity_check",
+        "step_check_habit"
+      ],
+      "misconception_target": [
+        "answer_only_without_check"
+      ],
+      "success_signal": "能给出答案，并写出一个验算或估算检查。",
+      "fallback_if_failed": "只要求补验算，不要求重做整题。",
+      "prompt": "判断这句话是否可靠：整数题只要答案对，过程和验算可以省略。请用一句数学理由反驳或支持。"
+    }
+  ],
+  "evidence_plan": {
+    "core_evidence": [
+      "error_location",
+      "inverse_operation_check",
+      "operation_law_application"
+    ],
+    "near_transfer_evidence": [
+      "coefficient_calculation_reliability",
+      "fraction_denominator_integer_ops",
+      "rational_number_absolute_calculation"
+    ],
+    "insufficient_evidence_cases": [
+      "只重新算出答案但不能定位错因",
+      "只写验算式但不检查余数边界",
+      "用运算律变形但无法说明等值",
+      "没有估算或逆运算检查"
+    ]
+  },
+  "repair_paths": [
+    {
+      "trigger": "place_value_shift_error",
+      "switch_to": [
+        "int-error-spot"
+      ],
+      "rule": "先定位位值和漏项，不增加题量。"
+    },
+    {
+      "trigger": "remainder_greater_than_divisor",
+      "switch_to": [
+        "int-remainder-check"
+      ],
+      "rule": "先建立余数边界，再验算。"
+    },
+    {
+      "trigger": "misuse_distributive_law",
+      "switch_to": [
+        "int-law-check"
+      ],
+      "rule": "用等值检验代替背技巧。"
+    }
+  ],
+  "exit_rules": {
+    "max_same_structure_checks": 2,
+    "mastery_candidate_after": [
+      "error_location",
+      "inverse_operation_check",
+      "operation_law_application"
+    ],
+    "after_mastery": [
+      "M-PRE-DECIMAL-OPS",
+      "M-PRE-FRACTION-OPS",
+      "M-G7-RATIONAL-ADD-SUB"
+    ],
+    "do_not_repeat_if": "孩子能解释错因、验算闭环和合法变形，不再刷基础整数计算。"
+  },
+  "child_card": {
+    "title": "整数四则计算",
+    "one_sentence": "这张卡不是让你刷低级算术，而是确认计算链条是否可靠。",
+    "default_sequence": [
+      "int-essence",
+      "int-error-spot",
+      "int-remainder-check",
+      "int-law-check",
+      "int-micro-check"
+    ]
+  },
+  "internal_card": {
+    "teaching_goal": "识别整数计算薄弱是否来自位值、验算、运算律或过程习惯，而非机械加题。",
+    "runtime_priority": "only_if_reliability_weak",
+    "planner_hint": "若证据稳定，应快速进入小数、分数、有理数或整式系数计算，不把整数四则作为主线刷题。"
+  }
+}
