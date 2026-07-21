@@ -827,14 +827,43 @@
 .knowledge-learning-card {
   display: grid;
   gap: 8px;
+  margin: 10px 0 2px;
+  padding: 12px;
+  border: 1px solid #cfdcd4;
+  border-left: 5px solid var(--kv-green);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f8fcfa, #fff);
 }
-.knowledge-learning-card strong {
+.knowledge-card-preview-main {
+  display: grid;
+  gap: 3px;
+}
+.knowledge-card-preview-main > span {
+  color: var(--kv-green);
+  font-size: 12px;
+  font-weight: 850;
+}
+.knowledge-card-preview-main strong {
   line-height: 1.45;
+  font-size: 16px;
 }
-.knowledge-learning-card p {
+.knowledge-card-preview-main p,
+.knowledge-card-preview-note,
+.knowledge-card-preview-mode {
   margin: 0;
   color: var(--kv-muted);
   line-height: 1.6;
+}
+.knowledge-card-preview-note {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--kv-green-soft);
+  color: #214f43;
+  font-weight: 720;
+}
+.knowledge-card-preview-mode {
+  font-size: 12px;
+  font-weight: 760;
 }
 .knowledge-card-forms {
   display: flex;

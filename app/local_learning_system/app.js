@@ -227,9 +227,9 @@ function renderV5TeachingSectionBody(key, section) {
   }
   if (key === "next_micro_check") {
     return `
-      <p class="row-meta">点继续后再答；这里先看要用哪一步关系。</p>
+      <p class="row-meta">点继续后再答；这里先看它要确认哪条规则或关系。</p>
       <p>${escapeHtml(section.prompt || section.body || section.text || "")}</p>
-      <p class="row-meta">填写时照上面的例题：先找基准乘积，再算多出的影响、少掉的影响，最后相减。</p>
+      <p class="row-meta">如果现在看不懂，可以直接点“还是卡住”。</p>
     `;
   }
   if (Array.isArray(section.body)) {
@@ -257,6 +257,90 @@ function renderV5TeachingSections(step) {
       `).join("")}
     </div>
   `;
+}
+
+function renderKnowledgeCardNumberLine(component) {
+  const range = component?.range && typeof component.range === "object" ? component.range : {};
+  const min = Number.isFinite(Number(range.min)) ? Number(range.min) : -5;
+  const max = Number.isFinite(Number(range.max)) ? Number(range.max) : 5;
+  const unit = Number.isFinite(Number(range.unit)) && Number(range.unit) > 0 ? Number(range.unit) : 1;
+  const span = Math.max(unit, max - min);
+  const ticks = [];
+  for (let value = Math.ceil(min); value <= Math.floor(max); value += Math.max(1, Math.round(unit))) {
+    ticks.push(value);
+  }
+  if (!ticks.includes(0) && min <= 0 && max >= 0) ticks.push(0);
+  ticks.sort((a, b) => a - b);
+  const points = Array.isArray(component.focus_points) ? component.focus_points : [];
+  return `
+    <div class="knowledge-card-number-line" role="img" aria-label="${escapeAttr(component.instruction || "数轴示意图")}">
+      <div class="number-line-track">
+        ${ticks.map((value) => {
+          const left = ((value - min) / span) * 100;
+          return `<span class="number-line-tick" style="left:${left}%"><i></i><b>${escapeHtml(value)}</b></span>`;
+        }).join("")}
+        ${points.map((value) => {
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric)) return "";
+          const left = Math.min(100, Math.max(0, ((numeric - min) / span) * 100));
+          return `<span class="number-line-point" style="left:${left}%"><i></i><b>${escapeHtml(numeric)}</b></span>`;
+        }).join("")}
+      </div>
+      ${component.instruction ? `<p>${escapeHtml(component.instruction)}</p>` : ""}
+    </div>
+  `;
+}
+
+function renderKnowledgeCardComponent(component) {
+  const type = String(component?.type || "");
+  if (type === "number_line_visual") return renderKnowledgeCardNumberLine(component);
+  if (type === "worked_example") {
+    const steps = Array.isArray(component.steps) ? component.steps.filter(Boolean) : [];
+    return `
+      <section class="knowledge-card-component">
+        <h3>例题再看一遍</h3>
+        ${component.problem ? `<p class="teaching-problem">${escapeHtml(component.problem)}</p>` : ""}
+        ${steps.length ? `<ol class="teaching-steps">${steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>` : ""}
+        ${component.check ? `<p class="teaching-check">${escapeHtml(component.check)}</p>` : ""}
+      </section>
+    `;
+  }
+  if (type === "micro_check") {
+    const evidence = Array.isArray(component.expected_evidence) ? component.expected_evidence.filter(Boolean) : [];
+    return `
+      <section class="knowledge-card-component">
+        <h3>等会儿要确认什么</h3>
+        <p>${escapeHtml(component.prompt || "看完后做一题小检查。")}</p>
+        ${evidence.length ? `<ul class="teaching-points">${evidence.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+      </section>
+    `;
+  }
+  if (type === "common_mistake") {
+    return `
+      <section class="knowledge-card-component is-warning">
+        <h3>容易错的地方</h3>
+        <p>${escapeHtml(component.body || "注意方向、单位和符号。")}</p>
+      </section>
+    `;
+  }
+  if (type === "text_explanation") {
+    return `
+      <section class="knowledge-card-component">
+        <h3>先抓本质</h3>
+        <p>${escapeHtml(component.body || "")}</p>
+      </section>
+    `;
+  }
+  return "";
+}
+
+function renderKnowledgeCardComponents(step) {
+  const components = Array.isArray(step?.knowledge_card_components)
+    ? step.knowledge_card_components
+    : [];
+  const html = components.map(renderKnowledgeCardComponent).filter(Boolean).join("");
+  if (!html) return "";
+  return `<div class="knowledge-card-runtime" aria-label="学习卡">${html}</div>`;
 }
 
 function renderV51AssessmentFeedback(feedback) {
@@ -1197,6 +1281,7 @@ function renderV3CurrentStep() {
   const continueLabel = step.support?.continue_label || (isAssessmentFeedback ? "看完，继续下一步" : "继续小检查");
   const stuckContinueLabel = step.support?.stuck_label || "还是卡住";
   const teachingSectionsHtml = isTeachingOnly && !isAssessmentFeedback ? renderV5TeachingSections(step) : "";
+  const knowledgeCardHtml = isTeachingOnly && !isAssessmentFeedback ? renderKnowledgeCardComponents(step) : "";
   const assessmentFeedbackHtml = isTeachingOnly ? renderV51AssessmentFeedback(step.assessment_feedback) : "";
   const activeStuckPrompts = isClarify
     ? [...stuckPrompts, ["无法补充，先记为待判断", "我现在无法补充得更清楚，先记为待判断。"]]
@@ -1226,6 +1311,7 @@ function renderV3CurrentStep() {
         ${step.support?.hint && !isAssessmentFeedback ? `<p class="row-meta">${escapeHtml(step.support.hint)}</p>` : ""}
         ${assessmentFeedbackHtml}
         ${teachingSectionsHtml}
+        ${knowledgeCardHtml}
         ${allowContinue ? `
           <div class="form-actions v3-step-actions" aria-label="继续学习">
             <button class="primary" type="button" data-v3-continue-step>${escapeHtml(continueLabel)}</button>

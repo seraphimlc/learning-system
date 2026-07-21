@@ -67,6 +67,29 @@ class KnowledgeCardsTest(unittest.TestCase):
         self.assertNotIn("internal_card", packet["child_card_summary"])
         self.assertIn("direction_reversal", json.dumps(packet["internal_card"], ensure_ascii=False))
 
+    def test_teaching_step_projection_can_render_child_safe_knowledge_card_components(self):
+        service = knowledge_cards.KnowledgeCardService(project_root=PROJECT_ROOT)
+        packet = service.runtime_packet_for_node("M-G7-NUMBER-LINE")
+        assert packet is not None
+
+        dto = daily_runtime.child_teaching_step_dto({
+            "step_handle": "step-card-preview",
+            "position": 1,
+            "step_type": "worked_example",
+            "status": "selected",
+            "topic_label": "数轴",
+            "prompt": "先看数轴学习卡，再做一题小检查。",
+            "support": {"hint": "看清 0、方向、单位长度。"},
+            "teaching_sections": packet["child_card_summary"]["default_teaching_sections"],
+            "knowledge_card_components": packet["child_card_components"],
+        })
+
+        self.assertIn("knowledge_card_components", dto)
+        component_types = {component["type"] for component in dto["knowledge_card_components"]}
+        self.assertIn("number_line_visual", component_types)
+        self.assertIn("micro_check", component_types)
+        self._assert_no_forbidden_keys(dto)
+
     def test_daily_runtime_recorded_teaching_uses_knowledge_card_sections(self):
         service = knowledge_cards.KnowledgeCardService(project_root=PROJECT_ROOT)
         packet = service.runtime_packet_for_node("M-G7-NUMBER-LINE")

@@ -673,9 +673,14 @@ class DailyLearningRuntime:
         flow_dict = dict(flow)
         question = asset["question"]
         contract = asset["contract"]
+        card_service = knowledge_cards.KnowledgeCardService(project_root=self.project_root)
         teaching_sections = (
-            knowledge_cards.KnowledgeCardService(project_root=self.project_root)
-            .teaching_sections_for_node(str(intent["node_id"]))
+            card_service.teaching_sections_for_node(str(intent["node_id"]))
+            if action == "learn"
+            else None
+        )
+        knowledge_card_components = (
+            card_service.child_components_for_node(str(intent["node_id"]))
             if action == "learn"
             else None
         )
@@ -726,6 +731,7 @@ class DailyLearningRuntime:
             step_type=step_type,
             answer_input_mode="none" if action == "learn" else "text_photo",
             teaching_sections=teaching_sections,
+            knowledge_card_components=knowledge_card_components,
             initial_status=initial_status,
             answer_contract=contract,
         )
@@ -6178,6 +6184,11 @@ class DailyLearningRuntime:
             step_type=step_type,
             answer_input_mode="clarification" if step_type == "clarify_evidence" else "none",
             teaching_sections=sections or None,
+            knowledge_card_components=(
+                (payload.get("knowledge_card") or {}).get("child_card_components")
+                if isinstance(payload.get("knowledge_card"), dict)
+                else None
+            ),
         )
 
     def _block_flow_after_dead_letter(self, job: dict[str, Any], reason: str) -> None:
@@ -6862,6 +6873,7 @@ class DailyLearningRuntime:
                         "stuck_label": package.get("stuck_label") or "",
                     },
                     "teaching_sections": package.get("teaching_sections") if isinstance(package.get("teaching_sections"), dict) else {},
+                    "knowledge_card_components": package.get("knowledge_card_components") if isinstance(package.get("knowledge_card_components"), list) else [],
                     "assessment_feedback": package.get("assessment_feedback") if isinstance(package.get("assessment_feedback"), dict) else {},
                 },
             })
@@ -7398,6 +7410,7 @@ class DailyLearningRuntime:
         step_type: str = "question",
         answer_input_mode: str | None = None,
         teaching_sections: dict[str, Any] | None = None,
+        knowledge_card_components: list[dict[str, Any]] | None = None,
         assessment_feedback: dict[str, Any] | None = None,
         initial_status: str = "selected",
         answer_contract: dict[str, Any] | None = None,
@@ -7552,6 +7565,7 @@ class DailyLearningRuntime:
                     "requires_explanation": requires_explanation,
                     "interaction_schema": child_interaction_schema,
                     "teaching_sections": teaching_sections or {},
+                    "knowledge_card_components": _child_safe_knowledge_card_components(knowledge_card_components or []),
                     "assessment_feedback": assessment_feedback or {},
                     "question_visual": question_visual,
                     "allowed_response_modes": (
@@ -9165,6 +9179,69 @@ def _child_safe_teaching_sections(sections: dict[str, Any]) -> dict[str, Any]:
     return safe
 
 
+def _child_safe_knowledge_card_components(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not isinstance(components, list):
+        return []
+    allowed_types = {
+        "text_explanation",
+        "number_line_visual",
+        "worked_example",
+        "micro_check",
+        "common_mistake",
+    }
+    safe_components: list[dict[str, Any]] = []
+    for component in components[:8]:
+        if not isinstance(component, dict):
+            continue
+        component_type = str(component.get("type") or "").strip()
+        if component_type not in allowed_types:
+            continue
+        safe: dict[str, Any] = {
+            "type": component_type,
+            "purpose": _child_safe_text(component.get("purpose") or "", "", limit=80),
+        }
+        if component_type in {"text_explanation", "common_mistake"}:
+            safe["body"] = _child_safe_text(component.get("body") or "", "", limit=500)
+        elif component_type == "number_line_visual":
+            raw_range = component.get("range") if isinstance(component.get("range"), dict) else {}
+            safe["range"] = {
+                "min": float(raw_range.get("min", -5)),
+                "max": float(raw_range.get("max", 5)),
+                "unit": float(raw_range.get("unit", 1)),
+            }
+            focus_points = component.get("focus_points") if isinstance(component.get("focus_points"), list) else []
+            safe["focus_points"] = [
+                float(value)
+                for value in focus_points[:8]
+                if isinstance(value, (int, float)) and not isinstance(value, bool)
+            ]
+            safe["instruction"] = _child_safe_text(component.get("instruction") or "", "", limit=220)
+        elif component_type == "worked_example":
+            safe["problem"] = _child_safe_text(component.get("problem") or "", "", limit=500)
+            steps = component.get("steps") if isinstance(component.get("steps"), list) else []
+            safe["steps"] = [
+                _child_safe_text(step, "", limit=260)
+                for step in steps[:5]
+                if str(step or "").strip()
+            ]
+            safe["check"] = _child_safe_text(component.get("check") or "", "", limit=260)
+        elif component_type == "micro_check":
+            safe["prompt"] = _child_safe_text(component.get("prompt") or "", "", limit=500)
+            evidence = component.get("expected_evidence") if isinstance(component.get("expected_evidence"), list) else []
+            safe["expected_evidence"] = [
+                _child_safe_text(item, "", limit=120)
+                for item in evidence[:4]
+                if str(item or "").strip()
+            ]
+        if any(
+            value not in ("", None) and value != [] and value != {}
+            for key, value in safe.items()
+            if key not in {"type", "purpose"}
+        ):
+            safe_components.append(safe)
+    return safe_components
+
+
 def _child_safe_teaching_section_fallback(
     section_key: str,
     child_key: str,
@@ -9272,6 +9349,9 @@ def child_teaching_step_dto(step: dict[str, Any]) -> dict[str, Any]:
         },
         "teaching_sections": _child_safe_teaching_sections(sections),
     }
+    components = step.get("knowledge_card_components")
+    if isinstance(components, list) and components:
+        dto["knowledge_card_components"] = _child_safe_knowledge_card_components(components)
     feedback = step.get("assessment_feedback") if isinstance(step.get("assessment_feedback"), dict) else {}
     if feedback:
         dto["assessment_feedback"] = {

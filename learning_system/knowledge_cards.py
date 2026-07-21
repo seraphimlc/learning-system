@@ -376,6 +376,11 @@ class KnowledgeCard:
             "components": child_card["components"],
         }
 
+    def child_components(self) -> list[dict[str, Any]]:
+        components = json.loads(json.dumps(self.payload["child_card"]["components"], ensure_ascii=False))
+        _assert_no_child_forbidden_keys(components)
+        return components
+
     def child_directory_summary(self) -> dict[str, Any]:
         child_card = json.loads(json.dumps(self.payload["child_card"], ensure_ascii=False))
         _assert_no_child_forbidden_keys(child_card)
@@ -428,6 +433,7 @@ class KnowledgeCard:
                 "core_model": self.payload["child_card"]["core_model"],
                 "default_teaching_sections": self.teaching_sections(),
             },
+            "child_card_components": self.child_components(),
             "internal_card": json.loads(json.dumps(self.payload["internal_card"], ensure_ascii=False)),
             "graph_binding": json.loads(json.dumps(self.payload["graph_binding"], ensure_ascii=False)),
         }
@@ -468,6 +474,10 @@ class KnowledgeCardService:
 
     def child_projection_for_node(self, node_id: str) -> dict[str, Any]:
         return self.load_active_card(node_id).child_projection()
+
+    def child_components_for_node(self, node_id: str) -> list[dict[str, Any]] | None:
+        card = self.maybe_load_active_card(node_id)
+        return card.child_components() if card else None
 
     def child_directory_summary_for_node(self, node_id: str) -> dict[str, Any] | None:
         card = self.maybe_load_active_card(node_id)

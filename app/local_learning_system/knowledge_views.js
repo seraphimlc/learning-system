@@ -1736,15 +1736,24 @@
     const card = node?.learning_card;
     if (!card?.available) return "";
     const forms = Array.isArray(card.forms) ? card.forms.filter(Boolean).slice(0, 4) : [];
+    const formText = forms.join("、") || (card.has_interaction ? "互动学习" : "阅读讲解");
     return `
-      <section class="knowledge-learning-card" aria-label="学习卡">
+      <section class="knowledge-learning-card" aria-label="学习卡预览">
         <div class="knowledge-detail-section-head">
-          <h4>学习卡</h4>
-          <span>${card.has_interaction ? "可互动" : "可阅读"}</span>
+          <h4>学习卡预览</h4>
+          <span>${card.has_interaction ? "会动手试" : "先读懂"}</span>
         </div>
-        <strong>${escapeHtml(card.one_sentence || card.title || "这个知识点已经准备好学习卡。")}</strong>
-        <p>${escapeHtml(card.core_model_body || "先看懂核心模型，再用一小题确认。")}</p>
+        <div class="knowledge-card-preview-main">
+          <span>先抓本质</span>
+          <strong>${escapeHtml(card.one_sentence || card.title || "这个知识点已经准备好学习卡。")}</strong>
+        </div>
+        <div class="knowledge-card-preview-main">
+          <span>${escapeHtml(card.core_model_title || "怎么想")}</span>
+          <p>${escapeHtml(card.core_model_body || "先看懂核心模型，再用一小题确认。")}</p>
+        </div>
+        <p class="knowledge-card-preview-note">真正开始学习时，会按这个点选择合适的讲法和小检查。</p>
         ${forms.length ? `<div class="knowledge-card-forms">${forms.map((item) => `<i>${escapeHtml(item)}</i>`).join("")}</div>` : ""}
+        <p class="knowledge-card-preview-mode">${escapeHtml(`这张卡会用：${formText}`)}</p>
       </section>
     `;
   }

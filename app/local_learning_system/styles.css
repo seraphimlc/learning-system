@@ -361,6 +361,106 @@ img { max-width: 100%; display: block; }
   padding: 7px 0 7px 10px;
   background: linear-gradient(90deg, rgba(47, 111, 94, .08), rgba(47, 111, 94, 0));
 }
+.knowledge-card-runtime {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+.knowledge-card-component {
+  display: grid;
+  gap: 7px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.knowledge-card-component h3 {
+  margin: 0;
+  color: var(--primary-strong);
+  font-size: 16px;
+  line-height: 1.35;
+}
+.knowledge-card-component p {
+  margin: 0;
+  line-height: 1.65;
+}
+.knowledge-card-component.is-warning {
+  border-left: 4px solid #a16a16;
+  padding: 9px 0 9px 12px;
+  border-top: 0;
+  background: linear-gradient(90deg, rgba(161, 106, 22, .1), rgba(161, 106, 22, 0));
+}
+.knowledge-card-number-line {
+  display: grid;
+  gap: 12px;
+  padding: 14px 10px 10px;
+  border-top: 1px solid var(--line);
+}
+.knowledge-card-number-line p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.number-line-track {
+  position: relative;
+  height: 76px;
+  margin: 4px 4px 0;
+}
+.number-line-track::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: 34px;
+  border-top: 3px solid #315f88;
+}
+.number-line-track::after {
+  content: "";
+  position: absolute;
+  top: 28px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
+  border-top: 3px solid #315f88;
+  border-right: 3px solid #315f88;
+  transform: rotate(45deg);
+}
+.number-line-tick,
+.number-line-point {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+.number-line-tick i {
+  display: block;
+  width: 2px;
+  height: 18px;
+  margin: 26px auto 2px;
+  background: #315f88;
+}
+.number-line-tick b,
+.number-line-point b {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: center;
+}
+.number-line-point {
+  top: 11px;
+  z-index: 2;
+}
+.number-line-point i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 16px auto 4px;
+  border: 3px solid var(--primary);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(47, 111, 94, .14);
+}
+.number-line-point b {
+  color: var(--primary-strong);
+}
 .row-title {
   font-weight: 850;
   display: block;
