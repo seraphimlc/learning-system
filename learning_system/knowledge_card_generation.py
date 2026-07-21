@@ -46,6 +46,35 @@ def _graph_node_index(project_root: Path | str | None = None) -> dict[str, dict[
     return index
 
 
+def draft_card_inventory(project_root: Path | str | None = None) -> dict[str, Any]:
+    root = _project_root(project_root)
+    registry = knowledge_cards.load_component_registry(root)
+    cards_root = root / knowledge_cards.CARD_ROOT
+    valid: list[dict[str, Any]] = []
+    invalid: list[dict[str, str]] = []
+    for path in sorted(cards_root.glob("*.v2.draft.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            card = knowledge_cards.validate_knowledge_card_v2(payload, registry=registry)
+            valid.append({
+                "node_id": str(card["node_id"]),
+                "card_version": str(card["card_version"]),
+                "source": str(path.relative_to(root)),
+            })
+        except (OSError, json.JSONDecodeError, knowledge_cards.KnowledgeCardError) as exc:
+            invalid.append({
+                "source": str(path.relative_to(root)),
+                "reason": str(exc),
+            })
+    return {
+        "schema_version": "knowledge-card-draft-inventory.v1",
+        "valid_draft_count": len(valid),
+        "invalid_draft_count": len(invalid),
+        "valid_drafts": valid,
+        "invalid_drafts": invalid,
+    }
+
+
 def validate_generation_rules(rules: Any, *, registry: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(rules, dict):
         raise KnowledgeCardGenerationError("generation rules must be an object")
@@ -209,11 +238,15 @@ def plan_generation_batch(
 ) -> dict[str, Any]:
     root = _project_root(project_root)
     coverage = knowledge_cards.knowledge_card_coverage_report(root)
+    draft_inventory = draft_card_inventory(root)
+    drafted_node_ids = {item["node_id"] for item in draft_inventory["valid_drafts"]}
     graph_nodes = knowledge_cards.load_math_graph_nodes(root)
     missing_ids = {item["node_id"] for item in coverage["missing_cards"]}
     selected: list[dict[str, Any]] = []
     for graph_node in graph_nodes:
         if graph_node["id"] not in missing_ids:
+            continue
+        if graph_node["id"] in drafted_node_ids:
             continue
         if module_id and graph_node["module_id"] != module_id:
             continue
@@ -239,6 +272,8 @@ def plan_generation_batch(
             "active_card_count": coverage["active_card_count"],
             "missing_card_count": coverage["missing_card_count"],
             "invalid_card_count": coverage["invalid_card_count"],
+            "valid_draft_count": draft_inventory["valid_draft_count"],
+            "invalid_draft_count": draft_inventory["invalid_draft_count"],
         },
         "limit": max(1, limit),
         "module_id": module_id or "",

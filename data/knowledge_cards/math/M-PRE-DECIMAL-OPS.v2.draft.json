@@ -1,0 +1,243 @@
+{
+  "schema_version": "knowledge-card.v2",
+  "card_version": "2026-07-21.decimal-ops.v2.draft",
+  "node_id": "M-PRE-DECIMAL-OPS",
+  "status": "draft",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [
+      "M-PRE-INTEGER-OPS",
+      "M-PRE-NUMBER-SENSE"
+    ],
+    "unlocks_node_ids": [
+      "M-G7-RATIONAL-MIXED",
+      "M-G7-EQ-DENOM",
+      "M-PRE-PERCENT",
+      "M-PRE-UNIT-CONVERSION"
+    ]
+  },
+  "design_brief": {
+    "cognitive_object": "estimation_reasonableness",
+    "core_mental_model": "小数运算先判断结果的大概位置，再按位值或转化规则计算；小数点不是最后随便点，而是由数的大小和位值决定。",
+    "primary_misconceptions": [
+      "小数点对齐错",
+      "除数是小数时只移动一个数的小数点",
+      "乘法结果不估算，导致小数点位数离谱",
+      "把小数运算当成纯整数竖式"
+    ],
+    "best_expression_family": [
+      "range_slider_estimate",
+      "benchmark_compare",
+      "reasonableness_meter",
+      "rough_compute_then_refine",
+      "choose_plausible_answer"
+    ],
+    "why_this_expression": "六年级毕业后的衔接不应重复低级小数计算。先让孩子估范围、判断小数点位置，再精算，才能暴露是否理解位值和合理性。",
+    "child_actions_for_evidence": [
+      "先判断积或商大约落在哪个范围",
+      "选择合适的基准数进行比较",
+      "精算后用估算检查小数点位置",
+      "指出一个离谱答案为什么不可能"
+    ],
+    "repair_expression_switches": [
+      "小数点错时切换到 benchmark_compare",
+      "结果量级错时切换到 range_slider_estimate",
+      "除法转化错时切换到 rough_compute_then_refine",
+      "只会算不会检验时切换到 reasonableness_meter"
+    ],
+    "near_transfer_direction": [
+      "百分数与增长率的量级判断",
+      "单位换算中的位值移动",
+      "七上有理数混合运算的结果检验",
+      "含分母方程中小数/分数转化"
+    ],
+    "exit_rule": "能完成一题乘法估算+精算检查、一题小数除法转化解释、一题离谱答案辨析后退出，不刷同类机械计算。"
+  },
+  "teaching_contract": {
+    "essence": "小数运算不是先算完再猜小数点；先估大概，再用位值或转化确定小数点。",
+    "core_model": "三步走：先估范围，再按规则算，最后用范围检查结果是否合理。",
+    "minimum_child_takeaway": "看到小数乘除，先问：结果大约多大？小数点放这里合理吗？",
+    "must_not_teach_as": [
+      "只训练一长串竖式",
+      "把小数点规则讲成口诀记忆",
+      "用过低难度题反复确认已经会的计算"
+    ]
+  },
+  "component_storyboard": [
+    {
+      "component_id": "dec-essence",
+      "type": "text_explanation",
+      "purpose": "establish_estimate_before_compute",
+      "child_action": "read",
+      "target_evidence": [],
+      "misconception_target": [],
+      "success_signal": "孩子能说出先估范围是为了防止小数点离谱。",
+      "fallback_if_failed": "给出 49.8×20.4 和三个不同量级答案让孩子判断。",
+      "child_surface": {
+        "title": "小数点不是猜的",
+        "body": "先估大概，再精算；如果精算结果和估算差很多，优先检查小数点或转化步骤。"
+      }
+    },
+    {
+      "component_id": "dec-range",
+      "type": "range_slider_estimate",
+      "purpose": "reasonable_range",
+      "child_action": "choose_estimate_range",
+      "target_evidence": [
+        "magnitude_sense",
+        "reasonable_range"
+      ],
+      "misconception_target": [
+        "magnitude_error",
+        "decimal_point_guessing"
+      ],
+      "success_signal": "能先判断 49.8×20.4 应接近 1000，而不是 100 或 10000。",
+      "fallback_if_failed": "先把 49.8 看成 50、20.4 看成 20，只做整十估算。",
+      "interaction": {
+        "task": "choose_estimate_range",
+        "problem": "49.8×20.4 的结果大约在哪个范围？",
+        "ranges": [
+          "90 到 120",
+          "900 到 1200",
+          "9000 到 12000"
+        ],
+        "correct_range": "900 到 1200"
+      }
+    },
+    {
+      "component_id": "dec-benchmark",
+      "type": "benchmark_compare",
+      "purpose": "benchmark_selection",
+      "child_action": "compare_to_benchmark",
+      "target_evidence": [
+        "benchmark_selection",
+        "relative_size_reasoning"
+      ],
+      "misconception_target": [
+        "ignore_decimal_size_change"
+      ],
+      "success_signal": "能用 50×20=1000 作基准，并判断真实结果比 1000 略大还是略小。",
+      "fallback_if_failed": "拆成 49.8×20 和 49.8×0.4 两部分看。",
+      "interaction": {
+        "task": "compare_to_benchmark",
+        "benchmark": "50×20=1000",
+        "prompt": "49.8 比 50 少一点，20.4 比 20 多一点。真实结果和 1000 比，大概怎样？请说理由。"
+      }
+    },
+    {
+      "component_id": "dec-refine",
+      "type": "rough_compute_then_refine",
+      "purpose": "estimate_then_compute",
+      "child_action": "estimate_then_compute",
+      "target_evidence": [
+        "estimate_before_exact",
+        "calculation_sanity_check"
+      ],
+      "misconception_target": [
+        "decimal_point_alignment_error",
+        "no_sanity_check"
+      ],
+      "success_signal": "能先估范围，再精算，并用估算结果检查小数点位置。",
+      "fallback_if_failed": "把精算拆成 49.8×20 + 49.8×0.4。",
+      "interaction": {
+        "task": "estimate_then_compute",
+        "problem": "计算 49.8×20.4，并写一句估算检查。",
+        "expected_check": "结果应接近 1000，精算 1015.92 合理。"
+      }
+    },
+    {
+      "component_id": "dec-reasonableness",
+      "type": "reasonableness_meter",
+      "purpose": "implausible_answer_detection",
+      "child_action": "judge_reasonableness",
+      "target_evidence": [
+        "implausible_answer_detection",
+        "magnitude_check"
+      ],
+      "misconception_target": [
+        "accept_absurd_decimal_point"
+      ],
+      "success_signal": "能拒绝 101.592 或 10159.2，并指出量级不对。",
+      "fallback_if_failed": "只比较 50×20 的基准量级。",
+      "interaction": {
+        "task": "judge_reasonableness",
+        "prompt": "有人算出 49.8×20.4=101.592。这个结果可能对吗？为什么？"
+      }
+    }
+  ],
+  "evidence_plan": {
+    "core_evidence": [
+      "reasonable_range",
+      "benchmark_selection",
+      "estimate_before_exact",
+      "calculation_sanity_check"
+    ],
+    "near_transfer_evidence": [
+      "decimal_division_conversion_explanation",
+      "percent_magnitude_readiness",
+      "unit_conversion_place_value_readiness"
+    ],
+    "insufficient_evidence_cases": [
+      "只给精算结果，没有估算或检查",
+      "估算范围和精算结果矛盾",
+      "小数除法只移动一个数的小数点",
+      "能套口诀但说不出小数点位置是否合理"
+    ]
+  },
+  "repair_paths": [
+    {
+      "trigger": "magnitude_error",
+      "switch_to": [
+        "dec-range",
+        "dec-benchmark"
+      ],
+      "rule": "先建立量级，不急着竖式。"
+    },
+    {
+      "trigger": "decimal_point_alignment_error",
+      "switch_to": [
+        "dec-refine",
+        "dec-reasonableness"
+      ],
+      "rule": "用估算检查小数点，而不是重背口诀。"
+    },
+    {
+      "trigger": "no_sanity_check",
+      "switch_to": [
+        "dec-benchmark"
+      ],
+      "rule": "每次精算前先留下一个粗估基准。"
+    }
+  ],
+  "exit_rules": {
+    "max_same_structure_checks": 2,
+    "mastery_candidate_after": [
+      "reasonable_range",
+      "benchmark_selection",
+      "estimate_before_exact",
+      "calculation_sanity_check"
+    ],
+    "after_mastery": [
+      "M-PRE-PERCENT",
+      "M-PRE-UNIT-CONVERSION",
+      "M-G7-RATIONAL-MIXED"
+    ],
+    "do_not_repeat_if": "孩子能先估算、再精算、最后解释小数点合理性。"
+  },
+  "child_card": {
+    "title": "小数运算",
+    "one_sentence": "小数运算先估大概，再计算；小数点位置要和结果大小说得通。",
+    "default_sequence": [
+      "dec-essence",
+      "dec-range",
+      "dec-benchmark",
+      "dec-refine",
+      "dec-reasonableness"
+    ]
+  },
+  "internal_card": {
+    "teaching_goal": "避免低级重复计算，重点确认位值、量级估算和小数点合理性。",
+    "runtime_priority": "foundation_short_path_then_transfer",
+    "planner_hint": "若估算和合理性证据稳定，快速进入百分数、单位换算或七上混合运算；不要继续刷普通小数竖式。"
+  }
+}

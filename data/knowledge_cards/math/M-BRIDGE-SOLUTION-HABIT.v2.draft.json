@@ -1,0 +1,235 @@
+{
+  "schema_version": "knowledge-card.v2",
+  "card_version": "2026-07-21.solution-habit.v2.draft",
+  "node_id": "M-BRIDGE-SOLUTION-HABIT",
+  "status": "draft",
+  "graph_binding": {
+    "graph_lineage_required": "current",
+    "prerequisite_node_ids": [],
+    "unlocks_node_ids": [
+      "M-G7-RATIONAL-MIXED",
+      "M-G7-EQ-SOLVE",
+      "M-G7-EQ-WORD",
+      "M-G7-ANGLE-CALC"
+    ]
+  },
+  "design_brief": {
+    "cognitive_object": "process_metacognition",
+    "core_mental_model": "一道题不是写出答案就结束，而是要留下别人能复查的证据：目标、关键关系、步骤、单位/符号、检验。",
+    "primary_misconceptions": [
+      "会算但跳过关键步骤",
+      "把检验当成额外负担",
+      "应用题有结果但没有单位或答句",
+      "草稿能看懂但正式答案不可复查"
+    ],
+    "best_expression_family": [
+      "solution_audit_checklist",
+      "mark_key_relation",
+      "find_faulty_work",
+      "rewrite_solution",
+      "photo_answer_prompt"
+    ],
+    "why_this_expression": "这个节点训练的是解题证据意识，必须让孩子亲自审查、定位缺口、重写答案，而不是只读一段规范说明。",
+    "child_actions_for_evidence": [
+      "圈出题目中的目标和关键关系",
+      "判断一份薄答案缺少哪类得分证据",
+      "把只有答案的解法改写成可得分过程",
+      "拍照提交自己的纸面过程并自查"
+    ],
+    "repair_expression_switches": [
+      "跳步时切换到 solution_audit_checklist",
+      "找不到关系时切换到 mark_key_relation",
+      "不知道错在哪里时切换到 find_faulty_work",
+      "答案对但表达薄时切换到 rewrite_solution"
+    ],
+    "near_transfer_direction": [
+      "有理数混合运算的符号和顺序检查",
+      "方程代回检验",
+      "应用题单位和答句",
+      "角度计算的图形依据"
+    ],
+    "exit_rule": "能在一题计算题和一题应用题中主动留下关键关系、步骤、单位或检验后退出，不把它变成抄格式训练。"
+  },
+  "teaching_contract": {
+    "essence": "稳定得分靠证据：别人看你的过程，也能知道你为什么这样做。",
+    "core_model": "每题先问四件事：问什么、用什么关系、关键步骤在哪里、怎样检查结果不离谱。",
+    "minimum_child_takeaway": "正式答题不是多写废话，而是留下能得分、能复查的关键证据。",
+    "must_not_teach_as": [
+      "要求机械抄完整模板",
+      "把所有题都写成长篇说明",
+      "只检查字迹或格式，不检查数学证据"
+    ]
+  },
+  "component_storyboard": [
+    {
+      "component_id": "habit-essence",
+      "type": "text_explanation",
+      "purpose": "establish_solution_evidence_model",
+      "child_action": "read",
+      "target_evidence": [],
+      "misconception_target": [],
+      "success_signal": "孩子能说出步骤不是装饰，而是得分证据。",
+      "fallback_if_failed": "用同一答案的薄过程和完整过程对比。",
+      "child_surface": {
+        "title": "为什么不能只写答案",
+        "body": "好过程不是写得长，而是关键地方不丢：关系、步骤、单位、检验。"
+      }
+    },
+    {
+      "component_id": "habit-audit",
+      "type": "solution_audit_checklist",
+      "purpose": "step_check_habit",
+      "child_action": "audit_solution",
+      "target_evidence": [
+        "step_check_habit",
+        "answer_verification"
+      ],
+      "misconception_target": [
+        "answer_only",
+        "skip_key_step"
+      ],
+      "success_signal": "能指出答案、关系、步骤、单位/检验中缺了哪一项。",
+      "fallback_if_failed": "先只比较两份答案：一份只有结果，一份有关键关系。",
+      "interaction": {
+        "task": "audit_solution",
+        "check_items": [
+          "题目问什么",
+          "关键关系或规则",
+          "关键步骤",
+          "单位/符号",
+          "检验"
+        ],
+        "prompt": "看这份解答，勾出已经有的证据，再指出缺了哪一项。"
+      }
+    },
+    {
+      "component_id": "habit-mark-relation",
+      "type": "mark_key_relation",
+      "purpose": "relation_focus",
+      "child_action": "mark_key_relation",
+      "target_evidence": [
+        "key_condition_identification",
+        "relation_focus"
+      ],
+      "misconception_target": [
+        "compute_before_modeling"
+      ],
+      "success_signal": "能在计算前先标出关键关系或规则。",
+      "fallback_if_failed": "给出两个候选关系，让孩子判断哪一个真正用于解题。",
+      "interaction": {
+        "task": "mark_key_relation",
+        "prompt": "先不算，圈出这题真正要用的关系。"
+      }
+    },
+    {
+      "component_id": "habit-find-fault",
+      "type": "find_faulty_work",
+      "purpose": "error_location",
+      "child_action": "find_faulty_work",
+      "target_evidence": [
+        "error_location",
+        "cause_explanation"
+      ],
+      "misconception_target": [
+        "cannot_locate_process_gap"
+      ],
+      "success_signal": "能指出错在关系、步骤、单位/符号还是检验，而不是笼统说粗心。",
+      "fallback_if_failed": "把错因选项减少为两个，让孩子二选一并说理由。",
+      "interaction": {
+        "task": "find_faulty_work",
+        "prompt": "这份过程答案对不上题意，错因更像哪一类？请说明。"
+      }
+    },
+    {
+      "component_id": "habit-rewrite",
+      "type": "rewrite_solution",
+      "purpose": "complete_reasoning",
+      "child_action": "rewrite_solution",
+      "target_evidence": [
+        "expression_clarity",
+        "complete_reasoning"
+      ],
+      "misconception_target": [
+        "thin_solution"
+      ],
+      "success_signal": "能把只有答案的解法补成可得分过程，且不写无关废话。",
+      "fallback_if_failed": "提供半成品骨架，只让孩子补关键关系和检验。",
+      "interaction": {
+        "task": "rewrite_solution",
+        "prompt": "把这份只有答案的解法，补成老师能给分的过程。"
+      }
+    }
+  ],
+  "evidence_plan": {
+    "core_evidence": [
+      "step_check_habit",
+      "key_condition_identification",
+      "complete_reasoning"
+    ],
+    "near_transfer_evidence": [
+      "equation_substitution_check",
+      "word_problem_unit_answer",
+      "symbol_or_unit_review"
+    ],
+    "insufficient_evidence_cases": [
+      "只说我会了但不定位证据",
+      "只改格式不补数学关系",
+      "指出错因但不能解释为什么",
+      "照片不清楚或纸面过程无法复查"
+    ]
+  },
+  "repair_paths": [
+    {
+      "trigger": "answer_only",
+      "switch_to": [
+        "habit-audit",
+        "habit-rewrite"
+      ],
+      "rule": "不要求长篇，先补最关键的得分证据。"
+    },
+    {
+      "trigger": "compute_before_modeling",
+      "switch_to": [
+        "habit-mark-relation"
+      ],
+      "rule": "先找关系，再计算。"
+    },
+    {
+      "trigger": "cannot_locate_process_gap",
+      "switch_to": [
+        "habit-find-fault"
+      ],
+      "rule": "把错因定位到关系、步骤、单位/符号、检验之一。"
+    }
+  ],
+  "exit_rules": {
+    "max_same_structure_checks": 2,
+    "mastery_candidate_after": [
+      "step_check_habit",
+      "key_condition_identification",
+      "complete_reasoning"
+    ],
+    "after_mastery": [
+      "M-G7-RATIONAL-MIXED",
+      "M-G7-EQ-WORD",
+      "M-G7-ANGLE-CALC"
+    ],
+    "do_not_repeat_if": "孩子已经能在不同题型中留下关键证据，不再要求机械套格式。"
+  },
+  "child_card": {
+    "title": "解题步骤与检验习惯",
+    "one_sentence": "过程不是写给别人看的形式，而是保护你稳定得分的证据。",
+    "default_sequence": [
+      "habit-essence",
+      "habit-audit",
+      "habit-mark-relation",
+      "habit-find-fault",
+      "habit-rewrite"
+    ]
+  },
+  "internal_card": {
+    "teaching_goal": "让孩子形成可复查、可评分、可纠错的解题证据意识。",
+    "runtime_priority": "cross_node_support",
+    "planner_hint": "这个节点只做短路径训练；后续在真实题中持续收集表达和检验证据。"
+  }
+}

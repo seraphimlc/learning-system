@@ -18,6 +18,10 @@ class KnowledgeCardGenerationTest(unittest.TestCase):
         path = PROJECT_ROOT / "data/knowledge_cards/math/M-G7-NUMBER-LINE.v2.draft.json"
         return json.loads(path.read_text(encoding="utf-8"))
 
+    def _draft(self, filename: str) -> dict:
+        path = PROJECT_ROOT / f"data/knowledge_cards/math/{filename}"
+        return json.loads(path.read_text(encoding="utf-8"))
+
     def test_generation_rules_are_machine_readable_and_registry_bound(self):
         rules = knowledge_card_generation.load_generation_rules(PROJECT_ROOT)
         registry = knowledge_cards.load_component_registry(PROJECT_ROOT)
@@ -57,8 +61,12 @@ class KnowledgeCardGenerationTest(unittest.TestCase):
         self.assertEqual(56, plan["coverage"]["total_graph_nodes"])
         self.assertEqual(1, plan["coverage"]["active_card_count"])
         self.assertEqual(55, plan["coverage"]["missing_card_count"])
+        self.assertGreaterEqual(plan["coverage"]["valid_draft_count"], 3)
         self.assertEqual(4, len(plan["items"]))
-        self.assertNotIn("M-G7-NUMBER-LINE", {item["node_id"] for item in plan["items"]})
+        planned_ids = {item["node_id"] for item in plan["items"]}
+        self.assertNotIn("M-G7-NUMBER-LINE", planned_ids)
+        self.assertNotIn("M-BRIDGE-SOLUTION-HABIT", planned_ids)
+        self.assertNotIn("M-PRE-DECIMAL-OPS", planned_ids)
         for item in plan["items"]:
             self.assertLessEqual(set(item), {
                 "node_id",
@@ -87,6 +95,21 @@ class KnowledgeCardGenerationTest(unittest.TestCase):
             ["extra_unlocks_need_review"],
             [issue["code"] for issue in report["issues"]],
         )
+
+    def test_new_draft_cards_pass_generation_review_gate(self):
+        for node_id, filename in [
+            ("M-BRIDGE-SOLUTION-HABIT", "M-BRIDGE-SOLUTION-HABIT.v2.draft.json"),
+            ("M-PRE-DECIMAL-OPS", "M-PRE-DECIMAL-OPS.v2.draft.json"),
+        ]:
+            with self.subTest(node_id=node_id):
+                report = knowledge_card_generation.review_draft_v2(
+                    self._draft(filename),
+                    project_root=PROJECT_ROOT,
+                    expected_node_id=node_id,
+                )
+
+                self.assertEqual("accepted", report["verdict"])
+                self.assertEqual(0, report["blocking_issue_count"])
 
     def test_review_gate_rejects_direct_prerequisite_omission(self):
         draft = self._number_line_v2_draft()
