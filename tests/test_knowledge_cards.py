@@ -39,6 +39,24 @@ class KnowledgeCardsTest(unittest.TestCase):
         self.assertIn("向右", json.dumps(sections, ensure_ascii=False))
         self.assertIn("向左", json.dumps(sections, ensure_ascii=False))
 
+    def test_knowledge_card_coverage_report_tracks_graph_wide_gap(self):
+        report = knowledge_cards.knowledge_card_coverage_report(PROJECT_ROOT)
+
+        self.assertEqual("knowledge-card-coverage.v1", report["schema_version"])
+        self.assertEqual(56, report["total_graph_nodes"])
+        self.assertEqual(1, report["active_card_count"])
+        self.assertEqual(55, report["missing_card_count"])
+        self.assertEqual(0, report["invalid_card_count"])
+        self.assertEqual(0, report["orphan_active_count"])
+        self.assertEqual(["M-G7-NUMBER-LINE"], [item["node_id"] for item in report["active_cards"]])
+        missing_ids = {item["node_id"] for item in report["missing_cards"]}
+        self.assertIn("M-PRE-DECIMAL-OPS", missing_ids)
+        rational_module = next(
+            item for item in report["modules"]
+            if item["module_id"] == "E_RATIONAL_NUMBERS"
+        )
+        self.assertGreater(rational_module["total_nodes"], rational_module["active_cards"])
+
     def test_child_projection_excludes_internal_teaching_data(self):
         service = knowledge_cards.KnowledgeCardService(project_root=PROJECT_ROOT)
 

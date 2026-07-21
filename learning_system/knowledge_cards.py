@@ -12,6 +12,7 @@ V2_CARD_SCHEMA_VERSION = "knowledge-card.v2"
 COMPONENT_REGISTRY_SCHEMA_VERSION = "knowledge-card-component-registry.v1"
 CARD_ROOT = Path("data/knowledge_cards/math")
 COMPONENT_REGISTRY_PATH = Path("data/knowledge_cards/component_registry.v1.json")
+MATH_GRAPH_PATH = Path("data/knowledge_graphs/math/math_knowledge_graph_v2.json")
 ACTIVE_CARD_FILENAMES = {
     "M-G7-NUMBER-LINE": "M-G7-NUMBER-LINE.v1.json",
 }
@@ -146,6 +147,97 @@ def load_component_registry(project_root: Path | str | None = None) -> dict[str,
     root = Path(project_root) if project_root is not None else Path(__file__).resolve().parents[1]
     payload = json.loads((root / COMPONENT_REGISTRY_PATH).read_text(encoding="utf-8"))
     return validate_component_registry(payload)
+
+
+def load_math_graph_nodes(project_root: Path | str | None = None) -> list[dict[str, Any]]:
+    root = Path(project_root) if project_root is not None else Path(__file__).resolve().parents[1]
+    payload = json.loads((root / MATH_GRAPH_PATH).read_text(encoding="utf-8"))
+    nodes = payload.get("nodes") if isinstance(payload, dict) else None
+    if not isinstance(nodes, list) or not nodes:
+        raise KnowledgeCardError("math knowledge graph nodes are unavailable")
+    normalized: list[dict[str, Any]] = []
+    for index, node in enumerate(nodes):
+        if not isinstance(node, dict):
+            raise KnowledgeCardError(f"math graph nodes[{index}] must be an object")
+        node_id = _require_non_empty_string(node.get("id"), f"nodes[{index}].id")
+        name = _require_non_empty_string(node.get("name"), f"nodes[{index}].name")
+        taxonomy = node.get("taxonomy") if isinstance(node.get("taxonomy"), dict) else {}
+        normalized.append({
+            "id": node_id,
+            "name": name,
+            "module_id": str(taxonomy.get("module_id") or "UNKNOWN"),
+            "module_name": str(taxonomy.get("module_name") or node.get("domain") or "未归类"),
+        })
+    return normalized
+
+
+def knowledge_card_coverage_report(project_root: Path | str | None = None) -> dict[str, Any]:
+    root = Path(project_root) if project_root is not None else Path(__file__).resolve().parents[1]
+    nodes = load_math_graph_nodes(root)
+    node_by_id = {node["id"]: node for node in nodes}
+    service = KnowledgeCardService(project_root=root)
+    active_node_ids = set(ACTIVE_CARD_FILENAMES)
+    active_cards: list[dict[str, Any]] = []
+    invalid_cards: list[dict[str, Any]] = []
+    for node_id in sorted(active_node_ids):
+        node = node_by_id.get(node_id)
+        try:
+            card = service.load_active_card(node_id)
+            active_cards.append({
+                "node_id": node_id,
+                "name": node["name"] if node else "",
+                "card_version": card.card_version,
+                "source": str(card.source_path.relative_to(root)),
+                "digest_sha256": card.digest(),
+            })
+        except (FileNotFoundError, json.JSONDecodeError, KnowledgeCardError) as exc:
+            invalid_cards.append({
+                "node_id": node_id,
+                "name": node["name"] if node else "",
+                "reason": str(exc),
+            })
+    missing = [
+        {
+            "node_id": node["id"],
+            "name": node["name"],
+            "module_id": node["module_id"],
+            "module_name": node["module_name"],
+        }
+        for node in nodes
+        if node["id"] not in active_node_ids
+    ]
+    orphan_active = [
+        {"node_id": node_id, "filename": ACTIVE_CARD_FILENAMES[node_id]}
+        for node_id in sorted(active_node_ids - set(node_by_id))
+    ]
+    invalid_node_ids = {item["node_id"] for item in invalid_cards}
+    modules: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        module = modules.setdefault(node["module_id"], {
+            "module_id": node["module_id"],
+            "module_name": node["module_name"],
+            "total_nodes": 0,
+            "active_cards": 0,
+            "missing_cards": 0,
+        })
+        module["total_nodes"] += 1
+        if node["id"] in active_node_ids and node["id"] not in invalid_node_ids:
+            module["active_cards"] += 1
+        else:
+            module["missing_cards"] += 1
+    return {
+        "schema_version": "knowledge-card-coverage.v1",
+        "total_graph_nodes": len(nodes),
+        "active_card_count": len(active_cards),
+        "missing_card_count": len(missing),
+        "invalid_card_count": len(invalid_cards),
+        "orphan_active_count": len(orphan_active),
+        "active_cards": active_cards,
+        "missing_cards": missing,
+        "invalid_cards": invalid_cards,
+        "orphan_active": orphan_active,
+        "modules": sorted(modules.values(), key=lambda item: item["module_id"]),
+    }
 
 
 def validate_knowledge_card_v2(
