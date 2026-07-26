@@ -1,0 +1,370 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "design_brief_id": "EXPERT-IDEAS-46c630030757",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+  "family_id": "solution_trace_repair",
+  "finding_counts": {},
+  "findings": [],
+  "generation_plan_paths": [
+    "data/admin/production/PROD-cad3a9d1cc1f.json"
+  ],
+  "generation_plans": [
+    {
+      "activation_implication": "does_not_authorize_activation",
+      "allowed_next_agent": "question_designer_agent",
+      "bounded_candidate_packet": {
+        "existing_structure_fingerprints": [],
+        "expert_suggestions": [
+          {
+            "core_scenario": "给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。",
+            "design_idea": "评分合同要围绕这些证据：能复盘步骤、能定位关键错误、能主动检验结论。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+            "difficulty": [
+              "L3",
+              "L4"
+            ],
+            "evidence_focus": [
+              "process",
+              "check",
+              "expression"
+            ],
+            "evidence_goal": [
+              "能复盘步骤",
+              "能定位关键错误",
+              "能主动检验结论"
+            ],
+            "existing_count": 0,
+            "family_id": "solution_trace_repair",
+            "family_name": "过程复盘与补证据",
+            "missing_to_target": 4,
+            "profile": "assessment_expert",
+            "profile_display": "测评专家",
+            "reject_patterns": [
+              "泛化评分模板",
+              "缺少 accepted alternatives",
+              "把非关键书写作为主扣分项"
+            ],
+            "required_evidence": [
+              "能补齐影响判断的关键证据",
+              "能主动检验答案是否符合题意",
+              "表达足以让老师判断思路，不因轻微写法扣大分"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "补缺失步骤",
+              "判断错解哪一步开始错",
+              "给两个解法选更稳的",
+              "要求写一句检验"
+            ],
+            "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+          },
+          {
+            "core_scenario": "给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。",
+            "design_idea": "用“补缺失步骤”和“判断错解哪一步开始错”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+            "difficulty": [
+              "L3",
+              "L4"
+            ],
+            "evidence_focus": [
+              "process",
+              "check",
+              "expression"
+            ],
+            "evidence_goal": [
+              "能复盘步骤",
+              "能定位关键错误",
+              "能主动检验结论"
+            ],
+            "existing_count": 0,
+            "family_id": "solution_trace_repair",
+            "family_name": "过程复盘与补证据",
+            "missing_to_target": 4,
+            "profile": "bridge_diagnosis_teacher",
+            "profile_display": "衔接诊断老师",
+            "reject_patterns": [
+              "错了只能继续刷同类题",
+              "无法判断是概念错还是计算错",
+              "没有回退候选",
+              "只说粗心"
+            ],
+            "required_evidence": [
+              "能补齐影响判断的关键证据",
+              "能主动检验答案是否符合题意",
+              "表达足以让老师判断思路，不因轻微写法扣大分"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "补缺失步骤",
+              "判断错解哪一步开始错",
+              "给两个解法选更稳的",
+              "要求写一句检验"
+            ],
+            "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+          },
+          {
+            "core_scenario": "给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。",
+            "design_idea": "给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+            "difficulty": [
+              "L3",
+              "L4"
+            ],
+            "evidence_focus": [
+              "process",
+              "check",
+              "expression"
+            ],
+            "evidence_goal": [
+              "能复盘步骤",
+              "能定位关键错误",
+              "能主动检验结论"
+            ],
+            "existing_count": 0,
+            "family_id": "solution_trace_repair",
+            "family_name": "过程复盘与补证据",
+            "missing_to_target": 4,
+            "profile": "frontline_math_teacher",
+            "profile_display": "一线初中数学老师",
+            "reject_patterns": [
+              "只换数字的低龄练习",
+              "只要求最终答案",
+              "题干像后台任务说明",
+              "只说粗心",
+              "只改结果不改理由"
+            ],
+            "required_evidence": [
+              "能补齐影响判断的关键证据",
+              "能主动检验答案是否符合题意",
+              "表达足以让老师判断思路，不因轻微写法扣大分"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "补缺失步骤",
+              "判断错解哪一步开始错",
+              "给两个解法选更稳的",
+              "要求写一句检验"
+            ],
+            "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+          },
+          {
+            "core_scenario": "给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。",
+            "design_idea": "可参考外部资料的范围或结构，如“给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+            "difficulty": [
+              "L3",
+              "L4"
+            ],
+            "evidence_focus": [
+              "process",
+              "check",
+              "expression"
+            ],
+            "evidence_goal": [
+              "能复盘步骤",
+              "能定位关键错误",
+              "能主动检验结论"
+            ],
+            "existing_count": 0,
+            "family_id": "solution_trace_repair",
+            "family_name": "过程复盘与补证据",
+            "missing_to_target": 4,
+            "profile": "source_compliance_reviewer",
+            "profile_display": "题源合规 reviewer",
+            "reject_patterns": [
+              "复制商业题干",
+              "改数字洗题",
+              "保存未经许可的图形或解析"
+            ],
+            "required_evidence": [
+              "能补齐影响判断的关键证据",
+              "能主动检验答案是否符合题意",
+              "表达足以让老师判断思路，不因轻微写法扣大分"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "补缺失步骤",
+              "判断错解哪一步开始错",
+              "给两个解法选更稳的",
+              "要求写一句检验"
+            ],
+            "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+          },
+          {
+            "core_scenario": "给一段接近正确但缺关键证据的解法，让孩子补证据或定位最危险一步。",
+            "design_idea": "给一个结果正确但理由不充分的解法，让孩子判定是否可以得满分并修复。",
+            "difficulty": [
+              "L3",
+              "L4"
+            ],
+            "evidence_focus": [
+              "process",
+              "check",
+              "expression"
+            ],
+            "evidence_goal": [
+              "能复盘步骤",
+              "能定位关键错误",
+              "能主动检验结论"
+            ],
+            "existing_count": 0,
+            "family_id": "solution_trace_repair",
+            "family_name": "过程复盘与补证据",
+            "missing_to_target": 4,
+            "profile": "stretch_competition_teacher",
+            "profile_display": "拔高/竞赛老师",
+            "reject_patterns": [
+              "数字变大造成的伪难",
+              "超出主线过远的竞赛技巧",
+              "失败后反向否定基础掌握"
+            ],
+            "required_evidence": [
+              "能补齐影响判断的关键证据",
+              "能主动检验答案是否符合题意",
+              "表达足以让老师判断思路，不因轻微写法扣大分"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "补缺失步骤",
+              "判断错解哪一步开始错",
+              "给两个解法选更稳的",
+              "要求写一句检验"
+            ],
+            "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+          }
+        ],
+        "family_plan_entry": {
+          "adaptation_note": "support-only：用于补足等式性质的过程证据，不计入真实数学题型家族数量。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "evidence_focus": [
+            "process",
+            "check",
+            "expression"
+          ],
+          "family_id": "solution_trace_repair",
+          "required_evidence": [
+            "能补齐影响判断的关键证据",
+            "能主动检验答案是否符合题意",
+            "表达足以让老师判断思路，不因轻微写法扣大分"
+          ],
+          "target_count": 4
+        },
+        "generation_policy": {
+          "avoid_rotemechanical_drill": true,
+          "must_bind_primary_node": "M-G7-EQUALITY-PROP",
+          "must_include_mastery_dimension_mapping": true,
+          "must_include_solution_contract": true,
+          "non_key_expression_gap_max_penalty": 1,
+          "simple_node_fast_pass": false
+        },
+        "node_capability": "等式性质：等式像天平，两边做同样的事，平衡不变；命题必须围绕两边同加减、两边同乘除、等式变形判断产生可观察证据。",
+        "question_requirement": {
+          "coverage_role": "entry_probe",
+          "difficulty": "L3",
+          "evidence_goal": "能复盘步骤",
+          "expert_basis_profiles": [
+            "assessment_expert",
+            "bridge_diagnosis_teacher",
+            "frontline_math_teacher",
+            "source_compliance_reviewer",
+            "stretch_competition_teacher"
+          ],
+          "family_id": "solution_trace_repair",
+          "max_attempts": 3,
+          "must_include": [
+            "能补齐影响判断的关键证据",
+            "能主动检验答案是否符合题意",
+            "表达足以让老师判断思路，不因轻微写法扣大分",
+            "能复盘步骤"
+          ],
+          "must_not_include": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明",
+            "只说粗心",
+            "只改结果不改理由",
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "node_id": "M-G7-EQUALITY-PROP",
+          "node_name": "等式性质",
+          "question_direction": "补缺失步骤",
+          "question_requirement_id": "REQ-14b1b30782f9",
+          "slot_id": "M-G7-EQUALITY-PROP:solution_trace_repair:01",
+          "slot_order": 11,
+          "status": "requirement_ready"
+        },
+        "review_must_reject": [
+          "把概念节点出成复杂求解或机械移项",
+          "把应用题出成裸方程",
+          "去分母或移项题没有关键变形证据",
+          "把本节点出成角平分线、视图或面积体积题",
+          "把本节点出成无关应用题情境",
+          "把本节点出成工程效率题"
+        ],
+        "scope_in": [
+          "两边同加减",
+          "两边同乘除",
+          "等式变形判断",
+          "能用天平解释解方程步骤",
+          "知道每步两边同操作",
+          "4道等式变形判断，2道说明理由"
+        ],
+        "scope_out": [
+          "把概念节点出成复杂求解或机械移项",
+          "把应用题出成裸方程",
+          "去分母或移项题没有关键变形证据",
+          "把本节点出成角平分线、视图或面积体积题",
+          "把本节点出成无关应用题情境",
+          "把本节点出成工程效率题"
+        ]
+      },
+      "candidate_authority": "candidate_only",
+      "design_brief_id": "EXPERT-IDEAS-46c630030757",
+      "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+      "family_id": "solution_trace_repair",
+      "family_name": "过程复盘与补证据",
+      "finding_counts": {},
+      "findings": [],
+      "max_attempts_per_question": 3,
+      "next_actions": [
+        "generate_candidate_from_packet"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "node_name": "等式性质",
+      "production_json_path": "data/admin/production/PROD-cad3a9d1cc1f.json",
+      "production_json_sha256": "5ca1ca3056eb48d71ac226713c2f548bd119367f8dd34b7a9fec9d28b09f4d3e",
+      "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-cad3a9d1cc1f.md",
+      "production_markdown_sha256": "2458c43ee38675285b2af21a406d4c9cc6480fb9e12c109a24bb1a37694596f4",
+      "production_report_id": "PROD-cad3a9d1cc1f",
+      "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+      "question_bank_version": "2026-07-23.bank.v18.staged",
+      "question_requirement_id": "REQ-14b1b30782f9",
+      "requested_count": 1,
+      "schema_version": "2026-07-23.codex-admin.production-plan.v1",
+      "slot_id": "M-G7-EQUALITY-PROP:solution_trace_repair:01",
+      "status": "GENERATION_PACKET_READY",
+      "subject": "math",
+      "write_applied": true
+    }
+  ],
+  "next_actions": [
+    "run_batch"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "node_name": "等式性质",
+  "plan_batch_sha256": "1f7afbf8dcdd7dd38ceb4627c8420ea063d2f99d153041e71436631a4743b9ec",
+  "plan_count": 1,
+  "production_json_path": "data/admin/production/PROD-d37fecbf37bd.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-d37fecbf37bd.md",
+  "production_markdown_sha256": "9478ec0ce8dad21ee80053d16cc0b27de0ce1782ccdd54a2b2f122ab47549132",
+  "production_report_id": "PROD-d37fecbf37bd",
+  "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "requested_slot_count": 4,
+  "requirement_plan_path": "data/admin/production/PROD-ec09e6d66f33.json",
+  "schema_version": "2026-07-23.codex-admin.production-plan-batch.v1",
+  "selected_slot_count": 1,
+  "status": "PLAN_BATCH_READY",
+  "subject": "math",
+  "write_applied": true
+}

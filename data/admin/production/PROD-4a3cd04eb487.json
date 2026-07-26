@@ -1,0 +1,44 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "73767683337d7c9605d061e88d68e52176068dfa95980b50841195ac56168cf4",
+  "design_brief_id": "EXPERT-IDEAS-46c630030757",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+  "family_id": "equality_add_subtract_invariance",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "child_surface_invalid_interaction_schema",
+      "item_id": "CAND-f63e89e2578c",
+      "message": "interaction_schema 与当前孩子端支持合同不一致：interaction_schema.fill_blank:at_least_two_fields_required",
+      "node_id": "M-G7-EQUALITY-PROP",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    }
+  ],
+  "item_id": "CAND-f63e89e2578c",
+  "machine_checked": true,
+  "next_actions": [
+    "regenerate_candidate"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "production_json_path": "data/admin/production/PROD-4a3cd04eb487.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-4a3cd04eb487.md",
+  "production_markdown_sha256": "0108f53a5c88f43df627cbe1036aba8d3856d4f2b972ded1a0d7a91ba64ea9b5",
+  "production_report_id": "PROD-4a3cd04eb487",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-869b5230ff3d",
+  "requirement_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "secondary_nodes": [],
+    "support_only": false
+  },
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:02",
+  "staging_allowed": false,
+  "status": "NEEDS_REGENERATION",
+  "subject": "math",
+  "write_applied": true
+}

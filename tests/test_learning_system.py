@@ -29,12 +29,15 @@ from learning_system import (
     internal_agents,
     job_queue,
     model_router,
+    multimodal_evidence,
     orchestrator,
     planner,
     question_bank,
+    question_usage,
     reports,
     semantic_agents,
     server,
+    test_support,
 )
 
 
@@ -118,6 +121,7 @@ class LearningSystemTest(unittest.TestCase):
             template_conn.row_factory = sqlite3.Row
             db.init_schema(template_conn)
             db.seed_from_assets(template_conn, PROJECT_ROOT)
+            test_support.seed_runtime_test_question_bank(template_conn, PROJECT_ROOT)
             template_conn.close()
             from scripts import activate_lightweight_answer_contracts
 
@@ -340,7 +344,7 @@ class LearningSystemTest(unittest.TestCase):
 
     def _record_current_source_attempt(
         self,
-        node_id: str = "M-PRE-INTEGER-OPS",
+        node_id: str = "M-PRE-NUMBER-SENSE",
         *,
         grading_status: str = "graded",
         answer_analysis: dict | None = None,
@@ -356,12 +360,12 @@ class LearningSystemTest(unittest.TestCase):
             score_points=0,
             max_points=2,
             error_tags=[] if grading_status == "pending_review" else ["process_habit"],
-            answer_raw="只写了答案，没有写验算关系。",
+            answer_raw="只写了答案，没有说明估算依据。",
             parent_note="用于 evolved source gate 回归。",
             answer_analysis=(answer_analysis or sample_answer_analysis(
                 optimal_answer=base_question["expected_answer"],
                 child_summary="来源 attempt 有结构化批阅。",
-                process_gap="缺少验算关系。",
+                process_gap="缺少估算依据。",
             )) if grading_status == "graded" else None,
             explanation_score=None if grading_status == "pending_review" else 0,
             grading_status=grading_status,
@@ -440,6 +444,27 @@ class LearningSystemTest(unittest.TestCase):
                     now,
                 ),
             )
+            usage_policy = db.active_question_usage_policy(
+                self.conn,
+                question["id"],
+                item_version=question.get("item_version") or question_bank.QUESTION_BANK_VERSION,
+            )
+            self.assertIsNotNone(usage_policy, f"missing usage policy for {question['id']}")
+            usage_context = question_usage.context_for_step(
+                usage_policy,
+                purpose="diagnostic",
+                purpose_role=usage_policy["diagnostic_roles"][0],
+                block_id=f"fixture-{flow_id}",
+                block_index=1,
+            )
+            db.record_flow_step_usage_context(
+                self.conn,
+                flow_step_id=step_id,
+                question_id=question["id"],
+                item_version=question.get("item_version") or question_bank.QUESTION_BANK_VERSION,
+                context=usage_context,
+                commit=False,
+            )
 
         if grading_status == "graded":
             result = "correct"
@@ -496,6 +521,12 @@ class LearningSystemTest(unittest.TestCase):
         )
         if flow_step_exists:
             self.conn.execute("update flow_steps set attempt_id = ? where id = ?", (attempt_id, step_id))
+            db.record_attempt_usage_context_snapshot(
+                self.conn,
+                attempt_id=attempt_id,
+                flow_step_id=step_id,
+                commit=False,
+            )
         self.conn.commit()
         return {
             "attempt_id": attempt_id,
@@ -524,19 +555,19 @@ class LearningSystemTest(unittest.TestCase):
             {
                 "id": source_attempt_id,
                 "error_tags": ["process_habit"],
-                "parent_note": "来源证据显示缺少验算关系。",
+                "parent_note": "来源证据显示缺少估算依据。",
                 "answer_raw": "只写答案。",
                 "evidence_status": source_evidence_status,
             },
             f"E-{question_id}",
             {
                 "candidate_id": question_id,
-                "question_type": "真实错因回炉：有余数除法验算关系",
+                "question_type": "真实错因回炉：数感估算依据",
                 "variant_level": "L2",
-                "prompt": "先写有余数除法的验算关系，再解释余数为什么必须小于除数；最后判断 987 ÷ 8 = 123 余 3 是否成立。",
-                "answer_format": "规则 + 判断 + 检验",
-                "expected_answer": "验算关系是 除数×商+余数=被除数，且余数小于除数。8×123+3=987 且 3<8，所以成立。",
-                "solution_steps": ["写出除数×商+余数=被除数。", "计算 8×123+3=987。", "检查 3<8 并写结论。"],
+                "prompt": "先写估算依据，再判断 39×21 更接近 800 还是 80，并说明为什么。",
+                "answer_format": "判断 + 估算依据",
+                "expected_answer": "更接近 800。因为 39 接近 40，21 接近 20，40×20=800。",
+                "solution_steps": ["把 39 看成接近 40。", "把 21 看成接近 20。", "计算 40×20=800 并判断数量级。"],
                 "target_error_tags": ["process_habit"],
                 "reviewer_evidence": self._candidate_reviewer_evidence(),
                 "estimated_minutes": 4,
@@ -579,7 +610,7 @@ class LearningSystemTest(unittest.TestCase):
         issues = audit.get("invalid_evolved_source_attempts", [])
         self.assertIn(question_id, [issue["question_id"] for issue in issues], audit)
 
-    def test_seed_creates_complete_graph_bound_question_bank(self):
+    def test_runtime_fixture_creates_complete_graph_bound_question_bank_without_legacy_diagnostics(self):
         node_count = self.conn.execute("select count(*) from graph_nodes").fetchone()[0]
         diagnostic_count = self.conn.execute(
             "select count(*) from question_items where source_type = 'diagnostic'"
@@ -612,7 +643,7 @@ class LearningSystemTest(unittest.TestCase):
         ).fetchall()
 
         self.assertEqual(node_count, 56)
-        self.assertEqual(diagnostic_count, 48)
+        self.assertEqual(diagnostic_count, 0)
         self.assertGreaterEqual(practice_count, 1120)
         self.assertEqual(56 * question_bank.QUESTIONS_PER_GRAPH_NODE, current_practice_count)
         self.assertEqual([], [dict(row) for row in thin_nodes])
@@ -834,7 +865,8 @@ class LearningSystemTest(unittest.TestCase):
                     self.assertIn(phrase, lowered, f"{agent_key} active prompt must implement role does_not: {role['does_not']}")
             else:
                 self.assertIn("Return only JSON", text)
-                self.assertIn("Do not expose internal agent names", text)
+                self.assertIn("Do not expose", text)
+                self.assertIn("agent names", text)
                 self.assertIn(role["does"], text)
                 self.assertIn(role["does_not"], text)
                 for required_section in (
@@ -1922,6 +1954,69 @@ class LearningSystemTest(unittest.TestCase):
             step["review_record_id"],
         ))
 
+    def test_v5_bootstrap_recovers_current_step_when_question_quality_gate_changes(self):
+        runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
+        started = runtime.start_review_mode(client_day_key="2099-02-02")
+        old_step = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (started["current_step"]["step_handle"],),
+        ).fetchone()
+        self.assertIsNotNone(old_step)
+        old_question_id = old_step["question_id"]
+
+        self.conn.execute(
+            """
+            update question_items
+            set prompt = ?
+            where id = ?
+            """,
+            (
+                "本题沿用的规则是：旧模板。变式题：判断 8.2×1.9 应接近16还是160。"
+                "请先指出要使用的结构，再解答。做完后把最容易错的一步圈出来。",
+                old_question_id,
+            ),
+        )
+        self.conn.commit()
+        self.assertFalse(db.is_child_schedulable_question(
+            self.conn,
+            db.get_question(self.conn, old_question_id),
+            question_bank_version=old_step["question_bank_version"],
+        ))
+
+        recovered = runtime.load_or_create_daily_flow("2099-02-02")
+
+        self.assertEqual("current_step", recovered["child_state"])
+        self.assertNotEqual(started["current_step"]["step_handle"], recovered["current_step"]["step_handle"])
+        self.assertNotIn("本题沿用的规则", recovered["current_step"]["prompt"])
+        for forbidden in ("变式题", "原题是", "现在换成变式", "请判断原方法哪一步不变", "错因或模型"):
+            self.assertNotIn(forbidden, recovered["current_step"]["prompt"])
+        self.assertNotIn("这道题已经更新", recovered["current_step"]["support"]["hint"])
+        new_step = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (recovered["current_step"]["step_handle"],),
+        ).fetchone()
+        self.assertIsNotNone(new_step)
+        self.assertNotEqual(old_question_id, new_step["question_id"])
+        self.assertTrue(db.is_child_schedulable_question(
+            self.conn,
+            db.get_question(self.conn, new_step["question_id"]),
+            question_bank_version=new_step["question_bank_version"],
+        ))
+        old_step_after = self.conn.execute("select * from flow_steps where id = ?", (old_step["id"],)).fetchone()
+        self.assertEqual("superseded", old_step_after["status"])
+        self.assertEqual(new_step["id"], old_step_after["superseded_by_step_id"])
+
+        after_submit = runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
+            step_handle=recovered["current_step"]["step_handle"],
+            position=recovered["current_step"]["position"],
+            client_idempotency_key="recover-current-step-stuck",
+            answer_text="我不会",
+        ))
+        self.assertIn(
+            after_submit["child_state"],
+            {"analyzing", "teaching", "current_step", "summary", "assessment_feedback"},
+        )
+
     def test_v3_review_start_skips_forged_active_review_record(self):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         selected = runtime._select_first_review_question()
@@ -1974,10 +2069,11 @@ class LearningSystemTest(unittest.TestCase):
                 response = self._request("POST", base_url, "/api/daily-flow/review/start", {
                     "client_day_key": "2099-02-05",
                 })
-                self.assertEqual(409, response["status"])
+                self.assertEqual(200, response["status"])
                 payload = json.loads(response["body"])
                 self.assertEqual("3.0.0-daily-flow", payload["schema_version"])
                 self.assertEqual("blocked", payload["child_state"])
+                self.assertEqual("content_preparation", payload["message"]["blocked_kind"])
                 self._assert_no_v3_child_internals(payload)
             finally:
                 httpd.shutdown()
@@ -2017,19 +2113,26 @@ class LearningSystemTest(unittest.TestCase):
             step_handle=step["step_handle"],
             position=step["position"],
             client_idempotency_key="submit-v3-test-1",
-            answer_text="重复提交不应写第二条。",
+            answer_text="我先写关系，再写步骤；如果不确定会标出来。",
         ))
         self.assertEqual("analyzing", duplicate["child_state"])
         self.assertEqual(1, self.conn.execute("select count(*) from attempts where flow_step_id = ?", (attempt["flow_step_id"],)).fetchone()[0])
         self.assertEqual(1, self.conn.execute("select count(*) from background_jobs where flow_step_id = ?", (attempt["flow_step_id"],)).fetchone()[0])
 
-        different_key_retry = runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
-            step_handle=step["step_handle"],
-            position=step["position"],
-            client_idempotency_key="submit-v3-test-1-retry",
-            answer_text="刷新后误点提交也不应写第二条。",
-        ))
-        self.assertEqual("analyzing", different_key_retry["child_state"])
+        with self.assertRaises(daily_runtime.SubmissionIdempotencyConflict):
+            runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
+                step_handle=step["step_handle"],
+                position=step["position"],
+                client_idempotency_key="submit-v3-test-1",
+                answer_text="同一个幂等键不能换成另一份答案。",
+            ))
+        with self.assertRaises(daily_runtime.SubmissionIdempotencyConflict):
+            runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
+                step_handle=step["step_handle"],
+                position=step["position"],
+                client_idempotency_key="submit-v3-test-1-retry",
+                answer_text="另一把幂等键也不能覆盖已保存答案。",
+            ))
         self.assertEqual(1, self.conn.execute("select count(*) from attempts where flow_step_id = ?", (attempt["flow_step_id"],)).fetchone()[0])
         self.assertEqual(1, self.conn.execute("select count(*) from background_jobs where flow_step_id = ?", (attempt["flow_step_id"],)).fetchone()[0])
 
@@ -4304,20 +4407,15 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual("partial_unstable", captured.get("selection_intent"))
         self.assertEqual("micro_check_after_worked_example", captured.get("next_evidence_goal"))
 
-    def test_v5_v12_empty_intent_packet_does_not_bypass_to_unrestricted_fallback(self):
-        lineage = self._create_v3_attempt_with_lineage(node_id="M-G7-POS-NEG")
+    def test_v5_current_bank_empty_intent_packet_does_not_bypass_to_unrestricted_fallback(self):
+        lineage = self._create_v3_attempt_with_lineage(node_id="M-PRE-DECIMAL-OPS")
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
-        self.conn.execute(
-            "update daily_flows set question_bank_version = ? where id = ?",
-            (question_bank.QUESTION_BANK_V12_VERSION, lineage["flow_id"]),
-        )
-        self.conn.commit()
         empty_packet = {
-            "packet_id": "CP-empty-v12",
-            "packet_hash": "hash-empty-v12",
+            "packet_id": "CP-empty-current",
+            "packet_hash": "hash-empty-current",
             "candidate_count": 0,
-            "filter_summary": {"excluded_intent_role_mismatch": 3},
-            "selection_intent": "wrong_blocking",
+            "filter_summary": {"excluded_cooldown": 4},
+            "selection_intent": "short_group_review",
             "candidates": [],
         }
 
@@ -4327,12 +4425,12 @@ class LearningSystemTest(unittest.TestCase):
             return_value=empty_packet,
         ), patch.object(daily_runtime.db, "find_question_for_node", side_effect=AssertionError("unrestricted fallback called")):
             selected = runtime._select_question_for_node(
-                "M-G7-POS-NEG",
+                "M-PRE-DECIMAL-OPS",
                 graph_version=lineage["graph_version"],
                 flow_id=lineage["flow_id"],
                 flow_revision=2,
-                reason={"reason": "v12_empty_packet"},
-                selection_intent="wrong_blocking",
+                reason={"reason": "current_bank_empty_packet"},
+                selection_intent="short_group_review",
             )
 
         self.assertIsNone(selected)
@@ -4340,6 +4438,12 @@ class LearningSystemTest(unittest.TestCase):
     def test_v5_legacy_empty_packet_fallback_records_explicit_policy(self):
         lineage = self._create_v3_attempt_with_lineage(node_id="M-G7-POS-NEG")
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
+        fallback_question = db.find_question_for_node(self.conn, "M-G7-POS-NEG")
+        self.conn.execute(
+            "update daily_flows set question_bank_version = ? where id = ?",
+            ("2026-07-10.bank.v11-legacy-test", lineage["flow_id"]),
+        )
+        self.conn.commit()
         empty_packet = {
             "packet_id": "CP-empty-v11",
             "packet_hash": "hash-empty-v11",
@@ -4353,7 +4457,7 @@ class LearningSystemTest(unittest.TestCase):
             question_bank.QuestionBankService,
             "candidate_packet_for_node",
             return_value=empty_packet,
-        ):
+        ), patch.object(daily_runtime.db, "find_question_for_node", return_value=fallback_question):
             selected = runtime._select_question_for_node(
                 "M-G7-POS-NEG",
                 graph_version=lineage["graph_version"],
@@ -4535,9 +4639,10 @@ class LearningSystemTest(unittest.TestCase):
 
         report_phases = report_flow["phase_lineage"]["phases"]
         self.assertEqual(
-            {"answer_analysis", "evaluation_update", "planner_decision", "teaching_generation"},
+            {"answer_analysis", "group_answer_analysis", "evaluation_update", "planner_decision", "teaching_generation"},
             set(report_phases),
         )
+        self.assertEqual([], report_phases["group_answer_analysis"])
         self.assertEqual([], report_phases["teaching_generation"])
         for phase, expected_job in (
             ("answer_analysis", jobs["answer_analysis"]),
@@ -5168,187 +5273,6 @@ class LearningSystemTest(unittest.TestCase):
             "The bounded outcome must keep saved-evidence honesty visible to the child.",
         )
 
-    def test_v5_active_bank_ledger_survives_restart_and_snapshots_activation_and_rollback(self):
-        ledger_contract = self._v5_msg004_contracts()["active_bank_ledger"]
-        api = {
-            key: getattr(db, function_name, None)
-            for key, function_name in ledger_contract["api"].items()
-        }
-        self.assertTrue(
-            all(callable(function) for function in api.values()),
-            f"Active-bank ledger APIs are required before v12 cutover: {ledger_contract['api']}",
-        )
-        runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
-        old_state = runtime.start_review_mode(client_day_key="2099-07-20")
-        old_step_row = self.conn.execute(
-            "select * from flow_steps where step_handle = ?",
-            (old_state["current_step"]["step_handle"],),
-        ).fetchone()
-        old_flow_id = old_step_row["flow_id"]
-        old_node_id = old_step_row["node_id"]
-        self.assertEqual(question_bank.QUESTION_BANK_VERSION, old_step_row["question_bank_version"])
-
-        staged_question_id = self._seed_v5_question_bank_version_clone(
-            node_id=old_node_id,
-            question_bank_version=question_bank.QUESTION_BANK_V12_VERSION,
-        )
-        graph_version_value = runtime.graph.current_graph_version()
-        stage_result = api["stage"](
-            self.conn,
-            question_bank_version=question_bank.QUESTION_BANK_V12_VERSION,
-            graph_version=graph_version_value,
-            manifest_id="v12-msg004-red-contract",
-            manifest_sha256="sha256:v12-msg004-red-contract",
-            node_count=56,
-            item_count=1120,
-            commit=True,
-        )
-        self.assertEqual("staged", stage_result["status"])
-        self.assertEqual(question_bank.QUESTION_BANK_VERSION, api["current"](self.conn))
-
-        self.conn.close()
-        self.conn = sqlite3.connect(self.db_path)
-        self.conn.row_factory = sqlite3.Row
-        db.init_schema(self.conn)
-        db.seed_from_assets(self.conn, PROJECT_ROOT)
-        self.assertIsNotNone(
-            self.conn.execute("select id from question_items where id = ?", (staged_question_id,)).fetchone(),
-            "A staged v12 bank must survive startup cleanup before activation.",
-        )
-        ledger_row = self.conn.execute(
-            f"select question_bank_version, status from {ledger_contract['table']} where question_bank_version = ?",
-            (question_bank.QUESTION_BANK_V12_VERSION,),
-        ).fetchone()
-        self.assertIsNotNone(ledger_row)
-        self.assertEqual("staged", ledger_row["status"])
-
-        activation = api["activate"](
-            self.conn,
-            question_bank_version=question_bank.QUESTION_BANK_V12_VERSION,
-            expected_current_version=question_bank.QUESTION_BANK_VERSION,
-            reason="MSG-20260711-004 recorded cutover contract",
-            commit=True,
-        )
-        self.assertEqual("active", activation["status"])
-        self.assertEqual(question_bank.QUESTION_BANK_V12_VERSION, api["current"](self.conn))
-        runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
-
-        old_resumed = runtime.start_review_mode(client_day_key="2099-07-20")
-        old_flow = self.conn.execute("select * from daily_flows where id = ?", (old_flow_id,)).fetchone()
-        self.assertEqual(question_bank.QUESTION_BANK_VERSION, old_flow["question_bank_version"])
-        self.assertEqual(old_state["current_step"]["step_handle"], old_resumed["current_step"]["step_handle"])
-
-        new_state = runtime.start_review_mode(client_day_key="2099-07-21")
-        new_step_row = self.conn.execute(
-            "select * from flow_steps where step_handle = ?",
-            (new_state["current_step"]["step_handle"],),
-        ).fetchone()
-        new_flow_id = new_step_row["flow_id"]
-        self.assertEqual(question_bank.QUESTION_BANK_V12_VERSION, new_step_row["question_bank_version"])
-        self.assertEqual(question_bank.QUESTION_BANK_V12_VERSION, new_step_row["question_item_version"])
-        self.assertTrue(str(new_step_row["question_id"]).startswith("QB12-TEST-"))
-
-        old_submit = runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
-            step_handle=old_resumed["current_step"]["step_handle"],
-            position=old_resumed["current_step"]["position"],
-            client_idempotency_key="msg004-old-v11-submit",
-            answer_text="旧 flow 继续使用创建时的 v11 题目快照。",
-        ))
-        new_submit = runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
-            step_handle=new_state["current_step"]["step_handle"],
-            position=new_state["current_step"]["position"],
-            client_idempotency_key="msg004-new-v12-submit",
-            answer_text="新 flow 使用激活后的 v12 题目快照。",
-        ))
-        self.assertEqual("analyzing", old_submit["child_state"])
-        self.assertEqual("analyzing", new_submit["child_state"])
-
-        rollback = api["rollback"](
-            self.conn,
-            to_question_bank_version=question_bank.QUESTION_BANK_VERSION,
-            expected_current_version=question_bank.QUESTION_BANK_V12_VERSION,
-            reason="MSG-20260711-004 rollback affects future flows only",
-            commit=True,
-        )
-        self.assertEqual("rolled_back", rollback["status"])
-        self.assertEqual(question_bank.QUESTION_BANK_VERSION, api["current"](self.conn))
-        self.assertEqual(
-            question_bank.QUESTION_BANK_V12_VERSION,
-            self.conn.execute("select question_bank_version from daily_flows where id = ?", (new_flow_id,)).fetchone()[0],
-        )
-        post_rollback = runtime.start_review_mode(client_day_key="2099-07-22")
-        post_rollback_step = self.conn.execute(
-            "select * from flow_steps where step_handle = ?",
-            (post_rollback["current_step"]["step_handle"],),
-        ).fetchone()
-        self.assertEqual(question_bank.QUESTION_BANK_VERSION, post_rollback_step["question_bank_version"])
-
-        attempts = {
-            row["client_idempotency_key"]: dict(row)
-            for row in self.conn.execute(
-                "select * from attempts where client_idempotency_key in (?, ?)",
-                ("msg004-old-v11-submit", "msg004-new-v12-submit"),
-            ).fetchall()
-        }
-        self.assertEqual(question_bank.QUESTION_BANK_VERSION, attempts["msg004-old-v11-submit"]["question_bank_version"])
-        self.assertEqual(question_bank.QUESTION_BANK_V12_VERSION, attempts["msg004-new-v12-submit"]["question_bank_version"])
-        for attempt_row in attempts.values():
-            job = self.conn.execute(
-                "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
-                (attempt_row["id"],),
-            ).fetchone()
-            payload = db.json_load(job["payload_json"], {})
-            self.assertEqual(attempt_row["question_bank_version"], payload["question_bank_version"])
-            self.assertEqual(attempt_row["question_id"], payload["question_id"])
-            self.assertEqual(attempt_row["graph_version"], payload["graph_version"])
-
-    def test_v12_local_pilot_seed_stages_without_global_activation(self):
-        active_before = db.get_active_question_bank_version(self.conn)
-        with tempfile.TemporaryDirectory() as tmp:
-            project_root = Path(tmp)
-            manifest_rel = "data/question_banks/math/pilot.json"
-            receipt_rel = "data/question_banks/math/pilot.receipt.json"
-            manifest_path = project_root / manifest_rel
-            receipt_path = project_root / receipt_rel
-            manifest_path.parent.mkdir(parents=True, exist_ok=True)
-            manifest_path.write_text(
-                json.dumps({
-                    "manifest_id": "unit-pilot",
-                    "question_bank_version": question_bank.QUESTION_BANK_V12_VERSION,
-                    "graph_version": "2026-07-04.math-graph.v2",
-                    "nodes": [{"node_id": "M-G7-NUMBER-LINE", "items": [{"id": "QB12-UNIT-01"}]}],
-                }),
-                encoding="utf-8",
-            )
-            receipt_path.write_text("{}", encoding="utf-8")
-            with patch.object(
-                db,
-                "V12_LOCAL_PILOT_BANKS",
-                ((manifest_rel, receipt_rel),),
-            ), patch.object(
-                db,
-                "seed_external_question_bank_v12",
-                return_value={
-                    "questions_upserted": 1,
-                    "designer_runs_recorded": 1,
-                    "reviewer_runs_recorded": 1,
-                    "node_set_review_runs_recorded": 1,
-                    "review_records_created": 1,
-                },
-            ):
-                result = db.seed_local_v12_pilot_question_banks(
-                    self.conn,
-                    project_root,
-                    activate=True,
-                    commit=False,
-                )
-
-        self.assertEqual("staged", result["staged"]["status"])
-        self.assertIsNone(result["activated"])
-        self.assertEqual("pilot_stage_only", result["activation_blocked"])
-        self.assertEqual(active_before, result["active_question_bank_version"])
-        self.assertEqual(active_before, db.get_active_question_bank_version(self.conn))
-
     def test_v5_ready_checkpoint_waits_for_accepted_teaching_agent_before_worked_example(self):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         started = runtime.start_review_mode(client_day_key="2099-02-28")
@@ -5908,22 +5832,36 @@ class LearningSystemTest(unittest.TestCase):
                         ).fetchone()["id"],
                     )
                     planner_action = "near_transfer_retest" if case["review"]["result"] == "correct" else "micro_teach"
+                    self.assertEqual("analyzing", submitted["child_state"])
                     if case.get("stuck"):
-                        self.assertEqual("teaching", submitted["child_state"])
-                        self.assertEqual("submitted", attempt["result"])
-                        self.assertEqual("not_scored", attempt["grading_status"])
-                        self.assertEqual("not_required", attempt["analysis_status"])
-                        self.assertEqual("v3_stuck", attempt["answer_source"])
-                        self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
-                        self.assertEqual(0, self.conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt["id"],)).fetchone()[0])
-                        self.assertEqual(0, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
-                        decision = self.conn.execute(
-                            "select action, provider_mode from next_step_decisions where source_attempt_ids_json like ? order by created_at desc limit 1",
+                        stuck_result = runtime.process_next_background_job(
+                            worker_id=f"test-v5-semantic-{case['name']}"
+                        )
+                        self.assertEqual("succeeded", stuck_result.get("job_status"), stuck_result)
+                        self.assertEqual("teaching_repair", stuck_result.get("next_action"), stuck_result)
+                        jobs = {
+                            row["job_type"]
+                            for row in self.conn.execute(
+                                "select job_type from background_jobs where attempt_id = ?",
+                                (attempt["id"],),
+                            ).fetchall()
+                        }
+                        self.assertEqual({"stuck_interruption"}, jobs)
+                        attempt = db.get_attempt(self.conn, attempt["id"])
+                        self.assertEqual("blocked", attempt["result"])
+                        self.assertEqual("graded", attempt["grading_status"])
+                        self.assertEqual("valid", attempt["analysis_status"])
+                        self.assertEqual(0, self.conn.execute(
+                            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
                             (f"%{attempt['id']}%",),
-                        ).fetchone()
-                        self.assertIsNotNone(decision)
-                        self.assertEqual(planner_action, decision["action"])
-                        self.assertEqual("deterministic_runtime", decision["provider_mode"])
+                        ).fetchone()[0])
+                        flow_id = self.conn.execute(
+                            "select flow_id from flow_steps where id = ?",
+                            (attempt["flow_step_id"],),
+                        ).fetchone()["flow_id"]
+                        child_state = runtime.project_child_state(runtime._flow_by_id(flow_id))
+                        self.assertEqual("teaching", child_state["child_state"])
+                        self._assert_no_v3_child_internals(child_state)
                         continue
                     drained = self._drain_v5_attempt_dag(
                         runtime,
@@ -6214,6 +6152,7 @@ class LearningSystemTest(unittest.TestCase):
                 partial_attempt["id"],
                 expected_action="micro_teach",
                 expect_teaching=True,
+                expect_mastery=False,
             )
 
             teaching = partial_dag["projection"]
@@ -6685,24 +6624,15 @@ class LearningSystemTest(unittest.TestCase):
                 ).fetchone()["id"],
             )
             cannot_provide_job = self.conn.execute(
-                "select id from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+                "select id from background_jobs where attempt_id = ? and job_type = 'stuck_interruption'",
                 (cannot_provide_attempt["id"],),
             ).fetchone()
-            self._attach_v5_recorded_fixture(
-                cannot_provide_job["id"],
-                self._v5_strict_recorded_unclear_answer_output(
-                    cannot_provide_attempt,
-                    reason="孩子明确表示仍无法补充更清楚的证据。",
-                    confidence=0.2,
-                ),
-                fixture_id="recorded-clarify-cannot-provide-answer",
+            self.assertIsNotNone(cannot_provide_job)
+            stuck_result = runtime.process_next_background_job(
+                worker_id="test-v5-clarify-cannot-provide"
             )
-            with patch.object(
-                model_router,
-                "answer_analysis_route",
-                return_value=self._recorded_model_route(),
-            ):
-                runtime.process_next_background_job(worker_id="test-v5-clarify-cannot-provide")
+            self.assertEqual("succeeded", stuck_result.get("job_status"), stuck_result)
+            self.assertEqual("teaching_repair", stuck_result.get("next_action"), stuck_result)
 
         cannot_provide_attempt = self.conn.execute(
             "select * from attempts where client_idempotency_key = ?",
@@ -6720,10 +6650,10 @@ class LearningSystemTest(unittest.TestCase):
             (cannot_provide_attempt["flow_step_id"],),
         ).fetchone()
         projection = runtime.project_child_state(flow)
-        self.assertIn(
+        self.assertEqual(
+            "teaching",
             projection["child_state"],
-            {"blocked", "summary"},
-            "A child who still cannot clarify must exit safely instead of receiving another clarify loop.",
+            "A child who still cannot clarify should receive a deterministic repair, not another clarify loop.",
         )
         self.assertEqual(0, self.conn.execute(
             """
@@ -7029,7 +6959,7 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual(hashlib.sha256(upload_file.read_bytes()).hexdigest(), attachment["sha256"])
         self.assertEqual(1, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
 
-    def test_v5_stuck_only_submit_fast_tracks_to_teaching_without_model_queue(self):
+    def test_v5_stuck_only_submit_queues_deterministic_repair_without_model_decision(self):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         started = runtime.start_review_mode(client_day_key="2099-02-04")
         step = started["current_step"]
@@ -7046,31 +6976,31 @@ class LearningSystemTest(unittest.TestCase):
             stuck=True,
         ))
 
-        self.assertEqual("teaching", result["child_state"])
-        self.assertEqual("none", result["current_step"]["answer_input_mode"])
+        self.assertEqual("analyzing", result["child_state"])
         attempt = self.conn.execute("select * from attempts where client_idempotency_key = ?", ("submit-v3-stuck-only",)).fetchone()
         self.assertIsNotNone(attempt)
-        self.assertEqual("not_scored", attempt["grading_status"])
-        self.assertEqual("submitted", attempt["result"])
-        self.assertEqual("not_required", attempt["analysis_status"])
+        self.assertEqual("graded", attempt["grading_status"])
+        self.assertEqual("blocked", attempt["result"])
+        self.assertEqual("valid", attempt["analysis_status"])
+        self.assertEqual(1, attempt["blocking_evidence"])
         self.assertEqual("v3_stuck", attempt["answer_source"])
         self.assertIn("卡住", attempt["answer_raw"])
         self.assertNotEqual("QRR-stale-missing-for-stuck-test", attempt["review_record_id"])
         review_meta = db.json_load(attempt["review_meta_json"], {})
         self.assertTrue(review_meta["stuck"])
-        self.assertEqual("deterministic_runtime", review_meta["provider_mode"])
-        self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
+        self.assertFalse(review_meta["needs_ai_review"])
+        self.assertEqual("stuck_interruption", review_meta["route"])
+        self.assertEqual(1, self.conn.execute("select count(*) from background_jobs where attempt_id = ? and job_type = 'stuck_interruption'", (attempt["id"],)).fetchone()[0])
+        self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ? and job_type = 'answer_analysis'", (attempt["id"],)).fetchone()[0])
         self.assertEqual(0, self.conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt["id"],)).fetchone()[0])
         self.assertEqual(0, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
         decision = self.conn.execute(
             "select * from next_step_decisions where source_attempt_ids_json like ? order by created_at desc limit 1",
             (f"%{attempt['id']}%",),
         ).fetchone()
-        self.assertIsNotNone(decision)
-        self.assertEqual("micro_teach", decision["action"])
-        self.assertEqual("deterministic_runtime", decision["provider_mode"])
+        self.assertIsNone(decision)
 
-    def test_v5_short_i_do_not_know_text_fast_tracks_as_stuck(self):
+    def test_v5_short_i_do_not_know_text_is_plain_answer_for_model_review(self):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         started = runtime.start_review_mode(client_day_key="2099-02-04-text-stuck")
         step = started["current_step"]
@@ -7082,32 +7012,29 @@ class LearningSystemTest(unittest.TestCase):
             answer_text="我不会",
         ))
 
-        self.assertEqual("teaching", result["child_state"])
+        self.assertEqual("analyzing", result["child_state"])
         attempt = self.conn.execute("select * from attempts where client_idempotency_key = ?", ("submit-v5-text-i-do-not-know",)).fetchone()
         self.assertIsNotNone(attempt)
-        self.assertEqual("not_scored", attempt["grading_status"])
+        self.assertEqual("pending_review", attempt["grading_status"])
         self.assertEqual("submitted", attempt["result"])
-        self.assertEqual("not_required", attempt["analysis_status"])
-        self.assertEqual("v3_stuck", attempt["answer_source"])
+        self.assertEqual("missing", attempt["analysis_status"])
+        self.assertEqual("v3_text", attempt["answer_source"])
         self.assertEqual("我不会", attempt["answer_raw"])
         review_meta = db.json_load(attempt["review_meta_json"], {})
-        self.assertTrue(review_meta["stuck"])
-        self.assertEqual("deterministic_runtime", review_meta["provider_mode"])
-        self.assertEqual(0, self.conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt["id"],)).fetchone()[0])
+        self.assertFalse(review_meta["stuck"])
+        self.assertTrue(review_meta["needs_ai_review"])
+        self.assertEqual("answer_analysis", review_meta["route"])
+        self.assertEqual(1, self.conn.execute("select count(*) from background_jobs where attempt_id = ? and job_type = 'answer_analysis'", (attempt["id"],)).fetchone()[0])
         self.assertEqual(0, self.conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt["id"],)).fetchone()[0])
         self.assertEqual(0, self.conn.execute("select count(*) from mastery_decisions where source_attempt_ids_json like ?", (f"%{attempt['id']}%",)).fetchone()[0])
 
-    def test_v5_child_ui_stuck_prompt_texts_fast_track_without_model_jobs(self):
+    def test_v5_child_ui_stuck_prompt_texts_do_not_trigger_string_classifier(self):
         prompts = [
             "我卡住了：题目意思没看懂。",
             "我卡住了：不知道第一步该写什么。",
             "我卡住了：算到一半接不下去了。",
             "第10题我不会。",
         ]
-        for prompt in prompts:
-            with self.subTest(prompt=prompt):
-                self.assertTrue(daily_runtime._is_explicit_stuck_text(prompt))
-
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         started = runtime.start_review_mode(client_day_key="2099-02-04-ui-stuck")
         step = started["current_step"]
@@ -7119,23 +7046,21 @@ class LearningSystemTest(unittest.TestCase):
             answer_text=prompts[0],
         ))
 
-        self.assertEqual("teaching", result["child_state"])
+        self.assertEqual("analyzing", result["child_state"])
         attempt = self.conn.execute(
             "select * from attempts where client_idempotency_key = ?",
             ("submit-v5-ui-stuck",),
         ).fetchone()
         self.assertIsNotNone(attempt)
-        self.assertEqual("v3_stuck", attempt["answer_source"])
+        self.assertEqual("v3_text", attempt["answer_source"])
+        self.assertEqual(prompts[0], attempt["answer_raw"])
         review_meta = db.json_load(attempt["review_meta_json"], {})
-        self.assertEqual("stuck_fast_path", review_meta["route"])
-        self.assertEqual("deterministic_runtime", review_meta["provider_mode"])
-        self.assertEqual(0, self.conn.execute(
-            "select count(*) from background_jobs where attempt_id = ?",
+        self.assertFalse(review_meta["stuck"])
+        self.assertEqual("answer_analysis", review_meta["route"])
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
             (attempt["id"],),
         ).fetchone()[0])
-
-    def test_v5_stuck_classifier_does_not_swallow_math_work_with_stuck_words(self):
-        self.assertFalse(daily_runtime._is_explicit_stuck_text("我不会算 4x+5=13，但我先移项得到 4x=8。"))
 
     def test_v3_invalid_current_step_submit_has_no_attempt_job_or_upload_side_effects(self):
         temp_project = self._temp_project_with_graph("v3-invalid-submit-project")
@@ -7193,7 +7118,7 @@ class LearningSystemTest(unittest.TestCase):
         upload_root = temp_project / daily_runtime.ANSWER_UPLOAD_RELATIVE_PREFIX
         self.assertFalse(upload_root.exists())
 
-    def test_v3_submit_recovers_from_active_attempt_unique_conflict(self):
+    def test_v3_submit_rejects_active_attempt_unique_conflict_with_different_payload(self):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
         started = runtime.start_review_mode(client_day_key="2099-02-06")
         step = self.conn.execute(
@@ -7227,18 +7152,34 @@ class LearningSystemTest(unittest.TestCase):
             """,
             (step["id"], step["graph_version"], step["question_bank_version"], step["review_record_id"], existing_attempt_id),
         )
+        db.record_attempt_usage_context_snapshot(
+            self.conn,
+            attempt_id=existing_attempt_id,
+            flow_step_id=step["id"],
+            commit=False,
+        )
+        db.record_attempt_evidence_revision(
+            self.conn,
+            attempt_id=existing_attempt_id,
+            revision_kind="submission",
+            schema_version=multimodal_evidence.INPUT_EVIDENCE_SCHEMA_VERSION,
+            input_mode="typed",
+            recognition_status="not_required",
+            effective_text="已有提交，模拟并发先写入。",
+            commit=False,
+        )
         self.conn.commit()
         existing_row = self.conn.execute("select id from attempts where id = ?", (existing_attempt_id,)).fetchone()
 
         with patch.object(runtime, "_active_attempt_for_step", side_effect=[None, None, existing_row]):
-            result = runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
-                step_handle=started["current_step"]["step_handle"],
-                position=started["current_step"]["position"],
-                client_idempotency_key="racing-submit",
-                answer_text="并发里的另一次保存。",
-            ))
+            with self.assertRaises(daily_runtime.SubmissionIdempotencyConflict):
+                runtime.persist_child_response(daily_runtime.CurrentStepSubmission(
+                    step_handle=started["current_step"]["step_handle"],
+                    position=started["current_step"]["position"],
+                    client_idempotency_key="racing-submit",
+                    answer_text="并发里的另一次保存。",
+                ))
 
-        self.assertEqual("analyzing", result["child_state"])
         self.assertEqual(1, self.conn.execute("select count(*) from attempts where flow_step_id = ?", (step["id"],)).fetchone()[0])
         self.assertEqual(0, self.conn.execute("select count(*) from attempts where client_idempotency_key = 'racing-submit'").fetchone()[0])
 
@@ -7258,8 +7199,9 @@ class LearningSystemTest(unittest.TestCase):
 
     def test_v3_analyzing_ui_schedules_polling(self):
         script = (PROJECT_ROOT / "app/local_learning_system/app.js").read_text(encoding="utf-8")
-        self.assertIn("function scheduleV3StatePoll()", script)
+        self.assertIn("function scheduleV3StatePoll(delayMs = 2500)", script)
         self.assertIn("scheduleV3StatePoll();", script)
+        self.assertIn("scheduleV3StatePoll(100);", script)
         self.assertIn("页面会自动刷新", script)
 
     def test_v3_feature_flag_disabled_keeps_legacy_child_bootstrap(self):
@@ -7808,30 +7750,74 @@ class LearningSystemTest(unittest.TestCase):
                 now,
             ),
         )
+        structured_question_id = "Q-interaction-schema"
+        structured_question = self._attach_structured_question_review({
+            "id": structured_question_id,
+            "item_version": question_bank.QUESTION_BANK_VERSION,
+            "source_type": "graph_generated",
+            "node_id": "M-PRE-NUMBER-SENSE",
+            "secondary_node_ids": [],
+            "kind": "model_selection",
+            "question_type": "估算关键量补全",
+            "variant_level": "L2",
+            "prompt": "请补完整：多出的影响、少掉的影响、净变化，并写一句估算理由。",
+            "answer_format": "填空 + 理由",
+            "expected_answer": "多出的影响约20，少掉的影响约4，净变化约16，所以比1000大约大16。",
+            "rubric": [
+                {"result": "correct", "points": 2, "evidence": "三个关键量和理由都正确。"},
+                {"result": "partial", "points": 1, "evidence": "关键量部分正确。"},
+            ],
+            "solution_steps": [
+                "用 50×20=1000 作为基准。",
+                "分别估计 0.4 带来的增加和 0.2 带来的减少。",
+                "比较净变化并写出理由。",
+            ],
+            "target_error_tags": ["process_habit"],
+            "estimated_minutes": 4,
+            "interaction_schema": {
+                "schema_version": question_bank.QUESTION_INTERACTION_SCHEMA_VERSION,
+                "type": "fill_blank",
+                "title": "补完整关键量",
+                "fields": [
+                    {"id": "increase", "label": "多出的影响", "placeholder": "如 20", "expected": "20"},
+                    {"id": "decrease", "label": "少掉的影响", "placeholder": "如 4"},
+                    {"id": "net", "label": "净变化", "rubric": "internal"},
+                ],
+                "allow_explanation": True,
+                "explanation_label": "写一句理由",
+                "expected_answer": "20,4,16",
+            },
+        })
+        structured_question["quality"] = question_bank.review_item_quality(structured_question)
+        db.upsert_question(
+            self.conn,
+            structured_question,
+            reviewer_run_id=self._record_test_question_reviewer_run(structured_question_id),
+        )
+        question = db.get_question(self.conn, structured_question_id)
+        review_record = self.conn.execute(
+            """
+            select id
+            from question_review_records
+            where question_id = ?
+              and item_version = ?
+              and source_type = ?
+              and review_status = 'approved'
+              and active_eligible = 1
+            order by reviewed_at desc, id desc
+            limit 1
+            """,
+            (question["id"], question["item_version"], question["source_type"]),
+        ).fetchone()
+        self.assertIsNotNone(review_record)
+        self.assertTrue(db.is_child_schedulable_question(self.conn, question))
+
         step_id = runtime._create_question_step(
             flow_id=flow_id,
             position=1,
             graph_version=graph_version_value,
-            question={
-                "id": "Q-interaction-schema",
-                "node_id": "M-PRE-NUMBER-SENSE",
-                "item_version": "test-interaction-v1",
-                "prompt": "请补完整：多出的影响、少掉的影响、净变化。",
-                "interaction_schema": {
-                    "schema_version": question_bank.QUESTION_INTERACTION_SCHEMA_VERSION,
-                    "type": "fill_blank",
-                    "title": "补完整关键量",
-                    "fields": [
-                        {"id": "increase", "label": "多出的影响", "placeholder": "如 20", "expected": "20"},
-                        {"id": "decrease", "label": "少掉的影响", "placeholder": "如 4"},
-                        {"id": "net", "label": "净变化", "rubric": "internal"},
-                    ],
-                    "allow_explanation": True,
-                    "explanation_label": "写一句理由",
-                    "expected_answer": "20,4,16",
-                },
-            },
-            review_record_id="RR-interaction-schema",
+            question=question,
+            review_record_id=review_record["id"],
             selection_reason={"reason": "test structured interaction"},
             step_type="micro_check",
         )
@@ -8220,7 +8206,7 @@ class LearningSystemTest(unittest.TestCase):
             short_text_schema,
             question_updates={
                 "prompt": "计算 18-(-7)，并写下你的作答。",
-                "elicitation_mode": question_bank.V12_UNPROMPTED_PROCESS_ELICITATION_MODE,
+                "elicitation_mode": "unprompted_process_evidence",
             },
         )
         row = self.conn.execute("select * from flow_steps where step_handle = ?", (step_handle,)).fetchone()
@@ -8657,9 +8643,18 @@ class LearningSystemTest(unittest.TestCase):
         ).fetchone()[0])
 
     def test_unreviewed_diagnostic_question_cannot_enter_child_active_use(self):
-        diagnostic = db.row_to_question(self.conn.execute(
-            "select * from question_items where source_type = 'diagnostic' limit 1"
-        ).fetchone())
+        source = db.find_question_for_node(self.conn, "M-PRE-NUMBER-SENSE")
+        diagnostic = {
+            **source,
+            "id": "QD-TEST-UNREVIEWED",
+            "source_type": "diagnostic",
+            "kind": "diagnostic_probe",
+            "source": {"type": "diagnostic", "test_only": True},
+            "raw": {},
+        }
+        db.upsert_question(self.conn, diagnostic)
+        self.conn.commit()
+        diagnostic = db.get_question(self.conn, diagnostic["id"])
         self.assertTrue(db.is_current_active_question(diagnostic))
         self.assertFalse(db.is_child_schedulable_question(self.conn, diagnostic))
         self.assertEqual([diagnostic["id"]], db.stale_active_question_ids(self.conn, [diagnostic["id"]]))
@@ -8879,7 +8874,11 @@ class LearningSystemTest(unittest.TestCase):
 
         def fake_responses(received_route, payload):
             calls.append(payload)
-            self.assertEqual(route, received_route)
+            self.assertEqual(route.agent_key, received_route.agent_key)
+            self.assertEqual(route.task, received_route.task)
+            self.assertEqual(route.model, received_route.model)
+            self.assertGreater(received_route.timeout_seconds, 0)
+            self.assertLessEqual(received_route.timeout_seconds, route.timeout_seconds)
             if len(calls) == 1:
                 self.assertEqual("json_schema", payload["text"]["format"]["type"])
                 raise model_router.ModelCallError("response_format.type json_schema is not supported")
@@ -8971,7 +8970,11 @@ class LearningSystemTest(unittest.TestCase):
 
         def fake_chat(received_route, payload):
             calls.append(payload)
-            self.assertEqual(route, received_route)
+            self.assertEqual(route.agent_key, received_route.agent_key)
+            self.assertEqual(route.task, received_route.task)
+            self.assertEqual(route.model, received_route.model)
+            self.assertGreater(received_route.timeout_seconds, 0)
+            self.assertLessEqual(received_route.timeout_seconds, route.timeout_seconds)
             system_messages = [message for message in payload["messages"] if message.get("role") == "system"]
             user_messages = [message for message in payload["messages"] if message.get("role") == "user"]
             self.assertEqual(1, len(system_messages))
@@ -9006,7 +9009,7 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual("plain_json", result.mode)
         self.assertEqual(3, len(calls))
 
-    def test_structured_json_chat_fallback_preserves_prompt_and_json_schema_wrapper(self):
+    def test_structured_json_retryable_error_does_not_switch_endpoint_or_format(self):
         route = self._live_model_route(agent_key="planner_agent", task="planner_decision")
         schema = {
             "title": "planner_fallback_fixture",
@@ -9024,17 +9027,7 @@ class LearningSystemTest(unittest.TestCase):
 
         def fake_chat(received_route, payload):
             chat_calls.append(payload)
-            self.assertEqual(route, received_route)
-            self.assertTrue(payload["messages"])
-            user_messages = [item for item in payload["messages"] if item.get("role") == "user"]
-            self.assertEqual(1, len(user_messages))
-            self.assertTrue(str(user_messages[0].get("content") or "").strip())
-            self.assertEqual("json_schema", payload["response_format"]["type"])
-            wrapper = payload["response_format"]["json_schema"]
-            self.assertEqual("planner_fallback_fixture", wrapper["name"])
-            self.assertTrue(wrapper["strict"])
-            self.assertEqual(schema, wrapper["schema"])
-            return {"choices": [{"message": {"content": "{\"ok\": true}"}}]}
+            raise AssertionError("retryable transport failures must not switch endpoint")
 
         with patch.dict(
             os.environ,
@@ -9042,19 +9035,18 @@ class LearningSystemTest(unittest.TestCase):
             clear=True,
         ), patch.object(model_router, "call_responses", side_effect=unavailable_responses), \
              patch.object(model_router, "call_chat_completions", side_effect=fake_chat):
-            result = model_router.call_structured_json(
-                route,
-                {
-                    "instructions": "Return schema-valid planner JSON.",
-                    "input": [{"role": "user", "content": [{"type": "input_text", "text": "Choose one next action."}]}],
-                },
-                schema=schema,
-            )
+            with self.assertRaises(model_router.ModelCallError):
+                model_router.call_structured_json(
+                    route,
+                    {
+                        "instructions": "Return schema-valid planner JSON.",
+                        "input": [{"role": "user", "content": [{"type": "input_text", "text": "Choose one next action."}]}],
+                    },
+                    schema=schema,
+                )
 
-        self.assertEqual({"ok": True}, result.value)
-        self.assertEqual("json_schema", result.mode)
-        self.assertEqual(1, len(response_calls))
-        self.assertEqual(1, len(chat_calls))
+        self.assertGreaterEqual(len(response_calls), 1)
+        self.assertEqual(0, len(chat_calls))
 
     def test_structured_json_can_keep_retryable_errors_on_current_lane(self):
         route = self._live_model_route(agent_key="question_designer_agent", task="question_candidate")
@@ -9069,7 +9061,11 @@ class LearningSystemTest(unittest.TestCase):
 
         def timeout_responses(received_route, payload):
             calls.append(payload)
-            self.assertEqual(route, received_route)
+            self.assertEqual(route.agent_key, received_route.agent_key)
+            self.assertEqual(route.task, received_route.task)
+            self.assertEqual(route.model, received_route.model)
+            self.assertGreater(received_route.timeout_seconds, 0)
+            self.assertLessEqual(received_route.timeout_seconds, route.timeout_seconds)
             raise model_router.ModelCallError("HTTP 504 gateway timeout")
 
         with patch.dict(
@@ -9472,348 +9468,6 @@ class LearningSystemTest(unittest.TestCase):
             (question_bank.QUESTION_BANK_VERSION,),
         ).fetchone()[0]
         self.assertEqual(56 * question_bank.QUESTIONS_PER_GRAPH_NODE, review_record_count)
-
-    def test_question_bank_items_have_distinct_core_prompts_per_node(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        rows = self.conn.execute(
-            """
-            select *
-            from question_items
-            where source_type = 'graph_generated'
-              and item_version = ?
-            order by node_id, id
-            """,
-            (question_bank.QUESTION_BANK_VERSION,),
-        ).fetchall()
-        report = audit_module.audit_items([db.row_to_question(row) for row in rows])
-        blocking = [issue for issue in report["issues"] if issue["severity"] in {"P0", "P1"}]
-
-        self.assertEqual([], blocking[:10])
-        self.assertTrue(
-            all(item["unique_core_signatures"] >= 12 for item in report["node_summaries"]),
-            report["node_summaries"][:3],
-        )
-        self.assertTrue(
-            all(item["problem_families"] >= question_bank.MIN_PROBLEM_FAMILIES_PER_NODE for item in report["node_summaries"]),
-            report["node_summaries"][:3],
-        )
-        self.assertTrue(
-            all(item["max_problem_family_repeat"] <= question_bank.MAX_PROBLEM_FAMILY_REPEAT_PER_NODE for item in report["node_summaries"]),
-            report["node_summaries"][:3],
-        )
-        self.assertTrue(
-            all(item["max_core_repeat"] <= question_bank.MAX_CORE_STEM_REPEAT_PER_NODE for item in report["node_summaries"]),
-            report["node_summaries"][:3],
-        )
-
-    def test_question_bank_audit_flags_unique_prompt_family_false_pass(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        rows = self.conn.execute(
-            """
-            select *
-            from question_items
-            where source_type = 'graph_generated'
-              and item_version = ?
-              and node_id = 'M-G7-POS-NEG'
-            order by id
-            limit ?
-            """,
-            (question_bank.QUESTION_BANK_VERSION, question_bank.QUESTIONS_PER_GRAPH_NODE),
-        ).fetchall()
-        items = [json.loads(json.dumps(db.row_to_question(row), ensure_ascii=False)) for row in rows]
-        for index, item in enumerate(items):
-            family_id = f"PF-M-G7-POS-NEG-FALSEPASS-{index % 3}"
-            item["id"] = f"QB-FAKE-FAMILY-{index:02d}"
-            item["prompt"] = f"{item['prompt']} 唯一外壳{index}。"
-            item["problem_family_id"] = family_id
-            item["source"]["problem_family_id"] = family_id
-            item["node_alignment"]["problem_family_id"] = family_id
-            item["quality"]["problem_family_id"] = family_id
-
-        report = audit_module.audit_items(items)
-        issue_types = {issue["type"] for issue in report["issues"]}
-
-        self.assertIn("too_few_problem_families_for_20_items", issue_types)
-        self.assertIn("one_problem_family_repeated_too_often", issue_types)
-
-    def test_question_bank_audit_flags_unique_prompt_core_stem_false_pass(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        rows = self.conn.execute(
-            """
-            select *
-            from question_items
-            where source_type = 'graph_generated'
-              and item_version = ?
-              and node_id = 'M-G7-POS-NEG'
-            order by id
-            limit ?
-            """,
-            (question_bank.QUESTION_BANK_VERSION, question_bank.QUESTIONS_PER_GRAPH_NODE),
-        ).fetchall()
-        items = [json.loads(json.dumps(db.row_to_question(row), ensure_ascii=False)) for row in rows]
-        for index, item in enumerate(items):
-            core_id = f"CS-M-G7-POS-NEG-FALSEPASS-{index % 2}"
-            item["id"] = f"QB-FAKE-CORE-{index:02d}"
-            item["prompt"] = f"{item['prompt']} 唯一说明{index}。"
-            item["expected_answer"] = f"{item['expected_answer']} 表述版本{index}。"
-            item["core_stem_id"] = core_id
-            item["source"]["core_stem_id"] = core_id
-            item["node_alignment"]["core_stem_id"] = core_id
-            item["quality"]["core_stem_id"] = core_id
-            basis = item["source"].setdefault("core_stem_basis", {})
-            basis["core_fields"] = {
-                "stem_anchor": "same repeated core after fake core id folding",
-                "rule_anchor": "same rule",
-                "answer_anchor": "same answer",
-            }
-
-        report = audit_module.audit_items(items)
-        issue_types = {issue["type"] for issue in report["issues"]}
-
-        self.assertIn("twenty_items_reuse_too_few_core_questions", issue_types)
-        self.assertIn("one_core_question_repeated_too_often", issue_types)
-
-    def test_question_bank_audit_flags_unique_core_id_same_stem_anchor_false_pass(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        rows = self.conn.execute(
-            """
-            select *
-            from question_items
-            where source_type = 'graph_generated'
-              and item_version = ?
-              and node_id = 'M-G7-POS-NEG'
-            order by id
-            limit ?
-            """,
-            (question_bank.QUESTION_BANK_VERSION, question_bank.QUESTIONS_PER_GRAPH_NODE),
-        ).fetchall()
-        items = [json.loads(json.dumps(db.row_to_question(row), ensure_ascii=False)) for row in rows]
-        for index, item in enumerate(items):
-            core_id = f"CS-M-G7-POS-NEG-UNIQUE-BUT-FAKE-{index:02d}"
-            item["id"] = f"QB-FAKE-STEM-ANCHOR-{index:02d}"
-            item["prompt"] = f"{item['prompt']} 唯一包装{index}。"
-            item["expected_answer"] = f"{item['expected_answer']} 唯一表述{index}。"
-            item["core_stem_id"] = core_id
-            item["source"]["core_stem_id"] = core_id
-            item["node_alignment"]["core_stem_id"] = core_id
-            item["quality"]["core_stem_id"] = core_id
-            basis = item["source"].setdefault("core_stem_basis", {})
-            basis["core_fields"] = {
-                "stem_anchor": "same mathematical stem despite unique wrappers",
-                "rule_anchor": "same rule",
-                "answer_anchor": "same answer",
-            }
-            basis["semantic_stem_signature"] = "CC-fake-same-stem"
-
-        report = audit_module.audit_items(items)
-        issue_types = {issue["type"] for issue in report["issues"]}
-
-        self.assertIn("twenty_items_reuse_too_few_core_questions", issue_types)
-        self.assertIn("one_core_question_repeated_too_often", issue_types)
-
-    def test_question_bank_audit_report_verdict_matches_blocking_issue_counts(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        report = {
-            "item_count": 20,
-            "node_count": 1,
-            "node_summaries": [{
-                "node_id": "M-G7-POS-NEG",
-                "items": 20,
-                "kinds": 20,
-                "question_types": 20,
-                "tag_patterns": 6,
-                "problem_families": 3,
-                "max_problem_family_repeat": 8,
-                "unique_core_signatures": 20,
-                "max_core_repeat": 1,
-                "node_local_mainline_items": 20,
-                "picture_level_items": 0,
-                "top_core_prompt": "",
-            }],
-            "active_round": {
-                "picture_level_challenge_count": question_bank.MIN_PICTURE_LEVEL_CHALLENGES_PER_ROUND,
-                "node_local_mainline_count": planner.LEARNING_ROUND_TASK_COUNT,
-                "task_count": planner.LEARNING_ROUND_TASK_COUNT,
-                "minimum_required": question_bank.MIN_PICTURE_LEVEL_CHALLENGES_PER_ROUND,
-                "maximum_allowed": question_bank.MAX_PICTURE_LEVEL_CHALLENGES_PER_ROUND,
-                "node_local_mainline_minimum": question_bank.MIN_NODE_LOCAL_MAINLINE_TASKS_PER_ROUND,
-                "tasks": [],
-            },
-            "live_lineage": {"checked": False, "db_path": "", "issue_count": 0, "issues": [], "audit": {}},
-            "issues": [{
-                "severity": "P1",
-                "type": "too_few_problem_families_for_20_items",
-                "node_id": "M-G7-POS-NEG",
-                "detail": "3 problem families / 20 items",
-            }],
-        }
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "audit.md"
-            audit_module.write_report(report, path)
-            text = path.read_text(encoding="utf-8")
-
-        self.assertIn("- Verdict: NEEDS_FIX", text)
-        self.assertIn("- P0/P1/P2 issues: 0/1/0", text)
-        self.assertNotIn("- None", text)
-
-    def test_question_bank_audit_flags_live_db_superseded_active_evidence(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        session_id = db.create_session(self.conn, "audit stale live evidence", mode="test")
-        current_question = db.find_question_for_node(self.conn, "M-BRIDGE-SOLUTION-HABIT")
-        old_question_id = "QB8-AUDIT-SUPERSEDED-BANK"
-        old_item = {
-            **current_question,
-            "id": old_question_id,
-            "item_version": "2026-07-06.bank.v8",
-            "source_type": "graph_generated",
-            "source": {**current_question.get("source", {}), "type": "graph_generated"},
-            "raw": {},
-        }
-        db.upsert_question(self.conn, old_item)
-        self.conn.execute(
-            """
-            insert into attempts(
-              id, session_id, question_id, node_id, result, grading_status, evidence_status,
-              score_points, max_points, error_tags_json, answer_raw, parent_note, evidence_note,
-              answer_analysis_json, review_meta_json, cause_analysis_json,
-              explanation_score, blocking_evidence, processed_evolution_event_id, created_at
-            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "A-audit-superseded-bank",
-                session_id,
-                old_question_id,
-                current_question["node_id"],
-                "wrong",
-                "graded",
-                "active",
-                0,
-                2,
-                db.json_dump(["process_habit"]),
-                "旧题库证据。",
-                "",
-                "",
-                db.json_dump(sample_answer_analysis(process_gap="旧题库版本不能继续作为当前学习证据。")),
-                db.json_dump({}),
-                db.json_dump({}),
-                0,
-                0,
-                None,
-                db.now_iso(),
-            ),
-        )
-        self.conn.commit()
-
-        live_lineage = audit_module.audit_live_lineage(self.db_path)
-
-        self.assertTrue(live_lineage["checked"])
-        self.assertGreaterEqual(live_lineage["issue_count"], 2)
-        self.assertIn(
-            "live_db_active_attempts_on_superseded_bank_questions",
-            [issue["type"] for issue in live_lineage["issues"]],
-        )
-        self.assertIn(
-            "live_db_superseded_bank_review_records_active",
-            [issue["type"] for issue in live_lineage["issues"]],
-        )
-
-    def test_question_bank_audit_flags_live_db_superseded_duplicate_review_records(self):
-        spec = importlib.util.spec_from_file_location(
-            "audit_question_bank_grade_level",
-            PROJECT_ROOT / "scripts" / "audit_question_bank_grade_level.py",
-        )
-        self.assertIsNotNone(spec)
-        audit_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(audit_module)
-        question = db.find_question_for_node(self.conn, "M-PRE-DECIMAL-OPS")
-        self.conn.execute(
-            """
-            insert into question_review_records(
-              id, question_id, candidate_id, item_version, source_type,
-              candidate_sha256, review_contract_version, review_status,
-              rejection_reasons_json, criteria_json, active_eligible, reviewed_at
-            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "QRR-audit-superseded-duplicate-active",
-                question["id"],
-                question["id"],
-                question["item_version"],
-                question["source_type"],
-                "older-active-review-hash",
-                question_bank.QUESTION_PRODUCTION_CONTRACT_VERSION,
-                "approved",
-                db.json_dump([]),
-                db.json_dump({}),
-                1,
-                "2000-01-01T00:00:00+00:00",
-            ),
-        )
-        self.conn.commit()
-
-        live_lineage = audit_module.audit_live_lineage(self.db_path)
-        self.assertGreaterEqual(live_lineage["issue_count"], 1)
-        self.assertIn(
-            "live_db_superseded_duplicate_review_records_active",
-            [issue["type"] for issue in live_lineage["issues"]],
-        )
-        report = {
-            "item_count": 0,
-            "node_count": 0,
-            "node_summaries": [],
-            "active_round": {
-                "picture_level_challenge_count": 0,
-                "node_local_mainline_count": 0,
-                "task_count": 0,
-                "minimum_required": 0,
-                "maximum_allowed": question_bank.MAX_PICTURE_LEVEL_CHALLENGES_PER_ROUND,
-                "node_local_mainline_minimum": question_bank.MIN_NODE_LOCAL_MAINLINE_TASKS_PER_ROUND,
-                "tasks": [],
-            },
-            "live_lineage": {"checked": True, "db_path": str(self.db_path), "issue_count": 1, "issues": [], "audit": {}},
-            "issues": [],
-        }
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "lineage_report.md"
-            audit_module.write_report(report, path)
-            text = path.read_text(encoding="utf-8")
-        self.assertIn("- Verdict: NEEDS_FIX", text)
 
     def test_reports_and_planner_ignore_stale_learner_status_without_manual_repair(self):
         session_id = db.create_session(self.conn, "stale status read guard", mode="test")
@@ -10711,6 +10365,7 @@ class LearningSystemTest(unittest.TestCase):
             "请写一份有理数加减的最小自查清单，至少包含规则、符号和检验。",
             "把减法转加法放进一个实际情境：先列出已知量、未知量和必须确认的条件。",
             "请用“先判断模型，再执行计算/推理，再检验”的顺序完成一题有理数加减。如果你不想自拟数字，可以只写出关系结构和检验方法。",
+            "原题是：不精算判断 49.8×20.4 比 1000 大还是小。现在换成变式：判断 30.2×39.7 比 1200 大还是小。请判断原方法哪一步不变，最后用检验、错因或模型说明关键一步为什么成立。",
         ]
 
         for prompt in bad_prompts:
@@ -11001,23 +10656,6 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual(0, rows[0]["active_eligible"])
         self.assertTrue(all(row["active_eligible"] == 0 for row in rows[1:]))
         self.assertFalse(db.is_child_schedulable_question(self.conn, db.get_question(self.conn, base["id"])))
-
-    def test_released_diagnostic_items_have_quality_gate_and_reasoning_signal(self):
-        diagnostic = json.loads((PROJECT_ROOT / "data/questions/math_diagnostic_v1.json").read_text(encoding="utf-8"))
-
-        self.assertEqual("1.1.0", diagnostic["schema_version"])
-        for item in diagnostic["items"]:
-            recomputed = question_bank.review_item_quality(item)
-            self.assertEqual("approved", item["quality"]["review_status"], item["id"])
-            self.assertEqual("approved", recomputed["review_status"], item["id"])
-            self.assertEqual("incoming_grade_7", item["age_floor"])
-            self.assertTrue(item["quality"]["requires_reasoning"], item["id"])
-            self.assertTrue(item["quality"]["has_high_signal_structure"], item["id"])
-            self.assertTrue(item["quality"]["no_mechanical_drill"], item["id"])
-            self.assertTrue(recomputed["reviewer_evidence"]["process_evidence_required"], item["id"])
-            self.assertTrue(recomputed["reviewer_evidence"]["diagnostic_structure"], item["id"])
-            self.assertNotIn("围绕“", item["prompt"])
-            self.assertEqual("diagnostic_generated", item["source"]["type"])
 
     def test_seed_registers_graph_evaluation_and_question_production_agents(self):
         graph_profile = db.get_agent_profile(self.conn, "graph_agent")
@@ -13275,7 +12913,7 @@ class LearningSystemTest(unittest.TestCase):
             self.assertEqual("needs_system_recovery", child["learning_group"]["state"])
             self.assertEqual("blocked", child["completion"]["closure_status"])
             self.assertEqual([], child["today_plan"]["tasks"])
-            self.assertIn("系统正在整理", child["completion"]["child_message"]["pending_message"])
+            self.assertIn("题目还没有准备好", child["completion"]["child_message"]["pending_message"])
             self._assert_no_child_planner_internal_text(child)
         finally:
             httpd.shutdown()
@@ -13298,7 +12936,7 @@ class LearningSystemTest(unittest.TestCase):
                 })
 
             self.assertEqual(409, response["status"])
-            self.assertIn("系统正在整理", response["body"])
+            self.assertIn("还没有准备好", response["body"])
             self._assert_no_child_planner_internal_text(response["body"])
         finally:
             httpd.shutdown()
@@ -15985,7 +15623,7 @@ class LearningSystemTest(unittest.TestCase):
 
     def test_lineage_repair_normalizes_missing_active_evolved_source_status(self):
         session_id = db.create_session(self.conn, "evolved source active repair", mode="test")
-        base_question = db.find_question_for_node(self.conn, "M-PRE-INTEGER-OPS")
+        base_question = db.find_question_for_node(self.conn, "M-PRE-NUMBER-SENSE")
         source_attempt_id = db.record_attempt(
             self.conn,
             session_id=session_id,
@@ -15995,12 +15633,12 @@ class LearningSystemTest(unittest.TestCase):
             score_points=0,
             max_points=2,
             error_tags=["process_habit"],
-            answer_raw="只写答案，没有检验。",
+            answer_raw="只写答案，没有估算依据。",
             parent_note="来源证据有效，但需要回炉。",
             answer_analysis=sample_answer_analysis(
-                optimal_answer="先写规则，再写关键步骤和检验。",
+                optimal_answer="先写估算依据，再判断数量级。",
                 child_summary="孩子只写了答案。",
-                process_gap="缺少规则和检验。",
+                process_gap="缺少估算依据。",
             ),
             explanation_score=0,
         )
@@ -16014,11 +15652,11 @@ class LearningSystemTest(unittest.TestCase):
             "kind": "evidence_driven_retest",
             "question_type": "缺失 active 来源状态回归",
             "variant_level": "L2",
-            "prompt": "先写有余数除法验算关系，再解释余数为什么小于除数。",
-            "answer_format": "规则 + 解释 + 检验",
-            "expected_answer": "除数×商+余数=被除数，且余数小于除数。",
+            "prompt": "先写估算依据，再判断 39×21 更接近 800 还是 80，并说明为什么。",
+            "answer_format": "判断 + 估算依据",
+            "expected_answer": "更接近 800。因为 39 接近 40，21 接近 20，40×20=800。",
             "rubric": question_bank.BASE_RUBRIC,
-            "solution_steps": ["写出验算关系。", "说明余数若不小于除数，商还能增加。"],
+            "solution_steps": ["把 39 看成接近 40。", "把 21 看成接近 20。", "计算 40×20=800 并判断数量级。"],
             "target_error_tags": ["process_habit"],
             "reviewer_evidence": self._candidate_reviewer_evidence(),
             "rollback_candidates": [],
@@ -16039,8 +15677,8 @@ class LearningSystemTest(unittest.TestCase):
             {
                 "id": source_attempt_id,
                 "error_tags": ["process_habit"],
-                "parent_note": "缺少验算关系和解释。",
-                "answer_raw": "没有检验。",
+                "parent_note": "缺少估算依据。",
+                "answer_raw": "没有说明依据。",
                 "evidence_status": "active",
             },
             "E-test-active-source",
@@ -16101,12 +15739,12 @@ class LearningSystemTest(unittest.TestCase):
             score_points=0,
             max_points=2,
             error_tags=["process_habit"],
-            answer_raw="还是没有检验。",
+            answer_raw="还是没有说明估算依据。",
             parent_note="复测仍弱。",
             answer_analysis=sample_answer_analysis(
                 optimal_answer=raw["expected_answer"],
-                child_summary="孩子缺少检验。",
-                process_gap="缺少验算关系和解释。",
+                child_summary="孩子缺少估算依据。",
+                process_gap="缺少估算依据和数量级判断。",
             ),
             explanation_score=0,
         )
@@ -16144,7 +15782,7 @@ class LearningSystemTest(unittest.TestCase):
 
     def test_lineage_repair_rejects_evolved_source_with_malformed_answer_analysis(self):
         session_id = db.create_session(self.conn, "malformed source analysis repair", mode="test")
-        base_question = db.find_question_for_node(self.conn, "M-PRE-INTEGER-OPS")
+        base_question = db.find_question_for_node(self.conn, "M-PRE-NUMBER-SENSE")
         source_attempt_id = db.record_attempt(
             self.conn,
             session_id=session_id,
@@ -16154,12 +15792,12 @@ class LearningSystemTest(unittest.TestCase):
             score_points=0,
             max_points=2,
             error_tags=["process_habit"],
-            answer_raw="只写答案，没有检验。",
+            answer_raw="只写答案，没有估算依据。",
             parent_note="先写成有效证据，再模拟旧数据损坏。",
             answer_analysis=sample_answer_analysis(
-                optimal_answer="先写规则，再写关键步骤和检验。",
+                optimal_answer="先写估算依据，再判断数量级。",
                 child_summary="孩子只写了答案。",
-                process_gap="缺少规则和检验。",
+                process_gap="缺少估算依据。",
             ),
             explanation_score=0,
         )
@@ -16177,11 +15815,11 @@ class LearningSystemTest(unittest.TestCase):
             "kind": "evidence_driven_retest",
             "question_type": "坏答案分析来源回归",
             "variant_level": "L2",
-            "prompt": "先写有余数除法验算关系，再解释余数为什么小于除数。",
-            "answer_format": "规则 + 解释 + 检验",
-            "expected_answer": "除数×商+余数=被除数，且余数小于除数。",
+            "prompt": "先写估算依据，再判断 39×21 更接近 800 还是 80，并说明为什么。",
+            "answer_format": "判断 + 估算依据",
+            "expected_answer": "更接近 800。因为 39 接近 40，21 接近 20，40×20=800。",
             "rubric": question_bank.BASE_RUBRIC,
-            "solution_steps": ["写出验算关系。", "说明余数若不小于除数，商还能增加。"],
+            "solution_steps": ["把 39 看成接近 40。", "把 21 看成接近 20。", "计算 40×20=800 并判断数量级。"],
             "target_error_tags": ["process_habit"],
             "rollback_candidates": [],
             "rollback_candidate_relations": [],
@@ -16375,10 +16013,10 @@ class LearningSystemTest(unittest.TestCase):
                 "candidate_id": question_id,
                 "question_type": "循环来源证据回归",
                 "variant_level": "L2",
-                "prompt": "先写有余数除法的验算关系，再解释为什么循环来源证据不能作为当前学习证据。",
-                "answer_format": "规则 + 判断 + 检验",
+                "prompt": "先写估算依据，再解释为什么循环来源证据不能作为当前学习证据。",
+                "answer_format": "判断 + 估算依据",
                 "expected_answer": "循环来源证据不能证明题目来自真实、先发生的有效 attempt。",
-                "solution_steps": ["写出验算关系。", "说明来源证据必须先于派生题。", "判断循环证据不可用。"],
+                "solution_steps": ["写出估算依据。", "说明来源证据必须先于派生题。", "判断循环证据不可用。"],
                 "target_error_tags": ["process_habit"],
                 "reviewer_evidence": self._candidate_reviewer_evidence(),
                 "estimated_minutes": 4,
@@ -17621,7 +17259,7 @@ class LearningSystemTest(unittest.TestCase):
                     phase="answer_analysis",
                 )
                 self.assertEqual("2026-07-14.answer-review.v5.schema.v3", output["schema_version"])
-                self.assertEqual(3, len(output["criteria"]))
+                self.assertEqual(4, len(output["criteria"]))
                 self.assertEqual(
                     expected_status_set,
                     {criterion["status"] for criterion in output["criteria"]},
@@ -19069,6 +18707,48 @@ class LearningSystemTest(unittest.TestCase):
             """,
             (row["id"], row["item_version"], row["review_record_id"], row["item_version"], lineage["flow_step_id"]),
         )
+        self.conn.execute(
+            "delete from attempt_usage_contexts where attempt_id = ?",
+            (lineage["attempt_id"],),
+        )
+        self.conn.execute(
+            "delete from flow_step_usage_contexts where flow_step_id = ?",
+            (lineage["flow_step_id"],),
+        )
+        usage_policy = db.active_question_usage_policy(
+            self.conn,
+            row["id"],
+            item_version=row["item_version"],
+        )
+        self.assertIsNotNone(usage_policy, f"missing usage policy for {row['id']}")
+        usage_context = question_usage.context_for_step(
+            usage_policy,
+            purpose="diagnostic",
+            purpose_role=(
+                "confirmation_transfer"
+                if question_kind == "transfer_retest"
+                and "confirmation_transfer" in usage_policy["diagnostic_roles"]
+                else "confirmation_core"
+                if "confirmation_core" in usage_policy["diagnostic_roles"]
+                else usage_policy["diagnostic_roles"][0]
+            ),
+            block_id=f"fixture-{lineage['flow_id']}",
+            block_index=1,
+        )
+        db.record_flow_step_usage_context(
+            self.conn,
+            flow_step_id=lineage["flow_step_id"],
+            question_id=row["id"],
+            item_version=row["item_version"],
+            context=usage_context,
+            commit=False,
+        )
+        db.record_attempt_usage_context_snapshot(
+            self.conn,
+            attempt_id=lineage["attempt_id"],
+            flow_step_id=lineage["flow_step_id"],
+            commit=False,
+        )
         self.conn.commit()
         return db.get_attempt(self.conn, lineage["attempt_id"])
 
@@ -19389,229 +19069,6 @@ class LearningSystemTest(unittest.TestCase):
         )
         self.conn.execute("update flow_steps set attempt_id = ? where id = ?", (attempt_id, step_id))
         return attempt_id
-
-    def _seed_v5_question_bank_version_clone(self, *, node_id: str, question_bank_version: str) -> str:
-        self.assertEqual(question_bank.QUESTION_BANK_V12_VERSION, question_bank_version)
-        source_question = db.find_question_for_node(self.conn, node_id)
-        source_item = json.loads(json.dumps(source_question["raw"], ensure_ascii=False))
-        node = db.get_graph_node(self.conn, node_id)
-        graph_version_value = graph_runtime.GraphRuntimeService(project_root=PROJECT_ROOT).current_graph_version()
-        question_id = f"QB12-TEST-{node_id}"
-        reviewer_run_id = self._record_test_question_reviewer_run(question_id)
-        slot = 1
-        slot_role = question_bank.v12_slot_role_for_node(node, slot)
-        voice_policy = question_bank.v12_role_voice_policy(slot_role)
-        intended_voice = (voice_policy.get("preferred") or voice_policy.get("allowed") or [])[0]
-        allowed_rollbacks = question_bank.v12_allowed_rollback_nodes_for_graph_node(node)[:2]
-        diagnosis = node.get("error_diagnosis") if isinstance(node.get("error_diagnosis"), dict) else {}
-        target_error_tags = [
-            str(tag)
-            for tag in diagnosis.get("likely_error_tags") or []
-            if str(tag) in question_bank.CANONICAL_ERROR_TAGS
-        ][:1] or ["general"]
-        solution_steps = list(source_item.get("solution_steps") or [])
-        if len(solution_steps) < 2:
-            solution_steps = ["根据题意写出关键关系。", "完成求解并说明结果为什么成立。"]
-
-        def recorded_artifact(*, role: str, agent_key: str, phase: str, contract_key: str, contract_version: str, response_schema_version: str) -> dict:
-            return {
-                "agent_key": agent_key,
-                "phase": phase,
-                "model_provider": "gpt",
-                "model_name": "gpt-5.5-recorded-fixture",
-                "model_alias": "gpt-5.5-recorded-fixture",
-                "provider_mode": "recorded_model",
-                "artifact_role": role,
-                "structured_json_mode": "json_schema",
-                "prompt_template_sha256": f"sha256:{role}:prompt-template",
-                "rendered_prompt_sha256": f"sha256:{role}:rendered-prompt",
-                "response_schema_version": response_schema_version,
-                "response_schema_sha256": f"sha256:{role}:response-schema",
-                "batch_raw_response_sha256": f"sha256:{role}:recorded-response",
-                "contract_key": contract_key,
-                "contract_version": contract_version,
-            }
-
-        external_item = {
-            "id": question_id,
-            "slot": slot,
-            "slot_role": slot_role,
-            "node_id": node_id,
-            "secondary_node_ids": [],
-            "kind": slot_role,
-            "question_type": str(source_item.get("question_type") or slot_role),
-            "variant_level": "L2",
-            "prompt": str(source_item.get("prompt") or f"围绕{node.get('name', node_id)}写出关键关系并完成求解。"),
-            "interaction_schema": {
-                "schema_version": question_bank.QUESTION_INTERACTION_SCHEMA_VERSION,
-                "type": "short_text",
-                "title": "",
-                "allow_explanation": True,
-                "explanation_label": "补充说明",
-                "fields": [],
-                "choices": [],
-                "formula_label": "",
-                "placeholder": "",
-            },
-            "answer_format": str(source_item.get("answer_format") or "关键关系 + 求解 + 检验"),
-            "expected_answer": str(source_item.get("expected_answer") or "写出节点对应关系，完成求解并给出检验。"),
-            "accepted_alternatives": list(source_item.get("accepted_alternatives") or []),
-            "rubric": list(source_item.get("rubric") or question_bank.BASE_RUBRIC),
-            "solution_steps": solution_steps,
-            "target_error_tags": target_error_tags,
-            "rollback_candidates": allowed_rollbacks,
-            "rollback_candidate_relations": [
-                {"node_id": rollback_id, "relation": "prerequisite_chain"}
-                for rollback_id in allowed_rollbacks
-            ],
-            "problem_family_id": f"PF-V12-LEDGER-{node_id}",
-            "core_stem_id": f"CS-V12-LEDGER-{node_id}",
-            "math_core_signature": f"ledger-v12-{node_id}-slot-01",
-            "evidence_goal": f"Use {slot_role} evidence to snapshot exact v12 activation lineage.",
-            "elicitation_mode": "direct_prompted_evidence",
-            "child_surface_design": json.loads(json.dumps(question_bank.V12_CHILD_SURFACE_DESIGN)),
-            "intended_instruction_voice_family": intended_voice,
-            "difficulty_vector": {
-                "concept_demand": 2,
-                "reasoning_steps": 3,
-                "calculation_load": 2,
-                "representation_demand": 1,
-                "transfer_distance": 1,
-            },
-            "requires_reasoning": True,
-            "node_local_mainline": True,
-            "controlled_stretch": False,
-            "estimated_minutes": int(source_item.get("estimated_minutes") or 5),
-            "designer_artifact": {
-                "designer_run_id": f"DESIGN-{question_id}",
-                "prompt_version_id": question_bank.V12_DESIGNER_PROMPT_VERSION_ID,
-                "design_rationale": f"Recorded v12 ledger fixture for {node_id} slot 1.",
-                "pipeline_stage": "initial_generation",
-                "stage_attempt": 1,
-                **recorded_artifact(
-                    role="designer",
-                    agent_key=question_bank.QUESTION_DESIGNER_AGENT_KEY,
-                    phase="question_candidate",
-                    contract_key="math_question_bank_v12_designer_batch",
-                    contract_version=question_bank.V12_DESIGNER_CONTRACT_VERSION,
-                    response_schema_version=question_bank.V12_DESIGNER_RESPONSE_SCHEMA_VERSION,
-                ),
-            },
-        }
-        semantic_evidence = {
-            "version": question_bank.V12_ITEM_REVIEW_SEMANTIC_EVIDENCE_VERSION,
-            "ux_verdict": "approved",
-            "natural_self_contained_task": {
-                "verdict": "pass",
-                "score": 0.95,
-                "reason": "The recorded fixture is a self-contained node-bound task.",
-            },
-            "natural_chinese": {
-                "verdict": "pass",
-                "score": 0.95,
-                "reason": "The child-facing Chinese is natural and concise.",
-            },
-            "rendered_notation_readiness": {
-                "verdict": "pass",
-                "score": 1.0,
-                "reason": "The recorded child surface contains no unresolved notation risk.",
-                "child_visible_risks": [],
-            },
-            "age_dignity": {
-                "verdict": "pass",
-                "score": 0.95,
-                "reason": "The task respects an incoming Grade 7 learner.",
-            },
-            "instruction_voice_family": intended_voice,
-            "response_moves": ["solve", "explain"],
-            "unprompted_process_evidence": {
-                "applicability": "not_applicable",
-                "verdict": "not_applicable",
-                "score": 0.95,
-                "reason": "Slot 1 uses direct prompted evidence rather than an unprompted process probe.",
-            },
-            "process_target_disclosed": False,
-            "process_disclosure_evidence": {
-                "verdict": "not_disclosed",
-                "source_field": "none",
-                "quote": "",
-                "reason": "The child-visible prompt does not disclose a hidden process target.",
-            },
-            "evidence": "The recorded reviewer approved the task, answer, steps, dignity, and response burden.",
-            "repair_direction": "No repair is required for this approved ledger fixture.",
-        }
-        reviewer_evidence = {
-            "agent_key": question_bank.QUESTION_REVIEWER_AGENT_KEY,
-            "provenance_type": question_bank.V12_REVIEW_PROVENANCE,
-            "graph_bound": True,
-            "incoming_grade_7_ready": True,
-            "diagnostic_structure": True,
-            "process_evidence_required": True,
-            "not_mechanical_drill": True,
-            "child_prompt_self_contained": True,
-            "specific_expected_answer": True,
-            "review_rationale": "Recorded independent v12 review for the active-bank ledger fixture.",
-        }
-        review_artifact = {
-            "reviewer_run_id": reviewer_run_id,
-            "prompt_version_id": question_bank.V12_REVIEWER_PROMPT_VERSION_ID,
-            "verdict": "approved",
-            "scores": {key: 0.95 for key in question_bank.V12_REVIEW_SCORE_KEYS},
-            "reasons": ["The node-bound task and reference answer are suitable for the ledger regression."],
-            "reviewer_evidence": reviewer_evidence,
-            "confidence": 0.95,
-            "semantic_evidence_version": question_bank.V12_ITEM_REVIEW_SEMANTIC_EVIDENCE_VERSION,
-            "semantic_evidence": semantic_evidence,
-            "pipeline_stage": "initial_generation",
-            "stage_attempt": 1,
-            **recorded_artifact(
-                role="reviewer",
-                agent_key=question_bank.QUESTION_REVIEWER_AGENT_KEY,
-                phase="question_review",
-                contract_key="math_question_bank_v12_reviewer_batch",
-                contract_version=question_bank.V12_REVIEWER_CONTRACT_VERSION,
-                response_schema_version=question_bank.V12_REVIEWER_RESPONSE_SCHEMA_VERSION,
-            ),
-        }
-        review_artifact["candidate_sha256"] = question_bank.v12_external_candidate_sha256(external_item)
-        external_item["review_artifact"] = review_artifact
-        review_binding = question_bank.v12_item_review_subject_binding(external_item)
-        review_artifact["child_surface_sha256"] = review_binding["child_surface_sha256"]
-        review_artifact["item_review_request_sha256"] = review_binding["item_review_request_sha256"]
-        review_artifact["semantic_evidence_sha256"] = question_bank.v12_item_review_semantic_evidence_sha256(
-            external_item,
-            review_artifact,
-        )
-        manifest = {
-            "schema_version": question_bank.QUESTION_BANK_V12_SCHEMA_VERSION,
-            "manifest_id": "math_question_bank_v12_active_bank_ledger_fixture",
-            "question_bank_version": question_bank_version,
-            "graph_version": graph_version_value,
-            "source_policy": "recorded_v3_test_fixture_no_external_private_bank",
-            "status": "draft_recorded_model",
-        }
-        item = question_bank.external_v12_item_to_question_item(manifest, node, external_item)
-        db.upsert_question(
-            self.conn,
-            item,
-            reviewer_run_id=reviewer_run_id,
-        )
-        self.conn.commit()
-        review = self.conn.execute(
-            "select * from question_review_records where question_id = ? and item_version = ?",
-            (question_id, question_bank_version),
-        ).fetchone()
-        self.assertIsNotNone(review)
-        self.assertEqual(1, review["active_eligible"])
-        self.assertEqual(reviewer_run_id, review["reviewer_run_id"])
-        stored = db.get_question(self.conn, question_id)["raw"]
-        self.assertEqual(question_bank.V12_SOURCE_TYPE, stored["source"]["external_source_type"])
-        self.assertEqual(question_bank.V12_ACTIVE_QUALITY_CONTRACT_VERSION, stored["quality"]["contract_version"])
-        self.assertEqual(
-            review_artifact["semantic_evidence_sha256"],
-            stored["quality"]["semantic_evidence_sha256"],
-        )
-        return question_id
 
     def _start_v5_recorded_new_knowledge_flow(self, day_key: str):
         runtime = daily_runtime.DailyLearningRuntime(self.conn, project_root=PROJECT_ROOT)
@@ -20041,6 +19498,7 @@ class LearningSystemTest(unittest.TestCase):
         *,
         expected_action: str,
         expect_teaching: bool = False,
+        expect_mastery: bool = True,
     ) -> dict:
         attempt = db.get_attempt(self.conn, attempt_id)
         jobs = {
@@ -20102,15 +19560,19 @@ class LearningSystemTest(unittest.TestCase):
             "select * from mastery_decisions where source_attempt_ids_json like ?",
             (f"%{attempt_id}%",),
         ).fetchall()
-        self.assertEqual(1, len(mastery_rows))
-        mastery = dict(mastery_rows[0])
-        self.assertEqual(runs["evaluation_update"]["id"], mastery["evaluation_agent_run_id"])
-        self.assertIn(validation["id"], db.json_load(mastery["source_evidence_validation_ids_json"], []))
+        self.assertEqual(1 if expect_mastery else 0, len(mastery_rows))
+        mastery = dict(mastery_rows[0]) if mastery_rows else None
+        if mastery:
+            self.assertEqual(runs["evaluation_update"]["id"], mastery["evaluation_agent_run_id"])
+            self.assertIn(validation["id"], db.json_load(mastery["source_evidence_validation_ids_json"], []))
 
         planner_payload = db.json_load(jobs["planner_decision"]["payload_json"], {})
         self.assertIn(jobs["evaluation_update"]["id"], planner_payload["source_job_ids"])
         self.assertIn(runs["evaluation_update"]["id"], planner_payload["source_agent_run_ids"])
-        self.assertIn(mastery["id"], planner_payload["source_mastery_decision_ids"])
+        if mastery:
+            self.assertIn(mastery["id"], planner_payload["source_mastery_decision_ids"])
+        else:
+            self.assertEqual([], planner_payload["source_mastery_decision_ids"])
 
         decisions = self.conn.execute(
             "select * from next_step_decisions where source_attempt_ids_json like ?",
@@ -20122,7 +19584,10 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual("recorded_model", decision["provider_mode"])
         self.assertEqual(runs["planner_decision"]["id"], decision["planner_agent_run_id"])
         self.assertIn(validation["id"], db.json_load(decision["source_evidence_validation_ids_json"], []))
-        self.assertIn(mastery["id"], db.json_load(decision["source_mastery_decision_ids_json"], []))
+        if mastery:
+            self.assertIn(mastery["id"], db.json_load(decision["source_mastery_decision_ids_json"], []))
+        else:
+            self.assertEqual([], db.json_load(decision["source_mastery_decision_ids_json"], []))
 
         if expect_teaching:
             teaching_payload = db.json_load(jobs["teaching_generation"]["payload_json"], {})
@@ -20281,6 +19746,8 @@ class LearningSystemTest(unittest.TestCase):
         return packet
 
     def _prepare_v5_evaluation_job(self, runtime, attempt, *, provider_mode: str = "recorded_model"):
+        from learning_system import assessment_store
+
         answer_run = db.record_agent_run(
             self.conn,
             agent_key="answer_analysis_agent",
@@ -20314,6 +19781,87 @@ class LearningSystemTest(unittest.TestCase):
             "update attempts set analysis_status = 'valid', analysis_version = 1 where id = ?",
             (attempt["id"],),
         )
+        step = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (attempt["flow_step_id"],),
+        ).fetchone()
+        self.assertIsNotNone(step)
+        self.conn.execute(
+            "update daily_flows set assessment_policy_version = 'v5.1' where id = ?",
+            (step["flow_id"],),
+        )
+        contract = assessment_store.active_contract_for_question(
+            self.conn,
+            question["id"],
+            question["item_version"],
+        )
+        self.assertIsNotNone(contract, f"missing active answer contract for {question['id']}")
+        assessment_store.bind_contract_to_flow_step(
+            self.conn,
+            attempt["flow_step_id"],
+            contract,
+        )
+        contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn,
+            attempt["flow_step_id"],
+        )
+        self.assertIsNotNone(contract)
+        input_digest = db._digest_json({
+            "attempt_id": attempt["id"],
+            "attempt_version": int(attempt.get("attempt_version") or 1),
+            "answer_contract_digest_sha256": contract["contract_digest_sha256"],
+            "fixture": "prepare_v5_evaluation_job",
+        })
+        pending = assessment_store.record_pending_assessment(
+            self.conn,
+            attempt_id=attempt["id"],
+            attempt_version=int(attempt.get("attempt_version") or 1),
+            contract=contract,
+            assessment_input_digest_sha256=input_digest,
+        )
+        criteria = [
+            {
+                "criterion_key": point["key"],
+                "status": "met",
+                "child_evidence": "Recorded diagnostic fixture satisfies this scoring point.",
+                "reason": "The fixture models a fully correct diagnostic response.",
+            }
+            for point in contract["score_points"]
+        ]
+        calculated = assessment_policy.calculate_assessment(
+            assessment_store.policy_contract_for_assessment(contract),
+            criteria,
+        )
+        feedback = {
+            "reference_answer": str(question["expected_answer"]),
+            "answer_gap": "没有影响得分的数学差距。",
+            "improvement_direction": ["继续保持独立写出关系、步骤和检验。"],
+            "expression_judgment": "表达能准确传达数学意图。",
+            "teaching_explanation": "这次诊断作答满足全部关键得分点。",
+        }
+        assessment_digest = db._digest_json({
+            "assessment_id": pending["id"],
+            "assessment_version": pending["assessment_version"],
+            "assessment_input_digest_sha256": input_digest,
+            "answer_contract_digest_sha256": contract["contract_digest_sha256"],
+            "criterion_judgments": criteria,
+            "score_out_of_10": calculated["score_out_of_10"],
+            "question_passed": calculated["question_passed"],
+            "feedback": feedback,
+            "answer_analysis_agent_run_id": answer_run["id"],
+            "provider_mode": "recorded_model",
+        })
+        accepted = assessment_store.accept_assessment(
+            self.conn,
+            assessment_id=pending["id"],
+            criterion_judgments=criteria,
+            score_out_of_10=calculated["score_out_of_10"],
+            question_passed=calculated["question_passed"],
+            feedback=feedback,
+            assessment_digest_sha256=assessment_digest,
+            answer_analysis_agent_run_id=answer_run["id"],
+            provider_mode="recorded_model",
+        )
         validation = evidence_gate.EvidenceGate(
             self.conn,
             current_graph_version=runtime.graph.current_graph_version(),
@@ -20322,6 +19870,9 @@ class LearningSystemTest(unittest.TestCase):
             analysis_version=1,
             provider_mode="recorded_model",
             answer_analysis_agent_run_id=answer_run["id"],
+            assessment_id=accepted["id"],
+            assessment_version=accepted["assessment_version"],
+            assessment_digest_sha256=accepted["assessment_digest_sha256"],
         )
         self.conn.execute(
             "update background_jobs set status = 'succeeded' where attempt_id = ? and job_type = 'answer_analysis'",

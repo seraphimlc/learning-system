@@ -1,0 +1,48 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "attempt_accounting": {
+    "content_regeneration_consumed": true,
+    "provider_retry_required": false
+  },
+  "blocking_rejection_codes": [
+    "standard_answer_lower_bound_insufficient"
+  ],
+  "family_id": "number_sense_range_benchmark",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "expert_review_blocks_loop",
+      "item_id": "CAND-c6710dcc68ba",
+      "message": "专家审核未通过，workflow 必须回到命题 Agent。",
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "profile": "admin_production_gate",
+      "severity": "P1"
+    }
+  ],
+  "generation_attempt": 1,
+  "item_id": "CAND-c6710dcc68ba",
+  "max_attempts": 3,
+  "next_action": "regenerate_candidate",
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "production_json_path": "data/admin/production/PROD-82e7e9fda57e.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-82e7e9fda57e.md",
+  "production_markdown_sha256": "b5268f8f9f124526d033f845e3658068524a358c2351b06be41837cd23c446a8",
+  "production_report_id": "PROD-82e7e9fda57e",
+  "question_requirement_id": "REQ-11beb7243c4b",
+  "regeneration_input": {
+    "previous_expert_report_sha256": "b22ae85b5e37e21c76d35ade82f7811eb59e7a708144b6be1c225fe23ac6a7e7",
+    "previous_machine_report_sha256": "f9685c11990502d2fda1dfb879a07489f38f56f1b4005e9834bc27d05a1321f2",
+    "previous_rejection_codes": [
+      "standard_answer_lower_bound_insufficient"
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.production-loop-decision.v1",
+  "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:02",
+  "staging_allowed": false,
+  "status": "LOOP_REGENERATE",
+  "subject": "math",
+  "write_applied": true
+}

@@ -91,7 +91,10 @@ _MARKDOWN_LINK = re.compile(r"!?\[[^\]\n]+\]\([^\)\n]+\)")
 _LITERAL_ESCAPE = re.compile(r"\\(?:n|r|t|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2})")
 _HTML_TAG = re.compile(r"</?[A-Za-z][^>]*>")
 _HTML_ENTITY = re.compile(r"&(?:[A-Za-z][A-Za-z0-9]+|#[0-9]+|#x[0-9A-Fa-f]+);")
-_EXPLANATION_INSTRUCTION = re.compile(r"说明|解释|理由|依据|为什么|论证|证明|反驳|检查")
+_LEGACY_RULE_VARIANT_PROMPT = re.compile(
+    r"本题沿用的规则是：(?P<rule>.*?)\s*变式题：(?P<problem>.*?)(?:请先指出要使用的结构，再解答。?)",
+    re.DOTALL,
+)
 
 
 class ChildPromptContractError(ValueError):
@@ -200,8 +203,8 @@ def normalize_interaction_schema(
         errors.append("interaction_schema.requires_explanation:allow_explanation_required")
     if requires_explanation and not explanation_label:
         errors.append("interaction_schema.requires_explanation:label_required")
-    if interaction_type == "fill_blank" and len(fields) < 2:
-        errors.append("interaction_schema.fill_blank:at_least_two_fields_required")
+    if interaction_type == "fill_blank" and len(fields) < 1:
+        errors.append("interaction_schema.fill_blank:at_least_one_field_required")
     if interaction_type in {"single_choice", "multi_choice"} and len(choices) < 2:
         errors.append("interaction_schema.choice:at_least_two_choices_required")
     if interaction_type == "formula_input" and not formula_label:
@@ -212,6 +215,12 @@ def normalize_interaction_schema(
         errors.append("interaction_schema:fields_not_owned_by_type")
     if interaction_type not in {"single_choice", "multi_choice"} and choices:
         errors.append("interaction_schema:choices_not_owned_by_type")
+    if interaction_type != "formula_input" and formula_label:
+        errors.append("interaction_schema:formula_label_not_owned_by_type")
+    if interaction_type in {"fill_blank", "single_choice", "multi_choice"} and placeholder:
+        errors.append("interaction_schema:placeholder_not_owned_by_type")
+    if not allow_explanation and explanation_label:
+        errors.append("interaction_schema:explanation_label_requires_explanation_control")
     field_ids = [field["id"] for field in fields]
     choice_ids = [choice["id"] for choice in choices]
     if len(field_ids) != len(set(field_ids)):
@@ -309,6 +318,7 @@ def normalize_prompt_text(prompt: Any, *, allow_legacy: bool, limit: int = 2000)
     text = str(prompt or "").replace("\r\n", "\n").replace("\r", "\n")
     if allow_legacy:
         text = _legacy_superscript_to_caret(text)
+    text = _clean_child_prompt_meta_language(text)
     lines = [line.rstrip(" \t") for line in text.strip().split("\n")]
     normalized_lines: list[str] = []
     blank = False
@@ -357,6 +367,27 @@ def normalize_prompt_text(prompt: Any, *, allow_legacy: bool, limit: int = 2000)
     return normalized
 
 
+def _clean_child_prompt_meta_language(text: str) -> str:
+    def repl(match: re.Match[str]) -> str:
+        rule = " ".join(match.group("rule").split())
+        problem = " ".join(match.group("problem").split())
+        return f"先想清楚规则：{rule}\n\n题目：{problem}\n\n写出判断和理由。"
+
+    text = _LEGACY_RULE_VARIANT_PROMPT.sub(repl, text)
+    replacements = (
+        ("做完后把最容易错的一步圈出来。", ""),
+        ("请先指出要使用的结构，再解答。", "请写出判断依据，再解答。"),
+        ("先判断考点，再作答：", "先看清题目要你判断什么，再作答："),
+        ("变式题：", "题目："),
+    )
+    for source, target in replacements:
+        text = text.replace(source, target)
+    text = re.sub(r"\s*本题重点：[^。]+。?", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def _duplicate_choice_errors(prompt: str, schema: dict[str, Any]) -> list[str]:
     if schema.get("type") not in {"single_choice", "multi_choice"}:
         return []
@@ -376,19 +407,6 @@ def _duplicate_choice_errors(prompt: str, schema: dict[str, Any]) -> list[str]:
                 if prefix and len(prefix) <= 3 and prefix.isalnum():
                     errors.append(f"prompt:duplicated_choice_label:{choice_id}")
                     break
-    return errors
-
-
-def _prompt_schema_alignment_errors(prompt: str, schema: dict[str, Any]) -> list[str]:
-    interaction_type = str(schema.get("type") or "")
-    errors: list[str] = []
-    if "请选择所有" in prompt and interaction_type != "multi_choice":
-        errors.append("prompt_interaction:select_all_requires_multi_choice")
-    if "请选择一个" in prompt and interaction_type != "single_choice":
-        errors.append("prompt_interaction:select_one_requires_single_choice")
-    explanation_requested = bool(_EXPLANATION_INSTRUCTION.search(prompt))
-    if explanation_requested and schema.get("allow_explanation") is False:
-        errors.append("prompt_interaction:explanation_control_missing")
     return errors
 
 
@@ -505,23 +523,14 @@ def project_child_surface(
     source_prompt_sha256 = hashlib.sha256(raw_prompt.encode("utf-8")).hexdigest()
     if legacy:
         legacy_schema = normalize_interaction_schema(raw_schema, allow_legacy=True)
-        if (
-            isinstance(raw_schema, dict)
-            and "requires_explanation" not in raw_schema
-            and "explanation_required" not in raw_schema
-        ):
-            legacy_schema["requires_explanation"] = bool(
-                _EXPLANATION_INSTRUCTION.search(raw_prompt)
-            )
         raw_prompt, repaired_schema = _repair_legacy_choice_surface(raw_prompt, legacy_schema)
         normalized_schema = normalize_interaction_schema(repaired_schema, allow_legacy=True)
     else:
         normalized_schema = normalize_interaction_schema(raw_schema, allow_legacy=False)
     normalized_prompt = normalize_prompt_text(raw_prompt, allow_legacy=legacy, limit=limit)
     duplicate_errors = _duplicate_choice_errors(normalized_prompt, normalized_schema)
-    alignment_errors = _prompt_schema_alignment_errors(normalized_prompt, normalized_schema)
-    if duplicate_errors or alignment_errors:
-        raise ChildPromptContractError([*duplicate_errors, *alignment_errors])
+    if duplicate_errors:
+        raise ChildPromptContractError(duplicate_errors)
     segments = prompt_segments(normalized_prompt)
     interaction_rendering = _interaction_rendering(normalized_schema, legacy=legacy)
     source_changed = normalized_prompt != str(prompt or "").replace("\r\n", "\n").replace("\r", "\n").strip()

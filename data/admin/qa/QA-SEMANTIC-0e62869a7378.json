@@ -1,0 +1,185 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+  "confidence": 0.96,
+  "coverage_eligible": true,
+  "engine_type": "model_semantic_quality_gate",
+  "family_id": "number_line_position_distance",
+  "finding_counts": {},
+  "findings": [],
+  "gate_type": "live_model_semantic_qa",
+  "hard_blockers": {
+    "age_inappropriate": {
+      "detected": false,
+      "evidence": []
+    },
+    "mathematical_ambiguity": {
+      "detected": false,
+      "evidence": []
+    },
+    "meaningless_formal_requirement": {
+      "detected": false,
+      "evidence": []
+    },
+    "node_or_family_mismatch": {
+      "detected": false,
+      "evidence": []
+    },
+    "prompt_answer_conflict": {
+      "detected": false,
+      "evidence": []
+    }
+  },
+  "item_id": "CAND-10af2bc03bb1",
+  "model_reported_overall_status": "pass",
+  "next_actions": [
+    "staging_decision"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "profile_reviews": [
+    {
+      "profile": "mathematical_validity",
+      "reasons": [
+        "The mathematical task is clear: start at -2 on a number line and move 3 units to the left.",
+        "All reasonable readings of the stated movement give -2-3=-5; 小林's answer 1 corresponds to moving right, so it is correctly rejected.",
+        "The prompt's text supplies the needed starting point, direction, and distance, so the intended answer is determinate."
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "answer_contract_alignment",
+      "reasons": [
+        "Prompt asks whether 小林 is correct, to give point B's value, and to explain briefly; the expected answer, standard answer, accepted alternatives, solution steps, and rubric all consistently require 不同意 and B=-5 with a leftward-direction reason.",
+        "Accepted alternatives do not introduce an unsupported answer; they allow equivalent forms such as -2-3=-5 only when accompanied by the direction explanation.",
+        "Scoring rewards mathematically relevant evidence: rejecting the distractor, identifying -5, explaining left means smaller, and showing the 3-unit movement."
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "graph_family_alignment",
+      "reasons": [
+        "The item directly tests the trusted node M-G7-NUMBER-LINE: interpreting a number as a position and using number-line direction to determine a new position.",
+        "It fits the number_line_position_distance family because it includes direction, distance, and position relation, not merely detached arithmetic.",
+        "The demanded evidence aligns with representation, concept, and model_relation: locating -2, moving left 3 units, distinguishing distance from final coordinate, and explaining why 1 is wrong."
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "child_appropriateness",
+      "reasons": [
+        "The language and context are appropriate for a sixth-grade graduate entering Grade 7.",
+        "The cognitive demand is modest L2: interpret a directed movement on an integer number line and explain in one sentence.",
+        "The item is respectful and not needlessly childish or specialist-convention heavy."
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "diagnostic_meaningfulness",
+      "reasons": [
+        "The requested explanation is diagnostically useful because it distinguishes students who can compute mechanically from those who understand number-line direction and position.",
+        "The distractor 1 meaningfully targets a common error: reversing left/right direction or treating left movement as increase.",
+        "The two-line answer format is light and supports evidence collection without imposing meaningless ceremony."
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    }
+  ],
+  "profile_verdicts": {
+    "answer_contract_alignment": "pass",
+    "child_appropriateness": "pass",
+    "diagnostic_meaningfulness": "pass",
+    "graph_family_alignment": "pass",
+    "mathematical_validity": "pass"
+  },
+  "prompt_meta": {
+    "contract_version": "2026-07-24.admin-question-qa-review.v1",
+    "minimum_confidence_to_apply": 0.86,
+    "prompt_template_path": "learning_system/prompts/admin_question_qa_review.v1.md",
+    "prompt_template_sha256": "ae40efb9c320005edc4472765d71654641ef1b6b21aba99278db3d1434f3f0b2",
+    "rendered_prompt_sha256": "0b7dc060fba8ab142527c1d50b8f83fdb350573acbbe1378a0a4cd2be77d4b14",
+    "response_schema_sha256": "7ec280220cfdb7ab7747a82b67d2221b0b72acf7fd4a9c482f58c2de383b5dcf",
+    "response_schema_version": "2026-07-24.admin-question-qa-review.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "qa_contract_report_sha256": "d3500f5f933c5768cb03e585d3e0a72ec358db5298902a3b6d5b74dc053c2524",
+  "qa_json_path": "data/admin/qa/QA-SEMANTIC-0e62869a7378.json",
+  "qa_markdown_path": "docs/system/admin_reports/qa/2026-07-25-QA-SEMANTIC-0e62869a7378.md",
+  "qa_markdown_sha256": "81586316aca8ebc0a5419a58bb22ce7053126a7876e1b4a5da0670ec36d990b5",
+  "qa_report_id": "QA-SEMANTIC-0e62869a7378",
+  "question_bank_version": "v18",
+  "retryable": false,
+  "reviewed_item_count": 1,
+  "route": {
+    "agent_key": "question_reviewer_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "model_elapsed_ms": 18732,
+    "model_wall_deadline_seconds": 45.0,
+    "provider": "gpt",
+    "raw_response_sha256": "8c4b5f4b7eae061ef372052f188f713c688a19e17f809bad213f2b7722d8543e",
+    "structured_json_endpoint": "responses",
+    "structured_json_mode": "json_schema",
+    "task": "question_review",
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 18.731,
+        "endpoint": "responses",
+        "error_class": "",
+        "error_message": "",
+        "outcome": "response_received",
+        "request_digest_sha256": "cb144b080c6265c8f3d5d53ca61517f7558c0beb5c4aab274efac1926b0a3740",
+        "response_digest_sha256": "eeefcdc4688a969bacf7caae5b39c4c74e854a7baca56781943d11dfbb82d7b3",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.candidate-qa-review.v1",
+  "scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "reasons": [],
+    "support_only": false
+  },
+  "source_file_sha256": "b3dc4db4bb3f0619a6d080bae09367faa6a30222481a4f70b1cfe4a4b0786954",
+  "source_path": "data/admin/candidates/CAND-10af2bc03bb1-e8d122f621ce.json",
+  "staging_allowed": false,
+  "status": "PASS",
+  "status_normalization": {
+    "authority": "deterministic_from_profile_verdicts",
+    "model_overall_status_is_advisory": true,
+    "required_hard_blockers": [
+      "mathematical_ambiguity",
+      "prompt_answer_conflict",
+      "node_or_family_mismatch",
+      "age_inappropriate",
+      "meaningless_formal_requirement"
+    ],
+    "required_profiles": [
+      "mathematical_validity",
+      "answer_contract_alignment",
+      "graph_family_alignment",
+      "child_appropriateness",
+      "diagnostic_meaningfulness"
+    ]
+  },
+  "subject": "math",
+  "write_applied": true
+}

@@ -1,0 +1,106 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T06:05:26.022294+00:00",
+  "elapsed_seconds": 3.26,
+  "generation_plan_path": "data/admin/production/PROD-cad3a9d1cc1f.json",
+  "item_id": "",
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "BLOCKED_MODEL_ERROR",
+  "steps": [
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "HTTP 400 {\"error\":{\"message\":\"Invalid schema for response_format 'v5_semantic_agent_response': In context=('properties', 'child_surface_design', 'properties', 'child_deliverables'), 'uniqueItems' is not permitted.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"}}",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "solution_trace_repair",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-3b6e5cc0c746.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "HTTP 400 {\"error\":{\"message\":\"Invalid schema for response_format 'v5_semantic_agent_response': In context=('properties', 'child_surface_design', 'properties', 'child_deliverables'), 'uniqueItems' is not permitted.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"}}",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "solution_trace_repair",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-3b6e5cc0c746.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "machine_contract_check"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "BLOCKED_MODEL_ERROR",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        },
+        {
+          "code": "blocked_model_error",
+          "message": "模型调用未完成，workflow 必须先修复模型路由/超时，不能当成候选题质量问题。",
+          "profile": "admin_production_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "solution_trace_repair",
+      "finding_counts": {
+        "P1": 1
+      },
+      "item_id": null,
+      "next_actions": [],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-87f4901a6d13.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "loop_decision"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-528b2560408c",
+  "workflow_json_path": "data/admin/workflows/WF-528b2560408c.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-528b2560408c.md",
+  "workflow_markdown_sha256": "08c88093573298a98f2d6cb9e26380700aee4690398b327e129f2ed5b1e14cd2",
+  "workflow_write_applied": true
+}

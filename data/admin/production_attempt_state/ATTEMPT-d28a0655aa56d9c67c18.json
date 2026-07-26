@@ -1,0 +1,63 @@
+{
+  "content_attempts_consumed": 0,
+  "crash_recovery_count": 0,
+  "created_at": "2026-07-25T08:27:21.982302+00:00",
+  "history": [
+    {
+      "at": "2026-07-25T08:27:21.986693+00:00",
+      "content_attempt": 1,
+      "event": "content_attempt_started",
+      "lease_id": "ATTEMPT-fd74de7080399d55b543:1"
+    },
+    {
+      "at": "2026-07-25T08:27:21.997693+00:00",
+      "consumed": false,
+      "content_attempt": 1,
+      "event": "content_attempt_completed",
+      "lease_id": "ATTEMPT-fd74de7080399d55b543:1",
+      "outcome": "BLOCKED_MODEL_ERROR"
+    },
+    {
+      "at": "2026-07-25T08:29:57.619236+00:00",
+      "content_attempt": 1,
+      "event": "content_attempt_started",
+      "lease_id": "ATTEMPT-fd74de7080399d55b543:1"
+    },
+    {
+      "at": "2026-07-25T08:30:42.734447+00:00",
+      "consumed": false,
+      "content_attempt": 1,
+      "event": "content_attempt_completed",
+      "lease_id": "ATTEMPT-fd74de7080399d55b543:1",
+      "outcome": "BLOCKED_MODEL_ERROR"
+    }
+  ],
+  "locator_id": "d28a0655aa56d9c67c18",
+  "max_content_attempts": 3,
+  "pending_content_attempt": null,
+  "pending_review_checkpoint": null,
+  "pending_stage_checkpoint": null,
+  "provider_transport_attempt_count": 1,
+  "provider_transport_events": [
+    {
+      "content_attempt": 1,
+      "event_id": "0ac1d6a0d36c8bb36d800bdb638deb9dcc513c6c8f1a861a6a66bff37c3e3c72",
+      "lease_id": "ATTEMPT-fd74de7080399d55b543:1",
+      "ordinal": 0,
+      "outcome": "retryable_failure",
+      "recorded_at": "2026-07-25T08:30:42.733730+00:00",
+      "request_digest_sha256": "7b09c0509263d971d27fe2e44e1f4ebbcc03fff4b5dd25e06a7e44b20c376890",
+      "stage": "generate_candidate",
+      "status_code": null
+    }
+  ],
+  "provider_transport_retry_count": 1,
+  "question_requirement_id": "REQ-2cf19db03f72",
+  "resume_rejection_path": "",
+  "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+  "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03",
+  "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+  "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+  "state_id": "ATTEMPT-fd74de7080399d55b543",
+  "updated_at": "2026-07-25T08:30:42.735532+00:00"
+}

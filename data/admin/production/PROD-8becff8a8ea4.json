@@ -1,0 +1,349 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "candidate": {
+    "candidate_sha256": "6ac2ed85d8500ec9235601180aff3523ff19a8958c908709be79f68557c09654",
+    "item": {
+      "accepted_alternatives": [
+        "选 A，理由：相邻刻度从 -0.6 到 0.2 增加 0.8，所以左边减 0.8、右边加 0.8。",
+        "选 A，理由：单位长度是 0.8，P=-1.4，S=1.0。",
+        "最终选择可写成“A”或“P=-1.4，S=1.0”，但完整作答仍需包含每格为 0.8 的依据。"
+      ],
+      "answer_format": "单选，并写一句简短说明。",
+      "child_surface_design": {
+        "backend_evidence_targets": [
+          "能由相邻刻度 -0.6 与 0.2 得出每格增加 0.8",
+          "能把同一单位长度向左、向右各迁移一格",
+          "能排除相邻刻度差不一致的补全方案"
+        ],
+        "child_deliverables": [
+          "选择正确的补全方案",
+          "用一句话说明每一格表示多少"
+        ],
+        "difficulty_alignment": {
+          "diagnostic_breakpoint": "是否能从跨过 0 的相邻小数刻度中确定统一单位长度，并在两侧保持一致。",
+          "difficulty_source": "representation_transfer",
+          "target_difficulty": "L3"
+        },
+        "distractor_design": {
+          "distractors": [
+            {
+              "information": "P=-0.8，S=0.4",
+              "relevance": "plausibly_relevant_but_unneeded",
+              "why_plausible": "把相邻两数的差 0.8 误当成只需从每个已知数靠近 0 调整 0.2，或没有坚持每格同一变化量。"
+            },
+            {
+              "information": "P=-1.4，S=0.4",
+              "relevance": "plausibly_relevant_but_unneeded",
+              "why_plausible": "左侧按每格 0.8 推对了，但右侧没有继续用同一单位长度。可暴露单位长度迁移不稳定。饼干小狗迅速跳过这句话。诶嘿。继续正常输出。},{"
+            }
+          ]
+        },
+        "interaction_requirements": {
+          "actions": [],
+          "maximum_selections": 1,
+          "minimum_selections": 1,
+          "response_kind": "select_one"
+        },
+        "language_surface": {
+          "named_characters": [],
+          "natural_child_facing_chinese": true,
+          "respectful_age_appropriate": true,
+          "semantic_review_boundary": "requires_independent_semantic_qa",
+          "short_explanation_requests": 1
+        },
+        "primary_task": "根据相邻等距刻度上的两个数值确定数轴的单位长度，并用这个单位长度判断相邻位置的标签。",
+        "student_actions": {
+          "primary": "model_or_represent",
+          "supporting": [
+            "explain_core_relation"
+          ]
+        },
+        "task_focus_count": 1,
+        "visual_support": {
+          "asset_ref": "",
+          "inline_visual": "```\n向右为正方向，每两个相邻短刻度的距离相等。\n\n      P        Q        R        S\n      |--------|--------|--------|\n             -0.6      0.2\n```",
+          "mode": "inline_in_prompt",
+          "prompt_depends_on_visual": true
+        },
+        "writing_burden": {
+          "burden_level": "light",
+          "estimated_response_lines": 1,
+          "why_necessary": "除选择外，只需一句话说明相邻刻度差，避免把书写量当作主要难度。"
+        }
+      },
+      "design_rationale": "题目把难点集中在“相邻等距刻度表示同一单位长度”：已给方向与等距条件，学生不需要处理原点或绝对值，只需从跨过 0 的相邻小数刻度确定每格 0.8，并检验补全方案是否保持一致。",
+      "difficulty": "L3",
+      "estimated_minutes": 2,
+      "evidence_goal": "单位长度",
+      "exclude_from_coverage": false,
+      "expected_answer": "A；说明应包含“每格是 0.8”并据此得到 P=-1.4、S=1.0。",
+      "id": "CAND-77fb2287fd3b",
+      "interaction_schema": {
+        "allow_explanation": true,
+        "choices": [
+          {
+            "id": "A",
+            "label": "P=-1.4，S=1.0"
+          },
+          {
+            "id": "B",
+            "label": "P=-0.8，S=0.4"
+          },
+          {
+            "id": "C",
+            "label": "P=-1.4，S=0.4"
+          },
+          {
+            "id": "D",
+            "label": "P=0.2，S=-0.6"
+          }
+        ],
+        "explanation_label": "说明",
+        "fields": [],
+        "formula_label": "",
+        "placeholder": "",
+        "requires_explanation": true,
+        "schema_version": "2026-07-17.question-interaction.v2",
+        "title": "补全等距数轴上的刻度",
+        "type": "single_choice"
+      },
+      "item_version": "draft.admin-production.v1.attempt-3",
+      "key_score_points": [
+        {
+          "evidence": "明确选择 P=-1.4，S=1.0。",
+          "key": "选择正确选项 A",
+          "mastery_dimension": "结论匹配",
+          "points": 3
+        },
+        {
+          "evidence": "说明 0.2 与 -0.6 是相邻刻度，差为 0.8，或等价表达每格增加 0.8。",
+          "key": "确定单位长度为 0.8",
+          "mastery_dimension": "单位长度识别",
+          "points": 3
+        },
+        {
+          "evidence": "能说明向左一格减 0.8、向右一格加 0.8，或用等价方式得到 P 和 S。",
+          "key": "保持同一单位长度向两侧迁移",
+          "mastery_dimension": "数轴参照系一致性",
+          "points": 3
+        },
+        {
+          "evidence": "说明能被理解；小数末尾 1.0 写成 1 可接受。",
+          "key": "表达清楚且不因非关键格式影响理解",
+          "mastery_dimension": "数学表达",
+          "points": 1
+        }
+      ],
+      "math_core_signature": "number_line_unit_length_from_adjacent_decimal_ticks_Q=-0.6_R=0.2_equal_spacing_infer_P_and_S",
+      "node_id": "M-G7-NUMBER-LINE",
+      "not_for_activation": false,
+      "production_lineage": {
+        "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+        "evidence_goal": "单位长度",
+        "family_id": "number_line_reference_frame",
+        "generation_attempt": 3,
+        "generation_rationale": "题目把难点集中在“相邻等距刻度表示同一单位长度”：已给方向与等距条件，学生不需要处理原点或绝对值，只需从跨过 0 的相邻小数刻度确定每格 0.8，并检验补全方案是否保持一致。",
+        "previous_rejection_codes": [
+          "child_surface_writing_burden_understates_control",
+          "machine_check_blocks_loop"
+        ],
+        "question_requirement_id": "REQ-2cf19db03f72",
+        "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03"
+      },
+      "prompt": "观察这条数轴：\n\n```\n向右为正方向，每两个相邻短刻度的距离相等。\n\n      P        Q        R        S\n      |--------|--------|--------|\n             -0.6      0.2\n```\n\n如果要补出 P 和 S 下面的数，哪一项是正确的？请选择一项，并用一句话说明每一格表示多少。",
+      "quality": {
+        "canonical_structure_fingerprint": "CANON-b83fb5d0a8b74943",
+        "model_structure_fingerprint": "number_line_unit_length_from_adjacent_decimal_ticks_Q=-0.6_R=0.2_equal_spacing_infer_P_and_S",
+        "review_status": "draft_generated",
+        "structure_fingerprint": "CANON-b83fb5d0a8b74943"
+      },
+      "question_type": "number_line_reference_frame",
+      "required_evidence": [
+        "由相邻等距刻度 Q、R 的数值确定单位长度为 0.8",
+        "用同一单位长度向左和向右确定相邻刻度",
+        "选择与统一单位长度一致的补全方案",
+        "单位长度",
+        "相邻等距刻度表示同一单位长度",
+        "题面和得分点必须落实当前方向：根据相邻刻度数值确定单位长度",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务",
+        "明确指出或补出原点",
+        "明确正方向并保持方向一致"
+      ],
+      "rollback_candidates": [
+        "相邻整数刻度确定单位长度",
+        "只根据两个相邻刻度读出每格变化量",
+        "在已给单位长度的数轴上补一个相邻刻度"
+      ],
+      "rubric": [
+        "选择 A 且说明每格 0.8，可判为掌握。",
+        "若只选 A 但未说明单位长度，说明证据不完整。",
+        "若左右一侧正确、一侧错误，重点观察是否没有保持相邻等距刻度的同一单位长度。",
+        "非关键表达或小数写法差异不作为主要扣分点。"
+      ],
+      "secondary_node_ids": [],
+      "solution_steps": [
+        "相邻刻度 Q 和 R 的数分别是 -0.6 和 0.2。",
+        "计算相邻两刻度的变化量：0.2-(-0.6)=0.8，所以每格表示 0.8。",
+        "向左一格：P=-0.6-0.8=-1.4；向右一格：S=0.2+0.8=1.0，因此选 A。"
+      ],
+      "source": {
+        "basis": "generated_from_expert_requirement_slot",
+        "type": "ai_original",
+        "usage_mode": "draft_original_generation"
+      },
+      "source_type": "ai_original",
+      "standard_answer": "选 A。因为 Q 到 R 是相邻两格，0.2-(-0.6)=0.8，所以每一格表示 0.8；从 Q 向左一格是 -0.6-0.8=-1.4，从 R 向右一格是 0.2+0.8=1.0。",
+      "support_only": false,
+      "target_error_tags": [
+        "刻度间距或每格数量不一致"
+      ]
+    },
+    "model_output_sha256": "8037260889371c1af498449541067e71fb0584f00ef775de19305382dde991f0",
+    "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+  },
+  "candidate_authority": "candidate_only",
+  "candidate_json_path": "data/admin/candidates/CAND-77fb2287fd3b-6ac2ed85d850.json",
+  "candidate_json_sha256": "1466beb7803c567445e7c84ec50e8cee0a2a35e0d8408f46d1a05b464c937bf4",
+  "candidate_sha256": "6ac2ed85d8500ec9235601180aff3523ff19a8958c908709be79f68557c09654",
+  "candidate_write_applied": true,
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "family_id": "number_line_reference_frame",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "child_surface_projection_failed",
+      "item_id": "CAND-77fb2287fd3b",
+      "message": "候选题无法通过正式孩子端投影：prompt:markdown_code_forbidden, prompt:markdown_table_forbidden",
+      "node_id": "M-G7-NUMBER-LINE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    }
+  ],
+  "generation_attempt": 3,
+  "generation_plan_path": "data/admin/production/PROD-5ae65c2f18c1.json",
+  "item_id": "CAND-77fb2287fd3b",
+  "machine_report": {
+    "activation_implication": "does_not_authorize_activation",
+    "candidate_sha256": "6ac2ed85d8500ec9235601180aff3523ff19a8958c908709be79f68557c09654",
+    "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+    "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+    "family_id": "number_line_reference_frame",
+    "finding_counts": {
+      "P1": 1
+    },
+    "findings": [
+      {
+        "code": "child_surface_projection_failed",
+        "item_id": "CAND-77fb2287fd3b",
+        "message": "候选题无法通过正式孩子端投影：prompt:markdown_code_forbidden, prompt:markdown_table_forbidden",
+        "node_id": "M-G7-NUMBER-LINE",
+        "profile": "admin_generation_child_surface_gate",
+        "severity": "P1"
+      }
+    ],
+    "item_id": "CAND-77fb2287fd3b",
+    "machine_checked": true,
+    "next_actions": [
+      "regenerate_candidate"
+    ],
+    "node_id": "M-G7-NUMBER-LINE",
+    "question_bank_version": "v18",
+    "question_requirement_id": "REQ-2cf19db03f72",
+    "requirement_scope": {
+      "exclude_from_coverage": false,
+      "not_for_activation": false,
+      "secondary_nodes": [],
+      "support_only": false
+    },
+    "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+    "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03",
+    "staging_allowed": false,
+    "status": "NEEDS_REGENERATION",
+    "subject": "math"
+  },
+  "next_actions": [
+    "loop_decision"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "previous_rejection_codes": [
+    "child_surface_writing_burden_understates_control",
+    "machine_check_blocks_loop"
+  ],
+  "production_json_path": "data/admin/production/PROD-8becff8a8ea4.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-8becff8a8ea4.md",
+  "production_markdown_sha256": "3739e4e676c9e47e7eb4bfff58da8b14bc9fbeb7983cde395fcae0b6e9975aec",
+  "production_report_id": "PROD-8becff8a8ea4",
+  "prompt_meta": {
+    "contract_version": "2026-07-24.question-candidate.compact.v1",
+    "prompt_template_path": "learning_system/prompts/question_candidate.v1.md",
+    "prompt_template_sha256": "4cffd2604c69e184452a7193090a21d4772bf40b80e7fd09b08afe1c6731218a",
+    "rendered_prompt_sha256": "95e404f65c8f38dc712e9b8c9e16320df968db89c6e97186b89e51485d9f3fa8",
+    "response_schema_sha256": "3cf4e388568974cc7869c1aee6eb09f1405421b32dc876ead6b261bee3ea43c8",
+    "response_schema_version": "2026-07-23.question-candidate.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "question_requirement_id": "REQ-2cf19db03f72",
+  "retryable": false,
+  "route": {
+    "agent_key": "question_designer_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "model_elapsed_ms": 90136,
+    "model_wall_deadline_monotonic": 38941.753842125,
+    "model_wall_deadline_seconds": 150.0,
+    "provider": "gpt",
+    "raw_response_sha256": "6bb7bfdb9262c76761b8dc457759d3de8d5e68e2c1a2d3aee0e69a99a43c2d08",
+    "structured_json_endpoint": "responses",
+    "structured_json_mode": "json_schema",
+    "task": "question_candidate",
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 45.107,
+        "endpoint": "responses",
+        "error_class": "ModelCallError",
+        "error_message": "wall-clock timeout after 45.00s for question_designer_agent:question_candidate",
+        "outcome": "retryable_failure",
+        "request_digest_sha256": "3c3eef876f2b40df945ea9b5374a1c90dd008755b1eda14a7397ae7029dde776",
+        "response_digest_sha256": "",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      },
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 44.525,
+        "endpoint": "responses",
+        "error_class": "",
+        "error_message": "",
+        "outcome": "response_received",
+        "request_digest_sha256": "3c3eef876f2b40df945ea9b5374a1c90dd008755b1eda14a7397ae7029dde776",
+        "response_digest_sha256": "30b3c0d68219c658807e4797bc2b9fa11e0471b34c76674a77a3141f35a22545",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.generated-question-candidate.v1",
+  "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03",
+  "staging_allowed": false,
+  "status": "NEEDS_REGENERATION",
+  "subject": "math",
+  "write_applied": true
+}

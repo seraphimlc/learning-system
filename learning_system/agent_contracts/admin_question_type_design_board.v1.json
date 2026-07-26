@@ -1,0 +1,20 @@
+{
+  "agent_key": "admin_question_type_design_board_agent",
+  "contract_key": "admin_question_type_design_board",
+  "contract_version": "2026-07-23.admin-question-type-design-board.v1",
+  "prompt_version_id": "2026-07-23.admin-question-type-design-board.prompt.v1",
+  "prompt_template_path": "learning_system/prompts/admin_question_type_design_board.v1.md",
+  "response_schema_version": "2026-07-23.admin-question-type-design-board.schema.v1",
+  "minimum_confidence_to_apply": 0.84,
+  "engine_type": "model_assisted_design_brief",
+  "authority": "generation_brief_only",
+  "does_not_generate_final_questions": true,
+  "does_not_authorize_activation": true,
+  "profiles": [
+    "frontline_math_teacher",
+    "bridge_diagnosis_teacher",
+    "stretch_competition_teacher",
+    "assessment_expert",
+    "source_compliance_reviewer"
+  ]
+}

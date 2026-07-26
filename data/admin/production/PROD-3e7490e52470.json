@@ -1,0 +1,52 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "4d27801f7b1186fe4005f39bc02153cb840350459cf67b1e32f3eb9f4e68d868",
+  "design_brief_id": "EXPERT-IDEAS-fa437c75408f",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-fa437c75408f.json",
+  "family_id": "number_sense_range_benchmark",
+  "finding_counts": {
+    "P1": 2
+  },
+  "findings": [
+    {
+      "code": "child_surface_required_explanation_missing_writing_space",
+      "item_id": "CAND-331b880cdc6f",
+      "message": "交互要求答案和解释，但 writing_burden 没有为两部分作答留出空间。",
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    },
+    {
+      "code": "child_surface_writing_burden_understates_deliverables",
+      "item_id": "CAND-331b880cdc6f",
+      "message": "预计作答行数少于孩子端产出数量，writing_burden 与实际任务不一致。",
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    }
+  ],
+  "item_id": "CAND-331b880cdc6f",
+  "machine_checked": true,
+  "next_actions": [
+    "regenerate_candidate"
+  ],
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "production_json_path": "data/admin/production/PROD-3e7490e52470.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-3e7490e52470.md",
+  "production_markdown_sha256": "9a567c42a092ca7a0e916d05d2d2059974c103ccba25c12274a92fd5d7ce1243",
+  "production_report_id": "PROD-3e7490e52470",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-959cfd4c7a53",
+  "requirement_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "secondary_nodes": [],
+    "support_only": false
+  },
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:01",
+  "staging_allowed": false,
+  "status": "NEEDS_REGENERATION",
+  "subject": "math",
+  "write_applied": true
+}

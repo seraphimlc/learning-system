@@ -1,0 +1,114 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "content_attempt_state": {
+    "content_attempts_consumed": 0,
+    "crash_recovery_count": 0,
+    "created_at": "2026-07-25T08:27:21.981898+00:00",
+    "history": [
+      {
+        "at": "2026-07-25T08:27:21.986122+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1"
+      },
+      {
+        "at": "2026-07-25T08:27:21.997095+00:00",
+        "consumed": false,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1",
+        "outcome": "BLOCKED_MODEL_ERROR"
+      }
+    ],
+    "locator_id": "ca33545c20e721f49f17",
+    "max_content_attempts": 3,
+    "pending_content_attempt": null,
+    "pending_review_checkpoint": null,
+    "pending_stage_checkpoint": null,
+    "provider_transport_attempt_count": 0,
+    "provider_transport_events": [],
+    "provider_transport_retry_count": 0,
+    "question_requirement_id": "REQ-869b5230ff3d",
+    "resume_rejection_path": "",
+    "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+    "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:02",
+    "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+    "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+    "state_id": "ATTEMPT-8e8ced1d6632f4977d49",
+    "updated_at": "2026-07-25T08:27:21.997099+00:00"
+  },
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T08:27:21.998356+00:00",
+  "elapsed_seconds": 0.018,
+  "generation_plan_path": "data/admin/production/PROD-c747c81d585e.json",
+  "interrupted_before_stage": "",
+  "item_id": "",
+  "pending_stage": {},
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "BLOCKED_MODEL_ERROR",
+  "steps": [
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "local JSON schema is not strict-provider compatible: $.properties.child_surface_design.properties.interaction_requirements: required/properties mismatch missing=['maximum_selections', 'minimum_selections'] unknown=[]",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "equality_add_subtract_invariance",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-53f76cba7a0e.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "local JSON schema is not strict-provider compatible: $.properties.child_surface_design.properties.interaction_requirements: required/properties mismatch missing=['maximum_selections', 'minimum_selections'] unknown=[]",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "equality_add_subtract_invariance",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-53f76cba7a0e.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "machine_contract_check"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-e7a00dfc1503",
+  "workflow_json_path": "data/admin/workflows/WF-e7a00dfc1503.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-e7a00dfc1503.md",
+  "workflow_markdown_sha256": "97776da5824ff1c9518833cc48b777de20470257352c2109ab854b5d64e82f4e",
+  "workflow_write_applied": true
+}

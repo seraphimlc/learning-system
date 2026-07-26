@@ -1,0 +1,21 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "after_item_count": 0,
+  "after_sha256": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+  "applied_at": "2026-07-25T06:10:43+00:00",
+  "bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "before_item_count": 1,
+  "before_sha256": "777fb6cee827fa93a6e38241497bc16b68053858c6362adeac7d687344be0b66",
+  "created_at": "2026-07-25T06:10:43+00:00",
+  "decision_path": "data/admin/removal_decisions/remove_interrupted_v18_pilot_20260725.json",
+  "decision_sha256": "d9bfdc9f1f9aa0af65952201adcae0c196c1e752a7a0d0e21862856d9545c25c",
+  "receipt_id": "REMOVE-V18-PILOT-INTERRUPTED-20260725",
+  "removed_items": [
+    {
+      "item_id": "CAND-10af2bc03bb1",
+      "reason_code": "interrupted_pilot_missing_batch_collision_and_interaction_gates"
+    }
+  ],
+  "schema_version": "2026-07-24.codex-admin.staged-removal-receipt.v1",
+  "status": "APPLIED"
+}

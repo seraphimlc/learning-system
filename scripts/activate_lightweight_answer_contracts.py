@@ -70,6 +70,12 @@ def active_reviewed_questions(
             review_record_id,
         ):
             raise ValueError(f"question review lineage is invalid: {question['id']}")
+        if not db.is_child_schedulable_question(
+            conn,
+            question,
+            question_bank_version=bank_version,
+        ):
+            continue
         question["_active_review_record_id"] = review_record_id
         question["_active_candidate_sha256"] = str(row["active_candidate_sha256"] or "")
         questions.append(question)
@@ -190,15 +196,17 @@ def activate(db_path: Path, *, project_root: Path = PROJECT_ROOT) -> dict[str, A
                 """,
                 (graph_version, node_count, len(questions), now, ledger["id"]),
             )
+            conn.execute(
+                """
+                update answer_contracts
+                set status = 'retired', superseded_at = ?, updated_at = ?
+                where item_version = ?
+                  and question_bank_version = ?
+                  and status = 'active'
+                """,
+                (now, now, bank_version, bank_version),
+            )
             for contract in contracts:
-                conn.execute(
-                    """
-                    update answer_contracts
-                    set status = 'retired', superseded_at = ?, updated_at = ?
-                    where question_id = ? and item_version = ? and status = 'active'
-                    """,
-                    (now, now, contract["question_id"], contract["item_version"]),
-                )
                 conn.execute(
                     """
                     insert into answer_contracts(

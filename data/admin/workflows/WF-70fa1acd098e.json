@@ -1,0 +1,140 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "content_attempt_state": {
+    "content_attempts_consumed": 0,
+    "crash_recovery_count": 0,
+    "created_at": "2026-07-25T08:27:21.981898+00:00",
+    "history": [
+      {
+        "at": "2026-07-25T08:27:21.986122+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1"
+      },
+      {
+        "at": "2026-07-25T08:27:21.997095+00:00",
+        "consumed": false,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1",
+        "outcome": "BLOCKED_MODEL_ERROR"
+      },
+      {
+        "at": "2026-07-25T08:30:40.878011+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1"
+      },
+      {
+        "at": "2026-07-25T08:31:25.934257+00:00",
+        "consumed": false,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1",
+        "outcome": "BLOCKED_MODEL_ERROR"
+      }
+    ],
+    "locator_id": "ca33545c20e721f49f17",
+    "max_content_attempts": 3,
+    "pending_content_attempt": null,
+    "pending_review_checkpoint": null,
+    "pending_stage_checkpoint": null,
+    "provider_transport_attempt_count": 1,
+    "provider_transport_events": [
+      {
+        "content_attempt": 1,
+        "event_id": "fcf7791d4a47162424f14079d7a910c4495e48d28307b00dd66a3f520686e824",
+        "lease_id": "ATTEMPT-8e8ced1d6632f4977d49:1",
+        "ordinal": 0,
+        "outcome": "retryable_failure",
+        "recorded_at": "2026-07-25T08:31:25.933181+00:00",
+        "request_digest_sha256": "699b0a880609d96330319bbb556a4f6f26ff0c52795dd1c19ead5963fabcaf8d",
+        "stage": "generate_candidate",
+        "status_code": null
+      }
+    ],
+    "provider_transport_retry_count": 1,
+    "question_requirement_id": "REQ-869b5230ff3d",
+    "resume_rejection_path": "",
+    "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+    "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:02",
+    "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+    "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+    "state_id": "ATTEMPT-8e8ced1d6632f4977d49",
+    "updated_at": "2026-07-25T08:31:25.934265+00:00"
+  },
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T08:31:25.935225+00:00",
+  "elapsed_seconds": 45.059,
+  "generation_plan_path": "data/admin/production/PROD-c747c81d585e.json",
+  "interrupted_before_stage": "",
+  "item_id": "",
+  "pending_stage": {},
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "BLOCKED_MODEL_ERROR",
+  "steps": [
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "structured transport retry would exceed wall deadline",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "equality_add_subtract_invariance",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-53f76cba7a0e.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "structured transport retry would exceed wall deadline",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "equality_add_subtract_invariance",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "report_path": "data/admin/production/PROD-53f76cba7a0e.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "machine_contract_check"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-70fa1acd098e",
+  "workflow_json_path": "data/admin/workflows/WF-70fa1acd098e.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-70fa1acd098e.md",
+  "workflow_markdown_sha256": "ed5d0655a19a41d86a12f3d44331f0862fd2ae5eb8d77b6c6c3d59604ac1354b",
+  "workflow_write_applied": true
+}

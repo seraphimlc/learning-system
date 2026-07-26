@@ -1,0 +1,27 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "family_id": "number_line_position_distance",
+  "finding_counts": {},
+  "findings": [],
+  "item_id": "CAND-10af2bc03bb1",
+  "machine_checked": true,
+  "next_actions": [
+    "expert_review"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "production_json_path": "data/admin/production/PROD-10b06d8ad124.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-10b06d8ad124.md",
+  "production_markdown_sha256": "d2638a877d98a0cf9c39e5801b2d47eba98b0a7170a675ea70933b5e7beed24a",
+  "production_report_id": "PROD-10b06d8ad124",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-10e106561ff8",
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-G7-NUMBER-LINE:number_line_position_distance:01",
+  "staging_allowed": false,
+  "status": "SELF_CHECKED_PASS",
+  "subject": "math",
+  "write_applied": true
+}

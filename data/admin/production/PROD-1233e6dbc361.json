@@ -1,0 +1,48 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "attempt_accounting": {
+    "content_regeneration_consumed": true,
+    "provider_retry_required": false
+  },
+  "blocking_rejection_codes": [
+    "child_surface_invalid_interaction_schema"
+  ],
+  "family_id": "equality_add_subtract_invariance",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "machine_check_blocks_loop",
+      "item_id": "CAND-f63e89e2578c",
+      "message": "机器检查未通过，workflow 必须回到命题 Agent。",
+      "node_id": "M-G7-EQUALITY-PROP",
+      "profile": "admin_production_gate",
+      "severity": "P1"
+    }
+  ],
+  "generation_attempt": 2,
+  "item_id": "CAND-f63e89e2578c",
+  "max_attempts": 3,
+  "next_action": "regenerate_candidate",
+  "node_id": "M-G7-EQUALITY-PROP",
+  "production_json_path": "data/admin/production/PROD-1233e6dbc361.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-1233e6dbc361.md",
+  "production_markdown_sha256": "2fcc1848ff1b4e3595bb34c289043420854b64c2b31b61ad30f5a7f1655a82f8",
+  "production_report_id": "PROD-1233e6dbc361",
+  "question_requirement_id": "REQ-869b5230ff3d",
+  "regeneration_input": {
+    "previous_expert_report_sha256": "",
+    "previous_machine_report_sha256": "6367c034b679d61e4d5bd8684153317a79eb1f5fc8178f4783c8a4e2ba77df6f",
+    "previous_rejection_codes": [
+      "child_surface_invalid_interaction_schema"
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.production-loop-decision.v1",
+  "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:02",
+  "staging_allowed": false,
+  "status": "LOOP_REGENERATE",
+  "subject": "math",
+  "write_applied": true
+}

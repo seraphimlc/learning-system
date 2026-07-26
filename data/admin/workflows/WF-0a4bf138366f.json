@@ -1,0 +1,106 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T06:05:21.683286+00:00",
+  "elapsed_seconds": 2.975,
+  "generation_plan_path": "data/admin/production/PROD-f42eb2a61c2e.json",
+  "item_id": "",
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "BLOCKED_MODEL_ERROR",
+  "steps": [
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "HTTP 400 {\"error\":{\"message\":\"Invalid schema for response_format 'v5_semantic_agent_response': In context=('properties', 'child_surface_design', 'properties', 'child_deliverables'), 'uniqueItems' is not permitted.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"}}",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-2c78fbbbe120.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "HTTP 400 {\"error\":{\"message\":\"Invalid schema for response_format 'v5_semantic_agent_response': In context=('properties', 'child_surface_design', 'properties', 'child_deliverables'), 'uniqueItems' is not permitted.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"}}",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-2c78fbbbe120.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "machine_contract_check"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "BLOCKED_MODEL_ERROR",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        },
+        {
+          "code": "blocked_model_error",
+          "message": "模型调用未完成，workflow 必须先修复模型路由/超时，不能当成候选题质量问题。",
+          "profile": "admin_production_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {
+        "P1": 1
+      },
+      "item_id": null,
+      "next_actions": [],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-7949edc8da81.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "loop_decision"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-0a4bf138366f",
+  "workflow_json_path": "data/admin/workflows/WF-0a4bf138366f.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-0a4bf138366f.md",
+  "workflow_markdown_sha256": "10c23bd698c282f91a2df6cc836c6c5576cf5b1a0f4ac1ea3782cd7e88ab0904",
+  "workflow_write_applied": true
+}

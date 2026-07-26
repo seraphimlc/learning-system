@@ -1,0 +1,440 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "design_brief_id": "EXPERT-IDEAS-46c630030757",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+  "family_id": "equality_multiply_divide_invariance",
+  "finding_counts": {},
+  "findings": [],
+  "generation_plan_paths": [
+    "data/admin/production/PROD-9932f6e4650b.json"
+  ],
+  "generation_plans": [
+    {
+      "activation_implication": "does_not_authorize_activation",
+      "allowed_next_agent": "question_designer_agent",
+      "bounded_candidate_packet": {
+        "existing_structure_fingerprints": [],
+        "expert_suggestions": [
+          {
+            "core_scenario": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。",
+            "design_idea": "评分合同要围绕这些证据：两边同乘除、非零除数、等式保持解释。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+            "difficulty": [
+              "L2",
+              "L3",
+              "L4"
+            ],
+            "difficulty_distribution": {
+              "L2": 1,
+              "L3": 1,
+              "L4": 1
+            },
+            "evidence_focus": [
+              "concept",
+              "operation",
+              "boundary"
+            ],
+            "evidence_goal": [
+              "两边同乘除",
+              "非零除数",
+              "等式保持解释"
+            ],
+            "exclude_from_coverage": false,
+            "existing_count": 0,
+            "family_id": "equality_multiply_divide_invariance",
+            "family_name": "等式同乘除保持",
+            "missing_to_target": 3,
+            "not_for_activation": false,
+            "profile": "assessment_expert",
+            "profile_display": "测评专家",
+            "reject_patterns": [
+              "泛化评分模板",
+              "缺少 accepted alternatives",
+              "把非关键书写作为主扣分项"
+            ],
+            "required_evidence": [
+              "明确两边乘或除的是同一个量",
+              "同除时主动说明除数不能为0",
+              "能解释操作后等式为什么保持"
+            ],
+            "secondary_nodes": [],
+            "support_only": false,
+            "target_count": 3,
+            "variation_logic": [
+              "判断同乘是否合法",
+              "补齐同除对应项",
+              "比较含0风险的操作说法"
+            ],
+            "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+          },
+          {
+            "core_scenario": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。",
+            "design_idea": "用“判断同乘是否合法”和“补齐同除对应项”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+            "difficulty": [
+              "L2",
+              "L3",
+              "L4"
+            ],
+            "difficulty_distribution": {
+              "L2": 1,
+              "L3": 1,
+              "L4": 1
+            },
+            "evidence_focus": [
+              "concept",
+              "operation",
+              "boundary"
+            ],
+            "evidence_goal": [
+              "两边同乘除",
+              "非零除数",
+              "等式保持解释"
+            ],
+            "exclude_from_coverage": false,
+            "existing_count": 0,
+            "family_id": "equality_multiply_divide_invariance",
+            "family_name": "等式同乘除保持",
+            "missing_to_target": 3,
+            "not_for_activation": false,
+            "profile": "bridge_diagnosis_teacher",
+            "profile_display": "衔接诊断老师",
+            "reject_patterns": [
+              "错了只能继续刷同类题",
+              "无法判断是概念错还是计算错",
+              "没有回退候选",
+              "只给一边乘除"
+            ],
+            "required_evidence": [
+              "明确两边乘或除的是同一个量",
+              "同除时主动说明除数不能为0",
+              "能解释操作后等式为什么保持"
+            ],
+            "secondary_nodes": [],
+            "support_only": false,
+            "target_count": 3,
+            "variation_logic": [
+              "判断同乘是否合法",
+              "补齐同除对应项",
+              "比较含0风险的操作说法"
+            ],
+            "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+          },
+          {
+            "core_scenario": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。",
+            "design_idea": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+            "difficulty": [
+              "L2",
+              "L3",
+              "L4"
+            ],
+            "difficulty_distribution": {
+              "L2": 1,
+              "L3": 1,
+              "L4": 1
+            },
+            "evidence_focus": [
+              "concept",
+              "operation",
+              "boundary"
+            ],
+            "evidence_goal": [
+              "两边同乘除",
+              "非零除数",
+              "等式保持解释"
+            ],
+            "exclude_from_coverage": false,
+            "existing_count": 0,
+            "family_id": "equality_multiply_divide_invariance",
+            "family_name": "等式同乘除保持",
+            "missing_to_target": 3,
+            "not_for_activation": false,
+            "profile": "frontline_math_teacher",
+            "profile_display": "一线初中数学老师",
+            "reject_patterns": [
+              "只换数字的低龄练习",
+              "只要求最终答案",
+              "题干像后台任务说明",
+              "只给一边乘除",
+              "两边乘除不同的量"
+            ],
+            "required_evidence": [
+              "明确两边乘或除的是同一个量",
+              "同除时主动说明除数不能为0",
+              "能解释操作后等式为什么保持"
+            ],
+            "secondary_nodes": [],
+            "support_only": false,
+            "target_count": 3,
+            "variation_logic": [
+              "判断同乘是否合法",
+              "补齐同除对应项",
+              "比较含0风险的操作说法"
+            ],
+            "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+          },
+          {
+            "core_scenario": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。",
+            "design_idea": "可参考外部资料的范围或结构，如“从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+            "difficulty": [
+              "L2",
+              "L3",
+              "L4"
+            ],
+            "difficulty_distribution": {
+              "L2": 1,
+              "L3": 1,
+              "L4": 1
+            },
+            "evidence_focus": [
+              "concept",
+              "operation",
+              "boundary"
+            ],
+            "evidence_goal": [
+              "两边同乘除",
+              "非零除数",
+              "等式保持解释"
+            ],
+            "exclude_from_coverage": false,
+            "existing_count": 0,
+            "family_id": "equality_multiply_divide_invariance",
+            "family_name": "等式同乘除保持",
+            "missing_to_target": 3,
+            "not_for_activation": false,
+            "profile": "source_compliance_reviewer",
+            "profile_display": "题源合规 reviewer",
+            "reject_patterns": [
+              "复制商业题干",
+              "改数字洗题",
+              "保存未经许可的图形或解析"
+            ],
+            "required_evidence": [
+              "明确两边乘或除的是同一个量",
+              "同除时主动说明除数不能为0",
+              "能解释操作后等式为什么保持"
+            ],
+            "secondary_nodes": [],
+            "support_only": false,
+            "target_count": 3,
+            "variation_logic": [
+              "判断同乘是否合法",
+              "补齐同除对应项",
+              "比较含0风险的操作说法"
+            ],
+            "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+          },
+          {
+            "core_scenario": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。",
+            "design_idea": "L4只研究等式性质的适用条件，不进入去分母流程、分式方程或解集理论。",
+            "difficulty": [
+              "L2",
+              "L3",
+              "L4"
+            ],
+            "difficulty_distribution": {
+              "L2": 1,
+              "L3": 1,
+              "L4": 1
+            },
+            "evidence_focus": [
+              "concept",
+              "operation",
+              "boundary"
+            ],
+            "evidence_goal": [
+              "两边同乘除",
+              "非零除数",
+              "等式保持解释"
+            ],
+            "exclude_from_coverage": false,
+            "existing_count": 0,
+            "family_id": "equality_multiply_divide_invariance",
+            "family_name": "等式同乘除保持",
+            "missing_to_target": 3,
+            "not_for_activation": false,
+            "profile": "stretch_competition_teacher",
+            "profile_display": "拔高/竞赛老师",
+            "reject_patterns": [
+              "数字变大造成的伪难",
+              "超出主线过远的竞赛技巧",
+              "失败后反向否定基础掌握"
+            ],
+            "required_evidence": [
+              "明确两边乘或除的是同一个量",
+              "同除时主动说明除数不能为0",
+              "能解释操作后等式为什么保持"
+            ],
+            "secondary_nodes": [],
+            "support_only": false,
+            "target_count": 3,
+            "variation_logic": [
+              "判断同乘是否合法",
+              "补齐同除对应项",
+              "比较含0风险的操作说法"
+            ],
+            "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+          }
+        ],
+        "family_plan_entry": {
+          "depth_rationale": "L2识别合法同乘除，L3处理分数或式的对应操作，L4比较含0风险的说法并说明成立条件。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "concept",
+            "operation",
+            "boundary"
+          ],
+          "exclude_from_coverage": false,
+          "family_id": "equality_multiply_divide_invariance",
+          "not_for_activation": false,
+          "observable_evidence": [
+            "两边同乘除",
+            "非零除数",
+            "等式保持解释"
+          ],
+          "question_direction": "从已成立等式出发设计同乘同除判断、补项或解释任务，必须显式观察除数非零边界。",
+          "required_evidence": [
+            "明确两边乘或除的是同一个量",
+            "同除时主动说明除数不能为0",
+            "能解释操作后等式为什么保持"
+          ],
+          "secondary_nodes": [],
+          "stretch_boundary": "L4只研究等式性质的适用条件，不进入去分母流程、分式方程或解集理论。",
+          "support_only": false,
+          "target_count": 3,
+          "typical_misconceptions": [
+            "只给一边乘除",
+            "两边乘除不同的量",
+            "认为可以同除以0"
+          ]
+        },
+        "generation_policy": {
+          "avoid_rotemechanical_drill": true,
+          "must_bind_primary_node": "M-G7-EQUALITY-PROP",
+          "must_include_mastery_dimension_mapping": true,
+          "must_include_solution_contract": true,
+          "non_key_expression_gap_max_penalty": 1,
+          "simple_node_fast_pass": false
+        },
+        "node_capability": "等式性质：已成立等式的两边同加减同一个量、同乘同一个量或同除以同一个非零量，等式仍成立；掌握证据必须观察两边同操作、等式保持和非法操作反例，不能退化成方程概念、列方程或完整解方程流程。",
+        "question_requirement": {
+          "coverage_role": "entry_probe",
+          "difficulty": "L2",
+          "evidence_goal": "两边同乘除",
+          "exclude_from_coverage": false,
+          "expert_basis_profiles": [
+            "assessment_expert",
+            "bridge_diagnosis_teacher",
+            "frontline_math_teacher",
+            "source_compliance_reviewer",
+            "stretch_competition_teacher"
+          ],
+          "family_id": "equality_multiply_divide_invariance",
+          "max_attempts": 3,
+          "must_include": [
+            "明确两边乘或除的是同一个量",
+            "同除时主动说明除数不能为0",
+            "能解释操作后等式为什么保持",
+            "两边同乘除"
+          ],
+          "must_not_include": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明",
+            "只给一边乘除",
+            "两边乘除不同的量",
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "node_id": "M-G7-EQUALITY-PROP",
+          "node_name": "等式性质",
+          "not_for_activation": false,
+          "question_direction": "判断同乘是否合法",
+          "question_requirement_id": "REQ-d6fc106d221f",
+          "secondary_nodes": [],
+          "slot_id": "M-G7-EQUALITY-PROP:equality_multiply_divide_invariance:01",
+          "slot_order": 4,
+          "status": "requirement_ready",
+          "support_only": false
+        },
+        "review_must_reject": [
+          "连续机械套用两边同加减或同乘除、却不要求判断等式是否保持或说明非零边界的低幼题",
+          "任何以判断方程概念、列方程或完整解方程为主要得分点的题",
+          "任何以通用数运算错误、计算首错或答案检验为主要得分点的题",
+          "只写移项变号口诀而没有两边同操作证据的题",
+          "去括号、合并同类项、去分母等后续流程覆盖等式性质本身的题",
+          "没有等式保持判断、非零边界或非法操作反例证据的题"
+        ],
+        "scope_in": [
+          "在已成立等式两边同加或同减同一个数或式并说明等式保持",
+          "在已成立等式两边同乘同一个数或同除以同一个非零数并说明边界",
+          "判断只改一边、两边操作不同或除以0等操作为何非法",
+          "用具体反例证明非法操作不能保证等式保持",
+          "根据变形前后等式还原两边共同操作或补齐对应项"
+        ],
+        "scope_out": [
+          "判断一个式子是不是方程或一元一次方程",
+          "从文字情境找等量关系并列方程",
+          "完成移项、去括号、合并同类项、系数化一的完整求解流程",
+          "用通用数运算错解或计算错误充当等式性质证据",
+          "只背移项变号口诀而不观察两边同操作",
+          "把去分母漏项等后续流程错误作为本节点主任务"
+        ]
+      },
+      "candidate_authority": "candidate_only",
+      "design_brief_id": "EXPERT-IDEAS-46c630030757",
+      "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+      "family_id": "equality_multiply_divide_invariance",
+      "family_name": "等式同乘除保持",
+      "finding_counts": {},
+      "findings": [],
+      "max_attempts_per_question": 3,
+      "next_actions": [
+        "generate_candidate_from_packet"
+      ],
+      "node_id": "M-G7-EQUALITY-PROP",
+      "node_name": "等式性质",
+      "production_json_path": "data/admin/production/PROD-9932f6e4650b.json",
+      "production_json_sha256": "2ab761337a6ddd6981fdd6d626bfd6846f45c954bda4ed8ffb860d3af9630e1e",
+      "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-9932f6e4650b.md",
+      "production_markdown_sha256": "87e8defb6b701636d5e0a03cc52f7f95e64754ca02dfa357a12650544e2eda03",
+      "production_report_id": "PROD-9932f6e4650b",
+      "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+      "question_bank_version": "2026-07-23.bank.v18.staged",
+      "question_requirement_id": "REQ-d6fc106d221f",
+      "requested_count": 1,
+      "schema_version": "2026-07-23.codex-admin.production-plan.v1",
+      "slot_id": "M-G7-EQUALITY-PROP:equality_multiply_divide_invariance:01",
+      "status": "GENERATION_PACKET_READY",
+      "subject": "math",
+      "write_applied": true
+    }
+  ],
+  "next_actions": [
+    "run_batch"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "node_name": "等式性质",
+  "plan_batch_sha256": "731919cda660ce2a007f908a64275bdec5d00dc4924faedf38bcca1aa411d1a6",
+  "plan_count": 1,
+  "production_json_path": "data/admin/production/PROD-6c5721699cdd.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-6c5721699cdd.md",
+  "production_markdown_sha256": "6e4f25c6dbb28b001742930ec716e3f299e57aba2117dc877f4fabbb4762e764",
+  "production_report_id": "PROD-6c5721699cdd",
+  "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "requested_slot_count": 3,
+  "requirement_plan_path": "data/admin/production/PROD-ec09e6d66f33.json",
+  "schema_version": "2026-07-23.codex-admin.production-plan-batch.v1",
+  "selected_slot_count": 1,
+  "status": "PLAN_BATCH_READY",
+  "subject": "math",
+  "write_applied": true
+}

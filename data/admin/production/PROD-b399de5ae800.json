@@ -1,0 +1,33 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "01d25d197de9b486950e1549c4f285f29c605ba3e4734c03f42e150700052b01",
+  "design_brief_id": "EXPERT-IDEAS-46c630030757",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+  "family_id": "equality_add_subtract_invariance",
+  "finding_counts": {},
+  "findings": [],
+  "item_id": "CAND-8b4b626cd73a",
+  "machine_checked": true,
+  "next_actions": [
+    "expert_review"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "production_json_path": "data/admin/production/PROD-b399de5ae800.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-b399de5ae800.md",
+  "production_markdown_sha256": "f5f299d66e87b0b426496fd1d7f817de0d0b2f6d60b94dfa364e5164743acfee",
+  "production_report_id": "PROD-b399de5ae800",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-6d446298eae0",
+  "requirement_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "secondary_nodes": [],
+    "support_only": false
+  },
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:03",
+  "staging_allowed": false,
+  "status": "SELF_CHECKED_PASS",
+  "subject": "math",
+  "write_applied": true
+}

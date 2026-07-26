@@ -278,7 +278,7 @@ Scenario/e2e cases:
 | E2E-02 alternative valid method | live GPT | semantically accepted without wording penalty |
 | E2E-03 right answer/wrong reasoning | live + recorded oracle | partial/failed required criteria; no false mastery |
 | E2E-04 answer-only | live + recorded oracle | outcome follows question-specific criteria, not universal penalty |
-| E2E-05 explicit stuck | deterministic | zero model calls; teaching/probe/safe stop |
+| E2E-05 explicit stuck | live + recorded oracle | submission records the child stuck signal, queues answer analysis, and creates no teaching/probe/safe-stop decision before model evidence |
 | E2E-06 readable photo | live Doubao + GPT | OCR provenance plus one semantic call; score only after safe judgment |
 | E2E-07 unclear/conflicting photo | live/accepted oracle | clarify, no score/mastery, cannot-provide exits safely |
 | E2E-08 duplicate/restart | isolated DB | one authoritative result and no duplicate provider call |

@@ -1,0 +1,28 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "01d25d197de9b486950e1549c4f285f29c605ba3e4734c03f42e150700052b01",
+  "engine_type": "deterministic_contract_validation",
+  "family_id": "equality_add_subtract_invariance",
+  "finding_counts": {},
+  "findings": [],
+  "gate_type": "deterministic_contract_check",
+  "item_id": "CAND-8b4b626cd73a",
+  "next_actions": [
+    "semantic_qa_review"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "qa_contract_check_json_path": "data/admin/qa_contract_checks/QA-CONTRACT-162170ad1335.json",
+  "qa_contract_check_markdown_path": "docs/system/admin_reports/qa_contract_checks/2026-07-25-QA-CONTRACT-162170ad1335.md",
+  "qa_contract_check_markdown_sha256": "f99e1bb203b9325127a76bce40caefde7b13f2a202865c4be211fa008008acfa",
+  "qa_contract_check_report_id": "QA-CONTRACT-162170ad1335",
+  "question_bank_version": "v18",
+  "reviewed_item_count": 1,
+  "schema_version": "2026-07-24.codex-admin.candidate-qa-contract-check.v1",
+  "semantic_authority": false,
+  "source_file_sha256": "63e4dc88093311c79afe98b6792845da4557693c365fbd7e977ee4a65f3ce5ab",
+  "source_path": "data/admin/candidates/CAND-8b4b626cd73a-01d25d197de9.json",
+  "staging_allowed": false,
+  "status": "PASS",
+  "subject": "math",
+  "write_applied": true
+}

@@ -1,0 +1,52 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "68d91554da9bf9345d292ae0094114b58ba2383d4bb20428f5913502a464c99a",
+  "design_brief_id": "EXPERT-IDEAS-fa437c75408f",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-fa437c75408f.json",
+  "family_id": "number_sense_range_benchmark",
+  "finding_counts": {
+    "P1": 2
+  },
+  "findings": [
+    {
+      "code": "child_surface_projection_failed",
+      "item_id": "CAND-64a919042ded",
+      "message": "候选题无法通过正式孩子端投影：prompt:markdown_authoring_forbidden",
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    },
+    {
+      "code": "child_surface_writing_burden_understates_control",
+      "item_id": "CAND-64a919042ded",
+      "message": "预计作答行数少于当前控件真正需要书写的输入区域。",
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    }
+  ],
+  "item_id": "CAND-64a919042ded",
+  "machine_checked": true,
+  "next_actions": [
+    "regenerate_candidate"
+  ],
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "production_json_path": "data/admin/production/PROD-cb3f5704f75e.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-cb3f5704f75e.md",
+  "production_markdown_sha256": "f62f658fe42b705c6b7abb706bd1542d910431460dfbfc6011c794eb5609aa9c",
+  "production_report_id": "PROD-cb3f5704f75e",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-11beb7243c4b",
+  "requirement_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "secondary_nodes": [],
+    "support_only": false
+  },
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:02",
+  "staging_allowed": false,
+  "status": "NEEDS_REGENERATION",
+  "subject": "math",
+  "write_applied": true
+}

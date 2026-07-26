@@ -1,0 +1,2034 @@
+{
+  "schema_version": "2026-07-22.question-type-taxonomy.v18",
+  "status": "v18_blueprint_ready",
+  "purpose": "Define reusable question families for v18 question-bank production. Families describe mathematical task structure, not surface format.",
+  "clusters": [
+    {
+      "cluster_id": "number_ops",
+      "name": "数与运算",
+      "families": [
+        {
+          "family_id": "estimate_direction_and_magnitude",
+          "family_name": "估算方向与数量级",
+          "measures": [
+            "model_relation",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求先判断范围、方向或数量级",
+            "允许精算验证"
+          ],
+          "forbidden_surface_features": [
+            "只要求竖式计算",
+            "只换数字"
+          ],
+          "scoring_basis": [
+            "估算基准",
+            "误差方向",
+            "精算或合理校验"
+          ],
+          "typical_error_mapping": [
+            "数量级失控",
+            "小数点位置错误",
+            "不做估算"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "number_sense_range_benchmark",
+          "family_name": "估值范围与基准",
+          "measures": [
+            "estimation",
+            "model_relation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "必须在精算前选择可解释的整十、整百、整数或单位基准",
+            "必须给出结果所在区间、上下界或数量级"
+          ],
+          "forbidden_surface_features": [
+            "先精算再反填估算",
+            "只说约等于但没有范围依据",
+            "借数轴位置或方程检验替代数感判断"
+          ],
+          "scoring_basis": [
+            "基准选择合理",
+            "范围或上下界成立",
+            "能说明范围与原数关系"
+          ],
+          "typical_error_mapping": [
+            "基准离原数过远导致范围失真",
+            "上下界方向颠倒",
+            "估值范围宽到失去判断作用"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "number_sense_bias_direction",
+          "family_name": "近似偏差方向",
+          "measures": [
+            "estimation",
+            "model_relation",
+            "reasoning"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "至少一个量相对基准有明确增减偏差",
+            "要求判断估计值偏大、偏小或偏差能否抵消"
+          ],
+          "forbidden_surface_features": [
+            "只做四则精算",
+            "只比较两个最终答案不解释偏差来源",
+            "把正负方向或数轴左右当作偏差方向"
+          ],
+          "scoring_basis": [
+            "识别各量偏差方向",
+            "判断偏差对结果的影响",
+            "能处理两个偏差同向或反向叠加"
+          ],
+          "typical_error_mapping": [
+            "只看一个量的偏差",
+            "把因数变大对积的影响判断反",
+            "认为一增一减必然完全抵消"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "number_sense_magnitude_reasonableness",
+          "family_name": "数量级与结果合理性",
+          "measures": [
+            "magnitude",
+            "representation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "候选结果在小数点、位数、单位量级或符号上存在可判断差异",
+            "要求用数量级或现实范围排除不合理结果"
+          ],
+          "forbidden_surface_features": [
+            "要求完整精算后才能判断",
+            "只有位值口令没有数量意义",
+            "用通用验算流程代替量级判断"
+          ],
+          "scoring_basis": [
+            "确定合理数量级",
+            "识别小数点或位数异常",
+            "能用单位或范围解释排除依据"
+          ],
+          "typical_error_mapping": [
+            "小数点错一位仍接受",
+            "忽略单位导致结果大或小若干倍",
+            "只看末位数字不看整体量级"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "number_sense_strategy_selection",
+          "family_name": "估算策略选择",
+          "measures": [
+            "estimation",
+            "metacognition",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "提供两个以上可行估算基准或策略",
+            "给出速度、误差范围或判断目的，让孩子选择并说明"
+          ],
+          "forbidden_surface_features": [
+            "把唯一算法包装成策略选择",
+            "以繁琐计算量制造伪难度",
+            "要求追求无必要的高精度"
+          ],
+          "scoring_basis": [
+            "策略与任务目的匹配",
+            "能比较误差与计算成本",
+            "能说明何时需要更精确估计"
+          ],
+          "typical_error_mapping": [
+            "无论用途都选同一基准",
+            "把更复杂误认为更准确",
+            "不区分粗估和范围判断"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "structure_based_simplification",
+          "family_name": "结构化简算",
+          "measures": [
+            "model_relation",
+            "procedure",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "存在凑整、拆分、等价转化或运算律结构"
+          ],
+          "forbidden_surface_features": [
+            "只考口算速度",
+            "没有结构选择空间"
+          ],
+          "scoring_basis": [
+            "识别结构",
+            "正确拆分重组",
+            "结果正确"
+          ],
+          "typical_error_mapping": [
+            "只会硬算",
+            "看不出运算律",
+            "重组后漏项"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "integer_structure_arithmetic",
+          "family_name": "整数结构运算",
+          "measures": [
+            "calculation",
+            "model_relation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含拆数、凑整、验算或整数关系表达"
+          ],
+          "forbidden_surface_features": [
+            "低龄竖式训练",
+            "只考单步口算"
+          ],
+          "scoring_basis": [
+            "结构识别",
+            "运算律使用",
+            "验算或反向检查"
+          ],
+          "typical_error_mapping": [
+            "进退位错",
+            "漏位",
+            "验算缺失",
+            "结构表达弱"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "decimal_place_value_ops",
+          "family_name": "小数位值与等价转化",
+          "measures": [
+            "calculation",
+            "representation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含小数点位置、除数转整数或小数倍数关系"
+          ],
+          "forbidden_surface_features": [
+            "只按整数套算不检查小数点",
+            "纯整数题"
+          ],
+          "scoring_basis": [
+            "位值判断",
+            "等价扩大/缩小",
+            "估算检验"
+          ],
+          "typical_error_mapping": [
+            "小数点错位",
+            "除数转整数时只移动一边",
+            "结果范围离谱"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "wrong_solution_repair_number",
+          "family_name": "数与运算错解修复",
+          "measures": [
+            "concept",
+            "procedure",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "给出明确错解",
+            "要求指出错因和修正"
+          ],
+          "forbidden_surface_features": [
+            "没有错解却要求找错",
+            "错因和例子不属于同一数学任务"
+          ],
+          "scoring_basis": [
+            "定位首错",
+            "解释错因",
+            "给出修正"
+          ],
+          "typical_error_mapping": [
+            "运算顺序错误",
+            "符号错误",
+            "小数点错误",
+            "通分或倒数错误"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "signed_operation_model",
+          "family_name": "有理数符号运算模型",
+          "measures": [
+            "concept",
+            "model_relation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含有理数加减乘除动作",
+            "要求解释符号来源"
+          ],
+          "forbidden_surface_features": [
+            "只比较有理数大小",
+            "只在数轴上找位置"
+          ],
+          "scoring_basis": [
+            "运算类型",
+            "符号规则",
+            "绝对值计算",
+            "结论"
+          ],
+          "typical_error_mapping": [
+            "减法未转加法",
+            "同号异号规则混淆",
+            "乘除符号判断错"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "operation_order_control",
+          "family_name": "运算顺序与括号控制",
+          "measures": [
+            "procedure",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "含括号、乘除同级、乘方或多步顺序判断"
+          ],
+          "forbidden_surface_features": [
+            "一步口算",
+            "顺序不影响结果的伪混合运算"
+          ],
+          "scoring_basis": [
+            "优先级判断",
+            "同级顺序",
+            "关键步骤保留"
+          ],
+          "typical_error_mapping": [
+            "先后顺序错",
+            "同级不从左到右",
+            "括号作用看错"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "fraction_unit_and_equivalence",
+          "family_name": "分数意义与等价表示",
+          "measures": [
+            "concept",
+            "representation",
+            "model_relation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求找单位1、分率或等价分数含义"
+          ],
+          "forbidden_surface_features": [
+            "只有通分计算",
+            "单位1不明确"
+          ],
+          "scoring_basis": [
+            "单位1",
+            "分率/数量区分",
+            "等价表示"
+          ],
+          "typical_error_mapping": [
+            "单位1找错",
+            "把分率当具体数量",
+            "约分扩分无意义"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "fraction_operation_structure",
+          "family_name": "分数运算结构",
+          "measures": [
+            "procedure",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "含通分、约分、倒数或分数混合运算的选择"
+          ],
+          "forbidden_surface_features": [
+            "只做整数计算",
+            "不需要分数规则也能完成"
+          ],
+          "scoring_basis": [
+            "通分或倒数规则",
+            "约分",
+            "结果范围"
+          ],
+          "typical_error_mapping": [
+            "只改分母",
+            "除法忘倒数",
+            "约分不彻底"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "percent_rate_change",
+          "family_name": "百分率与变化量",
+          "measures": [
+            "concept",
+            "model_relation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "区分标准量、比较量、变化量或变化率"
+          ],
+          "forbidden_surface_features": [
+            "只做百分数小数互化",
+            "没有单位1"
+          ],
+          "scoring_basis": [
+            "单位1",
+            "比较量/标准量",
+            "增长量/增长率区分"
+          ],
+          "typical_error_mapping": [
+            "单位1错",
+            "增长率和增长量混淆",
+            "百分号乱用"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "ratio_proportion_structure",
+          "family_name": "比和比例结构",
+          "measures": [
+            "model_relation",
+            "representation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含对应量、比值、比例尺或按比例分配"
+          ],
+          "forbidden_surface_features": [
+            "只化简数字比",
+            "对应关系不清"
+          ],
+          "scoring_basis": [
+            "对应量",
+            "比值意义",
+            "比例式或份数结构"
+          ],
+          "typical_error_mapping": [
+            "对应量错位",
+            "把比值当具体量",
+            "比例尺方向反了"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "number_classification_boundary",
+          "family_name": "数的分类与边界",
+          "measures": [
+            "concept",
+            "representation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求按正负零、整数分数或有理数边界分类"
+          ],
+          "forbidden_surface_features": [
+            "只比较大小",
+            "只做计算"
+          ],
+          "scoring_basis": [
+            "分类标准",
+            "边界样例",
+            "反例判断"
+          ],
+          "typical_error_mapping": [
+            "0归类错误",
+            "有限小数和分数关系不清",
+            "负分数漏掉"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "number_line_position_distance",
+          "family_name": "数轴位置与距离",
+          "measures": [
+            "representation",
+            "concept",
+            "model_relation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含方向、位置、距离或中点关系"
+          ],
+          "forbidden_surface_features": [
+            "只有加减运算没有数轴意义"
+          ],
+          "scoring_basis": [
+            "方向",
+            "距离",
+            "位置关系"
+          ],
+          "typical_error_mapping": [
+            "左右方向反",
+            "距离和坐标混淆",
+            "负数大小判断错"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "number_line_reference_frame",
+          "family_name": "数轴参照系构成",
+          "measures": [
+            "concept",
+            "representation",
+            "construction"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "直接观察原点、正方向、单位长度三个要素",
+            "要求判断、修复或构造有效数轴"
+          ],
+          "forbidden_surface_features": [
+            "只画一条带箭头直线",
+            "刻度间距不一致却不作为判断点",
+            "把相反数或绝对值作为主要得分点"
+          ],
+          "scoring_basis": [
+            "原点明确",
+            "正方向明确",
+            "单位长度一致且可读"
+          ],
+          "typical_error_mapping": [
+            "漏原点",
+            "正方向反或未标",
+            "相邻刻度代表的单位不一致"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "number_line_coordinate_location",
+          "family_name": "数与位置双向对应",
+          "measures": [
+            "representation",
+            "location",
+            "model_relation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "在有效数轴上完成数到点或点到数的双向转换",
+            "至少包含整数之外的分数、小数或非单位刻度"
+          ],
+          "forbidden_surface_features": [
+            "连续机械读整点",
+            "只比较数值而不使用位置证据",
+            "把关于0对称作为主要任务"
+          ],
+          "scoring_basis": [
+            "读懂单位长度",
+            "位置方向正确",
+            "坐标与点一一对应"
+          ],
+          "typical_error_mapping": [
+            "负方向刻度读反",
+            "分数小数位置按表面数字猜",
+            "忽略每格代表的数量"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "number_line_distance_relation",
+          "family_name": "数轴距离关系",
+          "measures": [
+            "distance",
+            "representation",
+            "reasoning"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "距离作为不带方向的刻度间隔出现",
+            "要求由两点位置求距离或由位置与距离反推可能点"
+          ],
+          "forbidden_surface_features": [
+            "直接把距离写成带符号坐标",
+            "以绝对值公式熟练度替代数轴几何理解",
+            "退化成普通加减计算"
+          ],
+          "scoring_basis": [
+            "区分位置与距离",
+            "正确计算刻度间隔",
+            "反推时能判断一个或多个可能位置"
+          ],
+          "typical_error_mapping": [
+            "距离带负号",
+            "把坐标值当距离",
+            "反推位置时漏掉另一方向"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "number_line_local_scale_construction",
+          "family_name": "局部刻度构造",
+          "measures": [
+            "construction",
+            "representation",
+            "reasoning"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "只给局部刻度、两个已知点或部分标签",
+            "要求恢复单位长度、补刻度或构造能表示目标数的局部数轴"
+          ],
+          "forbidden_surface_features": [
+            "要求画无限长或装饰性完整数轴",
+            "单位长度可任意变化",
+            "借通用估算决定刻度"
+          ],
+          "scoring_basis": [
+            "从已知点恢复单位长度",
+            "刻度连续一致",
+            "目标点位置可检验"
+          ],
+          "typical_error_mapping": [
+            "局部刻度间隔不等",
+            "已知点与标签不匹配",
+            "为了放下目标数临时改变单位长度"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "opposite_absolute_value_model",
+          "family_name": "相反数与绝对值模型",
+          "measures": [
+            "concept",
+            "representation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求区分符号、相反数、到0距离或多重负号"
+          ],
+          "forbidden_surface_features": [
+            "只做两个数大小比较"
+          ],
+          "scoring_basis": [
+            "到0距离",
+            "符号处理",
+            "对称关系"
+          ],
+          "typical_error_mapping": [
+            "绝对值当去负号",
+            "相反数和倒数混淆",
+            "多重负号错"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "power_base_sign",
+          "family_name": "乘方底数与符号",
+          "measures": [
+            "concept",
+            "procedure",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含负底数、括号底数或指数意义"
+          ],
+          "forbidden_surface_features": [
+            "只做正整数幂口算"
+          ],
+          "scoring_basis": [
+            "底数识别",
+            "指数意义",
+            "符号判断"
+          ],
+          "typical_error_mapping": [
+            "-2^2与(-2)^2混淆",
+            "指数当乘数",
+            "偶奇次符号错"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        },
+        {
+          "family_id": "scientific_notation_precision",
+          "family_name": "科学记数法与近似精度",
+          "measures": [
+            "representation",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含a×10^n规范、还原或精确度判断"
+          ],
+          "forbidden_surface_features": [
+            "只移动小数点但不判断规范范围"
+          ],
+          "scoring_basis": [
+            "a的范围",
+            "指数",
+            "精确到哪一位"
+          ],
+          "typical_error_mapping": [
+            "指数方向反",
+            "a不在1到10之间",
+            "精确度误判"
+          ],
+          "cluster_id": "number_ops",
+          "support_only": false
+        }
+      ]
+    },
+    {
+      "cluster_id": "algebra",
+      "name": "代数式与整式",
+      "families": [
+        {
+          "family_id": "verbal_to_expression",
+          "family_name": "文字关系转代数式",
+          "measures": [
+            "model_relation",
+            "representation",
+            "expression_notation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "给出真实数量关系",
+            "要求写代数式或解释字母含义"
+          ],
+          "forbidden_surface_features": [
+            "只给裸代数式求值"
+          ],
+          "scoring_basis": [
+            "对象定义",
+            "关系表达",
+            "书写规范"
+          ],
+          "typical_error_mapping": [
+            "字母意义不清",
+            "数量关系反了",
+            "省略乘号不规范"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        },
+        {
+          "family_id": "like_terms_boundary",
+          "family_name": "同类项边界辨析",
+          "measures": [
+            "concept",
+            "model_relation",
+            "expression_notation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含可混淆的字母或指数",
+            "要求说明能否合并"
+          ],
+          "forbidden_surface_features": [
+            "只合并显然同类项"
+          ],
+          "scoring_basis": [
+            "字母相同",
+            "指数相同",
+            "只合并系数"
+          ],
+          "typical_error_mapping": [
+            "看系数判断同类项",
+            "指数看错",
+            "合并字母部分"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        },
+        {
+          "family_id": "parenthesis_and_polynomial_repair",
+          "family_name": "去括号与整式错解修复",
+          "measures": [
+            "procedure",
+            "calculation",
+            "expression_notation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含括号、负号或整式加减错解"
+          ],
+          "forbidden_surface_features": [
+            "没有字母结构",
+            "只做整数分配律"
+          ],
+          "scoring_basis": [
+            "括号前符号/系数",
+            "每项处理",
+            "同类项合并"
+          ],
+          "typical_error_mapping": [
+            "负号只变第一项",
+            "漏乘括号内某项",
+            "不同类项误合并"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        },
+        {
+          "family_id": "expression_value_substitution",
+          "family_name": "代数式求值与代入边界",
+          "measures": [
+            "procedure",
+            "calculation",
+            "expression_notation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "含负数、分数或先化简再代入的选择"
+          ],
+          "forbidden_surface_features": [
+            "纯数字运算",
+            "代入值不影响核心难点"
+          ],
+          "scoring_basis": [
+            "代入括号",
+            "先化简策略",
+            "符号计算"
+          ],
+          "typical_error_mapping": [
+            "负数代入漏括号",
+            "先代入导致复杂错误",
+            "分数计算错"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        },
+        {
+          "family_id": "monomial_polynomial_structure",
+          "family_name": "单项式多项式结构",
+          "measures": [
+            "concept",
+            "representation",
+            "expression_notation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求识别项、系数、次数、常数项或几次几项式"
+          ],
+          "forbidden_surface_features": [
+            "只做合并同类项"
+          ],
+          "scoring_basis": [
+            "项的切分",
+            "系数",
+            "次数"
+          ],
+          "typical_error_mapping": [
+            "把减号丢掉",
+            "次数相加错误",
+            "常数项漏判"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        },
+        {
+          "family_id": "equivalent_expression_judgement",
+          "family_name": "等价表达判断",
+          "measures": [
+            "concept",
+            "model_relation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求判断两个表达式是否恒等或给反例"
+          ],
+          "forbidden_surface_features": [
+            "只代一个特殊值就绝对下结论"
+          ],
+          "scoring_basis": [
+            "化简比较",
+            "反例",
+            "变量范围"
+          ],
+          "typical_error_mapping": [
+            "特例当通解",
+            "括号符号错",
+            "结构不等价"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        },
+        {
+          "family_id": "distributive_structure_bridge",
+          "family_name": "分配律到去括号桥梁",
+          "measures": [
+            "model_relation",
+            "procedure",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "连接乘法分配律、括号前系数或负号"
+          ],
+          "forbidden_surface_features": [
+            "只做低龄凑整简算"
+          ],
+          "scoring_basis": [
+            "分配对象",
+            "每项处理",
+            "反向提取结构"
+          ],
+          "typical_error_mapping": [
+            "漏乘项",
+            "负号分配错",
+            "只会数字简算"
+          ],
+          "cluster_id": "algebra",
+          "support_only": false
+        }
+      ]
+    },
+    {
+      "cluster_id": "equation",
+      "name": "方程",
+      "families": [
+        {
+          "family_id": "equation_concept_boundary",
+          "family_name": "方程概念边界",
+          "measures": [
+            "concept",
+            "representation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求判断方程、一元一次方程或方程的解"
+          ],
+          "forbidden_surface_features": [
+            "直接求解复杂方程",
+            "只有算式没有未知数"
+          ],
+          "scoring_basis": [
+            "未知数",
+            "等式",
+            "一次",
+            "解的代回"
+          ],
+          "typical_error_mapping": [
+            "表达式当方程",
+            "含未知数就当一元一次",
+            "解的意义不清"
+          ],
+          "cluster_id": "equation",
+          "support_only": false
+        },
+        {
+          "family_id": "equation_transformation_legality",
+          "family_name": "等式变形合法性",
+          "measures": [
+            "concept",
+            "procedure",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求判断两边同做的变形是否合法"
+          ],
+          "forbidden_surface_features": [
+            "只做移项口号",
+            "不体现等式两边同步"
+          ],
+          "scoring_basis": [
+            "等式性质",
+            "非零除数",
+            "每项同乘"
+          ],
+          "typical_error_mapping": [
+            "只改一边",
+            "除以可能为0的量",
+            "去分母漏项"
+          ],
+          "cluster_id": "equation",
+          "support_only": false
+        },
+        {
+          "family_id": "equality_add_subtract_invariance",
+          "family_name": "等式同加减保持",
+          "measures": [
+            "concept",
+            "operation",
+            "reasoning"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "给出一个已成立等式并对两边同加或同减同一个数或式",
+            "要求说明新等式为什么仍成立"
+          ],
+          "forbidden_surface_features": [
+            "把任务扩展成完整解方程",
+            "只写移项口诀",
+            "要求判断是否为方程"
+          ],
+          "scoring_basis": [
+            "两边操作对象相同",
+            "加减运算一致",
+            "能说明等式保持"
+          ],
+          "typical_error_mapping": [
+            "只改一边",
+            "两边加减不同的量",
+            "把移到另一边变号当作独立规则"
+          ],
+          "cluster_id": "equation",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "equality_multiply_divide_invariance",
+          "family_name": "等式同乘除保持",
+          "measures": [
+            "concept",
+            "operation",
+            "boundary"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "给出一个已成立等式并对两边同乘同一个数或同除以同一个非零数",
+            "必须观察除数非零这一边界"
+          ],
+          "forbidden_surface_features": [
+            "把去分母流程作为主要任务",
+            "只求未知数最终值",
+            "忽略除数为0的限制"
+          ],
+          "scoring_basis": [
+            "两边乘除同一个量",
+            "除数非零",
+            "能说明等式保持"
+          ],
+          "typical_error_mapping": [
+            "只给一边乘除",
+            "两边乘除不同的量",
+            "认为可以同除以0"
+          ],
+          "cluster_id": "equation",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "equality_illegal_operation_counterexample",
+          "family_name": "非法等式操作反例",
+          "measures": [
+            "concept",
+            "counterexample",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "给出只改一边、两边操作不同或除以0等非法操作",
+            "要求用具体反例或代入结果说明等式不再保持"
+          ],
+          "forbidden_surface_features": [
+            "只有符号纠错没有等式保持证据",
+            "借通用错解修复覆盖任意运算错误",
+            "变成求解流程首错定位"
+          ],
+          "scoring_basis": [
+            "识别违反的等式性质",
+            "构造或验证反例",
+            "给出合法修正"
+          ],
+          "typical_error_mapping": [
+            "认为结果碰巧相等就说明操作合法",
+            "只说不能这样做但不给依据",
+            "忽略除以0无意义"
+          ],
+          "cluster_id": "equation",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "equality_operation_reconstruction",
+          "family_name": "等式操作还原",
+          "measures": [
+            "operation",
+            "representation",
+            "reasoning"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "给出变形前后的两个等式或一个缺项等式",
+            "要求还原两边共同进行的操作或补齐对应项"
+          ],
+          "forbidden_surface_features": [
+            "要求完成整道方程求解",
+            "从应用情境列方程",
+            "把移项、去括号、合并同类项混成综合流程"
+          ],
+          "scoring_basis": [
+            "识别共同操作",
+            "两边对应项一致",
+            "能验证还原后前后等式等价"
+          ],
+          "typical_error_mapping": [
+            "只观察一边猜操作",
+            "补项时符号或倍数不对应",
+            "把等价变形误认为任意改写"
+          ],
+          "cluster_id": "equation",
+          "support_only": false,
+          "not_for_activation": false,
+          "exclude_from_coverage": false,
+          "secondary_nodes": []
+        },
+        {
+          "family_id": "equation_word_modeling",
+          "family_name": "方程应用建模",
+          "measures": [
+            "model_relation",
+            "representation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "真实情境",
+            "设未知数",
+            "写等量关系"
+          ],
+          "forbidden_surface_features": [
+            "裸方程",
+            "只算术不建模"
+          ],
+          "scoring_basis": [
+            "设元",
+            "等量关系",
+            "解与题意检验"
+          ],
+          "typical_error_mapping": [
+            "未知数含义不清",
+            "等量关系错",
+            "答案不合题意"
+          ],
+          "cluster_id": "equation",
+          "support_only": false
+        },
+        {
+          "family_id": "linear_equation_solving_flow",
+          "family_name": "一元一次方程求解流程",
+          "measures": [
+            "procedure",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含移项、合并、系数化1或代回检验"
+          ],
+          "forbidden_surface_features": [
+            "只判断概念",
+            "只有口算一步"
+          ],
+          "scoring_basis": [
+            "移项变号",
+            "合并同类项",
+            "系数化1",
+            "代回"
+          ],
+          "typical_error_mapping": [
+            "移项不变号",
+            "系数化1错",
+            "不代回"
+          ],
+          "cluster_id": "equation",
+          "support_only": false
+        },
+        {
+          "family_id": "parenthesis_equation_flow",
+          "family_name": "含括号方程求解",
+          "measures": [
+            "procedure",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "方程中含括号前系数或负号"
+          ],
+          "forbidden_surface_features": [
+            "只做整式去括号不解方程"
+          ],
+          "scoring_basis": [
+            "去括号",
+            "移项",
+            "合并",
+            "检验"
+          ],
+          "typical_error_mapping": [
+            "括号内漏乘",
+            "负号漏分配",
+            "移项错"
+          ],
+          "cluster_id": "equation",
+          "support_only": false
+        },
+        {
+          "family_id": "denominator_equation_flow",
+          "family_name": "含分母方程求解",
+          "measures": [
+            "procedure",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "含分母或分数系数，要求说明最小公倍数同乘"
+          ],
+          "forbidden_surface_features": [
+            "去分母不涉及每一项",
+            "只是分数运算"
+          ],
+          "scoring_basis": [
+            "找公分母",
+            "每一项同乘",
+            "后续求解",
+            "检验"
+          ],
+          "typical_error_mapping": [
+            "漏乘常数项",
+            "分子括号丢失",
+            "公分母错误"
+          ],
+          "cluster_id": "equation",
+          "support_only": false
+        }
+      ]
+    },
+    {
+      "cluster_id": "application_modeling",
+      "name": "应用建模",
+      "families": [
+        {
+          "family_id": "known_unknown_relation_marking",
+          "family_name": "已知未知与关系标注",
+          "measures": [
+            "model_relation",
+            "representation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求标注对象、已知、未知和关系"
+          ],
+          "forbidden_surface_features": [
+            "看到数字直接算",
+            "没有真实关系"
+          ],
+          "scoring_basis": [
+            "对象",
+            "已知未知",
+            "关系句"
+          ],
+          "typical_error_mapping": [
+            "问题读错",
+            "对象混淆",
+            "关系缺失"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "motion_basic_model",
+          "family_name": "行程基础模型",
+          "measures": [
+            "model_relation",
+            "calculation",
+            "unit"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "路程、速度、时间三量关系和单位一致性"
+          ],
+          "forbidden_surface_features": [
+            "无单位纯乘法",
+            "追及相遇结构却当普通行程"
+          ],
+          "scoring_basis": [
+            "s=vt关系",
+            "单位统一",
+            "所求量"
+          ],
+          "typical_error_mapping": [
+            "单位不统一",
+            "速度时间混淆",
+            "公式套反"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "motion_chase_meet_model",
+          "family_name": "追及相遇模型",
+          "measures": [
+            "model_relation",
+            "representation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "体现相向速度和或同向速度差"
+          ],
+          "forbidden_surface_features": [
+            "普通速度×时间",
+            "没有初始距离"
+          ],
+          "scoring_basis": [
+            "相对速度",
+            "初始距离",
+            "时间关系"
+          ],
+          "typical_error_mapping": [
+            "速度和差用反",
+            "先走时间漏算",
+            "单位错"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "work_rate_model",
+          "family_name": "工程效率模型",
+          "measures": [
+            "model_relation",
+            "representation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "工作总量设为1，单独效率与合作效率"
+          ],
+          "forbidden_surface_features": [
+            "速度×时间路程题",
+            "只问单人完成不用效率"
+          ],
+          "scoring_basis": [
+            "总量1",
+            "效率",
+            "合作或先后时间"
+          ],
+          "typical_error_mapping": [
+            "把天数相加",
+            "效率和天数混淆",
+            "合作效率漏加"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "percent_application_model",
+          "family_name": "百分数应用模型",
+          "measures": [
+            "model_relation",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "折扣、增长率、正确率或利润率中的单位1明确"
+          ],
+          "forbidden_surface_features": [
+            "只做互化",
+            "没有比较基准"
+          ],
+          "scoring_basis": [
+            "单位1",
+            "比较量",
+            "变化后数量"
+          ],
+          "typical_error_mapping": [
+            "基准错",
+            "折扣和降价率混淆",
+            "利润率分母错"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "proportion_table_model",
+          "family_name": "比例对应量表",
+          "measures": [
+            "model_relation",
+            "representation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求用表格或对应量建立比例关系"
+          ],
+          "forbidden_surface_features": [
+            "只化简比",
+            "对应方向不明"
+          ],
+          "scoring_basis": [
+            "对应表",
+            "比例式",
+            "单位或比例尺方向"
+          ],
+          "typical_error_mapping": [
+            "对应项错位",
+            "比例尺方向反",
+            "正比例误判"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "sum_difference_multiple_model",
+          "family_name": "和差倍模型",
+          "measures": [
+            "model_relation",
+            "representation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "含和、差、倍数或年龄差不变结构"
+          ],
+          "forbidden_surface_features": [
+            "普通四则题",
+            "没有两个对象关系"
+          ],
+          "scoring_basis": [
+            "基准量",
+            "和差倍关系",
+            "答案检验"
+          ],
+          "typical_error_mapping": [
+            "倍数对象反了",
+            "差不变没抓住",
+            "单位不一致"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "clock_angle_model",
+          "family_name": "钟表角模型",
+          "measures": [
+            "model_relation",
+            "geometry_relation",
+            "calculation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含时针分针速度差或夹角两解"
+          ],
+          "forbidden_surface_features": [
+            "普通角度加减",
+            "没有钟表运动关系"
+          ],
+          "scoring_basis": [
+            "初始角",
+            "相对角速度",
+            "夹角取小角"
+          ],
+          "typical_error_mapping": [
+            "忽略时针移动",
+            "只给一个夹角",
+            "速度差用错"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        },
+        {
+          "family_id": "distractor_condition_filter",
+          "family_name": "干扰条件筛选",
+          "measures": [
+            "model_relation",
+            "reading",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含至少一个无关或易误用条件"
+          ],
+          "forbidden_surface_features": [
+            "所有数字都必须用的机械题"
+          ],
+          "scoring_basis": [
+            "目标识别",
+            "必要条件",
+            "舍弃理由"
+          ],
+          "typical_error_mapping": [
+            "看见数字就用",
+            "问题目标读错",
+            "关系缺证据"
+          ],
+          "cluster_id": "application_modeling",
+          "support_only": false
+        }
+      ]
+    },
+    {
+      "cluster_id": "geometry",
+      "name": "几何图形初步",
+      "families": [
+        {
+          "family_id": "object_representation_boundary",
+          "family_name": "几何对象与表示边界",
+          "measures": [
+            "concept",
+            "representation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求辨析点线面体、直线射线线段或角的表示"
+          ],
+          "forbidden_surface_features": [
+            "只做角度计算",
+            "对象没有边界差异"
+          ],
+          "scoring_basis": [
+            "对象特征",
+            "表示方法",
+            "反例"
+          ],
+          "typical_error_mapping": [
+            "符号表示错",
+            "有限无限混淆",
+            "对象维度混淆"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "segment_angle_part_whole",
+          "family_name": "线段/角整体部分关系",
+          "measures": [
+            "geometry_relation",
+            "calculation",
+            "representation"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含中点、角平分线、和差或余角补角关系"
+          ],
+          "forbidden_surface_features": [
+            "只有数字加减没有图形关系"
+          ],
+          "scoring_basis": [
+            "整体部分关系",
+            "几何语言翻译",
+            "计算"
+          ],
+          "typical_error_mapping": [
+            "中点/平分线定义错",
+            "余角补角混淆",
+            "图形关系漏写"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "net_and_view_matching",
+          "family_name": "展开图与三视图匹配",
+          "measures": [
+            "visual_spatial",
+            "representation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4",
+            "L5"
+          ],
+          "required_surface_features": [
+            "包含展开图相对面、三视图或小正方体组合"
+          ],
+          "forbidden_surface_features": [
+            "角平分线题",
+            "没有图形结构的纯文字题"
+          ],
+          "scoring_basis": [
+            "空间对应",
+            "可折叠性",
+            "视图方向"
+          ],
+          "typical_error_mapping": [
+            "相对面判断错",
+            "视图方向混淆",
+            "隐藏方块漏算"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "area_volume_formula_structure",
+          "family_name": "面积体积公式结构理解",
+          "measures": [
+            "model_relation",
+            "geometry_relation",
+            "unit"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "要求解释公式来源、单位维度或组合图形"
+          ],
+          "forbidden_surface_features": [
+            "角度题",
+            "只套公式无结构"
+          ],
+          "scoring_basis": [
+            "底/高/半径等量",
+            "公式结构",
+            "单位维度"
+          ],
+          "typical_error_mapping": [
+            "面积体积单位混淆",
+            "半径直径混淆",
+            "组合图形拆分错"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "line_ray_segment_representation",
+          "family_name": "直线射线线段表示",
+          "measures": [
+            "concept",
+            "representation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "比较直线、射线、线段的端点、延伸和表示"
+          ],
+          "forbidden_surface_features": [
+            "线段长度计算为主"
+          ],
+          "scoring_basis": [
+            "端点个数",
+            "延伸方向",
+            "表示符号"
+          ],
+          "typical_error_mapping": [
+            "射线方向错",
+            "直线可测量误判",
+            "表示顺序混淆"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "angle_representation_measure",
+          "family_name": "角的表示与度量",
+          "measures": [
+            "concept",
+            "representation",
+            "geometry_relation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求表示角、分类角或读量角器"
+          ],
+          "forbidden_surface_features": [
+            "角度和差计算为主"
+          ],
+          "scoring_basis": [
+            "顶点",
+            "边",
+            "表示法",
+            "度量"
+          ],
+          "typical_error_mapping": [
+            "顶点字母不居中",
+            "内外圈读错",
+            "角分类边界错"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "point_line_plane_generation",
+          "family_name": "点线面体生成关系",
+          "measures": [
+            "concept",
+            "visual_spatial",
+            "representation"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求解释点动成线、线动成面、面动成体或元素关系"
+          ],
+          "forbidden_surface_features": [
+            "体积公式计算"
+          ],
+          "scoring_basis": [
+            "维度变化",
+            "元素关系",
+            "实例匹配"
+          ],
+          "typical_error_mapping": [
+            "维度混淆",
+            "元素和整体混淆",
+            "生活例子不对应"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        },
+        {
+          "family_id": "unit_dimension_conversion",
+          "family_name": "单位维度换算",
+          "measures": [
+            "unit",
+            "calculation",
+            "check"
+          ],
+          "difficulty_range": [
+            "L3",
+            "L4"
+          ],
+          "required_surface_features": [
+            "包含长度、面积、体积、时间或人民币单位的维度差异"
+          ],
+          "forbidden_surface_features": [
+            "只移动小数点不说明维度",
+            "面积体积公式成为主考点"
+          ],
+          "scoring_basis": [
+            "单位维度",
+            "进率",
+            "方向"
+          ],
+          "typical_error_mapping": [
+            "平方/立方进率错",
+            "大单位小单位方向反",
+            "复合单位漏换"
+          ],
+          "cluster_id": "geometry",
+          "support_only": false
+        }
+      ]
+    },
+    {
+      "cluster_id": "learning_process",
+      "name": "学习流程与表达",
+      "families": [
+        {
+          "family_id": "solution_trace_repair",
+          "family_name": "过程复盘与补证据",
+          "support_only": true,
+          "not_for_activation": true,
+          "exclude_from_coverage": true,
+          "secondary_nodes": [],
+          "measures": [
+            "process",
+            "check",
+            "expression"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求补关键步骤、检验、单位或答句"
+          ],
+          "forbidden_surface_features": [
+            "把非关键书写当主扣分",
+            "只看标准答案字面一致"
+          ],
+          "scoring_basis": [
+            "关键证据",
+            "检验",
+            "表达足够清楚"
+          ],
+          "typical_error_mapping": [
+            "答案-only",
+            "跳关键步骤",
+            "检验缺失"
+          ],
+          "cluster_id": "learning_process"
+        },
+        {
+          "family_id": "answer_check_habit",
+          "family_name": "答案检验习惯",
+          "support_only": true,
+          "not_for_activation": true,
+          "exclude_from_coverage": true,
+          "secondary_nodes": [],
+          "measures": [
+            "process",
+            "check",
+            "metacognition"
+          ],
+          "difficulty_range": [
+            "L2",
+            "L3"
+          ],
+          "required_surface_features": [
+            "要求选择合适检验方法或判断答案是否合理"
+          ],
+          "forbidden_surface_features": [
+            "繁琐格式要求",
+            "无数学意义的抄写"
+          ],
+          "scoring_basis": [
+            "检验方法",
+            "发现异常",
+            "修正方向"
+          ],
+          "typical_error_mapping": [
+            "不验算",
+            "单位错不检查",
+            "离谱结果照写"
+          ],
+          "cluster_id": "learning_process"
+        }
+      ]
+    }
+  ]
+}

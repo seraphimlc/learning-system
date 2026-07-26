@@ -25,6 +25,7 @@ from learning_system import (
     model_router,
     question_fingerprints,
     semantic_agents,
+    test_support,
 )
 
 
@@ -381,6 +382,7 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
             conn.execute("pragma foreign_keys = on")
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
+            test_support.seed_runtime_test_question_bank(conn, PROJECT_ROOT)
         finally:
             conn.close()
 
@@ -1550,6 +1552,7 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
         baseline_conn.execute("pragma foreign_keys = on")
         db.init_schema(baseline_conn)
         db.seed_from_assets(baseline_conn, PROJECT_ROOT)
+        test_support.seed_runtime_test_question_bank(baseline_conn, PROJECT_ROOT)
         try:
             report = self._persist_exact_live_designs(
                 baseline_conn,
@@ -1931,6 +1934,7 @@ class AnswerContractDesignV2RepairLoopTests(unittest.TestCase):
             conn.execute("pragma foreign_keys = on")
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
+            test_support.seed_runtime_test_question_bank(conn, PROJECT_ROOT)
         finally:
             conn.close()
 
@@ -4201,6 +4205,7 @@ class AnswerContractBatchACanaryRedTests(unittest.TestCase):
         try:
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
+            test_support.seed_runtime_test_question_bank(conn, PROJECT_ROOT)
         finally:
             conn.close()
 

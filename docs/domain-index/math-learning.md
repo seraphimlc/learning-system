@@ -9,7 +9,7 @@ It excludes generic multi-user product features, unrelated English expansion, an
 ## Current Contract
 
 - Project purpose:小学关键漏洞补齐 + 人教版七年级上册数学预学.
-- Current local system: v1.4 runnable SQLite + stdlib HTTP server + vanilla child UI.
+- Current local system: v5.1 runnable SQLite + stdlib HTTP server + vanilla child UI.
 - Every diagnosis, lesson, question, attempt, and plan item must bind to a knowledge graph node id.
 - Wrong answers roll back along prerequisite chains before generating more same-type practice.
 - Child-facing pages stay simple and child-only; complex teaching logic stays in
@@ -51,7 +51,7 @@ It excludes generic multi-user product features, unrelated English expansion, an
   invalidated attempts remain auditable but cannot drive reports, evolution, or
   plans. Evolved questions whose source evidence is invalidated are also
   rejected by the active scheduling gate.
-- Self-evolution is paused as an automatic mainline changer in v3. It may archive
+- Self-evolution is paused as an automatic mainline changer. It may archive
   evidence and propose improvements, but cannot directly change active bank,
   graph, mastery, or next plan.
 
@@ -60,28 +60,20 @@ It excludes generic multi-user product features, unrelated English expansion, an
 - Blueprint: `docs/00_PROJECT_BLUEPRINT.md`
 - Math graph data: `data/knowledge_graphs/math/math_knowledge_graph_v2.json`
 - Math graph notes: `data/knowledge_graphs/math/math_knowledge_graph_v2.md`
-- Math diagnostic v1 data: `data/questions/math_diagnostic_v1.json`
-- Math diagnostic v1 student page: `app/student/math_diagnostic_v1.html`
-- Math diagnostic v1 parent guide: `docs/diagnostics/math_diagnostic_v1.md`
-- Math diagnostic v1 generator: `scripts/generate_math_diagnostic_v1.mjs`
-- Math diagnostic v1 validators: `scripts/validate_math_diagnostic_v1.mjs`, `scripts/verify_math_diagnostic_page_export.mjs`
+- Math knowledge view config: `data/knowledge_graphs/math/math_knowledge_views_v5_1.json`
+- Knowledge cards: `data/knowledge_cards/`
+- v18 question-bank source assets: `data/question_banks/v18/`
 - Local learning system backend: `learning_system/db.py`, `learning_system/question_bank.py`, `learning_system/evolution.py`, `learning_system/planner.py`, `learning_system/agents.py`, `learning_system/server.py`
-- v3 daily runtime skeleton: `learning_system/daily_runtime.py`, `learning_system/graph_runtime.py`, `learning_system/evidence_gate.py`, `learning_system/job_queue.py`
+- v5 daily runtime: `learning_system/daily_runtime.py`, `learning_system/graph_runtime.py`, `learning_system/evidence_gate.py`, `learning_system/job_queue.py`
 - Local learning system UI: `app/local_learning_system/index.html`, `app/local_learning_system/styles.css`, `app/local_learning_system/app.js`
 - Local learning system DB initializer: `scripts/init_learning_system_db.py`
-- Local daily report generator: `scripts/generate_daily_report.py`
+- Local report generation: `learning_system/reports.py`
 - Local learning system runbook: `docs/system/local_learning_system.md`
-- Local daily report: `docs/system/daily_reports/latest.md`
 - Local DB: `data/local_learning_system.sqlite`
-- Upload evidence: `data/uploads/answers/`; v3 upload recovery lives in
+- Upload evidence: `data/uploads/answers/`; upload recovery lives in
   `learning_system/daily_runtime.py` `reconcile_answer_uploads()`
-- Legacy archived outputs: `archive/chat_outputs/`
-- Future student app root: `app/student/`
 - Parent interaction surface: Codex. Do not add a web parent dashboard unless the
   product boundary is explicitly changed.
-- Future generated questions: `data/questions/`
-- Future learning attempts: `data/attempts/`
-- Future plans: `data/plans/`
 
 ## Key Flows
 
@@ -105,35 +97,22 @@ It excludes generic multi-user product features, unrelated English expansion, an
 - `docs/00_PROJECT_BLUEPRINT.md`
 - `docs/collaboration.md`
 - `docs/product/ai_native_math_learning_prd_v5.md`
-- `docs/collaboration/reviews/prd_v5_clean_slate_review_2026-07-11.md`
-- `docs/architecture/ai_native_learning_system_architecture_v3.md`
+- `docs/product/ai_native_math_learning_prd_v5_1_dual_knowledge_views_amendment.md`
+- `docs/product/ai_native_math_learning_product_structure_v5.md`
 - `docs/architecture/daily_learning_runtime_contract_v1.md`
-- `docs/architecture/technical_plan_v3.md`
-- `docs/architecture/code_skeleton_pass_v3.md`
-- `docs/collaboration/reviews/2026-07-10-jinghua-technical-plan-v3-rereview.md`
-- `docs/collaboration/reviews/2026-07-10-guanzhi-technical-plan-v3-qa-rereview.md`
+- `docs/architecture/technical_plan_v5.md`
+- `docs/architecture/implementation_blueprint_v5.md`
+- `docs/architecture/answer_assessment_engineering_contract_v5_1.md`
+- `docs/design/specs/2026-07-23-question-bank-production-spec-v18.1.md`
 
 ## Validation Entrypoints
 
 ```bash
 jq empty data/knowledge_graphs/math/math_knowledge_graph_v2.json
 jq '.nodes | length' data/knowledge_graphs/math/math_knowledge_graph_v2.json
-node scripts/generate_math_diagnostic_v1.mjs
-node scripts/validate_math_diagnostic_v1.mjs
-node scripts/verify_math_diagnostic_page_export.mjs
 python3 scripts/init_learning_system_db.py
-python3 scripts/generate_daily_report.py --db data/local_learning_system.sqlite
-python3 -m unittest tests/test_learning_system.py -v
-python3 - <<'PY'
-import re, subprocess, sys
-from pathlib import Path
-text = Path("tests/test_learning_system.py").read_text()
-names = [
-    "tests.test_learning_system.LearningSystemTest." + name
-    for name in re.findall(r"def (test_v3_[^(]+)\(", text)
-]
-raise SystemExit(subprocess.call([sys.executable, "-m", "unittest", *names, "-v"]))
-PY
+python3 -m unittest tests/test_learning_system.py tests/test_knowledge_views_v51.py -v
+python3 -m unittest tests/test_question_bank_v18_activation_gate.py tests/test_admin_console_inventory.py tests/test_admin_console_production_loop.py tests/test_question_bank_v18_blueprints.py tests/test_admin_full_bank_runner_priority.py -v
 /Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node tests/browser_smoke_learning_system.mjs
 python3 -m learning_system.server --db data/local_learning_system.sqlite --port 8765
 ```

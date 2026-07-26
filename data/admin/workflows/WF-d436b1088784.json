@@ -1,0 +1,114 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "content_attempt_state": {
+    "content_attempts_consumed": 0,
+    "crash_recovery_count": 0,
+    "created_at": "2026-07-25T08:27:21.959531+00:00",
+    "history": [
+      {
+        "at": "2026-07-25T08:27:21.965212+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-1259ed88f76497ee9864:1"
+      },
+      {
+        "at": "2026-07-25T08:27:21.976047+00:00",
+        "consumed": false,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-1259ed88f76497ee9864:1",
+        "outcome": "BLOCKED_MODEL_ERROR"
+      }
+    ],
+    "locator_id": "153323825c4376071a99",
+    "max_content_attempts": 3,
+    "pending_content_attempt": null,
+    "pending_review_checkpoint": null,
+    "pending_stage_checkpoint": null,
+    "provider_transport_attempt_count": 0,
+    "provider_transport_events": [],
+    "provider_transport_retry_count": 0,
+    "question_requirement_id": "REQ-959cfd4c7a53",
+    "resume_rejection_path": "",
+    "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+    "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:01",
+    "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+    "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+    "state_id": "ATTEMPT-1259ed88f76497ee9864",
+    "updated_at": "2026-07-25T08:27:21.976053+00:00"
+  },
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T08:27:21.977876+00:00",
+  "elapsed_seconds": 0.021,
+  "generation_plan_path": "data/admin/production/PROD-01507715c7fc.json",
+  "interrupted_before_stage": "",
+  "item_id": "",
+  "pending_stage": {},
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "BLOCKED_MODEL_ERROR",
+  "steps": [
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "local JSON schema is not strict-provider compatible: $.properties.child_surface_design.properties.interaction_requirements: required/properties mismatch missing=['maximum_selections', 'minimum_selections'] unknown=[]",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-6ccc1ee5bfd0.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "local JSON schema is not strict-provider compatible: $.properties.child_surface_design.properties.interaction_requirements: required/properties mismatch missing=['maximum_selections', 'minimum_selections'] unknown=[]",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-6ccc1ee5bfd0.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "machine_contract_check"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-d436b1088784",
+  "workflow_json_path": "data/admin/workflows/WF-d436b1088784.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-d436b1088784.md",
+  "workflow_markdown_sha256": "177dea654336e9a1651c0950e42539b37f7e91a146323d5772a410f896c370fc",
+  "workflow_write_applied": true
+}

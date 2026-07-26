@@ -26,6 +26,33 @@ function getFreePort() {
   });
 }
 
+function textSegment(text) {
+  return { type: "text", text: String(text || "") };
+}
+
+function inlineRendering(text) {
+  const value = String(text || "");
+  return { text: value, segments: [textSegment(value)] };
+}
+
+function interactionRendering(schema) {
+  return {
+    title: inlineRendering(schema.title || "作答"),
+    explanation_label: inlineRendering(schema.explanation_label || "补充说明"),
+    formula_label: inlineRendering(schema.formula_label || ""),
+    fields: (schema.fields || []).map((field) => ({
+      id: String(field.id),
+      label: inlineRendering(field.label),
+      prefix: inlineRendering(field.prefix || ""),
+      suffix: inlineRendering(field.suffix || ""),
+    })),
+    choices: (schema.choices || []).map((choice) => ({
+      id: String(choice.id),
+      label: inlineRendering(choice.label),
+    })),
+  };
+}
+
 function currentStep(interactionSchema, prompt = "完成这一小步。") {
   return {
     schema_version: "3.0.0-daily-flow",
@@ -44,7 +71,10 @@ function currentStep(interactionSchema, prompt = "完成这一小步。") {
       stuck_enabled: true,
       state: "selected",
       support: { hint: "按题目要求完成，再写一句理由。" },
+      prompt_format: "2026-07-17.child-plain-text.v1",
+      prompt_segments: [textSegment(prompt)],
       interaction_schema: interactionSchema,
+      interaction_rendering: interactionRendering(interactionSchema),
     },
   };
 }

@@ -1,0 +1,151 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "batch_id": "BATCH-8d2e56bd4d2f",
+  "batch_json_path": "data/admin/workflows/BATCH-8d2e56bd4d2f.json",
+  "batch_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-BATCH-8d2e56bd4d2f.md",
+  "batch_markdown_sha256": "49ee500a38eaa7d324c36fb3f089def55034f44f5595042d708725f2aa0a3dd1",
+  "batch_write_applied": true,
+  "blocked_reason": "",
+  "blocking_code_counts": {
+    "blocked_model_error": 9
+  },
+  "created_at": "2026-07-25T06:05:26.022967+00:00",
+  "elapsed_seconds": 7.315,
+  "executed_slot_count": 9,
+  "failed_slot_count": 9,
+  "generation_batch_size": 1,
+  "max_attempts_per_slot": 3,
+  "max_runtime_seconds": 900.0,
+  "parallel_execution_enabled": true,
+  "parallel_workers": 4,
+  "requested_plan_count": 9,
+  "schema_version": "2026-07-23.codex-admin.batch-production-workflow.v1",
+  "selected_plan_count": 9,
+  "skipped_slot_count": 0,
+  "slot_workflows": [
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 1.451,
+      "generation_plan_path": "data/admin/production/PROD-66bf262ae75a.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-c8060d009441",
+      "workflow_json_path": "data/admin/workflows/WF-c8060d009441.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-c8060d009441.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 2.975,
+      "generation_plan_path": "data/admin/production/PROD-f42eb2a61c2e.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-0a4bf138366f",
+      "workflow_json_path": "data/admin/workflows/WF-0a4bf138366f.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-0a4bf138366f.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 1.285,
+      "generation_plan_path": "data/admin/production/PROD-e4419922ddd4.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-43ea9034dc7a",
+      "workflow_json_path": "data/admin/workflows/WF-43ea9034dc7a.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-43ea9034dc7a.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 2.78,
+      "generation_plan_path": "data/admin/production/PROD-f0041fd1a1eb.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-a5b434420c8a",
+      "workflow_json_path": "data/admin/workflows/WF-a5b434420c8a.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-a5b434420c8a.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 2.786,
+      "generation_plan_path": "data/admin/production/PROD-34bf1ab41b8b.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-4b9bb4d01c99",
+      "workflow_json_path": "data/admin/workflows/WF-4b9bb4d01c99.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-4b9bb4d01c99.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 2.602,
+      "generation_plan_path": "data/admin/production/PROD-7d62bdda6b73.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-9a909f2ef233",
+      "workflow_json_path": "data/admin/workflows/WF-9a909f2ef233.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-9a909f2ef233.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 2.39,
+      "generation_plan_path": "data/admin/production/PROD-4107d92db680.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-1d529f570cea",
+      "workflow_json_path": "data/admin/workflows/WF-1d529f570cea.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-1d529f570cea.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 2.391,
+      "generation_plan_path": "data/admin/production/PROD-4a93f02b98e6.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-e52f91174fd7",
+      "workflow_json_path": "data/admin/workflows/WF-e52f91174fd7.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-e52f91174fd7.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 3.26,
+      "generation_plan_path": "data/admin/production/PROD-cad3a9d1cc1f.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-528b2560408c",
+      "workflow_json_path": "data/admin/workflows/WF-528b2560408c.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-528b2560408c.md"
+    }
+  ],
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_slot_count": 0,
+  "staging_allowed": false,
+  "status": "BATCH_COMPLETED_WITH_FAILURES",
+  "subject": "math"
+}

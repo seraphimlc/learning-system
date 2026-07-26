@@ -1,0 +1,186 @@
+{
+  "candidate_sha256": "af2a876d8c9a009768d382449a2a5333f62f7c3ef8d12d73ce136d81b3a02faa",
+  "item": {
+    "accepted_alternatives": [
+      "2y-3-(x+2)；完整作答仍需说明两边同减 x+2",
+      "(2y-3)-x-2；完整作答仍需说明两边同减 x+2",
+      "2y-3-x-2；完整作答仍需说明两边同减 x+2"
+    ],
+    "answer_format": "在空格中填写右边的式子，并写一句话说明：两边做了什么相同操作。",
+    "child_surface_design": {
+      "backend_evidence_targets": [
+        "能识别左边减去的是同一个整体式 x+2",
+        "能在右边执行完全相同的同减操作",
+        "能说明等式保持的依据是两边同减同一个量"
+      ],
+      "child_deliverables": [
+        "补齐右边应写的式子",
+        "用一句话说明右边为什么要这样写"
+      ],
+      "difficulty_alignment": {
+        "diagnostic_breakpoint": "能否从变形后的左边看出共同操作，并在右边补上完全相同的减去 x+2，而不是减不同的式子或做相反操作。",
+        "difficulty_source": "representation_transfer",
+        "target_difficulty": "L3"
+      },
+      "distractor_design": {
+        "distractors": [
+          {
+            "information": "右边写成 2y-3-(4x+9)",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "学生可能误以为右边要减去左边原来的整个式子，而没有抓住左边实际减去的是 x+2。"
+          },
+          {
+            "information": "右边写成 2y-3+(x+2)",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "学生可能把“移到另一边变号”的表面口诀误用为相反操作。"
+          }
+        ]
+      },
+      "interaction_requirements": {
+        "actions": [],
+        "maximum_selections": 0,
+        "minimum_selections": 0,
+        "response_kind": "fill_blank"
+      },
+      "language_surface": {
+        "named_characters": [],
+        "natural_child_facing_chinese": true,
+        "respectful_age_appropriate": true,
+        "semantic_review_boundary": "requires_independent_semantic_qa",
+        "short_explanation_requests": 1
+      },
+      "primary_task": "根据已成立等式中左边的同减操作，补齐右边必须对应的同一操作。",
+      "student_actions": {
+        "primary": "model_or_represent",
+        "supporting": [
+          "explain_core_relation"
+        ]
+      },
+      "task_focus_count": 1,
+      "visual_support": {
+        "asset_ref": "",
+        "inline_visual": "",
+        "mode": "not_needed",
+        "prompt_depends_on_visual": false
+      },
+      "writing_burden": {
+        "burden_level": "light",
+        "estimated_response_lines": 1,
+        "why_necessary": "只需补一个式子并写一句依据，用来区分是否真正理解“两边同减同一个量”。"
+      }
+    },
+    "design_rationale": "题目从已成立等式出发，要求补齐另一边对应项，核心不是计算化简，而是识别并迁移同减同一个式子的等式性质。表达量控制在一个式子和一句说明，能区分“减错量”“只看变号口诀”和真正理解等式保持的学生。",
+    "difficulty": "L3",
+    "estimated_minutes": 3,
+    "evidence_goal": "同加减操作",
+    "exclude_from_coverage": false,
+    "expected_answer": "(2y-3)-(x+2)；说明必须包含“两边都减去同一个式子 x+2，所以等式仍成立”。",
+    "id": "CAND-cda57a2c63bf",
+    "interaction_schema": {
+      "allow_explanation": true,
+      "choices": [],
+      "explanation_label": "一句话说明依据",
+      "fields": [
+        {
+          "id": "blank_1",
+          "label": "右边应写成",
+          "placeholder": "例如：某个式子-(某个式子)",
+          "prefix": "",
+          "suffix": ""
+        }
+      ],
+      "formula_label": "",
+      "placeholder": "",
+      "requires_explanation": true,
+      "schema_version": "2026-07-17.question-interaction.v2",
+      "title": "补齐等式右边",
+      "type": "fill_blank"
+    },
+    "item_version": "draft.admin-production.v1.attempt-1",
+    "key_score_points": [
+      {
+        "evidence": "右边从原等式的右边 2y-3 出发，而不是换成左边式子或其他量。",
+        "key": "right_side_base",
+        "mastery_dimension": "等式两边对应位置识别",
+        "points": 3
+      },
+      {
+        "evidence": "右边减去的也是 x+2，或写成等价的减 x 再减 2。",
+        "key": "same_subtraction_expression",
+        "mastery_dimension": "同加减操作保持",
+        "points": 4
+      },
+      {
+        "evidence": "解释中明确两边都减去同一个式子，因此等式仍成立。",
+        "key": "equality_invariance_reason",
+        "mastery_dimension": "等式保持解释",
+        "points": 2
+      },
+      {
+        "evidence": "式子书写清楚，括号或等价展开不造成含义改变。",
+        "key": "notation_clarity",
+        "mastery_dimension": "数学表达清晰度",
+        "points": 1
+      }
+    ],
+    "math_core_signature": "已知 A=B；由 A-(x+2) 推出 B-(x+2)，依据是等式两边同减同一个式子。",
+    "node_id": "M-G7-EQUALITY-PROP",
+    "not_for_activation": false,
+    "production_lineage": {
+      "design_brief_id": "EXPERT-IDEAS-46c630030757",
+      "evidence_goal": "同加减操作",
+      "family_id": "equality_add_subtract_invariance",
+      "generation_attempt": 1,
+      "generation_rationale": "题目从已成立等式出发，要求补齐另一边对应项，核心不是计算化简，而是识别并迁移同减同一个式子的等式性质。表达量控制在一个式子和一句说明，能区分“减错量”“只看变号口诀”和真正理解等式保持的学生。",
+      "previous_rejection_codes": [],
+      "question_requirement_id": "REQ-869b5230ff3d",
+      "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:02"
+    },
+    "prompt": "已知等式 4x+9=2y-3 成立。\n\n如果把左边变成 (4x+9)-(x+2)，为了保证新等式仍然成立，右边应补成什么？\n\n(4x+9)-(x+2)=______\n\n请再用一句话说明你的依据。",
+    "quality": {
+      "canonical_structure_fingerprint": "CANON-5a03c8db4436e1b1",
+      "model_structure_fingerprint": "已知 A=B；由 A-(x+2) 推出 B-(x+2)，依据是等式两边同减同一个式子。",
+      "review_status": "draft_generated",
+      "structure_fingerprint": "CANON-5a03c8db4436e1b1"
+    },
+    "question_type": "equality_add_subtract_invariance",
+    "required_evidence": [
+      "明确左边执行的是减去 x+2",
+      "右边以原右边 2y-3 为基础执行同样的减去 x+2",
+      "说明等式保持来自两边同减同一个量",
+      "同加减操作",
+      "变形后等号两边仍对应同一操作",
+      "题面和得分点必须落实当前方向：补齐另一边对应项",
+      "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务",
+      "明确两边加或减的是同一个量",
+      "能用天平或代入具体相等数解释等式保持"
+    ],
+    "rollback_candidates": [],
+    "rubric": [
+      "补出的右边必须是在原右边 2y-3 的基础上减去 x+2。",
+      "说明中应体现两边做的是同一个减法操作。",
+      "等价去括号形式可接受，不因括号书写差异扣关键分。"
+    ],
+    "secondary_node_ids": [],
+    "solution_steps": [
+      "观察左边从 4x+9 变成 (4x+9)-(x+2)，说明左边减去了 x+2。",
+      "等式要保持，右边也要对原来的 2y-3 减去同一个式子 x+2。",
+      "所以右边是 (2y-3)-(x+2)。"
+    ],
+    "source": {
+      "basis": "generated_from_expert_requirement_slot",
+      "type": "ai_original",
+      "usage_mode": "draft_original_generation"
+    },
+    "source_type": "ai_original",
+    "standard_answer": "右边应写成 (2y-3)-(x+2)。因为原等式左边减去了 x+2，要保证等式仍成立，右边也必须减去同一个式子 x+2。",
+    "support_only": false,
+    "target_error_tags": [
+      "两边加减不同的量",
+      "只改一边",
+      "把移项变号当作没有依据的新规则"
+    ]
+  },
+  "model_output_sha256": "ffd83fcdcf6be86ff1b190ed7e33c7fadb2d9e32b52eb7ab381b4cd2d894a299",
+  "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+}

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import agents, auto_review, daily_runtime, db, evolution, internal_agents, job_queue, knowledge_cards, knowledge_map, model_router, orchestrator, planner, question_bank
+from . import agents, auto_review, daily_runtime, db, evolution, internal_agents, job_queue, knowledge_cards, knowledge_map, local_env, model_router, multimodal_evidence, orchestrator, planner, question_bank
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -27,11 +27,20 @@ APP_ROOT = PROJECT_ROOT / "app/local_learning_system"
 ANSWER_UPLOAD_ROOT = PROJECT_ROOT / "data/uploads/answers"
 ANSWER_UPLOAD_RELATIVE_PREFIX = "data/uploads/answers"
 MAX_ANSWER_PHOTO_BYTES = 8 * 1024 * 1024
+MAX_ANSWER_AUDIO_BYTES = 8 * 1024 * 1024
 MAX_JSON_BODY_BYTES = 12 * 1024 * 1024
 ALLOWED_ANSWER_PHOTO_TYPES = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
     "image/webp": ".webp",
+}
+ALLOWED_ANSWER_AUDIO_TYPES = {
+    "audio/webm",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/ogg",
 }
 CHILD_SESSION_HANDLE = "current-learning-group"
 CHILD_SCHEMA_VERSION = "2.0.0-child-skeleton"
@@ -143,35 +152,12 @@ def _child_safe_text(value: Any, limit: int) -> str:
 
 
 def _parse_env_file_value(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
+    return local_env.parse_env_file_value(value)
 
 
 def _load_local_env_file(path: Path | None = None) -> list[str]:
     """Load gitignored local runtime config for direct server starts."""
-    env_path = path or PROJECT_ROOT / ".env.local"
-    if not env_path.is_file():
-        return []
-    loaded: list[str] = []
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line[len("export "):].strip()
-        if "=" not in line:
-            continue
-        key, raw_value = line.split("=", 1)
-        key = key.strip()
-        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
-            continue
-        if key in os.environ:
-            continue
-        os.environ[key] = _parse_env_file_value(raw_value)
-        loaded.append(key)
-    return loaded
+    return local_env.load_local_env_file(path)
 
 
 def _startup_ai_status_lines() -> list[str]:
@@ -223,6 +209,28 @@ def _parse_answer_photo_data_url(data_url: str) -> tuple[str, bytes]:
         raise ValueError("Answer photo exceeds 8 MB limit")
     if not _looks_like_allowed_image(content_type, data):
         raise ValueError("Invalid answer photo image data")
+    return content_type, data
+
+
+def _parse_answer_audio_data_url(data_url: str) -> tuple[str, bytes]:
+    if not isinstance(data_url, str):
+        raise ValueError("Invalid answer audio data URL")
+    match = re.fullmatch(r"data:([^;,]+);base64,(.*)", data_url, flags=re.DOTALL)
+    if not match:
+        raise ValueError("Invalid answer audio data URL")
+    content_type = match.group(1).lower()
+    if content_type not in ALLOWED_ANSWER_AUDIO_TYPES:
+        raise ValueError("Unsupported answer audio content type")
+    encoded = match.group(2)
+    max_encoded_size = ((MAX_ANSWER_AUDIO_BYTES + 2) // 3) * 4 + 1024
+    if len(encoded) > max_encoded_size:
+        raise ValueError("Answer audio exceeds 8 MB limit")
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("Invalid answer audio data URL") from exc
+    if not data or len(data) > MAX_ANSWER_AUDIO_BYTES:
+        raise ValueError("Invalid answer audio data")
     return content_type, data
 
 
@@ -774,14 +782,14 @@ def _child_submission_projection(*, grading_status: str, attachments: list[dict]
 
 def _child_planner_recovery_projection() -> dict[str, Any]:
     child_message = {
-        "pending_message": "系统正在整理下一组题目和学习记录。",
-        "child_action": "可以先休息一下，稍后回来会继续。",
+        "pending_message": "今天的题目还没有准备好，准备好后才能开始。",
+        "child_action": "你现在不用做什么。",
     }
     internal_agents.validate_child_safe_message(child_message)
     return {
         "schema_version": CHILD_SCHEMA_VERSION,
         "today_plan": {
-            "title": "系统正在整理下一组",
+            "title": "今天的数学题还在准备",
             "display_key": "system-recovery",
             "tasks": [],
             "created_at": db.now_iso(),
@@ -799,7 +807,7 @@ def _child_planner_recovery_projection() -> dict[str, Any]:
 
 
 def _child_planner_recovery_error() -> dict[str, str]:
-    return {"error": "系统正在整理下一组题目和学习记录，可以稍后再试。"}
+    return {"error": "今天的数学题还没有准备好，准备好后才能开始。"}
 
 
 def _is_child_public_post_path(path: str) -> bool:
@@ -966,6 +974,185 @@ class LearningHandler(BaseHTTPRequestHandler):
                         return
                     self._send_json(daily_runtime.canonicalize_v5_child_payload(result))
                     return
+            if parsed.path == "/api/input-recognition/handwriting":
+                payload = self._read_json()
+                if not daily_runtime.v3_daily_runtime_enabled():
+                    self._send_json(daily_runtime.disabled_child_payload(), status=409)
+                    return
+                try:
+                    image_data_url = str(payload.get("handwriting_image_data_url") or "")
+                    content_type, image_bytes = _parse_answer_photo_data_url(image_data_url)
+                    position = int(payload.get("position") or 0)
+                except (TypeError, ValueError):
+                    self._send_json(
+                        {
+                            "status": "invalid_image",
+                            "message": "这张手写内容没有读取成功，请重新写一次。",
+                        },
+                        status=400,
+                    )
+                    return
+                with closing(self._conn()) as conn:
+                    step = conn.execute(
+                        """
+                        select * from flow_steps
+                        where step_handle = ? and position = ?
+                          and status in ('selected','displayed')
+                        limit 1
+                        """,
+                        (str(payload.get("step_handle") or ""), position),
+                    ).fetchone()
+                    if not step or not step["question_id"]:
+                        self._send_json(
+                            {"status": "stale_step", "message": "这道题已经更新，请刷新后再写。"},
+                            status=409,
+                        )
+                        return
+                    step_snapshot = dict(step)
+                    question = db.get_question(conn, step["question_id"])
+                try:
+                    recognition = auto_review.recognize_handwriting_input(question, image_data_url)
+                except model_router.ModelCallError:
+                    self._send_json(
+                        {"status": "temporarily_unavailable", "message": "手写识别暂时没有完成，请稍后再试。"},
+                        status=503,
+                    )
+                    return
+                if recognition["status"] == "not_configured":
+                    self._send_json(
+                        {"status": "temporarily_unavailable", "message": "手写识别暂时没有准备好，请改用键盘。"},
+                        status=503,
+                    )
+                    return
+                route = model_router.answer_photo_vision_route()
+                with closing(self._conn()) as conn:
+                    current = conn.execute(
+                        """
+                        select * from flow_steps
+                        where id = ? and step_handle = ? and position = ?
+                          and step_revision = ? and status in ('selected','displayed')
+                        limit 1
+                        """,
+                        (
+                            step_snapshot["id"],
+                            step_snapshot["step_handle"],
+                            step_snapshot["position"],
+                            step_snapshot["step_revision"],
+                        ),
+                    ).fetchone()
+                    if not current:
+                        self._send_json(
+                            {"status": "stale_step", "message": "这道题已经更新，请刷新后再写。"},
+                            status=409,
+                        )
+                        return
+                    run = db.record_media_recognition_run(
+                        conn,
+                        flow_step_id=step_snapshot["id"],
+                        step_revision=int(step_snapshot["step_revision"] or 1),
+                        question_id=step_snapshot["question_id"],
+                        input_mode="handwriting",
+                        media_sha256=hashlib.sha256(image_bytes).hexdigest(),
+                        media_byte_size=len(image_bytes),
+                        media_version=multimodal_evidence.MEDIA_VERSION,
+                        content_type=content_type,
+                        recognizer_version=multimodal_evidence.HANDWRITING_RECOGNIZER_VERSION,
+                        recognition_status=recognition["status"],
+                        provider_mode="live_model" if route.enabled else "not_configured",
+                        recognition_source="vision_handwriting_transcription",
+                        trust_classification=("server_verified" if route.enabled else "unknown"),
+                        route_digest_sha256=db._digest_json(route.audit_metadata()),
+                        recognized_text=recognition["transcript"],
+                        math_objects=recognition.get("math_tokens") or [],
+                        critical_token_uncertainties=recognition["critical_token_uncertainties"],
+                        recognition_confidence=recognition["confidence"],
+                        commit=True,
+                    )
+                self._send_json(
+                    {
+                        "status": "ready" if recognition["status"] == "usable" else "needs_review",
+                        "recognition_handle": run["id"],
+                        "recognized_text": recognition["transcript"],
+                        "critical_token_uncertainties": recognition["critical_token_uncertainties"],
+                        "confirmation_required": True,
+                        "message": "请检查识别结果，确认无误后再保存。",
+                    }
+                )
+                return
+            if parsed.path == "/api/input-recognition/voice":
+                payload = self._read_json()
+                if not daily_runtime.v3_daily_runtime_enabled():
+                    self._send_json(daily_runtime.disabled_child_payload(), status=409)
+                    return
+                try:
+                    audio_data_url = str(payload.get("voice_audio_data_url") or "")
+                    content_type, audio_bytes = _parse_answer_audio_data_url(audio_data_url)
+                    position = int(payload.get("position") or 0)
+                    recognized_text = str(payload.get("recognized_text") or "").strip()[:4000]
+                    if not recognized_text:
+                        raise ValueError("missing voice transcript")
+                    confidence_raw = payload.get("recognition_confidence")
+                    confidence = None if confidence_raw in {None, ""} else max(0.0, min(1.0, float(confidence_raw)))
+                except (TypeError, ValueError):
+                    self._send_json(
+                        {"status": "invalid_audio", "message": "这段语音没有识别成功，请重新说一次。"},
+                        status=400,
+                    )
+                    return
+                with closing(self._conn()) as conn:
+                    step = conn.execute(
+                        """
+                        select * from flow_steps
+                        where step_handle = ? and position = ?
+                          and status in ('selected','displayed')
+                        limit 1
+                        """,
+                        (str(payload.get("step_handle") or ""), position),
+                    ).fetchone()
+                    if not step or not step["question_id"]:
+                        self._send_json(
+                            {"status": "stale_step", "message": "这道题已经更新，请刷新后再说。"},
+                            status=409,
+                        )
+                        return
+                    run = db.record_media_recognition_run(
+                        conn,
+                        flow_step_id=step["id"],
+                        step_revision=int(step["step_revision"] or 1),
+                        question_id=step["question_id"],
+                        input_mode="voice",
+                        media_sha256=hashlib.sha256(audio_bytes).hexdigest(),
+                        media_byte_size=len(audio_bytes),
+                        media_version=multimodal_evidence.MEDIA_VERSION,
+                        content_type=content_type,
+                        recognizer_version=multimodal_evidence.VOICE_RECOGNIZER_VERSION,
+                        recognition_status="usable",
+                        provider_mode="recorded_browser_recognition",
+                        recognition_source="browser_speech_recognition",
+                        trust_classification="client_unverified",
+                        route_digest_sha256=db._digest_json(
+                            {
+                                "recognizer_version": multimodal_evidence.VOICE_RECOGNIZER_VERSION,
+                                "transcript_digest_sha256": hashlib.sha256(recognized_text.encode("utf-8")).hexdigest(),
+                            }
+                        ),
+                        recognized_text=recognized_text,
+                        math_objects=[],
+                        critical_token_uncertainties=[],
+                        recognition_confidence=confidence,
+                        commit=True,
+                    )
+                self._send_json(
+                    {
+                        "status": "ready",
+                        "recognition_handle": run["id"],
+                        "recognized_text": recognized_text,
+                        "critical_token_uncertainties": [],
+                        "confirmation_required": True,
+                        "message": "请检查识别文字，确认无误后再保存。",
+                    }
+                )
+                return
             if parsed.path == "/api/current-step/submit":
                 payload = self._read_json()
                 if not daily_runtime.v3_daily_runtime_enabled():
@@ -2029,7 +2216,7 @@ class LearningHandler(BaseHTTPRequestHandler):
                         set last_error = ?,
                             updated_at = ?
                         where flow_id = ?
-                          and job_type in ('answer_analysis','evaluation_update','planner_decision','teaching_generation')
+                          and job_type in ('answer_analysis','group_answer_analysis','evaluation_update','planner_decision','teaching_generation')
                           and status in ('queued','claimed','running','retry')
                         """,
                         (reason, db.now_iso(), flow_id),
@@ -2251,6 +2438,7 @@ class LearningHandler(BaseHTTPRequestHandler):
         content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         self.send_response(200)
         self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -2384,7 +2572,7 @@ def main() -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with db.connect(db_path) as conn:
         db.init_schema(conn)
-        if not _db_has_active_seed_assets(conn):
+        if not _db_has_graph_assets(conn):
             db.seed_from_assets(conn, PROJECT_ROOT)
     httpd = make_server(db_path, args.host, args.port, upload_root=Path(args.upload_root))
     print(f"Serving local learning system at http://{args.host}:{args.port}", flush=True)
@@ -2407,6 +2595,33 @@ def _db_has_active_seed_assets(conn: sqlite3.Connection) -> bool:
     except sqlite3.DatabaseError:
         return False
     return graph_nodes > 0 and questions > 0 and active_ledgers == 1
+
+
+def _db_has_graph_assets(conn: sqlite3.Connection) -> bool:
+    try:
+        return int(conn.execute("select count(*) from graph_nodes").fetchone()[0]) > 0
+    except sqlite3.DatabaseError:
+        return False
+
+
+def _db_seed_assets_disabled(conn: sqlite3.Connection) -> bool:
+    try:
+        row = conn.execute(
+            "select value from system_meta where key = 'question_bank_reset.v1'"
+        ).fetchone()
+    except sqlite3.DatabaseError:
+        return False
+    if not row:
+        return False
+    try:
+        payload = db.json_load(row["value"], {})
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    return (
+        isinstance(payload, dict)
+        and payload.get("status") == "active"
+        and payload.get("disable_legacy_seed") is True
+    )
 
 
 if __name__ == "__main__":

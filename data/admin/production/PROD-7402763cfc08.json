@@ -1,0 +1,44 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "34ebff2b5d0c657651b281f34e82283c44783d30deb9523aa5dc07d292dab335",
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "family_id": "number_line_reference_frame",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "child_surface_writing_burden_understates_control",
+      "item_id": "CAND-60958bba54b6",
+      "message": "预计作答行数少于当前控件真正需要书写的输入区域。",
+      "node_id": "M-G7-NUMBER-LINE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    }
+  ],
+  "item_id": "CAND-60958bba54b6",
+  "machine_checked": true,
+  "next_actions": [
+    "regenerate_candidate"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "production_json_path": "data/admin/production/PROD-7402763cfc08.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-7402763cfc08.md",
+  "production_markdown_sha256": "3f4ef274100316b6cee795c66fc35b66438c60381a05d0da833587adb072490c",
+  "production_report_id": "PROD-7402763cfc08",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-2cf19db03f72",
+  "requirement_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "secondary_nodes": [],
+    "support_only": false
+  },
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03",
+  "staging_allowed": false,
+  "status": "NEEDS_REGENERATION",
+  "subject": "math",
+  "write_applied": true
+}

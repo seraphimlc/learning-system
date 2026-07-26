@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
-from . import internal_agents, question_bank
+from . import internal_agents, multimodal_evidence, question_bank, question_usage
 
 
 ANALYSIS_DIMENSIONS = {"final_answer", "model_or_relation", "steps", "symbols_units", "check_or_explanation", "other"}
@@ -345,6 +345,60 @@ def init_schema(conn: sqlite3.Connection) -> None:
           raw_json text not null
         );
 
+        create table if not exists question_usage_policies (
+          id text primary key,
+          question_id text not null references question_items(id) on delete cascade,
+          item_version text not null,
+          policy_version text not null,
+          status text not null default 'active',
+          allowed_purposes_json text not null,
+          default_practice_family text not null,
+          allowed_practice_roles_json text not null,
+          diagnostic_roles_json text not null,
+          teaching_roles_json text not null,
+          primary_node_id text not null references graph_nodes(id),
+          secondary_node_ids_json text not null default '[]',
+          structure_fingerprint text not null,
+          support_only integer not null default 0,
+          not_for_activation integer not null default 0,
+          policy_digest_sha256 text not null,
+          source_json text not null default '{}',
+          created_at text not null,
+          updated_at text not null
+        );
+
+        create table if not exists flow_step_usage_contexts (
+          id text primary key,
+          flow_step_id text not null unique references flow_steps(id) on delete cascade,
+          question_usage_policy_id text not null references question_usage_policies(id),
+          context_version text not null,
+          purpose text not null,
+          purpose_role text not null,
+          practice_family text not null default '',
+          practice_role text not null default '',
+          hint_policy text not null,
+          mastery_evidence_weight real not null,
+          instability_signal_weight real not null,
+          mastery_update_eligible integer not null,
+          mastery_state_ceiling text not null,
+          requires_diagnostic_confirmation integer not null,
+          block_id text not null default '',
+          block_index integer not null default 1,
+          structure_fingerprint text not null,
+          context_digest_sha256 text not null,
+          raw_json text not null default '{}',
+          created_at text not null
+        );
+
+        create table if not exists attempt_usage_contexts (
+          id text primary key,
+          attempt_id text not null unique references attempts(id) on delete cascade,
+          flow_step_usage_context_id text not null references flow_step_usage_contexts(id),
+          context_digest_sha256 text not null,
+          snapshot_json text not null,
+          created_at text not null
+        );
+
         create table if not exists learning_sessions (
           id text primary key,
           title text not null,
@@ -389,6 +443,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
           analysis_status text not null default 'missing',
           client_idempotency_key text not null default '',
           answer_source text not null default 'legacy',
+          submission_request_digest_sha256 text not null default '',
           evidence_digest_sha256 text not null default '',
           attachment_ids_json text not null default '[]',
           review_record_id text not null default '',
@@ -407,6 +462,72 @@ def init_schema(conn: sqlite3.Connection) -> None:
           source text not null default 'answer_photo_data_url',
           relative_path text not null,
           created_at text not null
+        );
+
+        create table if not exists media_recognition_runs (
+          id text primary key,
+          flow_step_id text not null references flow_steps(id) on delete cascade,
+          step_revision integer not null,
+          question_id text not null references question_items(id),
+          input_mode text not null,
+          media_sha256 text not null,
+          media_byte_size integer not null,
+          media_version integer not null default 1,
+          content_type text not null,
+          recognizer_version text not null,
+          recognition_status text not null,
+          provider_mode text not null default 'not_configured',
+          recognition_source text not null default '',
+          trust_classification text not null default 'unknown',
+          route_digest_sha256 text not null default '',
+          recognized_text text not null default '',
+          math_objects_json text not null default '[]',
+          critical_token_uncertainties_json text not null default '[]',
+          recognition_confidence real,
+          output_digest_sha256 text not null,
+          created_at text not null,
+          unique(
+            flow_step_id, step_revision, input_mode, media_sha256,
+            media_byte_size, media_version, recognizer_version
+          )
+        );
+
+        create table if not exists evidence_confirmations (
+          id text primary key,
+          attempt_id text not null references attempts(id) on delete cascade,
+          recognition_run_id text not null references media_recognition_runs(id),
+          confirmation_version integer not null,
+          action text not null,
+          confirmed_text text not null,
+          client_corrections_json text not null default '[]',
+          confirmation_digest_sha256 text not null,
+          created_at text not null,
+          unique(attempt_id, confirmation_version)
+        );
+
+        create table if not exists attempt_evidence_revisions (
+          id text primary key,
+          attempt_id text not null references attempts(id) on delete cascade,
+          revision_number integer not null,
+          parent_revision_id text references attempt_evidence_revisions(id),
+          revision_kind text not null,
+          schema_version text not null,
+          input_mode text not null,
+          recognition_status text not null,
+          recognition_run_id text references media_recognition_runs(id),
+          confirmation_id text references evidence_confirmations(id),
+          recognition_source text not null default '',
+          recognized_text text not null default '',
+          effective_text text not null default '',
+          recognition_confidence real,
+          critical_token_uncertainties_json text not null default '[]',
+          attachment_ids_json text not null default '[]',
+          submission_request_digest_sha256 text not null default '',
+          evidence_digest_sha256 text not null,
+          raw_json text not null default '{}',
+          created_at text not null,
+          unique(attempt_id, revision_number),
+          unique(attempt_id, evidence_digest_sha256)
         );
 
         create table if not exists learner_node_status (
@@ -600,6 +721,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
           payload_schema_version text not null default '',
           available_at text,
           lease_owner text not null default '',
+          claim_generation integer not null default 0,
+          claim_token text not null default '',
           locked_at text,
           lease_expires_at text,
           retry_after text,
@@ -1070,9 +1193,24 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
         create index if not exists idx_questions_node on question_items(node_id);
         create index if not exists idx_questions_source on question_items(source_type);
+        create unique index if not exists idx_question_usage_policies_one_active
+          on question_usage_policies(question_id, item_version)
+          where status = 'active';
+        create index if not exists idx_question_usage_policies_node
+          on question_usage_policies(primary_node_id, status);
+        create index if not exists idx_question_usage_policies_fingerprint
+          on question_usage_policies(structure_fingerprint, status);
+        create index if not exists idx_flow_step_usage_contexts_block
+          on flow_step_usage_contexts(block_id, block_index);
         create index if not exists idx_attempts_node on attempts(node_id);
         create index if not exists idx_attempts_processed on attempts(processed_evolution_event_id);
         create index if not exists idx_attempt_attachments_attempt on attempt_attachments(attempt_id);
+        create index if not exists idx_media_recognition_runs_step_media
+          on media_recognition_runs(flow_step_id, media_sha256, media_version);
+        create index if not exists idx_attempt_evidence_revisions_latest
+          on attempt_evidence_revisions(attempt_id, revision_number desc);
+        create index if not exists idx_evidence_confirmations_attempt
+          on evidence_confirmations(attempt_id, confirmation_version);
         create index if not exists idx_agent_runs_session on agent_runs(session_id);
         create index if not exists idx_teaching_step_events_flow on teaching_step_events(flow_id, created_at);
         create index if not exists idx_teaching_step_events_step on teaching_step_events(flow_step_id, created_at);
@@ -1129,6 +1267,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "attempts", "analysis_status", "text not null default 'missing'")
     _ensure_column(conn, "attempts", "client_idempotency_key", "text not null default ''")
     _ensure_column(conn, "attempts", "answer_source", "text not null default 'legacy'")
+    _ensure_column(conn, "attempts", "submission_request_digest_sha256", "text not null default ''")
     _ensure_column(conn, "attempts", "evidence_digest_sha256", "text not null default ''")
     _ensure_column(conn, "attempts", "attachment_ids_json", "text not null default '[]'")
     _ensure_column(conn, "attempts", "review_record_id", "text not null default ''")
@@ -1263,6 +1402,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "background_jobs", "payload_schema_version", "text not null default ''")
     _ensure_column(conn, "background_jobs", "available_at", "text")
     _ensure_column(conn, "background_jobs", "lease_owner", "text not null default ''")
+    _ensure_column(conn, "background_jobs", "claim_generation", "integer not null default 0")
+    _ensure_column(conn, "background_jobs", "claim_token", "text not null default ''")
     _ensure_column(conn, "background_jobs", "locked_at", "text")
     _ensure_column(conn, "background_jobs", "lease_expires_at", "text")
     _ensure_column(conn, "background_jobs", "retry_after", "text")
@@ -1270,6 +1411,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "background_jobs", "blocked_reason", "text not null default ''")
     _ensure_column(conn, "background_jobs", "dead_letter_reason", "text not null default ''")
     _ensure_column(conn, "background_jobs", "route_meta_json", "text not null default '{}'")
+    _ensure_column(conn, "media_recognition_runs", "trust_classification", "text not null default 'unknown'")
     _ensure_column(conn, "generated_plans", "planner_policy_version", "text not null default ''")
     _ensure_column(conn, "generated_plans", "plan_meta_json", "text not null default '{}'")
     conn.executescript(
@@ -1351,6 +1493,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
           where status = 'applied' and applied_step_id is not null;
         """
     )
+    _backfill_question_usage_policies(conn)
+    _backfill_attempt_evidence_revisions(conn)
     conn.commit()
 
 
@@ -2972,9 +3116,7 @@ def _ensure_column(conn: sqlite3.Connection, table: str, column: str, declaratio
 
 def seed_from_assets(conn: sqlite3.Connection, project_root: Path) -> None:
     graph_path = project_root / "data/knowledge_graphs/math/math_knowledge_graph_v2.json"
-    diagnostic_path = project_root / "data/questions/math_diagnostic_v1.json"
     graph = json.loads(graph_path.read_text(encoding="utf-8"))
-    diagnostic = json.loads(diagnostic_path.read_text(encoding="utf-8"))
     graph_hash = hashlib.sha256(graph_path.read_bytes()).hexdigest()
     graph_version = _graph_lineage_from_seed(graph, graph_hash)
     now = now_iso()
@@ -3022,113 +3164,23 @@ def seed_from_assets(conn: sqlite3.Connection, project_root: Path) -> None:
                 (edge["from"], edge["to"], "prerequisite"),
             )
 
-        seed_review_run = record_agent_run(
-            conn,
-            agent_key=question_bank.QUESTION_REVIEWER_AGENT_KEY,
-            engine_type="deterministic",
-            session_id=None,
-            phase="curated_seed_question_review",
-            trigger=f"seed_question_bank:{question_bank.QUESTION_BANK_VERSION}",
-            input_refs={
-                "graph_ref": str(graph_path),
-                "graph_version": graph_version,
-                "graph_sha256": graph_hash,
-                "question_bank_version": question_bank.QUESTION_BANK_VERSION,
-                "curated_manifest_id": question_bank.GRAPH_SEED_REVIEW_MANIFEST_ID,
-            },
-            prompt_version_id=question_bank.QUESTION_PRODUCTION_CONTRACT_VERSION,
-            status="accepted",
-            confidence=1.0,
-            output={
-                "manifest_id": question_bank.GRAPH_SEED_REVIEW_MANIFEST_ID,
-                "graph_version": graph_version,
-                "question_bank_version": question_bank.QUESTION_BANK_VERSION,
-                "structured_reviewer_evidence_required": True,
-                "active_use_requires_reviewer_run_id": True,
-            },
-            commit=False,
-        )
-        for item in question_bank.build_practice_bank(graph, graph_version=graph_version):
-            upsert_question(conn, item, reviewer_run_id=seed_review_run["id"])
-        backfill_current_seed_question_lineage(
-            conn,
-            graph_version=graph_version,
-            question_bank_version=question_bank.QUESTION_BANK_VERSION,
-            commit=False,
-        )
-        ensure_initial_active_question_bank_version(
-            conn,
-            question_bank_version=question_bank.QUESTION_BANK_VERSION,
-            graph_version=graph_version,
-            manifest_id=question_bank.GRAPH_SEED_REVIEW_MANIFEST_ID,
-            manifest_sha256=graph_hash,
-            commit=False,
-        )
-        for item in diagnostic["items"]:
-            diagnostic_item = {
-                **item,
-                "source_type": "diagnostic",
-                "kind": "diagnostic_probe",
-            }
-            upsert_question(conn, diagnostic_item)
-
-        cleanup_obsolete_question_bank(conn)
         retire_stale_child_learning_sessions(conn, commit=False)
         repair_invalidated_lineage(conn, commit=False)
         seed_agent_profiles(conn)
 
 
-def ensure_initial_active_question_bank_version(
-    conn: sqlite3.Connection,
-    *,
-    question_bank_version: str,
-    graph_version: str,
-    manifest_id: str,
-    manifest_sha256: str,
-    commit: bool = True,
-) -> dict[str, Any]:
-    existing = conn.execute(
-        "select * from question_bank_version_ledger order by created_at desc, id desc limit 1"
-    ).fetchone()
-    if existing:
-        return dict(existing)
-    now = now_iso()
-    ledger_id = f"QBL-{uuid.uuid4().hex[:12]}"
-    conn.execute(
-        """
-        insert into question_bank_version_ledger(
-          id, question_bank_version, graph_version, manifest_id, manifest_sha256,
-          node_count, item_count, status, activated_at, reason, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, 0, 0, 'active', ?, ?, ?, ?)
-        """,
-        (
-            ledger_id,
-            question_bank_version,
-            graph_version,
-            manifest_id,
-            manifest_sha256,
-            now,
-            "initial active v11 seed registered because no active-bank ledger existed",
-            now,
-            now,
-        ),
-    )
-    if commit:
-        conn.commit()
-    return dict(conn.execute("select * from question_bank_version_ledger where id = ?", (ledger_id,)).fetchone())
-
-
 def get_active_question_bank_version(conn: sqlite3.Connection) -> str:
-    row = conn.execute(
+    rows = conn.execute(
         """
         select question_bank_version
         from question_bank_version_ledger
         where status = 'active'
         order by activated_at desc, updated_at desc, id desc
-        limit 1
         """
-    ).fetchone()
-    return str(row["question_bank_version"]) if row else question_bank.QUESTION_BANK_VERSION
+    ).fetchall()
+    if len(rows) != 1:
+        raise ValueError("exactly one active question-bank ledger row is required")
+    return str(rows[0]["question_bank_version"])
 
 
 def stage_question_bank_version(
@@ -3205,11 +3257,21 @@ def activate_question_bank_version(
     conn: sqlite3.Connection,
     *,
     question_bank_version: str,
-    expected_current_version: str,
+    expected_current_version: str | None,
     reason: str,
     commit: bool = True,
 ) -> dict[str, Any]:
-    current = get_active_question_bank_version(conn)
+    active_rows = conn.execute(
+        """
+        select question_bank_version
+        from question_bank_version_ledger
+        where status = 'active'
+        order by activated_at desc, updated_at desc, id desc
+        """
+    ).fetchall()
+    if len(active_rows) > 1:
+        raise ValueError("multiple active question-bank ledger rows are not allowed")
+    current = str(active_rows[0]["question_bank_version"]) if active_rows else None
     if current != expected_current_version:
         raise ValueError(f"active question bank mismatch: expected {expected_current_version}, got {current}")
     staged = conn.execute(
@@ -3225,6 +3287,45 @@ def activate_question_bank_version(
     ).fetchone()
     if not staged:
         raise ValueError(f"question bank version is not staged: {question_bank_version}")
+    expected_item_count = int(staged["item_count"] or 0)
+    expected_node_count = int(staged["node_count"] or 0)
+    if expected_item_count <= 0 or expected_node_count <= 0:
+        raise ValueError("question bank activation requires positive item and node counts")
+    question_rows = conn.execute(
+        """
+        select *
+        from question_items
+        where source_type = 'graph_generated'
+          and item_version = ?
+        order by node_id, id
+        """,
+        (question_bank_version,),
+    ).fetchall()
+    if len(question_rows) != expected_item_count:
+        raise ValueError(
+            "question bank activation item_count mismatch: "
+            f"ledger={expected_item_count}, database={len(question_rows)}"
+        )
+    actual_node_count = len({str(row["node_id"] or "") for row in question_rows if row["node_id"]})
+    if actual_node_count != expected_node_count:
+        raise ValueError(
+            "question bank activation node_count mismatch: "
+            f"ledger={expected_node_count}, database={actual_node_count}"
+        )
+    qualified_count = sum(
+        1
+        for row in question_rows
+        if is_child_schedulable_question(
+            conn,
+            row_to_question(row),
+            question_bank_version=question_bank_version,
+        )
+    )
+    if qualified_count != expected_item_count:
+        raise ValueError(
+            "question bank activation requires every item to be reviewed and schedulable: "
+            f"qualified={qualified_count}, expected={expected_item_count}"
+        )
     if (
         question_bank_version == question_bank.QUESTION_BANK_V12_VERSION
         and (
@@ -5054,6 +5155,7 @@ def upsert_question(
             json_dump(item),
         ),
     )
+    upsert_question_usage_policy(conn, item, commit=False)
     source_type = item.get("source_type") or item.get("source", {}).get("type", "graph_generated")
     if source_type in {"graph_generated", "evolved"}:
         record_question_review_record(
@@ -5065,6 +5167,335 @@ def upsert_question(
             candidate=item,
             designer_run_id=designer_run_id,
             reviewer_run_id=reviewer_run_id,
+            commit=False,
+        )
+
+
+def upsert_question_usage_policy(
+    conn: sqlite3.Connection,
+    item: dict[str, Any],
+    *,
+    commit: bool = False,
+) -> dict[str, Any]:
+    policy = question_usage.policy_for_item(item)
+    question_id = str(item.get("id") or "")
+    item_version = str(item.get("item_version") or "")
+    policy_digest = question_usage.policy_digest(policy)
+    existing = conn.execute(
+        """
+        select *
+        from question_usage_policies
+        where question_id = ? and item_version = ? and status = 'active'
+        limit 1
+        """,
+        (question_id, item_version),
+    ).fetchone()
+    if existing and existing["policy_digest_sha256"] == policy_digest:
+        return question_usage_policy_row_to_dict(existing)
+    now = now_iso()
+    if existing:
+        conn.execute(
+            "update question_usage_policies set status = 'superseded', updated_at = ? where id = ?",
+            (now, existing["id"]),
+        )
+    policy_id = f"QUP-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        insert into question_usage_policies(
+          id, question_id, item_version, policy_version, status,
+          allowed_purposes_json, default_practice_family,
+          allowed_practice_roles_json, diagnostic_roles_json, teaching_roles_json,
+          primary_node_id, secondary_node_ids_json, structure_fingerprint,
+          support_only, not_for_activation, policy_digest_sha256,
+          source_json, created_at, updated_at
+        ) values (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            policy_id,
+            question_id,
+            item_version,
+            policy["schema_version"],
+            json_dump(policy["allowed_purposes"]),
+            policy["default_practice_family"],
+            json_dump(policy["allowed_practice_roles"]),
+            json_dump(policy["diagnostic_roles"]),
+            json_dump(policy["teaching_roles"]),
+            policy["primary_node_id"],
+            json_dump(policy["secondary_node_ids"]),
+            policy["structure_fingerprint"],
+            1 if policy["support_only"] else 0,
+            1 if policy["not_for_activation"] else 0,
+            policy_digest,
+            json_dump({"source": policy.get("source", ""), "policy": policy}),
+            now,
+            now,
+        ),
+    )
+    if commit:
+        conn.commit()
+    return active_question_usage_policy(conn, question_id, item_version=item_version)
+
+
+def question_usage_policy_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    data = dict(row)
+    data["schema_version"] = data.pop("policy_version")
+    data["allowed_purposes"] = json_load(data.pop("allowed_purposes_json", "[]"), [])
+    data["allowed_practice_roles"] = json_load(data.pop("allowed_practice_roles_json", "[]"), [])
+    data["diagnostic_roles"] = json_load(data.pop("diagnostic_roles_json", "[]"), [])
+    data["teaching_roles"] = json_load(data.pop("teaching_roles_json", "[]"), [])
+    data["secondary_node_ids"] = json_load(data.pop("secondary_node_ids_json", "[]"), [])
+    data["support_only"] = bool(data.get("support_only"))
+    data["not_for_activation"] = bool(data.get("not_for_activation"))
+    source_meta = json_load(data.pop("source_json", "{}"), {})
+    stored_policy = source_meta.get("policy") if isinstance(source_meta, dict) else None
+    data["source"] = str(
+        (stored_policy or {}).get("source")
+        if isinstance(stored_policy, dict)
+        else (source_meta or {}).get("source")
+        if isinstance(source_meta, dict)
+        else ""
+    )
+    data["source_meta"] = source_meta
+    return data
+
+
+def active_question_usage_policy(
+    conn: sqlite3.Connection,
+    question_id: str,
+    *,
+    item_version: str | None = None,
+) -> dict[str, Any] | None:
+    filters = ["question_id = ?", "status = 'active'"]
+    params: list[Any] = [question_id]
+    if item_version:
+        filters.append("item_version = ?")
+        params.append(item_version)
+    row = conn.execute(
+        f"""
+        select *
+        from question_usage_policies
+        where {' and '.join(filters)}
+        order by updated_at desc, id desc
+        limit 1
+        """,
+        params,
+    ).fetchone()
+    return question_usage_policy_row_to_dict(row) if row else None
+
+
+def record_flow_step_usage_context(
+    conn: sqlite3.Connection,
+    *,
+    flow_step_id: str,
+    question_id: str,
+    context: dict[str, Any],
+    item_version: str | None = None,
+    commit: bool = False,
+) -> dict[str, Any]:
+    question_usage.validate_context(context)
+    question = get_question(conn, question_id)
+    exact_item_version = str(item_version or question.get("item_version") or "")
+    policy = active_question_usage_policy(
+        conn, question_id, item_version=exact_item_version
+    )
+    if not policy:
+        raise ValueError("question usage policy is missing for the exact item version")
+    if context["question_usage_policy_digest_sha256"] != policy["policy_digest_sha256"]:
+        raise ValueError("step usage context does not bind the active question usage policy")
+    digest = question_usage.context_digest(context)
+    existing = conn.execute(
+        "select * from flow_step_usage_contexts where flow_step_id = ? limit 1",
+        (flow_step_id,),
+    ).fetchone()
+    if existing:
+        if existing["context_digest_sha256"] != digest:
+            raise ValueError("flow step usage context is immutable")
+        return flow_step_usage_context_row_to_dict(existing)
+    context_id = f"SUC-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        insert into flow_step_usage_contexts(
+          id, flow_step_id, question_usage_policy_id, context_version,
+          purpose, purpose_role, practice_family, practice_role, hint_policy,
+          mastery_evidence_weight, instability_signal_weight,
+          mastery_update_eligible, mastery_state_ceiling,
+          requires_diagnostic_confirmation, block_id, block_index,
+          structure_fingerprint, context_digest_sha256, raw_json, created_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            context_id,
+            flow_step_id,
+            policy["id"],
+            context["schema_version"],
+            context["purpose"],
+            context["purpose_role"],
+            context["practice_family"],
+            context["practice_role"],
+            context["hint_policy"],
+            float(context["mastery_evidence_weight"]),
+            float(context["instability_signal_weight"]),
+            1 if context["mastery_update_eligible"] else 0,
+            context["mastery_state_ceiling"],
+            1 if context["requires_diagnostic_confirmation"] else 0,
+            context["block_id"],
+            int(context["block_index"]),
+            context["structure_fingerprint"],
+            digest,
+            json_dump(context),
+            now_iso(),
+        ),
+    )
+    if commit:
+        conn.commit()
+    return flow_step_usage_context(conn, flow_step_id)
+
+
+def flow_step_usage_context_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    data = dict(row)
+    data["mastery_update_eligible"] = bool(data.get("mastery_update_eligible"))
+    data["requires_diagnostic_confirmation"] = bool(data.get("requires_diagnostic_confirmation"))
+    data["mastery_evidence_weight"] = float(data.get("mastery_evidence_weight") or 0.0)
+    data["instability_signal_weight"] = float(data.get("instability_signal_weight") or 0.0)
+    data["raw"] = json_load(data.pop("raw_json", "{}"), {})
+    return data
+
+
+def flow_step_usage_context(conn: sqlite3.Connection, flow_step_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        "select * from flow_step_usage_contexts where flow_step_id = ? limit 1",
+        (flow_step_id,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"Unknown flow step usage context: {flow_step_id}")
+    return flow_step_usage_context_row_to_dict(row)
+
+
+def record_attempt_usage_context_snapshot(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    flow_step_id: str,
+    commit: bool = False,
+) -> dict[str, Any]:
+    context = flow_step_usage_context(conn, flow_step_id)
+    snapshot = dict(context.get("raw") or {})
+    step = conn.execute(
+        "select question_item_version, prompt_package_json from flow_steps where id = ? limit 1",
+        (flow_step_id,),
+    ).fetchone()
+    if not step:
+        raise KeyError(f"Unknown flow step: {flow_step_id}")
+    prompt_package = json_load(step["prompt_package_json"], {})
+    presented_hint = str(prompt_package.get("hint") or "").strip()
+    snapshot.update(
+        {
+            "question_item_version": str(step["question_item_version"] or ""),
+            "presented_hint": presented_hint,
+            "actual_hint_exposed": bool(presented_hint),
+            "child_hint_exposed": bool(presented_hint),
+        }
+    )
+    existing = conn.execute(
+        "select * from attempt_usage_contexts where attempt_id = ? limit 1",
+        (attempt_id,),
+    ).fetchone()
+    if existing:
+        if existing["context_digest_sha256"] != context["context_digest_sha256"]:
+            raise ValueError("attempt usage context snapshot is immutable")
+        return attempt_usage_context(conn, attempt_id)
+    snapshot_id = f"AUC-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        insert into attempt_usage_contexts(
+          id, attempt_id, flow_step_usage_context_id,
+          context_digest_sha256, snapshot_json, created_at
+        ) values (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            snapshot_id,
+            attempt_id,
+            context["id"],
+            context["context_digest_sha256"],
+            json_dump(snapshot),
+            now_iso(),
+        ),
+    )
+    if commit:
+        conn.commit()
+    return attempt_usage_context(conn, attempt_id)
+
+
+def attempt_usage_context(conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        "select * from attempt_usage_contexts where attempt_id = ? limit 1",
+        (attempt_id,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"Unknown attempt usage context: {attempt_id}")
+    data = dict(row)
+    data["snapshot"] = json_load(data.pop("snapshot_json", "{}"), {})
+    return data
+
+
+def _backfill_question_usage_policies(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        select q.*
+        from question_items q
+        left join question_usage_policies up
+          on up.question_id = q.id
+         and up.item_version = q.item_version
+         and up.status = 'active'
+        where up.id is null
+        order by q.id
+        """
+    ).fetchall()
+    for row in rows:
+        item = row_to_question(row)
+        raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
+        merged = {**raw, **{key: value for key, value in item.items() if key != "raw"}}
+        upsert_question_usage_policy(conn, merged, commit=False)
+
+
+def _backfill_attempt_evidence_revisions(conn: sqlite3.Connection) -> None:
+    legacy_table = conn.execute(
+        "select 1 from sqlite_master where type = 'table' and name = 'attempt_input_evidence'"
+    ).fetchone()
+    if not legacy_table:
+        return
+    rows = conn.execute(
+        """
+        select legacy.*
+        from attempt_input_evidence legacy
+        left join attempt_evidence_revisions revision
+          on revision.attempt_id = legacy.attempt_id
+        where revision.id is null
+        order by legacy.created_at, legacy.id
+        """
+    ).fetchall()
+    for row in rows:
+        data = dict(row)
+        record_attempt_evidence_revision(
+            conn,
+            attempt_id=data["attempt_id"],
+            revision_kind="legacy_import",
+            schema_version=str(data.get("schema_version") or multimodal_evidence.INPUT_EVIDENCE_SCHEMA_VERSION),
+            input_mode=str(data.get("input_mode") or "typed"),
+            recognition_status=str(data.get("recognition_status") or "not_required"),
+            recognition_source=str(data.get("recognition_source") or "legacy_attempt_input_evidence"),
+            recognized_text=str(data.get("recognized_text") or ""),
+            effective_text=str(data.get("child_confirmed_text") or ""),
+            recognition_confidence=data.get("recognition_confidence"),
+            critical_token_uncertainties=json_load(
+                data.get("critical_token_uncertainties_json"), []
+            ),
+            attachment_ids=json_load(data.get("attachment_ids_json"), []),
+            raw={
+                **json_load(data.get("raw_json"), {}),
+                "legacy_evidence_id": data["id"],
+                "legacy_child_confirmed": bool(data.get("child_confirmed")),
+            },
             commit=False,
         )
 
@@ -5162,9 +5593,15 @@ def row_to_question(row: sqlite3.Row) -> dict[str, Any]:
             "interaction_schema",
             "node_local_mainline",
             "controlled_stretch",
+            "scoring_targets",
+            "assessment_policy",
+            "usage_policy",
         ):
             if key in data["raw"]:
                 data[key] = data["raw"][key]
+        raw_quality = data["raw"].get("quality")
+        if isinstance(raw_quality, dict) and "assessment_policy" in raw_quality:
+            data["assessment_policy"] = raw_quality["assessment_policy"]
     return data
 
 
@@ -5719,12 +6156,19 @@ def attempt_review_meta_allows_downstream_evidence(attempt: dict[str, Any]) -> b
 
 
 def is_current_usable_attempt_evidence(conn: sqlite3.Connection, attempt: dict[str, Any]) -> bool:
+    try:
+        input_evidence = latest_attempt_evidence_revision(
+            conn, str(attempt.get("id") or "")
+        )
+    except KeyError:
+        input_evidence = None
     return (
         attempt.get("evidence_status") == "active"
         and attempt.get("grading_status") == "graded"
         and is_valid_answer_analysis(attempt.get("answer_analysis"))
         and is_current_attempt_question(conn, attempt)
         and attempt_review_meta_allows_downstream_evidence(attempt)
+        and multimodal_evidence.allows_downstream_evidence(input_evidence)
     )
 
 
@@ -6137,6 +6581,7 @@ def attempt_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     data["review_meta"] = json_load(data.pop("review_meta_json", "{}"), {})
     data["cause_analysis"] = json_load(data.pop("cause_analysis_json", "{}"), {})
     data["interaction_response"] = json_load(data.pop("interaction_response_json", "{}"), {})
+    data["attachment_ids"] = json_load(data.pop("attachment_ids_json", "[]"), [])
     data["evidence_status"] = data.get("evidence_status", "active")
     data["evidence_note"] = data.get("evidence_note", "")
     data["blocking_evidence"] = bool(data["blocking_evidence"])
@@ -6224,6 +6669,447 @@ def get_attachment(conn: sqlite3.Connection, attachment_id: str) -> dict[str, An
     if not row:
         raise KeyError(f"Unknown attachment: {attachment_id}")
     return dict(row)
+
+
+def media_recognition_run_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    data = dict(row)
+    data["math_objects"] = json_load(data.pop("math_objects_json", "[]"), [])
+    data["critical_token_uncertainties"] = json_load(
+        data.pop("critical_token_uncertainties_json", "[]"), []
+    )
+    return data
+
+
+def find_media_recognition_run(
+    conn: sqlite3.Connection,
+    *,
+    flow_step_id: str,
+    step_revision: int,
+    input_mode: str,
+    media_sha256: str,
+    media_byte_size: int,
+    media_version: int,
+    recognizer_version: str,
+) -> dict[str, Any] | None:
+    row = conn.execute(
+        """
+        select * from media_recognition_runs
+        where flow_step_id = ? and step_revision = ? and input_mode = ?
+          and media_sha256 = ? and media_byte_size = ? and media_version = ?
+          and recognizer_version = ?
+        limit 1
+        """,
+        (
+            flow_step_id,
+            int(step_revision),
+            input_mode,
+            media_sha256,
+            int(media_byte_size),
+            int(media_version),
+            recognizer_version,
+        ),
+    ).fetchone()
+    return media_recognition_run_row_to_dict(row) if row else None
+
+
+def record_media_recognition_run(
+    conn: sqlite3.Connection,
+    *,
+    flow_step_id: str,
+    step_revision: int,
+    question_id: str,
+    input_mode: str,
+    media_sha256: str,
+    media_byte_size: int,
+    media_version: int,
+    content_type: str,
+    recognizer_version: str,
+    recognition_status: str,
+    provider_mode: str,
+    recognition_source: str,
+    trust_classification: str | None = None,
+    route_digest_sha256: str,
+    recognized_text: str,
+    math_objects: list[Any] | None = None,
+    critical_token_uncertainties: list[dict[str, Any]] | None = None,
+    recognition_confidence: float | None = None,
+    commit: bool = True,
+) -> dict[str, Any]:
+    if input_mode not in {"handwriting", "voice"}:
+        raise ValueError("media recognition input mode must be handwriting or voice")
+    if recognition_status not in multimodal_evidence.RECOGNITION_RUN_STATUSES:
+        raise ValueError("unknown media recognition status")
+    if not media_sha256 or int(media_byte_size) <= 0 or int(media_version) <= 0:
+        raise ValueError("media recognition requires immutable media identity")
+    if recognition_confidence is not None and not 0.0 <= float(recognition_confidence) <= 1.0:
+        raise ValueError("recognition confidence must be between 0 and 1")
+    trust_classification = trust_classification or multimodal_evidence.recognition_trust_classification(
+        input_mode=input_mode,
+        provider_mode=provider_mode,
+        recognition_source=recognition_source,
+    )
+    if trust_classification not in multimodal_evidence.RECOGNITION_TRUST_CLASSIFICATIONS:
+        raise ValueError("unknown recognition trust classification")
+    existing = find_media_recognition_run(
+        conn,
+        flow_step_id=flow_step_id,
+        step_revision=step_revision,
+        input_mode=input_mode,
+        media_sha256=media_sha256,
+        media_byte_size=media_byte_size,
+        media_version=media_version,
+        recognizer_version=recognizer_version,
+    )
+    if existing:
+        return existing
+    payload = {
+        "flow_step_id": flow_step_id,
+        "step_revision": int(step_revision),
+        "question_id": question_id,
+        "input_mode": input_mode,
+        "media_sha256": media_sha256,
+        "media_byte_size": int(media_byte_size),
+        "media_version": int(media_version),
+        "content_type": content_type,
+        "recognizer_version": recognizer_version,
+        "recognition_status": recognition_status,
+        "provider_mode": provider_mode,
+        "recognition_source": recognition_source,
+        "trust_classification": trust_classification,
+        "route_digest_sha256": route_digest_sha256,
+        "recognized_text": str(recognized_text or "")[:4000],
+        "math_objects": list(math_objects or []),
+        "critical_token_uncertainties": list(critical_token_uncertainties or []),
+        "recognition_confidence": recognition_confidence,
+    }
+    run_id = f"MR-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        insert into media_recognition_runs(
+          id, flow_step_id, step_revision, question_id, input_mode,
+          media_sha256, media_byte_size, media_version, content_type,
+          recognizer_version, recognition_status, provider_mode,
+          recognition_source, trust_classification, route_digest_sha256, recognized_text,
+          math_objects_json, critical_token_uncertainties_json,
+          recognition_confidence, output_digest_sha256, created_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            run_id,
+            flow_step_id,
+            int(step_revision),
+            question_id,
+            input_mode,
+            media_sha256,
+            int(media_byte_size),
+            int(media_version),
+            content_type,
+            recognizer_version,
+            recognition_status,
+            provider_mode,
+            recognition_source,
+            trust_classification,
+            route_digest_sha256,
+            payload["recognized_text"],
+            json_dump(payload["math_objects"]),
+            json_dump(payload["critical_token_uncertainties"]),
+            recognition_confidence,
+            _canonical_digest_json(payload),
+            now_iso(),
+        ),
+    )
+    if commit:
+        conn.commit()
+    return get_media_recognition_run(conn, run_id)
+
+
+def get_media_recognition_run(conn: sqlite3.Connection, recognition_handle: str) -> dict[str, Any]:
+    row = conn.execute(
+        "select * from media_recognition_runs where id = ? limit 1",
+        (recognition_handle,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"Unknown media recognition handle: {recognition_handle}")
+    return media_recognition_run_row_to_dict(row)
+
+
+def evidence_confirmation_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    data = dict(row)
+    data["client_corrections"] = json_load(data.pop("client_corrections_json", "[]"), [])
+    return data
+
+
+def get_evidence_confirmation(conn: sqlite3.Connection, confirmation_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        "select * from evidence_confirmations where id = ? limit 1",
+        (confirmation_id,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"Unknown evidence confirmation: {confirmation_id}")
+    return evidence_confirmation_row_to_dict(row)
+
+
+def record_evidence_confirmation(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    recognition_run_id: str,
+    action: str,
+    confirmed_text: str,
+    client_corrections: list[Any] | None = None,
+    commit: bool = True,
+) -> dict[str, Any]:
+    if action not in {"confirmed", "corrected", "rejected"}:
+        raise ValueError("unknown evidence confirmation action")
+    text = str(confirmed_text or "").strip()[:4000]
+    if action in {"confirmed", "corrected"} and not text:
+        raise ValueError("confirmed evidence text is required")
+    get_attempt(conn, attempt_id)
+    get_media_recognition_run(conn, recognition_run_id)
+    corrections = list(client_corrections or [])[:50]
+    digest = _canonical_digest_json({
+        "attempt_id": attempt_id,
+        "recognition_run_id": recognition_run_id,
+        "action": action,
+        "confirmed_text": text,
+        "client_corrections": corrections,
+    })
+    existing = conn.execute(
+        """
+        select * from evidence_confirmations
+        where attempt_id = ? and recognition_run_id = ?
+          and confirmation_digest_sha256 = ?
+        limit 1
+        """,
+        (attempt_id, recognition_run_id, digest),
+    ).fetchone()
+    if existing:
+        return evidence_confirmation_row_to_dict(existing)
+    version = int(conn.execute(
+        "select coalesce(max(confirmation_version), 0) + 1 from evidence_confirmations where attempt_id = ?",
+        (attempt_id,),
+    ).fetchone()[0])
+    confirmation_id = f"EC-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        insert into evidence_confirmations(
+          id, attempt_id, recognition_run_id, confirmation_version,
+          action, confirmed_text, client_corrections_json,
+          confirmation_digest_sha256, created_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            confirmation_id,
+            attempt_id,
+            recognition_run_id,
+            version,
+            action,
+            text,
+            json_dump(corrections),
+            digest,
+            now_iso(),
+        ),
+    )
+    if commit:
+        conn.commit()
+    row = conn.execute("select * from evidence_confirmations where id = ?", (confirmation_id,)).fetchone()
+    return evidence_confirmation_row_to_dict(row)
+
+
+def attempt_evidence_revision_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    data = dict(row)
+    data["critical_token_uncertainties"] = json_load(
+        data.pop("critical_token_uncertainties_json", "[]"), []
+    )
+    data["attachment_ids"] = json_load(data.pop("attachment_ids_json", "[]"), [])
+    data["raw"] = json_load(data.pop("raw_json", "{}"), {})
+    data["child_confirmed"] = bool(data.get("confirmation_id")) and data.get("recognition_status") in {"confirmed", "corrected"}
+    data["child_confirmed_text"] = data.get("effective_text") or ""
+    return data
+
+
+def attempt_evidence_revisions(conn: sqlite3.Connection, attempt_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "select * from attempt_evidence_revisions where attempt_id = ? order by revision_number, id",
+        (attempt_id,),
+    ).fetchall()
+    return [attempt_evidence_revision_row_to_dict(row) for row in rows]
+
+
+def get_attempt_evidence_revision(conn: sqlite3.Connection, revision_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        "select * from attempt_evidence_revisions where id = ? limit 1",
+        (revision_id,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"Unknown attempt evidence revision: {revision_id}")
+    return attempt_evidence_revision_row_to_dict(row)
+
+
+def latest_attempt_evidence_revision(conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        select * from attempt_evidence_revisions
+        where attempt_id = ?
+        order by revision_number desc, created_at desc, id desc
+        limit 1
+        """,
+        (attempt_id,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"Unknown attempt evidence revision: {attempt_id}")
+    return attempt_evidence_revision_row_to_dict(row)
+
+
+def record_attempt_evidence_revision(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    revision_kind: str,
+    schema_version: str,
+    input_mode: str,
+    recognition_status: str,
+    recognition_source: str = "",
+    recognized_text: str = "",
+    effective_text: str = "",
+    recognition_confidence: float | None = None,
+    critical_token_uncertainties: list[dict[str, Any]] | None = None,
+    attachment_ids: list[str] | None = None,
+    submission_request_digest_sha256: str = "",
+    recognition_run_id: str | None = None,
+    confirmation_id: str | None = None,
+    parent_revision_id: str | None = None,
+    raw: dict[str, Any] | None = None,
+    commit: bool = True,
+) -> dict[str, Any]:
+    get_attempt(conn, attempt_id)
+    if input_mode not in multimodal_evidence.INPUT_MODES:
+        raise ValueError("unknown attempt evidence input mode")
+    if recognition_status not in multimodal_evidence.RECOGNITION_STATUSES:
+        raise ValueError("unknown attempt evidence recognition status")
+    if recognition_run_id:
+        get_media_recognition_run(conn, recognition_run_id)
+    if confirmation_id:
+        confirmation = conn.execute(
+            "select * from evidence_confirmations where id = ? and attempt_id = ?",
+            (confirmation_id, attempt_id),
+        ).fetchone()
+        if not confirmation:
+            raise ValueError("evidence confirmation does not bind this attempt")
+        if recognition_run_id and confirmation["recognition_run_id"] != recognition_run_id:
+            raise ValueError("evidence confirmation does not bind this recognition run")
+    try:
+        latest = latest_attempt_evidence_revision(conn, attempt_id)
+    except KeyError:
+        latest = None
+    expected_parent = latest["id"] if latest else None
+    if parent_revision_id is not None and parent_revision_id != expected_parent:
+        raise ValueError("attempt evidence revision parent is not the latest revision")
+    parent_revision_id = expected_parent
+    revision_number = int(latest["revision_number"] if latest else 0) + 1
+    payload = {
+        "attempt_id": attempt_id,
+        "revision_number": revision_number,
+        "parent_revision_id": parent_revision_id or "",
+        "revision_kind": revision_kind,
+        "schema_version": schema_version,
+        "input_mode": input_mode,
+        "recognition_status": recognition_status,
+        "recognition_run_id": recognition_run_id or "",
+        "confirmation_id": confirmation_id or "",
+        "recognition_source": recognition_source,
+        "recognized_text": str(recognized_text or "")[:4000],
+        "effective_text": str(effective_text or "")[:4000],
+        "recognition_confidence": recognition_confidence,
+        "critical_token_uncertainties": list(critical_token_uncertainties or []),
+        "attachment_ids": list(attachment_ids or []),
+        "submission_request_digest_sha256": submission_request_digest_sha256,
+        "raw": dict(raw or {}),
+    }
+    digest = _canonical_digest_json(payload)
+    existing = conn.execute(
+        "select * from attempt_evidence_revisions where attempt_id = ? and evidence_digest_sha256 = ? limit 1",
+        (attempt_id, digest),
+    ).fetchone()
+    if existing:
+        return attempt_evidence_revision_row_to_dict(existing)
+    revision_id = f"AER-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        insert into attempt_evidence_revisions(
+          id, attempt_id, revision_number, parent_revision_id, revision_kind,
+          schema_version, input_mode, recognition_status, recognition_run_id,
+          confirmation_id, recognition_source, recognized_text, effective_text,
+          recognition_confidence, critical_token_uncertainties_json,
+          attachment_ids_json, submission_request_digest_sha256,
+          evidence_digest_sha256, raw_json, created_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            revision_id,
+            attempt_id,
+            revision_number,
+            parent_revision_id,
+            revision_kind,
+            schema_version,
+            input_mode,
+            recognition_status,
+            recognition_run_id,
+            confirmation_id,
+            recognition_source,
+            payload["recognized_text"],
+            payload["effective_text"],
+            recognition_confidence,
+            json_dump(payload["critical_token_uncertainties"]),
+            json_dump(payload["attachment_ids"]),
+            submission_request_digest_sha256,
+            digest,
+            json_dump(payload["raw"]),
+            now_iso(),
+        ),
+    )
+    if commit:
+        conn.commit()
+    return get_attempt_evidence_revision(conn, revision_id)
+
+
+def record_attempt_input_evidence(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    schema_version: str,
+    input_mode: str,
+    recognition_status: str,
+    recognition_source: str = "",
+    recognized_text: str = "",
+    recognition_confidence: float | None = None,
+    critical_token_uncertainties: list[dict[str, Any]] | None = None,
+    child_confirmed: bool = False,
+    child_confirmed_text: str = "",
+    attachment_ids: list[str] | None = None,
+    raw: dict[str, Any] | None = None,
+    commit: bool = True,
+) -> dict[str, Any]:
+    return record_attempt_evidence_revision(
+        conn,
+        attempt_id=attempt_id,
+        revision_kind="legacy_compatibility",
+        schema_version=schema_version,
+        input_mode=input_mode,
+        recognition_status=recognition_status,
+        recognition_source=recognition_source,
+        recognized_text=recognized_text,
+        effective_text=child_confirmed_text,
+        recognition_confidence=recognition_confidence,
+        critical_token_uncertainties=critical_token_uncertainties,
+        attachment_ids=attachment_ids,
+        raw={**(raw or {}), "legacy_child_confirmed": bool(child_confirmed)},
+        commit=commit,
+    )
+
+
+def get_attempt_input_evidence(conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any]:
+    return latest_attempt_evidence_revision(conn, attempt_id)
 
 
 def get_attempt(conn: sqlite3.Connection, attempt_id: str) -> dict[str, Any]:

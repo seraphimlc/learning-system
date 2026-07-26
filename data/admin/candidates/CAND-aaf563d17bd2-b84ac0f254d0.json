@@ -1,0 +1,202 @@
+{
+  "candidate_sha256": "b84ac0f254d0a0a81b1c5eb65807dce4371df86a0b32209576e614560231d809",
+  "item": {
+    "accepted_alternatives": [
+      "最终选项必须为 A；完整作答仍需包含类似“往左数值变大，所以正方向向左”的依据。",
+      "最终选项必须为 A；完整作答仍需包含类似“从 -2 到 -1 到 0 到 1 到 2 到 3 是向左变大”的依据。",
+      "最终选项必须为 A；完整作答仍需包含类似“正方向不一定总向右，要看刻度数值增大的方向”的依据。"
+    ],
+    "answer_format": "选择一个选项，并写一句简短说明。",
+    "child_surface_design": {
+      "backend_evidence_targets": [
+        "能识别正方向是数值增大的方向",
+        "能在正数位于0左侧的非常规数轴中保持方向一致",
+        "能避免把“正方向一定向右”当作固定规则"
+      ],
+      "child_deliverables": [
+        "选择正方向应标向左还是向右等选项",
+        "用一句话说明正方向与数值增大方向的关系"
+      ],
+      "difficulty_alignment": {
+        "diagnostic_breakpoint": "能否脱离“正方向默认向右”的习惯，根据刻度数值增大的方向补出正方向。",
+        "difficulty_source": "representation_transfer",
+        "target_difficulty": "L3"
+      },
+      "distractor_design": {
+        "distractors": [
+          {
+            "information": "向右，因为数轴的正方向总是向右。",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "很多学生把常见画法误认为定义，忽视本题刻度数值实际向左增大。"
+          },
+          {
+            "information": "无法确定，因为没有箭头。",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "学生可能认为没有箭头就不能判断，但本题数值标签已经给出增大方向。强调的是补出正方向。摸清这一点可诊断是否会从刻度恢复方向。"
+          }
+        ]
+      },
+      "interaction_requirements": {
+        "actions": [],
+        "maximum_selections": 1,
+        "minimum_selections": 1,
+        "response_kind": "select_one"
+      },
+      "language_surface": {
+        "named_characters": [],
+        "natural_child_facing_chinese": true,
+        "respectful_age_appropriate": true,
+        "semantic_review_boundary": "requires_independent_semantic_qa",
+        "short_explanation_requests": 1
+      },
+      "primary_task": "判断一条已给出刻度和原点的数轴应把正方向标向哪一边，并说明依据。",
+      "student_actions": {
+        "primary": "compare_or_classify",
+        "supporting": [
+          "explain_core_relation"
+        ]
+      },
+      "task_focus_count": 1,
+      "visual_support": {
+        "asset_ref": "",
+        "inline_visual": "数轴片段（每个相邻刻度间隔相同，0 是原点）：\n```\n  3    2    1    0   -1   -2\n  |----|----|----|----|----|\n```",
+        "mode": "inline_in_prompt",
+        "prompt_depends_on_visual": true
+      },
+      "writing_burden": {
+        "burden_level": "light",
+        "estimated_response_lines": 1,
+        "why_necessary": "需要一句简短依据来区分是凭习惯猜方向，还是理解正方向由数值增大方向决定。"
+      }
+    },
+    "design_rationale": "题目固定原点和单位间隔，只改变常见数轴方向，避免同时诊断多个要素；通过选项和一句依据区分真正理解正方向、习惯性选右、以及因缺少箭头而无法从刻度恢复方向三类表现。",
+    "difficulty": "L3",
+    "estimated_minutes": 2,
+    "evidence_goal": "正方向",
+    "exclude_from_coverage": false,
+    "expected_answer": "A；说明中应表达“正方向是数值增大的方向”，并结合图中数值向左增大这一点。",
+    "id": "CAND-aaf563d17bd2",
+    "interaction_schema": {
+      "allow_explanation": true,
+      "choices": [
+        {
+          "id": "A",
+          "label": "向左"
+        },
+        {
+          "id": "B",
+          "label": "向右"
+        },
+        {
+          "id": "C",
+          "label": "无法确定"
+        },
+        {
+          "id": "D",
+          "label": "向左或向右都可以"
+        }
+      ],
+      "explanation_label": "说明依据",
+      "fields": [],
+      "formula_label": "",
+      "placeholder": "",
+      "requires_explanation": true,
+      "schema_version": "2026-07-17.question-interaction.v2",
+      "title": "判断数轴的正方向",
+      "type": "single_choice"
+    },
+    "item_version": "draft.admin-production.v1.attempt-2",
+    "key_score_points": [
+      {
+        "evidence": "选择 A：向左。",
+        "key": "方向判断",
+        "mastery_dimension": "正方向识别",
+        "points": 4
+      },
+      {
+        "evidence": "说明正方向是数值增大的方向，而不是固定看纸面右侧。",
+        "key": "核心依据",
+        "mastery_dimension": "概念理解",
+        "points": 3
+      },
+      {
+        "evidence": "能结合图中 0、1、2、3 在左侧或从 -2 到 3 向左增大来说明。",
+        "key": "图中对应",
+        "mastery_dimension": "表示读取",
+        "points": 2
+      },
+      {
+        "evidence": "说明简洁清楚，没有同时说正方向向右或数值向右增大等矛盾。",
+        "key": "表达清楚且无反向矛盾",
+        "mastery_dimension": "数学表达",
+        "points": 1
+      }
+    ],
+    "math_core_signature": "给定等距刻度与原点，刻度值从左到右递减；要求根据数值增大方向判断正方向应向左。",
+    "node_id": "M-G7-NUMBER-LINE",
+    "not_for_activation": false,
+    "production_lineage": {
+      "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+      "evidence_goal": "正方向",
+      "family_id": "number_line_reference_frame",
+      "generation_attempt": 2,
+      "generation_rationale": "题目固定原点和单位间隔，只改变常见数轴方向，避免同时诊断多个要素；通过选项和一句依据区分真正理解正方向、习惯性选右、以及因缺少箭头而无法从刻度恢复方向三类表现。",
+      "previous_rejection_codes": [
+        "child_surface_projection_failed",
+        "machine_check_blocks_loop"
+      ],
+      "question_requirement_id": "REQ-fd17c93970ca",
+      "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:02"
+    },
+    "prompt": "数轴片段（每个相邻刻度间隔相同，0 是原点）：\n```\n  3    2    1    0   -1   -2\n  |----|----|----|----|----|\n```\n这条数轴还没有画正方向箭头。正方向应该标向哪边？请选择，并用一句话说明依据。",
+    "quality": {
+      "canonical_structure_fingerprint": "CANON-4fadad0890d9020b",
+      "model_structure_fingerprint": "给定等距刻度与原点，刻度值从左到右递减；要求根据数值增大方向判断正方向应向左。",
+      "review_status": "draft_generated",
+      "structure_fingerprint": "CANON-4fadad0890d9020b"
+    },
+    "question_type": "number_line_reference_frame",
+    "required_evidence": [
+      "选择“向左”。",
+      "说明正方向由数值增大的方向决定。",
+      "说明本图中的数值是向左增大。",
+      "正方向",
+      "明确正方向并保持方向一致",
+      "题面和得分点必须落实当前方向：只判断或修正数轴的正方向",
+      "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务",
+      "明确指出或补出原点",
+      "相邻等距刻度表示同一单位长度"
+    ],
+    "rollback_candidates": [
+      "识别数轴上0的位置与相邻刻度顺序",
+      "根据相邻刻度判断数值增大方向"
+    ],
+    "rubric": [
+      "选出向左，并能用数值增大方向解释，可判为掌握。",
+      "若只选向左但无有效依据，说明可能是猜测或表达不足。",
+      "若选向右并说数轴通常向右，暴露把常见画法当定义的误解。",
+      "若选无法确定，说明没有利用已给刻度标签恢复方向。"
+    ],
+    "secondary_node_ids": [],
+    "solution_steps": [
+      "观察刻度标签：从右到左依次是 -2、-1、0、1、2、3。",
+      "数值增大的方向就是数轴的正方向。",
+      "因此这条数轴的正方向应标向左。"
+    ],
+    "source": {
+      "basis": "generated_from_expert_requirement_slot",
+      "type": "ai_original",
+      "usage_mode": "draft_original_generation"
+    },
+    "source_type": "ai_original",
+    "standard_answer": "选择 A。依据：数轴的正方向是数值增大的方向；图中从 0 到 1、2、3 是往左走，所以正方向应标向左。",
+    "support_only": false,
+    "target_error_tags": [
+      "正方向固定向右",
+      "未利用刻度标签判断方向",
+      "把缺少箭头误判为无法确定"
+    ]
+  },
+  "model_output_sha256": "1e0206b66b7dd25a5360f86605fcc74dc1419e8902acf6f998bfbd306af28914",
+  "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+}

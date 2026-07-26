@@ -468,6 +468,7 @@ def record_pending_assessment(
     attempt_version: int,
     contract: dict[str, Any],
     assessment_input_digest_sha256: str,
+    commit: bool = True,
 ) -> dict[str, Any]:
     if not isinstance(contract, dict):
         raise TypeError("contract must be a mapping")
@@ -521,7 +522,7 @@ def record_pending_assessment(
     for race_attempt in range(3):
         now = db.now_iso()
         try:
-            with conn:
+            with (conn if commit else nullcontext()):
                 conn.execute(
                     """
                     insert into attempt_assessments(
@@ -567,13 +568,15 @@ def record_pending_assessment(
                 return _assessment_from_row(canonical)
             raise ValueError("pending assessment insert produced no canonical row")
         except sqlite3.IntegrityError as exc:
-            conn.rollback()
+            if commit:
+                conn.rollback()
             canonical = read_canonical()
             if canonical:
                 return _assessment_from_row(canonical)
             raise ValueError("pending assessment idempotency conflict") from exc
         except sqlite3.OperationalError as exc:
-            conn.rollback()
+            if commit:
+                conn.rollback()
             canonical = read_canonical()
             if canonical:
                 return _assessment_from_row(canonical)
@@ -582,6 +585,31 @@ def record_pending_assessment(
                 continue
             raise ValueError("pending assessment database race did not converge") from exc
     raise ValueError("pending assessment database race did not converge")
+
+
+def assessment_for_input(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    attempt_version: int,
+    answer_contract_id: str,
+    assessment_input_digest_sha256: str,
+) -> dict[str, Any] | None:
+    row = conn.execute(
+        """
+        select * from attempt_assessments
+        where attempt_id = ? and attempt_version = ?
+          and answer_contract_id = ? and assessment_input_digest_sha256 = ?
+        limit 1
+        """,
+        (
+            attempt_id,
+            int(attempt_version),
+            answer_contract_id,
+            assessment_input_digest_sha256,
+        ),
+    ).fetchone()
+    return _assessment_from_row(row) if row else None
 
 
 def accepted_assessment_for_attempt(

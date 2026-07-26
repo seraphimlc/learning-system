@@ -1,0 +1,188 @@
+{
+  "candidate_sha256": "e198e59a73734edd22f22214d9d25c0091aa0b2217a92c47debac84f12ec79f6",
+  "item": {
+    "accepted_alternatives": [
+      "完整作答可写成：等号两边同时减 5，左边变成 3x，右边变成 17-5，所以等式不变。",
+      "完整作答可写成：像天平两边同时拿走 5 个单位，平衡仍保持，因此 3x+5=17 可变为 3x=17-5。",
+      "完整作答可写成：不是随便把 +5 变成 -5，而是两边同减 5，得到 3x+5-5=17-5，也就是 3x=17-5。"
+    ],
+    "answer_format": "短文本作答，写 1 句话说明依据。",
+    "child_surface_design": {
+      "backend_evidence_targets": [
+        "能指出两边都减去 5",
+        "能说明等号两边做同样操作，所以等式保持",
+        "不把“移项变号”当作无依据的独立规则"
+      ],
+      "child_deliverables": [
+        "用一句话说明从 3x+5=17 到 3x=17-5 为什么等式仍成立"
+      ],
+      "difficulty_alignment": {
+        "diagnostic_breakpoint": "能否把表面的“移项变号”还原为等式两边同减同一个量，并说明等式为什么保持。",
+        "difficulty_source": "representation_transfer",
+        "target_difficulty": "L3"
+      },
+      "distractor_design": {
+        "distractors": [
+          {
+            "information": "“移项变号，所以 +5 到右边变成 -5。”",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "这是学生常背的口诀，但若不说明两边同减 5，就不能体现等式性质依据。"
+          },
+          {
+            "information": "“左边少了 5，右边也少了 5。”",
+            "relevance": "required_information",
+            "why_plausible": "这是等式保持的关键操作，但需要表达清楚是两边减同一个量。"
+          }
+        ]
+      },
+      "interaction_requirements": {
+        "actions": [],
+        "maximum_selections": 0,
+        "minimum_selections": 0,
+        "response_kind": "short_text"
+      },
+      "language_surface": {
+        "named_characters": [
+          "小林"
+        ],
+        "natural_child_facing_chinese": true,
+        "respectful_age_appropriate": true,
+        "semantic_review_boundary": "requires_independent_semantic_qa",
+        "short_explanation_requests": 1
+      },
+      "primary_task": "解释移项表象背后的等式两边同减同一个量",
+      "student_actions": {
+        "primary": "explain_core_relation",
+        "supporting": [
+          "model_or_represent"
+        ]
+      },
+      "task_focus_count": 1,
+      "visual_support": {
+        "asset_ref": "",
+        "inline_visual": "",
+        "mode": "not_needed",
+        "prompt_depends_on_visual": false
+      },
+      "writing_burden": {
+        "burden_level": "light",
+        "estimated_response_lines": 1,
+        "why_necessary": "本题只需要一句结构性说明，用来观察学生是否理解等式保持的依据，而不是完成解方程流程。"
+      }
+    },
+    "design_rationale": "题目从一个已成立等式出发，只要求解释一步表面类似移项的变形，能区分学生是在背口诀，还是理解等式两边同减同一个量会保持相等关系。",
+    "difficulty": "L3",
+    "estimated_minutes": 2,
+    "evidence_goal": "等式保持解释",
+    "exclude_from_coverage": false,
+    "expected_answer": "必须表达：这一步相当于等式两边都减去 5；两边做同样的减法操作，所以等式保持成立。",
+    "id": "CAND-8b4b626cd73a",
+    "interaction_schema": {
+      "allow_explanation": false,
+      "choices": [],
+      "explanation_label": "",
+      "fields": [
+        {
+          "id": "response",
+          "label": "你的说明",
+          "placeholder": "例如：因为等号两边都……，所以……",
+          "prefix": "",
+          "suffix": ""
+        }
+      ],
+      "formula_label": "",
+      "placeholder": "用一句话说明",
+      "requires_explanation": false,
+      "schema_version": "2026-07-17.question-interaction.v2",
+      "title": "说明等式为什么保持成立",
+      "type": "short_text"
+    },
+    "item_version": "draft.admin-production.v1.attempt-1",
+    "key_score_points": [
+      {
+        "evidence": "指出这一步是等式两边都减去 5，而不是只改变一边。",
+        "key": "识别共同操作",
+        "mastery_dimension": "operation",
+        "points": 4
+      },
+      {
+        "evidence": "说明两边减同一个量后，相等关系仍保持，可用等式性质或天平平衡来表达。",
+        "key": "解释等式保持",
+        "mastery_dimension": "reasoning",
+        "points": 4
+      },
+      {
+        "evidence": "能把 3x+5-5=17-5 化到 3x=17-5，说明左边为什么只剩 3x。",
+        "key": "连接到给定变形",
+        "mastery_dimension": "concept",
+        "points": 1.5
+      },
+      {
+        "evidence": "没有只停留在“移项变号”四个字，或能说明口诀背后的同减依据。",
+        "key": "表达清楚但不机械背口诀",
+        "mastery_dimension": "communication",
+        "points": 0.5
+      }
+    ],
+    "math_core_signature": "given_equality_to_transformed_form; 3x+5=17 -> 3x=17-5; justify_as_subtract_5_both_sides; no_full_equation_solving",
+    "node_id": "M-G7-EQUALITY-PROP",
+    "not_for_activation": false,
+    "production_lineage": {
+      "design_brief_id": "EXPERT-IDEAS-46c630030757",
+      "evidence_goal": "等式保持解释",
+      "family_id": "equality_add_subtract_invariance",
+      "generation_attempt": 1,
+      "generation_rationale": "题目从一个已成立等式出发，只要求解释一步表面类似移项的变形，能区分学生是在背口诀，还是理解等式两边同减同一个量会保持相等关系。",
+      "previous_rejection_codes": [],
+      "question_requirement_id": "REQ-6d446298eae0",
+      "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:03"
+    },
+    "prompt": "小林看到一步变形：\n\n已知：3x+5=17\n变成：3x=17-5\n\n请用一句话说明：这一步为什么能保持等式成立？尽量不要只写“移项变号”。",
+    "quality": {
+      "canonical_structure_fingerprint": "CANON-a285e964a777e1f6",
+      "model_structure_fingerprint": "given_equality_to_transformed_form; 3x+5=17 -> 3x=17-5; justify_as_subtract_5_both_sides; no_full_equation_solving",
+      "review_status": "draft_generated",
+      "structure_fingerprint": "CANON-a285e964a777e1f6"
+    },
+    "question_type": "equality_add_subtract_invariance",
+    "required_evidence": [
+      "明确两边加或减的是同一个量",
+      "变形后等号两边仍对应同一操作",
+      "能用天平或代入具体相等数解释等式保持",
+      "等式保持解释",
+      "题面和得分点必须落实当前方向：解释移项表象背后的同加减",
+      "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+    ],
+    "rollback_candidates": [
+      "用天平模型复习：两边同时加减同一个量，平衡保持",
+      "从简单数等式出发判断只改一边是否仍相等"
+    ],
+    "rubric": [
+      "能明确说出两边都减去 5。",
+      "能说明两边做同样操作，所以等式仍成立。",
+      "只写“移项变号”但没有同减依据，不能作为完整解释。",
+      "不因措辞不同扣分，只要数学关系表达清楚即可。"
+    ],
+    "secondary_node_ids": [],
+    "solution_steps": [
+      "把变形前后的左边比较：3x+5 变成 3x，说明左边减去了 5。",
+      "为了保持等式，右边也要减去同一个 5，所以 17 变成 17-5。",
+      "因此这一步的依据是等式两边同减同一个量，等式仍成立。"
+    ],
+    "source": {
+      "basis": "generated_from_expert_requirement_slot",
+      "type": "ai_original",
+      "usage_mode": "draft_original_generation"
+    },
+    "source_type": "ai_original",
+    "standard_answer": "因为从 3x+5=17 到 3x=17-5，相当于在等号两边都减去 5：3x+5-5=17-5；两边减的是同一个量，所以等式仍成立。",
+    "support_only": false,
+    "target_error_tags": [
+      "把移项变号当作无依据的新规则",
+      "只改一边",
+      "等式保持解释缺失"
+    ]
+  },
+  "model_output_sha256": "481e298343a44940af05e3df00b05edfa857141ad5b4e99fb246279b1a25362e",
+  "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+}

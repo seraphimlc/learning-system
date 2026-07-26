@@ -550,10 +550,23 @@ class KnowledgeMapService:
                 "select * from question_items where id = ? and item_version = ?",
                 (item["question_id"], item["item_version"]),
             ).fetchone()
+            question = db.row_to_question(question_row)
             assets.append(
                 {
                     **commitment,
-                    "question": db.row_to_question(question_row),
+                    "question": question,
+                    "child_active_use_eligible": (
+                        db.is_child_schedulable_question(
+                            self.conn,
+                            question,
+                            question_bank_version=bank_version,
+                        )
+                        and db.question_review_record_allows_active_use(
+                            self.conn,
+                            question,
+                            item["review_record_id"],
+                        )
+                    ),
                     "contract": {
                         "id": item["contract_id"],
                         "stable_contract_id": item["stable_contract_id"],
@@ -587,6 +600,8 @@ class KnowledgeMapService:
             )
         assets_by_node: dict[str, list[dict[str, Any]]] = {}
         for asset in assets:
+            if not asset.get("child_active_use_eligible"):
+                continue
             assets_by_node.setdefault(str(asset["node_id"]), []).append(asset)
         return {
             "ledger": ledger,
@@ -646,16 +661,22 @@ class KnowledgeMapService:
                     state="assessment_unavailable",
                 )
             question = db.row_to_question(question_row)
-            question_digest = _answer_contract_question_digest(question)
-            candidate_digest = db._digest_json(db.json_load(item["raw_json"], {}))
+            raw_candidate = db.json_load(item["raw_json"], {})
+            question_digest = _answer_contract_question_digest(raw_candidate)
+            candidate_digest = db._digest_json(raw_candidate)
+            active_eligible = int(item["active_eligible"] or 0) == 1
             if (
                 item["item_version"] != bank_version
                 or item["graph_version"] != graph_lineage
                 or item["question_bank_version"] != bank_version
-                or item["question_digest_sha256"] != question_digest
-                or item["candidate_sha256"] != candidate_digest
                 or item["review_status"] != "approved"
-                or int(item["active_eligible"] or 0) != 1
+                or (
+                    active_eligible
+                    and (
+                        item["question_digest_sha256"] != question_digest
+                        or item["candidate_sha256"] != candidate_digest
+                    )
+                )
             ):
                 raise KnowledgeMapError(
                     "答案评估的题目或合同凭据不一致，请继续当前学习。",
@@ -666,7 +687,7 @@ class KnowledgeMapService:
                 "question_id": item["question_id"],
                 "item_version": item["item_version"],
                 "node_id": item["node_id"],
-                "question_digest_sha256": question_digest,
+                "question_digest_sha256": item["question_digest_sha256"],
                 "review_record_id": item["review_record_id"],
                 "candidate_sha256": item["candidate_sha256"],
                 "contract_id": item["contract_id"],
@@ -678,6 +699,18 @@ class KnowledgeMapService:
                 {
                     **commitment,
                     "question": question,
+                    "child_active_use_eligible": (
+                        db.is_child_schedulable_question(
+                            self.conn,
+                            question,
+                            question_bank_version=bank_version,
+                        )
+                        and db.question_review_record_allows_active_use(
+                            self.conn,
+                            question,
+                            item["review_record_id"],
+                        )
+                    ),
                     "contract": {
                         "id": item["contract_id"],
                         "stable_contract_id": item["stable_contract_id"],
@@ -711,6 +744,8 @@ class KnowledgeMapService:
             )
         assets_by_node: dict[str, list[dict[str, Any]]] = {}
         for asset in assets:
+            if not asset.get("child_active_use_eligible"):
+                continue
             assets_by_node.setdefault(str(asset["node_id"]), []).append(asset)
         return {
             "ledger": ledger,

@@ -1,0 +1,186 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "087ac670230cc6690e85c55f3df645d124c604bb9e0895709ff97d7ac46633ae",
+  "confidence": 0.91,
+  "coverage_eligible": true,
+  "engine_type": "model_semantic_quality_gate",
+  "family_id": "equality_add_subtract_invariance",
+  "finding_counts": {},
+  "findings": [],
+  "gate_type": "live_model_semantic_qa",
+  "hard_blockers": {
+    "age_inappropriate": {
+      "detected": false,
+      "evidence": []
+    },
+    "mathematical_ambiguity": {
+      "detected": false,
+      "evidence": []
+    },
+    "meaningless_formal_requirement": {
+      "detected": false,
+      "evidence": []
+    },
+    "node_or_family_mismatch": {
+      "detected": false,
+      "evidence": []
+    },
+    "prompt_answer_conflict": {
+      "detected": false,
+      "evidence": []
+    }
+  },
+  "item_id": "CAND-e1c8e0fce8a0",
+  "model_reported_overall_status": "pass",
+  "next_actions": [
+    "staging_decision"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "profile_reviews": [
+    {
+      "profile": "mathematical_validity",
+      "reasons": [
+        "题意清楚：从已知等式 a=b 出发，判断单边变形 a-7=b 是否一定合法。",
+        "数学结论正确：左边减 7、右边不变，不是等式两边同减同一个量，因此不能保证等式保持成立。",
+        "正确选项 B 与独立求解一致。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "answer_contract_alignment",
+      "reasons": [
+        "提示要求选择最合适判断并用一句话说明依据；标准答案、期望答案、可接受替代表达均要求选择 B 并说明只改一边/没有两边同减同一个量。",
+        "选项 B 的表述与解题步骤、评分点和 rubric 一致。",
+        "评分规则将主要分数给判断和同操作条件，符合题目要求；合法对应形式 a-7=b-7 作为补充得分点，不与题面冲突。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "graph_family_alignment",
+      "reasons": [
+        "实际考查的是等式同加减保持的关键条件：等号两边必须同减同一个量。",
+        "任务从已成立等式 a=b 出发，要求判断减 7 变形是否满足两边同操作条件，符合 M-G7-EQUALITY-PROP 节点能力。",
+        "虽然使用的是非法单边变形作为辨析情境，但诊断证据仍直接落在 equality_add_subtract_invariance 家族的典型误区‘只改一边’和评分依据‘两边操作对象相同’上，没有转向完整解方程或其他节点。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "child_appropriateness",
+      "reasons": [
+        "语言简洁、尊重，适合六年级升七年级学生。",
+        "认知负担轻：单选加一句说明，预计 2 分钟合理。",
+        "交互资源匹配：题目只需单选和文本说明，声明的 single_choice 且 allow_explanation/requires_explanation 能支持该动作；不依赖图像或拖拽等未提供控件。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "profile": "diagnostic_meaningfulness",
+      "reasons": [
+        "一句话说明能够区分学生是凭选项猜测，还是真正识别‘两边同减同一个量’这一等式保持条件。",
+        "没有隐藏多任务；选择与解释共同服务同一诊断目标。",
+        "补充合法形式 a-7=b-7 有助于观察学生是否能把错误操作修正为同操作，不是无意义仪式。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    }
+  ],
+  "profile_verdicts": {
+    "answer_contract_alignment": "pass",
+    "child_appropriateness": "pass",
+    "diagnostic_meaningfulness": "pass",
+    "graph_family_alignment": "pass",
+    "mathematical_validity": "pass"
+  },
+  "prompt_meta": {
+    "contract_version": "2026-07-24.admin-question-qa-review.v1",
+    "minimum_confidence_to_apply": 0.86,
+    "prompt_template_path": "learning_system/prompts/admin_question_qa_review.v1.md",
+    "prompt_template_sha256": "0a476ead0cc1248808cb7519312e1f4143ce9bb45d1d7652eabe77c860cb8696",
+    "rendered_prompt_sha256": "695b04af735ccc8feba83cad3cf9b7cdf49445c33905c04c0e4eaf9ea8679881",
+    "response_schema_sha256": "7ec280220cfdb7ab7747a82b67d2221b0b72acf7fd4a9c482f58c2de383b5dcf",
+    "response_schema_version": "2026-07-24.admin-question-qa-review.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "qa_contract_report_sha256": "ff6a7c5e75cd76e30a064c6df7069a3a130e663d3d31dbbe22d8906cef551ed6",
+  "qa_json_path": "data/admin/qa/QA-SEMANTIC-0137b1522e2a.json",
+  "qa_markdown_path": "docs/system/admin_reports/qa/2026-07-25-QA-SEMANTIC-0137b1522e2a.md",
+  "qa_markdown_sha256": "54eadc98d346834049bd626fd7a98c410b6475200934d53147a8c6633c1702d7",
+  "qa_report_id": "QA-SEMANTIC-0137b1522e2a",
+  "question_bank_version": "v18",
+  "retryable": false,
+  "reviewed_item_count": 1,
+  "route": {
+    "agent_key": "question_reviewer_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "model_elapsed_ms": 30098,
+    "model_wall_deadline_monotonic": 38952.749296166,
+    "model_wall_deadline_seconds": 120.0,
+    "provider": "gpt",
+    "raw_response_sha256": "4127c9dca4e5919b5b11354490a6a359b5c7d213aa7767de8fcd45fae49b3ad8",
+    "structured_json_endpoint": "responses",
+    "structured_json_mode": "json_schema",
+    "task": "question_review",
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 30.098,
+        "endpoint": "responses",
+        "error_class": "",
+        "error_message": "",
+        "outcome": "response_received",
+        "request_digest_sha256": "3a4b47d173ddefe2a2de98fb868c20765eee4fd6f73642df5892131c93f8d2cc",
+        "response_digest_sha256": "93ccc2f57f4ab322d2cd919597a2e1108573439cb350852b46750efbf53916c4",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.candidate-qa-review.v1",
+  "scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "reasons": [],
+    "support_only": false
+  },
+  "source_file_sha256": "9339a09ca0328e224f6cb85abb0f334a81698c7e33de05ad342e1887e2e73780",
+  "source_path": "data/admin/candidates/CAND-e1c8e0fce8a0-087ac670230c.json",
+  "staging_allowed": false,
+  "status": "PASS",
+  "status_normalization": {
+    "authority": "deterministic_from_profile_verdicts",
+    "model_overall_status_is_advisory": true,
+    "required_hard_blockers": [
+      "mathematical_ambiguity",
+      "prompt_answer_conflict",
+      "node_or_family_mismatch",
+      "age_inappropriate",
+      "meaningless_formal_requirement"
+    ],
+    "required_profiles": [
+      "mathematical_validity",
+      "answer_contract_alignment",
+      "graph_family_alignment",
+      "child_appropriateness",
+      "diagnostic_meaningfulness"
+    ]
+  },
+  "subject": "math",
+  "write_applied": true
+}

@@ -11,26 +11,33 @@ from . import db
 
 V3_JOB_TYPES = {
     "answer_analysis",
+    "group_answer_analysis",
     "evidence_validation",
     "evaluation_update",
     "planner_decision",
     "teaching_generation",
     "answer_review",
+    "stuck_interruption",
 }
 V3_JOB_PAYLOAD_SCHEMA_VERSION = "2026-07-10.v3.job-payload.skeleton"
 V5_MODEL_JOB_TYPES = {
     "answer_analysis",
+    "group_answer_analysis",
     "evaluation_update",
     "planner_decision",
     "teaching_generation",
 }
-V5_RESERVED_DETERMINISTIC_JOB_TYPES = {"evidence_validation"}
+V5_RESERVED_DETERMINISTIC_JOB_TYPES = {"evidence_validation", "stuck_interruption"}
 V5_JOB_TYPES = V5_MODEL_JOB_TYPES | V5_RESERVED_DETERMINISTIC_JOB_TYPES
 V5_JOB_PAYLOAD_SCHEMA_VERSION = "2026-07-11.v5.model-job.v1"
 V5_ACTIVE_STATUSES = {"queued", "claimed", "running", "waiting", "retry"}
 V5_TERMINAL_STATUSES = {"succeeded", "blocked", "dead_letter"}
 V5_NON_RUNNABLE_STATUSES = {"waiting", "blocked", "dead_letter", "succeeded"}
 V5_RETRY_BACKOFF_SECONDS = (20, 60, 180)
+
+
+class JobLeaseLost(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -195,18 +202,21 @@ class JobQueue:
         claimed: list[dict[str, Any]] = []
         for row in rows:
             lease_expires_at = _add_seconds(now, lease_seconds)
+            claim_token = uuid.uuid4().hex
             updated = self.conn.execute(
                 """
                 update background_jobs
                 set status = 'claimed',
                     lease_owner = ?,
+                    claim_generation = claim_generation + 1,
+                    claim_token = ?,
                     locked_at = ?,
                     lease_expires_at = ?,
                     updated_at = ?
                 where id = ?
                   and (status = 'queued' or status = 'retry')
                 """,
-                (worker_id, now, lease_expires_at, now, row["id"]),
+                (worker_id, claim_token, now, lease_expires_at, now, row["id"]),
             ).rowcount
             if updated:
                 job = self.conn.execute("select * from background_jobs where id = ?", (row["id"],)).fetchone()
@@ -214,10 +224,36 @@ class JobQueue:
         self.conn.commit()
         return claimed
 
-    def start(self, job_id: str, worker_id: str, *, now: str | None = None) -> JobQueueResult:
-        return self._transition_for_owner(job_id, worker_id, "claimed", "running", started=True, now=now)
+    def start(
+        self,
+        job_id: str,
+        worker_id: str,
+        *,
+        claim_generation: int | None = None,
+        claim_token: str | None = None,
+        now: str | None = None,
+    ) -> JobQueueResult:
+        return self._transition_for_owner(
+            job_id,
+            worker_id,
+            "claimed",
+            "running",
+            started=True,
+            claim_generation=claim_generation,
+            claim_token=claim_token,
+            now=now,
+        )
 
-    def heartbeat(self, job_id: str, worker_id: str, *, now: str | None = None) -> JobQueueResult:
+    def heartbeat(
+        self,
+        job_id: str,
+        worker_id: str,
+        *,
+        claim_generation: int | None = None,
+        claim_token: str | None = None,
+        lease_seconds: int = 60,
+        now: str | None = None,
+    ) -> JobQueueResult:
         now = now or db.now_iso()
         updated = self.conn.execute(
             """
@@ -227,16 +263,55 @@ class JobQueue:
               and lease_owner = ?
               and status in ('claimed','running')
               and (lease_expires_at is null or lease_expires_at > ?)
+              and (? is null or claim_generation = ?)
+              and (? is null or claim_token = ?)
             """,
-            (now, _add_seconds(now, 60), job_id, worker_id, now),
+            (
+                now,
+                _add_seconds(now, lease_seconds),
+                job_id,
+                worker_id,
+                now,
+                claim_generation,
+                claim_generation,
+                claim_token,
+                claim_token,
+            ),
         ).rowcount
         self.conn.commit()
         return JobQueueResult(job_id=job_id, status="running", applied=bool(updated))
 
-    def finish(self, job_id: str, worker_id: str, result_refs: dict[str, Any] | None = None, *, now: str | None = None) -> JobQueueResult:
-        return self._finish(job_id, "succeeded", worker_id=worker_id, result_refs=result_refs or {}, now=now)
+    def finish(
+        self,
+        job_id: str,
+        worker_id: str,
+        result_refs: dict[str, Any] | None = None,
+        *,
+        claim_generation: int | None = None,
+        claim_token: str | None = None,
+        now: str | None = None,
+    ) -> JobQueueResult:
+        return self._finish(
+            job_id,
+            "succeeded",
+            worker_id=worker_id,
+            result_refs=result_refs or {},
+            claim_generation=claim_generation,
+            claim_token=claim_token,
+            now=now,
+        )
 
-    def retry(self, job_id: str, worker_id: str, reason: str, retry_after: str, *, now: str | None = None) -> JobQueueResult:
+    def retry(
+        self,
+        job_id: str,
+        worker_id: str,
+        reason: str,
+        retry_after: str,
+        *,
+        claim_generation: int | None = None,
+        claim_token: str | None = None,
+        now: str | None = None,
+    ) -> JobQueueResult:
         now = now or db.now_iso()
         updated = self.conn.execute(
             """
@@ -250,20 +325,69 @@ class JobQueue:
               and lease_owner = ?
               and status in ('claimed','running')
               and (lease_expires_at is null or lease_expires_at > ?)
+              and (? is null or claim_generation = ?)
+              and (? is null or claim_token = ?)
             """,
-            (reason[:800], retry_after, retry_after, now, job_id, worker_id, now),
+            (
+                reason[:800],
+                retry_after,
+                retry_after,
+                now,
+                job_id,
+                worker_id,
+                now,
+                claim_generation,
+                claim_generation,
+                claim_token,
+                claim_token,
+            ),
         ).rowcount
         self.conn.commit()
         return JobQueueResult(job_id=job_id, status="retry", applied=bool(updated))
 
-    def wait(self, job_id: str, worker_id: str, dependency_reason: str, *, now: str | None = None, commit: bool = True) -> JobQueueResult:
-        return self._finish(job_id, "waiting", worker_id=worker_id, blocked_reason=dependency_reason, now=now, commit=commit)
+    def wait(self, job_id: str, worker_id: str, dependency_reason: str, *, claim_generation: int | None = None, claim_token: str | None = None, now: str | None = None, commit: bool = True) -> JobQueueResult:
+        return self._finish(job_id, "waiting", worker_id=worker_id, blocked_reason=dependency_reason, claim_generation=claim_generation, claim_token=claim_token, now=now, commit=commit)
 
-    def block(self, job_id: str, worker_id: str, reason: str, *, now: str | None = None, commit: bool = True) -> JobQueueResult:
-        return self._finish(job_id, "blocked", worker_id=worker_id, blocked_reason=reason, now=now, commit=commit)
+    def block(self, job_id: str, worker_id: str, reason: str, *, claim_generation: int | None = None, claim_token: str | None = None, now: str | None = None, commit: bool = True) -> JobQueueResult:
+        return self._finish(job_id, "blocked", worker_id=worker_id, blocked_reason=reason, claim_generation=claim_generation, claim_token=claim_token, now=now, commit=commit)
 
-    def dead_letter(self, job_id: str, worker_id: str, reason: str, *, now: str | None = None, commit: bool = True) -> JobQueueResult:
-        return self._finish(job_id, "dead_letter", worker_id=worker_id, blocked_reason=reason, now=now, commit=commit)
+    def dead_letter(self, job_id: str, worker_id: str, reason: str, *, claim_generation: int | None = None, claim_token: str | None = None, now: str | None = None, commit: bool = True) -> JobQueueResult:
+        return self._finish(job_id, "dead_letter", worker_id=worker_id, blocked_reason=reason, claim_generation=claim_generation, claim_token=claim_token, now=now, commit=commit)
+
+    def fence_business_commit(
+        self,
+        job_id: str,
+        worker_id: str,
+        *,
+        claim_generation: int,
+        claim_token: str,
+        lease_seconds: int = 180,
+        now: str | None = None,
+    ) -> JobQueueResult:
+        now = now or db.now_iso()
+        updated = self.conn.execute(
+            """
+            update background_jobs
+            set updated_at = ?, lease_expires_at = ?
+            where id = ?
+              and lease_owner = ?
+              and claim_generation = ?
+              and claim_token = ?
+              and status = 'running'
+              and lease_expires_at is not null
+              and lease_expires_at > ?
+            """,
+            (
+                now,
+                _add_seconds(now, lease_seconds),
+                job_id,
+                worker_id,
+                int(claim_generation),
+                claim_token,
+                now,
+            ),
+        ).rowcount
+        return JobQueueResult(job_id=job_id, status="running", applied=bool(updated))
 
     def recover(self, now: str) -> dict[str, int]:
         expired = self.conn.execute(
@@ -331,6 +455,8 @@ class JobQueue:
         to_status: str,
         *,
         started: bool = False,
+        claim_generation: int | None = None,
+        claim_token: str | None = None,
         now: str | None = None,
     ) -> JobQueueResult:
         now = now or db.now_iso()
@@ -338,9 +464,9 @@ class JobQueue:
         run_count_clause = ", run_count = run_count + 1" if started else ""
         params: tuple[Any, ...]
         if started:
-            params = (to_status, now, now, job_id, worker_id, from_status, now)
+            params = (to_status, now, now, job_id, worker_id, from_status, now, claim_generation, claim_generation, claim_token, claim_token)
         else:
-            params = (to_status, now, job_id, worker_id, from_status, now)
+            params = (to_status, now, job_id, worker_id, from_status, now, claim_generation, claim_generation, claim_token, claim_token)
         updated = self.conn.execute(
             f"""
             update background_jobs
@@ -352,6 +478,8 @@ class JobQueue:
               and lease_owner = ?
               and status = ?
               and (lease_expires_at is null or lease_expires_at > ?)
+              and (? is null or claim_generation = ?)
+              and (? is null or claim_token = ?)
             """,
             params,
         ).rowcount
@@ -366,6 +494,8 @@ class JobQueue:
         worker_id: str,
         result_refs: dict[str, Any] | None = None,
         blocked_reason: str = "",
+        claim_generation: int | None = None,
+        claim_token: str | None = None,
         now: str | None = None,
         commit: bool = True,
     ) -> JobQueueResult:
@@ -383,6 +513,8 @@ class JobQueue:
               and lease_owner = ?
               and status in ('claimed','running')
               and (lease_expires_at is null or lease_expires_at > ?)
+              and (? is null or claim_generation = ?)
+              and (? is null or claim_token = ?)
             """,
             (
                 status,
@@ -396,6 +528,10 @@ class JobQueue:
                 job_id,
                 worker_id,
                 now,
+                claim_generation,
+                claim_generation,
+                claim_token,
+                claim_token,
             ),
         ).rowcount
         if commit:

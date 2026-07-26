@@ -1,0 +1,19 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+  "content_envelope_sha256": "6e084c7aaee60d06b2add4c3dcad51c5945f4bbd69241cdcbbd77219d5ca318f",
+  "family_id": "number_line_position_distance",
+  "item_id": "CAND-10af2bc03bb1",
+  "node_id": "M-G7-NUMBER-LINE",
+  "schema_version": "2026-07-23.codex-admin.stage-candidate-receipt.v1",
+  "stage_receipt_id": "STAGE-dfbd4988f824",
+  "stage_receipt_json_path": "data/admin/staging/STAGE-dfbd4988f824.json",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_bank_sha256": "777fb6cee827fa93a6e38241497bc16b68053858c6362adeac7d687344be0b66",
+  "staged_item_count": 1,
+  "status": "STAGED_WRITABLE",
+  "structure_fingerprint": "CANON-9550f4a1cc055822",
+  "subject": "math",
+  "write_applied": true
+}

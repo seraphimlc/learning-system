@@ -1,0 +1,110 @@
+{
+  "content_attempts_consumed": 1,
+  "crash_recovery_count": 0,
+  "created_at": "2026-07-25T08:40:58.333688+00:00",
+  "execution_contract_sha256": "4d1bf3d7e227e5aa75731af6c3e89efd28406e3cc60802c8562de83f67bce67f",
+  "history": [
+    {
+      "at": "2026-07-25T08:40:58.336336+00:00",
+      "content_attempt": 1,
+      "event": "content_attempt_started",
+      "lease_id": "ATTEMPT-05f7cb88faba0d12f1f1:1"
+    },
+    {
+      "at": "2026-07-25T08:42:27.812775+00:00",
+      "consumed": true,
+      "content_attempt": 1,
+      "event": "content_attempt_completed",
+      "lease_id": "ATTEMPT-05f7cb88faba0d12f1f1:1",
+      "outcome": "CANDIDATE_READY_FOR_EXPERT_REVIEW"
+    },
+    {
+      "at": "2026-07-25T08:42:27.814395+00:00",
+      "event": "pending_review_checkpoint_saved",
+      "item_id": "CAND-331b880cdc6f"
+    },
+    {
+      "at": "2026-07-25T08:43:03.638088+00:00",
+      "event": "pending_stage_checkpoint_saved",
+      "item_id": "CAND-331b880cdc6f"
+    },
+    {
+      "at": "2026-07-25T08:43:03.639148+00:00",
+      "event": "pending_review_checkpoint_cleared",
+      "item_id": "CAND-331b880cdc6f",
+      "outcome": "ready_for_stage"
+    },
+    {
+      "at": "2026-07-25T08:52:09.842586+00:00",
+      "event": "pending_stage_checkpoint_saved",
+      "item_id": "CAND-331b880cdc6f"
+    },
+    {
+      "at": "2026-07-25T08:52:09.849699+00:00",
+      "event": "pending_stage_checkpoint_cleared",
+      "item_id": "CAND-331b880cdc6f",
+      "outcome": "WORKFLOW_STAGED"
+    }
+  ],
+  "locator_id": "e8484f50e77db3370c00",
+  "max_content_attempts": 3,
+  "pending_content_attempt": null,
+  "pending_review_checkpoint": null,
+  "pending_stage_checkpoint": null,
+  "provider_transport_attempt_count": 4,
+  "provider_transport_events": [
+    {
+      "content_attempt": 1,
+      "event_id": "0c4ac076e8b56e3886a634f0a35dd9111db8248f9671859d573cc1353f50f119",
+      "lease_id": "ATTEMPT-05f7cb88faba0d12f1f1:1",
+      "ordinal": 0,
+      "outcome": "retryable_failure",
+      "recorded_at": "2026-07-25T08:42:27.811879+00:00",
+      "request_digest_sha256": "17587b5fd3e50c2fe928aaf46453db1f8e15c4e9660765b340ad05f0b8589ed9",
+      "stage": "generate_candidate",
+      "status_code": null
+    },
+    {
+      "content_attempt": 1,
+      "event_id": "8f65ac9485a5458e5d35f14bc46796d07632f6092be88d6b966cb3fc22a5ea68",
+      "lease_id": "ATTEMPT-05f7cb88faba0d12f1f1:1",
+      "ordinal": 1,
+      "outcome": "response_received",
+      "recorded_at": "2026-07-25T08:42:27.811892+00:00",
+      "request_digest_sha256": "17587b5fd3e50c2fe928aaf46453db1f8e15c4e9660765b340ad05f0b8589ed9",
+      "stage": "generate_candidate",
+      "status_code": null
+    },
+    {
+      "content_attempt": 1,
+      "event_id": "034be37117c861ffbdc997bcea278cb706e31af338f36c14ed67efabe0bff98c",
+      "lease_id": "ATTEMPT-05f7cb88faba0d12f1f1:1",
+      "ordinal": 0,
+      "outcome": "response_received",
+      "recorded_at": "2026-07-25T08:42:45.302592+00:00",
+      "request_digest_sha256": "1fb87aca54662fa1582e08406a660d80f1d1ad86b923765f329fd20ae505d38e",
+      "stage": "model_expert_board_review",
+      "status_code": null
+    },
+    {
+      "content_attempt": 1,
+      "event_id": "f6453278b66e7d68d7d0899be2594c98e25a938236b3dfe67ca2038e5ca5aec1",
+      "lease_id": "ATTEMPT-05f7cb88faba0d12f1f1:1",
+      "ordinal": 0,
+      "outcome": "response_received",
+      "recorded_at": "2026-07-25T08:43:03.635041+00:00",
+      "request_digest_sha256": "b94fd5255d4152363e166071d8a458b45bd50ced8d1581a9dad1aef70414e79b",
+      "stage": "semantic_qa_review",
+      "status_code": null
+    }
+  ],
+  "provider_transport_retry_count": 1,
+  "question_requirement_id": "REQ-959cfd4c7a53",
+  "resume_rejection_path": "",
+  "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+  "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:01",
+  "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+  "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+  "state_id": "ATTEMPT-05f7cb88faba0d12f1f1",
+  "updated_at": "2026-07-25T08:52:09.850778+00:00"
+}

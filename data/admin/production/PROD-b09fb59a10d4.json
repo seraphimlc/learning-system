@@ -1,0 +1,48 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "attempt_accounting": {
+    "content_regeneration_consumed": true,
+    "provider_retry_required": false
+  },
+  "blocking_rejection_codes": [
+    "child_surface_writing_burden_understates_control"
+  ],
+  "family_id": "number_line_reference_frame",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "machine_check_blocks_loop",
+      "item_id": "CAND-60958bba54b6",
+      "message": "机器检查未通过，workflow 必须回到命题 Agent。",
+      "node_id": "M-G7-NUMBER-LINE",
+      "profile": "admin_production_gate",
+      "severity": "P1"
+    }
+  ],
+  "generation_attempt": 2,
+  "item_id": "CAND-60958bba54b6",
+  "max_attempts": 3,
+  "next_action": "regenerate_candidate",
+  "node_id": "M-G7-NUMBER-LINE",
+  "production_json_path": "data/admin/production/PROD-b09fb59a10d4.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-b09fb59a10d4.md",
+  "production_markdown_sha256": "ec29d60940a7c8c8a5d365dbd1a6a42dfecd0435ee69505f8f54bab8a33cfe2c",
+  "production_report_id": "PROD-b09fb59a10d4",
+  "question_requirement_id": "REQ-2cf19db03f72",
+  "regeneration_input": {
+    "previous_expert_report_sha256": "",
+    "previous_machine_report_sha256": "19b75e6a0b279fb897890511c44de3b20af11e956e5e7d4d472842688f17a8c8",
+    "previous_rejection_codes": [
+      "child_surface_writing_burden_understates_control"
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.production-loop-decision.v1",
+  "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03",
+  "staging_allowed": false,
+  "status": "LOOP_REGENERATE",
+  "subject": "math",
+  "write_applied": true
+}

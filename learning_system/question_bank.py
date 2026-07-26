@@ -10,7 +10,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-from . import child_prompt
+from . import child_prompt, question_usage
 
 
 CANONICAL_ERROR_TAGS = {
@@ -40,15 +40,15 @@ BASE_RUBRIC = [
     },
 ]
 
-QUESTION_BANK_VERSION = "2026-07-08.bank.v11"
+QUESTION_BANK_VERSION = "2026-07-22.bank.v17.expanded-1000"
 QUESTION_BANK_V12_VERSION = "2026-07-12.bank.v12"
 QUESTION_BANK_V12_SCHEMA_VERSION = "2026-07-12.math-question-bank.v12.asset.v1"
 EVOLVED_ITEM_VERSION = "2026-07-07.evolved.v5"
-QUESTION_PRODUCTION_CONTRACT_VERSION = "2026-07-08.question-production.v7"
+QUESTION_PRODUCTION_CONTRACT_VERSION = "2026-07-22.question-production.v17"
 QUESTION_COORDINATOR_AGENT_KEY = "question_agent"
 QUESTION_DESIGNER_AGENT_KEY = "question_designer_agent"
 QUESTION_REVIEWER_AGENT_KEY = "question_reviewer_agent"
-QUESTION_ID_PREFIX = "QB11"
+QUESTION_ID_PREFIX = "QB17"
 INCOMING_GRADE_7_AGE_FLOOR = "incoming_grade_7"
 QUESTIONS_PER_GRAPH_NODE = 20
 V12_FULL_BANK_NODE_COUNT = 56
@@ -4498,7 +4498,12 @@ def _candidate_metadata_row(item: dict[str, Any], row, graph_version: str, quest
     quality = item.get("quality") if isinstance(item.get("quality"), dict) else {}
     slot_role = _candidate_slot_role(item)
     evidence_role = _candidate_evidence_role(item, slot_role)
-    controlled_stretch = bool(item.get("controlled_stretch") or source.get("controlled_stretch"))
+    controlled_stretch = bool(
+        item.get("controlled_stretch")
+        or source.get("controlled_stretch")
+        or quality.get("controlled_extension_only")
+        or source.get("usage_scope") == "controlled_extension_only"
+    )
     age_floor = str(item.get("age_floor") or quality.get("age_floor") or "incoming_grade_7")
     dignity_profile = {
         "age_floor": age_floor,
@@ -4550,9 +4555,15 @@ TRANSFER_SLOT_ROLES = {
     "summary_transfer_check",
 }
 STRETCH_SLOT_ROLES = {"stretch_readiness_check", "controlled_stretch"}
+CONCEPT_BOUNDARY_SLOT_ROLES = {
+    "concept_boundary",
+    "misconception_boundary",
+    "essence_model",
+}
 INITIAL_HIGH_DISCRIMINATION_ROLES = {
     "necessary_condition",
     "misconception_boundary",
+    "concept_boundary",
     "multi_representation",
     "representation_translation",
     "near_transfer",
@@ -4568,6 +4579,11 @@ TEACHING_CONTEXT_SLOT_ROLES = {
     "representation_translation",
     "multi_representation",
     "concept_boundary",
+    "misconception_boundary",
+    "model_selection",
+    "necessary_condition",
+    "calculation_symbol_precision",
+    "inverse_check",
     "legacy_mainline",
 }
 REPAIR_SLOT_ROLES = {
@@ -4614,6 +4630,12 @@ def _legacy_candidate_slot_role(item: dict[str, Any]) -> str:
         "standard_example": "standard_example",
         "same_structure_confirmation": "same_structure_confirmation",
         "same_structure_retest": "same_structure_confirmation",
+        "check_strategy": "inverse_check",
+        "communication": "standard_example",
+        "essence_check": "essence_model",
+        "explanation_only": "essence_model",
+        "misconception_probe": "misconception_boundary",
+        "boundary_case": "concept_boundary",
         "variant": "near_transfer",
         "transfer_retest": "near_transfer",
         "near_transfer": "near_transfer",
@@ -4624,9 +4646,14 @@ def _legacy_candidate_slot_role(item: dict[str, Any]) -> str:
         "reverse_reasoning": "alternative_method",
         "alternative_method": "alternative_method",
         "error_spotting": "wrong_solution_repair",
+        "self_correction": "wrong_solution_repair",
         "wrong_solution_repair": "wrong_solution_repair",
         "missing_condition": "necessary_condition",
         "necessary_condition": "necessary_condition",
+        "symbol_unit_audit": "calculation_symbol_precision",
+        "estimation_modeling": "model_selection",
+        "two_method_compare": "alternative_method",
+        "prerequisite_probe": "prerequisite_probe",
         "stretch_transfer": "stretch_readiness_check",
         "controlled_stretch": "controlled_stretch",
     }
@@ -4657,6 +4684,8 @@ def _candidate_evidence_role(item: dict[str, Any], slot_role: str) -> str:
         return "transfer"
     if slot_role in REPAIR_SLOT_ROLES:
         return "repair"
+    if slot_role in CONCEPT_BOUNDARY_SLOT_ROLES:
+        return "concept_boundary"
     if slot_role == "legacy_mainline":
         return "direct"
     return "direct"
@@ -4666,6 +4695,10 @@ def _candidate_is_stretch(candidate: dict[str, Any]) -> bool:
     role = str(candidate.get("slot_role") or "")
     evidence_role = str(candidate.get("evidence_role") or "")
     return bool(candidate.get("controlled_stretch")) or role in STRETCH_SLOT_ROLES or "stretch" in evidence_role
+
+
+def _candidate_is_controlled_extension(candidate: dict[str, Any]) -> bool:
+    return bool(candidate.get("controlled_stretch"))
 
 
 def _candidate_allowed_for_intent(
@@ -4680,23 +4713,35 @@ def _candidate_allowed_for_intent(
     role = str(candidate.get("slot_role") or "")
     legacy = role == "legacy_mainline"
     if _candidate_is_stretch(candidate):
-        return intent == "stable_ready" and str(learner_status or "") == "A" and bool(prerequisite_ready)
+        stable_extension_ready = (
+            intent == "stable_ready"
+            and str(learner_status or "") == "A"
+            and bool(prerequisite_ready)
+        )
+        if _candidate_is_controlled_extension(candidate):
+            return stable_extension_ready
+        return stable_extension_ready or intent in {"correct_narrow", "near_transfer_retest"}
     if legacy:
         return True
     if intent == "initial_review":
         return role not in INITIAL_EXCLUDED_ROLES
     if intent == "new_knowledge_teaching":
-        return role in TEACHING_CONTEXT_SLOT_ROLES and role not in REPAIR_SLOT_ROLES
+        return role in TEACHING_CONTEXT_SLOT_ROLES and role not in {"wrong_solution_repair", "prerequisite_probe"}
     if intent in {"wrong_blocking", "prerequisite_probe"}:
-        return role in REPAIR_SLOT_ROLES or role == "concept_boundary"
+        return role in REPAIR_SLOT_ROLES or role in CONCEPT_BOUNDARY_SLOT_ROLES
     if intent in {"partial_unstable", "same_structure_retest"}:
         if str(next_evidence_goal or "") == "near_transfer_retest":
-            return role in SAME_STRUCTURE_SLOT_ROLES | TRANSFER_SLOT_ROLES
-        return role in SAME_STRUCTURE_SLOT_ROLES
+            return role in SAME_STRUCTURE_SLOT_ROLES | TRANSFER_SLOT_ROLES | CONCEPT_BOUNDARY_SLOT_ROLES
+        return role in SAME_STRUCTURE_SLOT_ROLES | CONCEPT_BOUNDARY_SLOT_ROLES
     if intent in {"correct_narrow", "near_transfer_retest"}:
-        return role in TRANSFER_SLOT_ROLES or role in {"model_selection", "inverse_check"} or role in SAME_STRUCTURE_SLOT_ROLES
+        return (
+            role in TRANSFER_SLOT_ROLES
+            or role in {"model_selection", "inverse_check"}
+            or role in SAME_STRUCTURE_SLOT_ROLES
+            or role in CONCEPT_BOUNDARY_SLOT_ROLES
+        )
     if intent == "stable_ready":
-        return role in TRANSFER_SLOT_ROLES | SAME_STRUCTURE_SLOT_ROLES | INITIAL_HIGH_DISCRIMINATION_ROLES
+        return role in TRANSFER_SLOT_ROLES | SAME_STRUCTURE_SLOT_ROLES | INITIAL_HIGH_DISCRIMINATION_ROLES | CONCEPT_BOUNDARY_SLOT_ROLES
     return True
 
 
@@ -4734,6 +4779,11 @@ def _candidate_intent_rank(
             "core_representation",
             "representation_translation",
             "multi_representation",
+            "misconception_boundary",
+            "model_selection",
+            "necessary_condition",
+            "calculation_symbol_precision",
+            "inverse_check",
             "concept_boundary",
             "legacy_mainline",
         ]
@@ -4743,7 +4793,9 @@ def _candidate_intent_rank(
             "necessary_condition",
             "wrong_solution_repair",
             "calculation_symbol_precision",
+            "misconception_boundary",
             "concept_boundary",
+            "essence_model",
             "legacy_mainline",
         ]
     elif intent in {"partial_unstable", "same_structure_retest"}:
@@ -4755,6 +4807,9 @@ def _candidate_intent_rank(
             "inverse_check",
             "calculation_symbol_precision",
             "expression_notation",
+            "misconception_boundary",
+            "concept_boundary",
+            "essence_model",
             "legacy_mainline",
         ]
     elif intent in {"correct_narrow", "near_transfer_retest"} or str(next_evidence_goal or "") == "near_transfer_retest":
@@ -4771,6 +4826,9 @@ def _candidate_intent_rank(
             "standard_example",
             "calculation_symbol_precision",
             "expression_notation",
+            "misconception_boundary",
+            "concept_boundary",
+            "essence_model",
             "legacy_mainline",
         ]
     elif intent == "stable_ready" and str(learner_status or "") == "A" and bool(prerequisite_ready):
@@ -4821,6 +4879,15 @@ CHILD_FACING_META_PATTERNS = (
     "低年级",
     "答题框架",
     "先写一句",
+    "本题沿用的规则",
+    "变式题：",
+    "原题是：",
+    "现在换成变式",
+    "请先指出要使用的结构",
+    "请判断原方法哪一步不变",
+    "原方法哪一步不变",
+    "错因或模型",
+    "最容易错的一步",
 )
 
 CHILD_FACING_META_REGEXES = (
@@ -5212,6 +5279,32 @@ def _looks_like_mechanical_drill(item: dict[str, Any]) -> bool:
     if "no_mechanical_drill" in quality:
         return quality.get("no_mechanical_drill") is not True
     return True
+
+
+def _is_low_value_integer_remainder_prerequisite(item: dict[str, Any]) -> bool:
+    node_id = str(item.get("node_id") or "")
+    if node_id != "M-PRE-INTEGER-OPS":
+        return False
+    text_parts = [
+        str(item.get("prompt") or ""),
+        str(item.get("expected_answer") or ""),
+        " ".join(str(step) for step in (item.get("solution_steps") or [])),
+    ]
+    raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
+    if raw:
+        text_parts.extend(
+            [
+                str(raw.get("prompt") or ""),
+                str(raw.get("expected_answer") or ""),
+                " ".join(str(step) for step in (raw.get("solution_steps") or [])),
+            ]
+        )
+    compact = "".join(text_parts)
+    remainder_terms = ("有余数", "余数小于除数", "余数必须小于除数", "余数<除数")
+    basic_remainder_surface = any(term in compact for term in remainder_terms)
+    structural_upgrade_terms = ("平方差", "(a+1)(a-1)", "2026×2024", "2025²")
+    has_upgrade_structure = any(term in compact for term in structural_upgrade_terms)
+    return basic_remainder_surface and not has_upgrade_structure
 
 
 def _has_unresolved_child_context_reference(prompt: str) -> bool:
@@ -5672,6 +5765,8 @@ def review_item_quality(item: dict[str, Any]) -> dict[str, Any]:
         rejection_reasons.append("generic_or_rubric_only_expected_answer")
     if _looks_like_mechanical_drill(item):
         rejection_reasons.append("mechanical_arithmetic_without_reasoning")
+    if _is_low_value_integer_remainder_prerequisite(item):
+        rejection_reasons.append("incoming_grade_7_low_value_integer_remainder_prerequisite")
     rejection_reasons.extend(_semantic_node_mismatch_reasons(item))
     rejection_reasons.extend(_identity_contract_rejection_reasons(item))
 
@@ -5864,6 +5959,8 @@ def _v12_active_quality_rejection_reasons(item: dict[str, Any]) -> list[str]:
     for flag in REVIEWER_EVIDENCE_FLAGS:
         if evidence.get(flag) is not True:
             reasons.append(f"v12_reviewer_evidence_failed:{flag}")
+    if _is_low_value_integer_remainder_prerequisite(item):
+        reasons.append("v12_incoming_grade_7_low_value_integer_remainder_prerequisite")
     reasons.extend(
         f"v12_{detail}"
         for detail in v12_semantic_evidence_errors(
@@ -6033,10 +6130,10 @@ def _generated_diagnostic_example_for(
             "steps": ["比较两种方法的适用条件。", "排除风险更高的方法。", "用更稳的方法解答。"],
         },
         {
-            "prompt": f"本题沿用的规则是：{context['rule']} 变式题：{context['variant_problem']} 请先指出要使用的结构，再解答。",
-            "answer": f"结构仍使用：{context['rule']} 改变的是具体条件或数字。变式结论：{context['variant_answer']}",
-            "format": "规则识别 + 变式解答 + 检验",
-            "steps": ["找出不变的数学结构。", "指出改变的条件。", "重新求解并检验。"],
+            "prompt": f"请先想清楚规则：{context['rule']} 题目：{context['variant_problem']} 写出判断和理由。",
+            "answer": f"使用规则：{context['rule']} 结论：{context['variant_answer']}",
+            "format": "规则判断 + 解答理由",
+            "steps": ["确认要用的数学规则。", "根据题目条件求解。", "写出判断理由。"],
         },
         {
             "prompt": f"把题意转成 {context['representation']}：{context['problem']} 请写出转换后的关系，再解答。",
@@ -6069,7 +6166,7 @@ def _generated_diagnostic_example_for(
             "steps": ["判断说法是否过度泛化。", "用题中数据说明原因。", "给出修正后的解答。"],
         },
         {
-            "prompt": f"{context['problem']} 请给出两种解法或两种表示，并说明哪一步最容易错。",
+            "prompt": f"{context['problem']} 请给出两种解法或两种表示，并比较它们各自适合什么情况。",
             "answer": f"一种做法：{context['method_a']}。另一种表示：{context['representation']}。结论：{context['answer']} 易错点：{context['common_mistake']}",
             "format": "两法/两表示 + 答案 + 风险点",
             "steps": ["给出第一种解法或表示。", "给出第二种解法或表示。", "指出共同结论和易错点。"],
@@ -6111,7 +6208,7 @@ def _generated_diagnostic_example_for(
             "steps": ["先解答题目。", "选择一种检验方法。", "写出检验过程和结果。"],
         },
         {
-            "prompt": f"原题是：{context['problem']} 现在换成变式：{context['variant_problem']} 请判断原方法哪一步不变，重新求结果。",
+            "prompt": f"先比较条件变化，再完成：{context['variant_problem']} 请写出你沿用的规则，并重新求结果。",
             "answer": f"不变的是：{context['rule']} 变式结论：{context['variant_answer']} 原题可作为对照：{context['answer']}",
             "format": "条件变化 + 不变量 + 新结果",
             "steps": ["找出改变的条件。", "说明不变的规则或模型。", "重新求出结果。"],
@@ -7855,9 +7952,9 @@ def _concrete_question_context(node: dict[str, Any], question_type: str, offset:
             return decimal_choices[0]
     if family == "integer_ops":
         integer_choices = contexts["integer_ops"]
-        if "有余数" in question_type or "多位数" in question_type:
-            return integer_choices[0]
         if "简便" in question_type:
+            return integer_choices[1]
+        if "有余数" in question_type or "多位数" in question_type:
             return integer_choices[1]
     if family == "order_ops":
         order_choices = contexts["order_ops"]
@@ -8004,11 +8101,11 @@ def _example_for(
 
 def _level_prompt(prompt: str, level: str, offset: int) -> str:
     if level == "L1":
-        return "先判断考点，再作答：" + prompt
+        return "先看清题目要你判断什么，再作答：" + prompt
     if level == "L2":
-        return prompt + " 最后用检验、错因或模型说明关键一步为什么成立。"
+        return prompt + " 请补一句理由，说明关键判断为什么成立。"
     if level == "L3":
-        return prompt + " 做完后把最容易错的一步圈出来。"
+        return prompt + " 写出你最有把握的一条判断依据。"
     if level == "L4":
         return prompt + " 换一个相近条件，说明原来的哪条规则仍然不变。"
     return prompt
@@ -8440,6 +8537,7 @@ def build_practice_bank(graph: dict[str, Any], *, graph_version: str = "") -> li
                 "status": quality["review_status"],
                 "rejection_reasons": quality["rejection_reasons"],
             }
+            item["usage_policy"] = question_usage.policy_for_item(item)
             if quality["review_status"] != "approved":
                 raise ValueError(f"Question item {item.get('id')} rejected by focus-bound quality gate: {quality['rejection_reasons']}")
     validate_question_bank_collection(items)

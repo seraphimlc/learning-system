@@ -1,0 +1,273 @@
+{
+  "schema_version": "2026-07-23.model-semantic-regression.answer-cases.v1",
+  "case_count": 20,
+  "cases": [
+    {
+      "case_id": "ASR-001-correct-with-reasoning",
+      "category": "correct_with_reasoning",
+      "node_id": "M-G7-NUMBER-LINE",
+      "question": "点 A 表示 -2.5，点 C 在 A 右边 3 个单位。求 C，并比较 A、C 的大小。",
+      "child_answer": "C=-2.5+3=0.5，所以 A<C。",
+      "criteria": [
+        {"criterion_key": "position_value", "description": "求出 C=0.5"},
+        {"criterion_key": "order_relation", "description": "判断 A<C"}
+      ],
+      "expected_statuses": {"position_value": "met", "order_relation": "met"},
+      "minimum_confidence": 0.75
+    },
+    {
+      "case_id": "ASR-002-answer-only",
+      "category": "answer_only",
+      "node_id": "M-G7-EQ-SOLVE",
+      "question": "解方程 3x-5=16，并写出一处关键变形。",
+      "child_answer": "x=7",
+      "criteria": [
+        {"criterion_key": "final_solution", "description": "得到 x=7"},
+        {"criterion_key": "transformation_evidence", "description": "给出等式变形证据"}
+      ],
+      "expected_statuses": {"final_solution": "met", "transformation_evidence": "unclear"},
+      "minimum_confidence": 0.75
+    },
+    {
+      "case_id": "ASR-003-right-answer-wrong-reason",
+      "category": "right_answer_wrong_reason",
+      "node_id": "M-G7-RATIONAL-MUL-DIV",
+      "question": "计算 (-3)×(-4)，并说明符号。",
+      "child_answer": "结果是 12，因为负数乘负数还是负数，但我把负号去掉了。",
+      "criteria": [
+        {"criterion_key": "final_result", "description": "结果为 12"},
+        {"criterion_key": "sign_reason", "description": "正确说明负负得正"}
+      ],
+      "expected_statuses": {"final_result": "met", "sign_reason": "contradicted"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-004-alternative-valid-method",
+      "category": "alternative_valid_method",
+      "node_id": "M-PRE-DECIMAL-OPS",
+      "question": "计算 2.5×3.2×1.25，找容易凑整的方法。",
+      "child_answer": "先算 3.2×1.25=4，再算 2.5×4=10。",
+      "criteria": [
+        {"criterion_key": "final_result", "description": "结果为 10"},
+        {"criterion_key": "structure_choice", "description": "使用合理凑整顺序"}
+      ],
+      "expected_statuses": {"final_result": "met", "structure_choice": "met"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-005-symbol-error",
+      "category": "symbol_error",
+      "node_id": "M-G7-RATIONAL-ADD-SUB",
+      "question": "计算 5-(-3)，并写成加法。",
+      "child_answer": "5-(-3)=5+(-3)=2",
+      "criteria": [
+        {"criterion_key": "subtraction_conversion", "description": "减去负数转化为加上正数"},
+        {"criterion_key": "final_result", "description": "结果为 8"}
+      ],
+      "expected_statuses": {"subtraction_conversion": "contradicted", "final_result": "contradicted"},
+      "forbidden_child_feedback_substrings": ["被减数的相反数"],
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-006-unit-error",
+      "category": "unit_error",
+      "node_id": "M-PRE-UNIT-CONVERSION",
+      "question": "2.4 米是多少厘米？",
+      "child_answer": "2.4×100=240 米。",
+      "criteria": [
+        {"criterion_key": "numeric_conversion", "description": "数值换算为 240"},
+        {"criterion_key": "target_unit", "description": "结果单位为厘米"}
+      ],
+      "expected_statuses": {"numeric_conversion": "met", "target_unit": "contradicted"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-007-stuck",
+      "category": "stuck",
+      "node_id": "M-G7-EQ-WORD",
+      "question": "根据题意列一元一次方程。",
+      "child_answer": "我不会",
+      "criteria": [
+        {"criterion_key": "unknown_definition", "description": "定义未知数"},
+        {"criterion_key": "equation_relation", "description": "列出等量关系"}
+      ],
+      "expected_statuses": {"unknown_definition": "unclear", "equation_relation": "unclear"},
+      "minimum_confidence": 0.7
+    },
+    {
+      "case_id": "ASR-008-blank",
+      "category": "blank",
+      "node_id": "M-G7-ABSOLUTE",
+      "question": "求 |-7| 并说明含义。",
+      "child_answer": "",
+      "criteria": [
+        {"criterion_key": "absolute_value", "description": "得到 7"},
+        {"criterion_key": "distance_meaning", "description": "说明到原点距离"}
+      ],
+      "expected_statuses": {"absolute_value": "unclear", "distance_meaning": "unclear"},
+      "minimum_confidence": 0.7
+    },
+    {
+      "case_id": "ASR-009-correct-result-missing-nonessential-rule",
+      "category": "correct_result_missing_nonessential_rule",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "question": "判断 754÷6=125……4 是否正确，并说明依据。",
+      "child_answer": "6×125+4=754，所以正确。",
+      "criteria": [
+        {"criterion_key": "division_identity", "description": "验证被除数=除数×商+余数"},
+        {"criterion_key": "final_judgment", "description": "判断算式正确"},
+        {"criterion_key": "remainder_bound", "description": "检查余数小于除数；本题为非关键补充"}
+      ],
+      "expected_statuses": {"division_identity": "met", "final_judgment": "met", "remainder_bound": "unclear"},
+      "acceptable_statuses": {"remainder_bound": ["not_met", "unclear"]},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-010-readable-photo",
+      "category": "readable_photo",
+      "node_id": "M-G7-EQ-DENOM",
+      "question": "解方程 x/3+2=5。",
+      "child_answer": "",
+      "photo_ocr": {"status": "readable", "confidence": 0.96, "text": "x/3=3，x=9，检验 9/3+2=5"},
+      "criteria": [
+        {"criterion_key": "equation_solution", "description": "得到 x=9"},
+        {"criterion_key": "verification", "description": "代回成立"}
+      ],
+      "expected_statuses": {"equation_solution": "met", "verification": "met"},
+      "minimum_confidence": 0.75
+    },
+    {
+      "case_id": "ASR-011-unclear-photo",
+      "category": "unclear_photo",
+      "node_id": "M-G7-EQ-DENOM",
+      "question": "解方程 x/3+2=5。",
+      "child_answer": "见照片",
+      "photo_ocr": {"status": "unclear", "confidence": 0.28, "text": "x ? 3 ... 9"},
+      "criteria": [
+        {"criterion_key": "equation_solution", "description": "得到 x=9"},
+        {"criterion_key": "transformation", "description": "变形过程正确"}
+      ],
+      "expected_statuses": {"equation_solution": "unclear", "transformation": "unclear"},
+      "minimum_confidence": 0.65
+    },
+    {
+      "case_id": "ASR-012-photo-text-conflict",
+      "category": "photo_text_conflict",
+      "node_id": "M-G7-COMPARE",
+      "question": "比较 -2 和 -5 的大小。",
+      "child_answer": "-2>-5",
+      "photo_ocr": {"status": "readable", "confidence": 0.94, "text": "-2<-5"},
+      "criteria": [
+        {"criterion_key": "comparison", "description": "判断 -2>-5"},
+        {"criterion_key": "evidence_consistency", "description": "文字与照片证据一致"}
+      ],
+      "expected_statuses": {"comparison": "unclear", "evidence_consistency": "contradicted"},
+      "minimum_confidence": 0.7
+    },
+    {
+      "case_id": "ASR-013-ocr-hallucination",
+      "category": "ocr_hallucination",
+      "node_id": "M-G7-POWER",
+      "question": "计算 (-2)^3。",
+      "child_answer": "照片里我写的是 -8",
+      "photo_ocr": {"status": "low_confidence", "confidence": 0.33, "text": "(-2)^3=8"},
+      "criteria": [
+        {"criterion_key": "power_result", "description": "结果为 -8"},
+        {"criterion_key": "source_reliability", "description": "证据足以安全判断"}
+      ],
+      "expected_statuses": {"power_result": "unclear", "source_reliability": "unclear"},
+      "minimum_confidence": 0.65
+    },
+    {
+      "case_id": "ASR-014-correct-model-calculation-error",
+      "category": "correct_model_calculation_error",
+      "node_id": "M-BRIDGE-MOTION-BASIC",
+      "question": "每小时 60 千米，2.5 小时行多少千米？",
+      "child_answer": "路程=速度×时间，所以 60×2.5=120 千米。",
+      "criteria": [
+        {"criterion_key": "motion_model", "description": "使用路程=速度×时间"},
+        {"criterion_key": "calculation", "description": "计算得 150 千米"}
+      ],
+      "expected_statuses": {"motion_model": "met", "calculation": "contradicted"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-015-informal-equivalent-expression",
+      "category": "informal_equivalent_expression",
+      "node_id": "M-G7-NUMBER-LINE",
+      "question": "按从小到大排列 A、B、C。",
+      "child_answer": "a,c,b",
+      "criteria": [
+        {"criterion_key": "ordering", "description": "表达 A<C<B"},
+        {"criterion_key": "notation_intent", "description": "大小写差异不改变数学意图"}
+      ],
+      "expected_statuses": {"ordering": "met", "notation_intent": "met"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-016-wrong-result-correct-method",
+      "category": "wrong_result_correct_method",
+      "node_id": "M-G7-EXPR-VALUE",
+      "question": "当 a=-2 时，求 3a+5。",
+      "child_answer": "3×(-2)+5=-6+5=1",
+      "criteria": [
+        {"criterion_key": "substitution", "description": "正确代入 a=-2"},
+        {"criterion_key": "arithmetic", "description": "得到 -1"}
+      ],
+      "expected_statuses": {"substitution": "met", "arithmetic": "contradicted"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-017-valid-equivalent-fraction",
+      "category": "equivalent_notation",
+      "node_id": "M-PRE-FRACTION-MEANING",
+      "question": "写出与 3/4 相等的一个分数。",
+      "child_answer": "9/12",
+      "criteria": [
+        {"criterion_key": "equivalent_fraction", "description": "给出与 3/4 相等的分数"},
+        {"criterion_key": "valid_form", "description": "分子分母同时扩大相同倍数"}
+      ],
+      "expected_statuses": {"equivalent_fraction": "met", "valid_form": "met"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-018-extra-irrelevant-work",
+      "category": "extra_irrelevant_work",
+      "node_id": "M-G7-ABSOLUTE",
+      "question": "求 |-6|。",
+      "child_answer": "|-6|=6。另外 -6 的相反数也是 6。",
+      "criteria": [
+        {"criterion_key": "absolute_value", "description": "得到 6"},
+        {"criterion_key": "no_core_contradiction", "description": "附加内容不与答案冲突"}
+      ],
+      "expected_statuses": {"absolute_value": "met", "no_core_contradiction": "met"},
+      "minimum_confidence": 0.8
+    },
+    {
+      "case_id": "ASR-019-explicit-wrong-conclusion",
+      "category": "explicit_wrong_conclusion",
+      "node_id": "M-G7-OPPOSITE",
+      "question": "-3 的相反数是多少？",
+      "child_answer": "是 -3，因为负数的相反数还是负数。",
+      "criteria": [
+        {"criterion_key": "opposite_value", "description": "相反数为 3"},
+        {"criterion_key": "opposite_meaning", "description": "两数和为 0"}
+      ],
+      "expected_statuses": {"opposite_value": "contradicted", "opposite_meaning": "contradicted"},
+      "minimum_confidence": 0.85
+    },
+    {
+      "case_id": "ASR-020-ambiguous-notation",
+      "category": "ambiguous_notation",
+      "node_id": "M-G7-PARENTHESIS",
+      "question": "化简 -(a-b)。",
+      "child_answer": "-a-b?",
+      "criteria": [
+        {"criterion_key": "sign_distribution", "description": "化简为 -a+b"},
+        {"criterion_key": "final_expression", "description": "给出明确表达式"}
+      ],
+      "expected_statuses": {"sign_distribution": "unclear", "final_expression": "unclear"},
+      "minimum_confidence": 0.7
+    }
+  ]
+}

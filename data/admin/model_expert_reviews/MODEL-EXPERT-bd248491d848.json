@@ -1,0 +1,134 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+  "confidence": 0.88,
+  "family_id": "number_line_position_distance",
+  "finding_counts": {},
+  "findings": [],
+  "item_id": "CAND-10af2bc03bb1",
+  "model_expert_review_json_path": "data/admin/model_expert_reviews/MODEL-EXPERT-bd248491d848.json",
+  "model_expert_review_markdown_path": "docs/system/admin_reports/model_expert_reviews/2026-07-25-MODEL-EXPERT-bd248491d848.md",
+  "model_expert_review_markdown_sha256": "d20b572e9e4c1f58ed114c985f1e24e6e4c9a5a27b46bcba2921f88d9c4ea220",
+  "model_expert_review_report_id": "MODEL-EXPERT-bd248491d848",
+  "next_actions": [
+    "qa_review"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "overall_status": "pass",
+  "profile_reviews": [
+    {
+      "blocking_item_ids": [],
+      "profile": "frontline_math_teacher",
+      "reasons": [
+        "题目语言自然、尊重，适合六升七学生进入七上数轴概念诊断。",
+        "任务不是低龄机械计算，而是要求判断他人说法、给出点B表示的数并解释数轴方向关系。",
+        "作答负担适中，两行回答即可，能帮助教师看出学生是否理解“向左变小”。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "bridge_diagnosis_teacher",
+      "reasons": [
+        "题目明确绑定 M-G7-NUMBER-LINE，围绕数轴上的起点、方向、距离和位置结果。",
+        "能诊断常见断点：把向左移动误认为变大、把距离与最终坐标混淆、未把负数看作数轴位置。",
+        "失败后可据答案区分应回退到正负数位置概念、重讲数轴方向，或进行同类小变式复测。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "stretch_competition_teacher",
+      "reasons": [
+        "本题标注为L2，不承担L4/L5竞赛化迁移目标，因此不要求复杂结构。",
+        "在L2范围内，使用错误说法反驳而非单纯读点，具有轻度诊断转化价值。",
+        "难度来源是表示转换和方向理解，不是扩大数字或增加无效计算。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "assessment_expert",
+      "reasons": [
+        "标准答案明确且自洽：不同意，点B为-5，并说明从-2向左3个单位到-5。",
+        "可接受替代表述覆盖式子、逐格数、方向语言，能公平认可正确意图。",
+        "评分点具体到本题，能区分只给答案、方向理解、距离过程和表达一致性。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "source_compliance_reviewer",
+      "reasons": [
+        "来源标注为AI原创并有内部需求槽位 lineage，未显示外部商业题干、解析、图片或版式复制痕迹。",
+        "题干为常见基础数轴情境，表达简短通用，未呈现可识别的受版权保护来源特征。",
+        "未包含儿童可见的Agent、Codex、图谱id、后台rubric等内部语言。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    }
+  ],
+  "prompt_meta": {
+    "contract_version": "2026-07-23.admin-question-expert-review.v1",
+    "minimum_confidence_to_apply": 0.86,
+    "prompt_template_path": "learning_system/prompts/admin_question_expert_review.v1.md",
+    "prompt_template_sha256": "2e183b55a128e65f2bde5cfc6d0385bcf5c0724e1ef04523548986a99e16f867",
+    "rendered_prompt_sha256": "ada6bfe07ed208c6c8e3a31ee53fee0de90c5074aa0a3bd162c52138b0a66569",
+    "response_schema_sha256": "765a6d1d6196eb1ac020f6d4a29f5b027043cd929e8aea8aaf432b7a57c8bd96",
+    "response_schema_version": "2026-07-23.admin-question-expert-review.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "question_bank_status": "candidate_only",
+  "question_bank_version": "v18",
+  "retryable": false,
+  "reviewed_item_count": 1,
+  "route": {
+    "agent_key": "admin_question_expert_review_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "model_elapsed_ms": 18347,
+    "model_wall_deadline_seconds": 45.0,
+    "provider": "gpt",
+    "raw_response_sha256": "0f095d72c0d993654e5c0cc907522ec248f3e11a64b0ee38f3f3348007f3a8f6",
+    "structured_json_endpoint": "responses",
+    "structured_json_mode": "json_schema",
+    "task": "admin_question_expert_review",
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 18.346,
+        "endpoint": "responses",
+        "error_class": "",
+        "error_message": "",
+        "outcome": "response_received",
+        "request_digest_sha256": "f0fde8ab1c052f982e89d05e8c65b684a3bd05eeb138129c0ea88c0aa7faab21",
+        "response_digest_sha256": "e69b6d3ea2d48cd04da1c0db673a6ee9d05850bfd042c8ab3772af1936c78637",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.model-expert-board-review.v1",
+  "source_file_sha256": "b3dc4db4bb3f0619a6d080bae09367faa6a30222481a4f70b1cfe4a4b0786954",
+  "source_path": "data/admin/candidates/CAND-10af2bc03bb1-e8d122f621ce.json",
+  "staging_allowed": false,
+  "status": "PASS",
+  "subject": "math",
+  "write_applied": true
+}

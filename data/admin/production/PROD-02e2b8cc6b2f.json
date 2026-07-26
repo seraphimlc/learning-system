@@ -1,0 +1,113 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "candidate": {},
+  "candidate_authority": "candidate_only",
+  "candidate_write_applied": false,
+  "design_brief_id": "EXPERT-IDEAS-fa437c75408f",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-fa437c75408f.json",
+  "family_id": "number_sense_range_benchmark",
+  "finding_counts": {},
+  "findings": [],
+  "generation_attempt": 1,
+  "generation_plan_path": "data/admin/production/PROD-22dd708eea20.json",
+  "machine_report": {},
+  "model_error": {
+    "endpoint": "responses",
+    "error_class": "ModelCallError",
+    "message": "wall-clock timeout after 45.00s for question_designer_agent:question_candidate",
+    "retry_after_seconds": null,
+    "status_code": null,
+    "structured_json_mode": "json_schema"
+  },
+  "next_actions": [
+    "retry_or_repair_model_route"
+  ],
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "previous_rejection_codes": [],
+  "production_json_path": "data/admin/production/PROD-02e2b8cc6b2f.json",
+  "production_json_sha256": "b8d62adac4f0b2c8500b40631a9b50654816f1c171f3ae7f9b87101acef7597e",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-02e2b8cc6b2f.md",
+  "production_markdown_sha256": "2b3933a651a3d218c0b71754988d1e2225aed5b426cf12cf6e2e471d12caf61c",
+  "production_report_id": "PROD-02e2b8cc6b2f",
+  "prompt_meta": {
+    "contract_version": "2026-07-24.question-candidate.compact.v1",
+    "prompt_template_path": "learning_system/prompts/question_candidate.v1.md",
+    "prompt_template_sha256": "4cffd2604c69e184452a7193090a21d4772bf40b80e7fd09b08afe1c6731218a",
+    "rendered_prompt_sha256": "99839121314c75db7d9bfa92621d381a0ed9d59de7e22820de175affa92784cb",
+    "response_schema_sha256": "3cf4e388568974cc7869c1aee6eb09f1405421b32dc876ead6b261bee3ea43c8",
+    "response_schema_version": "2026-07-23.question-candidate.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "question_requirement_id": "REQ-2fe0054b27d3",
+  "retryable": true,
+  "route": {
+    "agent_key": "question_designer_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "provider": "gpt",
+    "task": "question_candidate"
+  },
+  "schema_version": "2026-07-23.codex-admin.generated-question-candidate.v1",
+  "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:03",
+  "staging_allowed": false,
+  "status": "BLOCKED_MODEL_ERROR",
+  "subject": "math",
+  "transport_meta": {
+    "model_wall_deadline_monotonic": 38609.885743208,
+    "model_wall_deadline_seconds": 150.0,
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 45.11,
+        "endpoint": "responses",
+        "error_class": "ModelCallError",
+        "error_message": "wall-clock timeout after 45.00s for question_designer_agent:question_candidate",
+        "outcome": "retryable_failure",
+        "request_digest_sha256": "a07aa5698c4492751038b97b467496c4f5613509e7f271f1fd0d9ba245e54191",
+        "response_digest_sha256": "",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      },
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 45.109,
+        "endpoint": "responses",
+        "error_class": "ModelCallError",
+        "error_message": "wall-clock timeout after 45.00s for question_designer_agent:question_candidate",
+        "outcome": "retryable_failure",
+        "request_digest_sha256": "a07aa5698c4492751038b97b467496c4f5613509e7f271f1fd0d9ba245e54191",
+        "response_digest_sha256": "",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      },
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 45.113,
+        "endpoint": "responses",
+        "error_class": "ModelCallError",
+        "error_message": "wall-clock timeout after 45.00s for question_designer_agent:question_candidate",
+        "outcome": "retryable_failure",
+        "request_digest_sha256": "a07aa5698c4492751038b97b467496c4f5613509e7f271f1fd0d9ba245e54191",
+        "response_digest_sha256": "",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "write_applied": true
+}

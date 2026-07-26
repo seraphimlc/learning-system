@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
 from pathlib import Path
 
-from learning_system import db, question_visuals, server
+from learning_system import db, question_bank, question_visuals, server
 from learning_system.graph_runtime import GraphRuntimeService
 from learning_system.knowledge_map import KnowledgeMapError
 
@@ -368,25 +368,82 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
                 question_id = f"KV51-Q-{index:02d}"
                 review_record_id = f"KV51-QRR-{index:02d}"
                 contract_id = f"KV51-AC-{index:02d}"
+                node = dict(self.nodes[node_id])
+                node_name = str(node.get("name") or "这个知识点")
+                essence = str(
+                    node.get("teaching_contract", {}).get("one_sentence_essence")
+                    or node.get("essence_for_child")
+                    or f"{node_name} 的核心关系"
+                )
+                question_type = str(
+                    (node.get("question_generation", {}).get("seed_question_types") or ["诊断辨析"])[0]
+                )
                 candidate = {
                     "id": question_id,
                     "item_version": TEST_BANK_VERSION,
                     "source_type": "graph_generated",
                     "node_id": node_id,
-                    "kind": "standard_example",
-                    "question_type": "short_answer",
-                    "variant_level": "L2",
-                    "prompt": f"请说明 {self.nodes[node_id]['name']} 的一个关键关系。",
-                    "answer_format": "关键关系 + 简短说明",
-                    "expected_answer": "写出一个与题意一致的关键关系并说明。",
-                    "rubric": {"requires_process": True},
-                    "solution_steps": ["识别关系", "写出关系", "检查说明"],
+                    "kind": "wrong_solution_repair",
+                    "question_type": question_type,
+                    "variant_level": "L3",
+                    "prompt": (
+                        f"围绕「{node_name}」判断这段说法："
+                        f"“{essence}，所以遇到同类题只要写最后答案就能证明会了。”"
+                        "请指出这句话哪一部分可用、哪一部分不够，并用一个小例子或检验说明理由。"
+                    ),
+                    "answer_format": "可用部分 + 不够部分 + 例子或检验",
+                    "expected_answer": (
+                        f"可用部分：{essence}。不够部分：只写最后答案不能证明掌握，"
+                        "还要给出关键关系、必要过程或检验。例子可以展示规则如何使用，"
+                        "并说明为什么不是只靠答案。"
+                    ),
+                    "rubric": {
+                        "requires_process": True,
+                        "score_points": [
+                            {"key": "rule", "points": 4, "criterion": "能说出本节点核心规则或关系"},
+                            {"key": "gap", "points": 3, "criterion": "能指出只写答案不足以证明掌握"},
+                            {"key": "evidence", "points": 3, "criterion": "能给出例子、过程或检验作为证据"},
+                        ],
+                    },
+                    "solution_steps": [
+                        f"先确认本节点核心关系：{essence}",
+                        "再说明“只写最后答案”缺少过程证据或检验证据。",
+                        "最后给出一个小例子、过程片段或检验，证明规则真的能用。",
+                    ],
                     "target_error_tags": ["concept_confusion"],
                     "rollback_candidate_node_ids": [],
                     "rollback_candidate_relations": [],
-                    "estimated_minutes": 2,
+                    "estimated_minutes": 4,
                     "parent_observation": "",
-                    "source": {"type": "graph_generated", "fixture": "kv51-authority"},
+                    "source": {
+                        "type": "graph_generated",
+                        "fixture": "kv51-authority",
+                        "curated_manifest_id": question_bank.GRAPH_SEED_REVIEW_MANIFEST_ID,
+                    },
+                }
+                question_bank._attach_question_identity_contract(candidate, node, question_type)
+                question_bank.apply_question_lineage(
+                    candidate,
+                    graph_version=self.graph_lineage,
+                    question_bank_version=TEST_BANK_VERSION,
+                )
+                candidate["source"]["reviewer_evidence"] = (
+                    question_bank.curated_seed_reviewer_evidence(candidate)
+                )
+                quality = question_bank.review_item_quality(candidate)
+                self.assertEqual("approved", quality["review_status"], quality)
+                candidate["quality"] = quality
+                candidate["cognitive_level"] = quality["cognitive_level"]
+                candidate["item_purpose"] = quality["item_purpose"]
+                candidate["requires_reasoning"] = quality["requires_reasoning"]
+                candidate["review_agent_check"] = {
+                    "reviewer_agent": question_bank.QUESTION_REVIEWER_AGENT_KEY,
+                    "status": quality["review_status"],
+                    "rejection_reasons": quality["rejection_reasons"],
+                }
+                candidate["challenge_profile"] = {
+                    "picture_level": False,
+                    "labels": [],
                 }
                 candidate_digest = db._digest_json(candidate)
                 question_digest = _canonical_sha256({
@@ -428,6 +485,7 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
                         db.json_dump(candidate),
                     ),
                 )
+                db.upsert_question_usage_policy(conn, candidate, commit=False)
                 question_run = db.record_agent_run(
                     conn,
                     agent_key="question_reviewer_agent",
@@ -1772,6 +1830,13 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
             step = conn.execute("select * from flow_steps where id = ?", (intent["applied_step_id"],)).fetchone()
             self.assertEqual(assets[0]["contract_id"], step["answer_contract_id"])
             self.assertEqual(assets[0]["contract_digest_sha256"], step["answer_contract_digest_sha256"])
+            selection_reason = db.json_load(step["selection_reason_json"], {})
+            mini_group = selection_reason.get("mini_group")
+            self.assertIsInstance(mini_group, dict)
+            self.assertEqual("review_short_set", mini_group["role"])
+            self.assertEqual(1, mini_group["index"])
+            self.assertGreater(mini_group["size"], 1)
+            self.assertTrue(mini_group["defer_analysis_until_group_end"])
             before = {
                 "flows": conn.execute("select count(*) from daily_flows").fetchone()[0],
                 "steps": conn.execute("select count(*) from flow_steps").fetchone()[0],
@@ -1900,6 +1965,55 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
                 2,
                 conn.execute("select count(*) from learning_target_intents").fetchone()[0],
             )
+
+    def test_home_actions_exclude_contract_assets_that_fail_current_child_active_gate(self):
+        config = self._load_view_config_json()
+        foundation = next(
+            node_id for node_id in sorted(self.child_visible_node_ids)
+            if not self.nodes[node_id].get("prerequisites")
+        )
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ), closing(db.connect(path)) as conn:
+            assets = self._install_view_activation(
+                conn,
+                config_payload=config,
+                assessment_node_ids=[foundation],
+            )
+            asset = assets[0]
+            original_gate = db.is_child_schedulable_question
+
+            def current_gate(conn_arg, question, **kwargs):
+                if question.get("id") == asset["question_id"]:
+                    return False
+                return original_gate(conn_arg, question, **kwargs)
+
+            service = self._service(conn)
+            with mock.patch.object(db, "is_child_schedulable_question", side_effect=current_gate):
+                projection = self._projection_for_conn(conn)
+                row = next(
+                    item for item in projection["nodes"]
+                    if item["name"] == self.nodes[foundation]["name"]
+                )
+                self.assertTrue(row["action_descriptors"])
+                self.assertTrue(all(
+                    not item["enabled"] and item["disabled_reason"]
+                    for item in row["action_descriptors"]
+                ))
+                request = {
+                    "handle": row["handle"],
+                    "projection_version": projection["projection_version"],
+                    "action": "diagnostic",
+                    "client_idempotency_key": "active-use-gate-filtered",
+                }
+                with self.assertRaises(KnowledgeMapError) as error:
+                    service.select_target(child_key="single-child", request=request)
+                self.assertEqual(409, error.exception.status)
+                self.assertNotIn("暂时无法安全切换", str(error.exception))
+                self.assertEqual(
+                    0,
+                    conn.execute("select count(*) from learning_target_intents").fetchone()[0],
+                )
 
     def test_applied_target_stays_bound_from_active_flow_through_bootstrap(self):
         from learning_system import daily_runtime

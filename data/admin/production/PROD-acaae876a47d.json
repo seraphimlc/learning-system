@@ -1,0 +1,44 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "1565c3610773e0bf500f2cdd7ab01c6ddcfc0c3db6e1ae056fb29a2278562434",
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "family_id": "number_line_reference_frame",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "child_surface_projection_failed",
+      "item_id": "CAND-f151c7e05839",
+      "message": "候选题无法通过正式孩子端投影：prompt:markdown_code_forbidden",
+      "node_id": "M-G7-NUMBER-LINE",
+      "profile": "admin_generation_child_surface_gate",
+      "severity": "P1"
+    }
+  ],
+  "item_id": "CAND-f151c7e05839",
+  "machine_checked": true,
+  "next_actions": [
+    "regenerate_candidate"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "production_json_path": "data/admin/production/PROD-acaae876a47d.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-acaae876a47d.md",
+  "production_markdown_sha256": "37b8d8591585a7e8396b4590a1b030530152ca418f7c64482bcc79d3d239ba78",
+  "production_report_id": "PROD-acaae876a47d",
+  "question_bank_version": "v18",
+  "question_requirement_id": "REQ-0c899e0c10c3",
+  "requirement_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "secondary_nodes": [],
+    "support_only": false
+  },
+  "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+  "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:01",
+  "staging_allowed": false,
+  "status": "NEEDS_REGENERATION",
+  "subject": "math",
+  "write_applied": true
+}

@@ -1,0 +1,562 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "finding_counts": {},
+  "findings": [],
+  "next_actions": [
+    "generate_candidate_for_first_requirement"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "node_name": "数轴",
+  "production_json_path": "data/admin/production/PROD-128c3b3188bf.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-128c3b3188bf.md",
+  "production_markdown_sha256": "54a75fd0d75e6bc9468c4b96648ae9819de8c7365022f40df7d7de754ffe7627",
+  "production_report_id": "PROD-128c3b3188bf",
+  "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "question_bank_version": "2026-07-23.bank.v18.staged",
+  "question_requirements": [
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L2",
+      "evidence_goal": "原点",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_reference_frame",
+      "max_attempts": 3,
+      "must_include": [
+        "原点",
+        "明确指出或补出原点",
+        "题面和得分点必须落实当前方向：从内嵌的简短数轴中辨认原点",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "从内嵌的简短数轴中辨认原点",
+      "question_requirement_id": "REQ-0c899e0c10c3",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:01",
+      "slot_order": 1,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "漏原点"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "正方向",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_reference_frame",
+      "max_attempts": 3,
+      "must_include": [
+        "正方向",
+        "明确正方向并保持方向一致",
+        "题面和得分点必须落实当前方向：只判断或修正数轴的正方向",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "只判断或修正数轴的正方向",
+      "question_requirement_id": "REQ-fd17c93970ca",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:02",
+      "slot_order": 2,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "正方向反或未标"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "单位长度",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_reference_frame",
+      "max_attempts": 3,
+      "must_include": [
+        "单位长度",
+        "相邻等距刻度表示同一单位长度",
+        "题面和得分点必须落实当前方向：根据相邻刻度数值确定单位长度",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "根据相邻刻度数值确定单位长度",
+      "question_requirement_id": "REQ-2cf19db03f72",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_reference_frame:03",
+      "slot_order": 3,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "刻度间距或每格数量不一致"
+      ]
+    },
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L2",
+      "evidence_goal": "单位刻度读取",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_coordinate_location",
+      "max_attempts": 3,
+      "must_include": [
+        "单位刻度读取",
+        "先读懂每格代表的数量再定位",
+        "题面和得分点必须落实当前方向：定位整数和负数",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "定位整数和负数",
+      "question_requirement_id": "REQ-cb98695c98b4",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_coordinate_location:01",
+      "slot_order": 4,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "负方向刻度读反"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "坐标定位",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_coordinate_location",
+      "max_attempts": 3,
+      "must_include": [
+        "坐标定位",
+        "数到点和点到数的对应准确",
+        "题面和得分点必须落实当前方向：定位分数小数",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "定位分数小数",
+      "question_requirement_id": "REQ-db96d57f2e88",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_coordinate_location:02",
+      "slot_order": 5,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "分数小数按表面数字猜位置"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "位置顺序解释",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_coordinate_location",
+      "max_attempts": 3,
+      "must_include": [
+        "位置顺序解释",
+        "能用左右位置解释顺序而不是只报答案",
+        "题面和得分点必须落实当前方向：读取非单位刻度或不完整标签",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "读取非单位刻度或不完整标签",
+      "question_requirement_id": "REQ-51126b898f93",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_coordinate_location:03",
+      "slot_order": 6,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "忽略每格代表的数量"
+      ]
+    },
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L3",
+      "evidence_goal": "位置与距离区分",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_distance_relation",
+      "max_attempts": 3,
+      "must_include": [
+        "位置与距离区分",
+        "明确位置有方向而距离没有正负方向",
+        "题面和得分点必须落实当前方向：由两点求刻度距离",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "由两点求刻度距离",
+      "question_requirement_id": "REQ-8f8676b3c17d",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_distance_relation:01",
+      "slot_order": 7,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "距离写成负数"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "刻度间隔",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_distance_relation",
+      "max_attempts": 3,
+      "must_include": [
+        "刻度间隔",
+        "根据统一单位长度数出两点间隔",
+        "题面和得分点必须落实当前方向：由一点和距离反推位置",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "由一点和距离反推位置",
+      "question_requirement_id": "REQ-d2cc49f4388a",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_distance_relation:02",
+      "slot_order": 8,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "把坐标值直接当距离"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "反推可能位置",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_distance_relation",
+      "max_attempts": 3,
+      "must_include": [
+        "反推可能位置",
+        "由距离反推位置时能判断可能点数量",
+        "题面和得分点必须落实当前方向：判断可能位置是否唯一",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "判断可能位置是否唯一",
+      "question_requirement_id": "REQ-8840d8ad5451",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_distance_relation:03",
+      "slot_order": 9,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "反推位置时漏掉另一方向"
+      ]
+    },
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L3",
+      "evidence_goal": "局部单位长度",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_local_scale_construction",
+      "max_attempts": 3,
+      "must_include": [
+        "局部单位长度",
+        "从两个已知点或标签恢复每格代表的数量",
+        "题面和得分点必须落实当前方向：由两个标签恢复每格数量",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "由两个标签恢复每格数量",
+      "question_requirement_id": "REQ-0baeb25d17cb",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_local_scale_construction:01",
+      "slot_order": 10,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "局部刻度间隔不等"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "刻度连续性",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_local_scale_construction",
+      "max_attempts": 3,
+      "must_include": [
+        "刻度连续性",
+        "补出的刻度连续、等距且标签一致",
+        "题面和得分点必须落实当前方向：补跨零刻度",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "补跨零刻度",
+      "question_requirement_id": "REQ-20a0d5f6890d",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_local_scale_construction:02",
+      "slot_order": 11,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "标签与单位长度不匹配"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "构造可检验性",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_line_local_scale_construction",
+      "max_attempts": 3,
+      "must_include": [
+        "构造可检验性",
+        "目标数的位置能被已知刻度反向检验",
+        "题面和得分点必须落实当前方向：构造能表示目标分数或小数的局部数轴",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "not_for_activation": false,
+      "question_direction": "构造能表示目标分数或小数的局部数轴",
+      "question_requirement_id": "REQ-c9cb7df790e6",
+      "secondary_nodes": [],
+      "slot_id": "M-G7-NUMBER-LINE:number_line_local_scale_construction:03",
+      "slot_order": 12,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "为放下目标数临时改变单位长度"
+      ]
+    }
+  ],
+  "requirement_count": 12,
+  "schema_version": "2026-07-23.codex-admin.question-requirement-plan.v1",
+  "status": "REQUIREMENT_PLAN_READY",
+  "subject": "math",
+  "workflow": [
+    "question_requirement_ready",
+    "question_designer_agent_generate_candidate",
+    "admin_machine_check",
+    "expert_review",
+    "loop_regenerate_or_continue",
+    "qa_review",
+    "staging_decision"
+  ],
+  "write_applied": true
+}

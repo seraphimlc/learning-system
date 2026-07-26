@@ -1,0 +1,453 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 3,
+  "content_attempt_state": {
+    "content_attempts_consumed": 3,
+    "crash_recovery_count": 0,
+    "created_at": "2026-07-25T08:40:58.334021+00:00",
+    "execution_contract_sha256": "4d1bf3d7e227e5aa75731af6c3e89efd28406e3cc60802c8562de83f67bce67f",
+    "history": [
+      {
+        "at": "2026-07-25T08:40:58.336392+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:1"
+      },
+      {
+        "at": "2026-07-25T08:41:38.807256+00:00",
+        "consumed": true,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:1",
+        "outcome": "CANDIDATE_READY_FOR_EXPERT_REVIEW"
+      },
+      {
+        "at": "2026-07-25T08:41:38.809586+00:00",
+        "event": "pending_review_checkpoint_saved",
+        "item_id": "CAND-c6710dcc68ba"
+      },
+      {
+        "at": "2026-07-25T08:42:16.185597+00:00",
+        "event": "pending_review_checkpoint_cleared",
+        "item_id": "CAND-c6710dcc68ba",
+        "outcome": "NEEDS_FIX"
+      },
+      {
+        "at": "2026-07-25T08:42:16.188117+00:00",
+        "content_attempt": 2,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:2"
+      },
+      {
+        "at": "2026-07-25T08:42:54.676109+00:00",
+        "consumed": true,
+        "content_attempt": 2,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:2",
+        "outcome": "CANDIDATE_READY_FOR_EXPERT_REVIEW"
+      },
+      {
+        "at": "2026-07-25T08:42:54.678014+00:00",
+        "event": "pending_review_checkpoint_saved",
+        "item_id": "CAND-925d5efd185f"
+      },
+      {
+        "at": "2026-07-25T08:43:22.459944+00:00",
+        "event": "pending_review_checkpoint_cleared",
+        "item_id": "CAND-925d5efd185f",
+        "outcome": "PASS_WITH_SCOPE"
+      },
+      {
+        "at": "2026-07-25T08:43:22.462710+00:00",
+        "content_attempt": 3,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:3"
+      },
+      {
+        "at": "2026-07-25T08:44:02.804538+00:00",
+        "consumed": true,
+        "content_attempt": 3,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:3",
+        "outcome": "NEEDS_REGENERATION"
+      }
+    ],
+    "locator_id": "9883513f0d16e046a077",
+    "max_content_attempts": 3,
+    "pending_content_attempt": null,
+    "pending_review_checkpoint": null,
+    "pending_stage_checkpoint": null,
+    "provider_transport_attempt_count": 5,
+    "provider_transport_events": [
+      {
+        "content_attempt": 1,
+        "event_id": "b6fe18f929aeb52aebe3e3e1d58277c4023634a745e3837f26e3a09a59853152",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:1",
+        "ordinal": 0,
+        "outcome": "response_received",
+        "recorded_at": "2026-07-25T08:41:38.806568+00:00",
+        "request_digest_sha256": "f2f4cbfe513d1bf1d6dc2436219b3bfe06b1efd39e17ae09c1ae2b82230b7ad2",
+        "stage": "generate_candidate",
+        "status_code": null
+      },
+      {
+        "content_attempt": 1,
+        "event_id": "fe78b30da6cffff830dff8e3ae4c32684f6364d5f381daa90521155aa575de3f",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:1",
+        "ordinal": 0,
+        "outcome": "response_received",
+        "recorded_at": "2026-07-25T08:42:16.183537+00:00",
+        "request_digest_sha256": "bb6fbef92c62c9d5421c6843bde8fd801e84e2662c9f2ccdb9236da37f7fcfd8",
+        "stage": "model_expert_board_review",
+        "status_code": null
+      },
+      {
+        "content_attempt": 2,
+        "event_id": "3455ca93c04eb96b2c2fe3e3e374be47eaa08a3ff3710ca36b9206b4efaa379c",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:2",
+        "ordinal": 0,
+        "outcome": "response_received",
+        "recorded_at": "2026-07-25T08:42:54.674718+00:00",
+        "request_digest_sha256": "484f5452005264c130191e961f86bb371f135f4c862f2b2cf7fae87ed20f658b",
+        "stage": "generate_candidate",
+        "status_code": null
+      },
+      {
+        "content_attempt": 2,
+        "event_id": "0cc11f2dffc78463291f44a075f8faa30ab6d55921ba72890e7b77dbbc329e1f",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:2",
+        "ordinal": 0,
+        "outcome": "response_received",
+        "recorded_at": "2026-07-25T08:43:22.458513+00:00",
+        "request_digest_sha256": "3c0802a6fda33660dab9f8392f31af7d8193b9845718eabdd4956def2a39fd3c",
+        "stage": "model_expert_board_review",
+        "status_code": null
+      },
+      {
+        "content_attempt": 3,
+        "event_id": "b2c76aac64039193732f5e96cfc5bd3e57c810fa69ac657337cbfdf586ce41fb",
+        "lease_id": "ATTEMPT-414e0dded9c9b95b4dcf:3",
+        "ordinal": 0,
+        "outcome": "response_received",
+        "recorded_at": "2026-07-25T08:44:02.802916+00:00",
+        "request_digest_sha256": "ef7ac7769b03d89c201f57a009132bf6b0cef930d8b9b60bf8dfef6c75ad1b03",
+        "stage": "generate_candidate",
+        "status_code": null
+      }
+    ],
+    "provider_transport_retry_count": 0,
+    "question_requirement_id": "REQ-11beb7243c4b",
+    "resume_rejection_path": "",
+    "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+    "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:02",
+    "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+    "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+    "state_id": "ATTEMPT-414e0dded9c9b95b4dcf",
+    "updated_at": "2026-07-25T08:44:02.805573+00:00"
+  },
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T08:44:02.806488+00:00",
+  "elapsed_seconds": 184.551,
+  "generation_plan_path": "data/admin/production/PROD-6f35eef18d43.json",
+  "interrupted_before_stage": "",
+  "item_id": "CAND-64a919042ded",
+  "pending_stage": {},
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+  "steps": [
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": "CAND-c6710dcc68ba",
+      "next_actions": [
+        "expert_review"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-87b1ba31e7cb.json",
+      "scope": {},
+      "status": "CANDIDATE_READY_FOR_EXPERT_REVIEW",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": "CAND-c6710dcc68ba",
+      "next_actions": [
+        "expert_review"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-764c19daf51a.json",
+      "scope": {},
+      "status": "SELF_CHECKED_PASS",
+      "step": "machine_contract_check"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": "CAND-c6710dcc68ba",
+      "next_actions": [],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/reviews/EXPERT-QA-aac825a332c5.json",
+      "scope": {},
+      "status": "PASS",
+      "step": "expert_review"
+    },
+    {
+      "blocking_codes": [
+        "standard_answer_lower_bound_insufficient"
+      ],
+      "blocking_findings": [
+        {
+          "code": "standard_answer_lower_bound_insufficient",
+          "message": "标准答案用 119.6÷4=29.9 且 3.8<4 只能推出真实商大于29.9，不能严格推出商大于30；但最终区间要求 30～35，需改用 30×3.8=114<119.6 等能直接建立下界的依据。",
+          "profile": "assessment_expert",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "INFO": 1,
+        "P1": 1,
+        "P2": 1
+      },
+      "item_id": "CAND-c6710dcc68ba",
+      "next_actions": [
+        "regenerate_candidate"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/model_expert_reviews/MODEL-EXPERT-31f89e5aae37.json",
+      "scope": {},
+      "status": "NEEDS_FIX",
+      "step": "model_expert_board_review"
+    },
+    {
+      "blocking_codes": [
+        "expert_review_blocks_loop"
+      ],
+      "blocking_findings": [
+        {
+          "code": "expert_review_blocks_loop",
+          "message": "专家审核未通过，workflow 必须回到命题 Agent。",
+          "profile": "admin_production_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "P1": 1
+      },
+      "item_id": "CAND-c6710dcc68ba",
+      "next_actions": [],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-82e7e9fda57e.json",
+      "scope": {},
+      "status": "LOOP_REGENERATE",
+      "step": "loop_decision"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": "CAND-925d5efd185f",
+      "next_actions": [
+        "expert_review"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-3d4f7fb52b5e.json",
+      "scope": {},
+      "status": "CANDIDATE_READY_FOR_EXPERT_REVIEW",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": "CAND-925d5efd185f",
+      "next_actions": [
+        "expert_review"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-9cfb22a44718.json",
+      "scope": {},
+      "status": "SELF_CHECKED_PASS",
+      "step": "machine_contract_check"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": "CAND-925d5efd185f",
+      "next_actions": [],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/reviews/EXPERT-QA-bd859fa8fbc8.json",
+      "scope": {},
+      "status": "PASS",
+      "step": "expert_review"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "P2": 1
+      },
+      "item_id": "CAND-925d5efd185f",
+      "next_actions": [
+        "qa_review"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/model_expert_reviews/MODEL-EXPERT-f821266428dd.json",
+      "scope": {},
+      "status": "PASS_WITH_SCOPE",
+      "step": "model_expert_board_review"
+    },
+    {
+      "blocking_codes": [
+        "expert_review_blocks_loop"
+      ],
+      "blocking_findings": [
+        {
+          "code": "expert_review_blocks_loop",
+          "message": "专家审核未通过，workflow 必须回到命题 Agent。",
+          "profile": "admin_production_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "P1": 1
+      },
+      "item_id": "CAND-925d5efd185f",
+      "next_actions": [],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-50fa8bf37732.json",
+      "scope": {},
+      "status": "LOOP_REGENERATE",
+      "step": "loop_decision"
+    },
+    {
+      "blocking_codes": [
+        "child_surface_projection_failed",
+        "child_surface_writing_burden_understates_control"
+      ],
+      "blocking_findings": [
+        {
+          "code": "child_surface_projection_failed",
+          "message": "候选题无法通过正式孩子端投影：prompt:markdown_authoring_forbidden",
+          "profile": "admin_generation_child_surface_gate",
+          "severity": "P1"
+        },
+        {
+          "code": "child_surface_writing_burden_understates_control",
+          "message": "预计作答行数少于当前控件真正需要书写的输入区域。",
+          "profile": "admin_generation_child_surface_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "P1": 2
+      },
+      "item_id": "CAND-64a919042ded",
+      "next_actions": [
+        "loop_decision"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-c6091ef366e7.json",
+      "scope": {},
+      "status": "NEEDS_REGENERATION",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "child_surface_projection_failed",
+        "child_surface_writing_burden_understates_control"
+      ],
+      "blocking_findings": [
+        {
+          "code": "child_surface_projection_failed",
+          "message": "候选题无法通过正式孩子端投影：prompt:markdown_authoring_forbidden",
+          "profile": "admin_generation_child_surface_gate",
+          "severity": "P1"
+        },
+        {
+          "code": "child_surface_writing_burden_understates_control",
+          "message": "预计作答行数少于当前控件真正需要书写的输入区域。",
+          "profile": "admin_generation_child_surface_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "P1": 2
+      },
+      "item_id": "CAND-64a919042ded",
+      "next_actions": [
+        "regenerate_candidate"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-cb3f5704f75e.json",
+      "scope": {},
+      "status": "NEEDS_REGENERATION",
+      "step": "machine_contract_check"
+    },
+    {
+      "blocking_codes": [
+        "machine_check_blocks_loop"
+      ],
+      "blocking_findings": [
+        {
+          "code": "machine_check_blocks_loop",
+          "message": "机器检查未通过，workflow 必须回到命题 Agent。",
+          "profile": "admin_production_gate",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {
+        "P1": 1
+      },
+      "item_id": "CAND-64a919042ded",
+      "next_actions": [],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-08800afcac30.json",
+      "scope": {},
+      "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+      "step": "loop_decision"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-08a7f1557c42",
+  "workflow_json_path": "data/admin/workflows/WF-08a7f1557c42.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-08a7f1557c42.md",
+  "workflow_markdown_sha256": "eb9134826e452ab016798cea488149a1fa8a0ecc622c3d380b6605752885de10",
+  "workflow_write_applied": true
+}

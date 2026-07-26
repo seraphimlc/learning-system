@@ -1,0 +1,51 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+  "expert_profiles": {
+    "assessment_expert": {
+      "display": "测评专家",
+      "finding_counts": {},
+      "status": "PASS"
+    },
+    "bridge_diagnosis_teacher": {
+      "display": "衔接诊断老师",
+      "finding_counts": {},
+      "status": "PASS"
+    },
+    "frontline_math_teacher": {
+      "display": "一线初中数学老师",
+      "finding_counts": {},
+      "status": "PASS"
+    },
+    "source_compliance_reviewer": {
+      "display": "题源合规 reviewer",
+      "finding_counts": {},
+      "status": "PASS"
+    },
+    "stretch_competition_teacher": {
+      "display": "拔高/竞赛老师",
+      "finding_counts": {},
+      "status": "PASS"
+    }
+  },
+  "family_id": "number_line_position_distance",
+  "finding_counts": {},
+  "findings": [],
+  "item_id": "CAND-10af2bc03bb1",
+  "node_id": "M-G7-NUMBER-LINE",
+  "question_bank_status": "candidate_only",
+  "question_bank_version": "v18",
+  "review_json_path": "data/admin/reviews/EXPERT-QA-3d04703864d0.json",
+  "review_markdown_path": "docs/system/admin_reports/reviews/2026-07-25-EXPERT-QA-3d04703864d0.md",
+  "review_markdown_sha256": "620c2b13be23decab8cd05a41b403aab1032ceb9a4a077670a3f25eefd794d7a",
+  "review_report_id": "EXPERT-QA-3d04703864d0",
+  "reviewed_item_count": 1,
+  "sample_only": false,
+  "schema_version": "2026-07-23.codex-admin.candidate-expert-review.v1",
+  "source_file_sha256": "b3dc4db4bb3f0619a6d080bae09367faa6a30222481a4f70b1cfe4a4b0786954",
+  "source_path": "data/admin/candidates/CAND-10af2bc03bb1-e8d122f621ce.json",
+  "staging_allowed": false,
+  "status": "PASS",
+  "subject": "math",
+  "write_applied": true
+}

@@ -34,6 +34,7 @@ ACTIVE_QUESTION_KINDS = (
     "misconception_probe",
     "missing_condition",
     "model_selection",
+    "necessary_condition",
     "prerequisite_probe",
     "representation",
     "reverse_reasoning",
@@ -274,34 +275,122 @@ def _fallback_scoring_targets(question: dict[str, Any]) -> list[dict[str, Any]]:
     steps = question.get("solution_steps")
     if not isinstance(steps, (list, tuple)):
         steps = []
-    usable_steps = [step for step in steps if _has_reference_value(step)][:4]
+    usable_steps = [
+        str(step).strip()
+        for step in steps
+        if isinstance(step, str) and step.strip()
+    ][:4]
 
-    targets = [
-        {
-            "key": f"solution_step_{index}",
-            "criterion": f"Demonstrates reference solution step {index}",
-            "dimension": "procedure",
-            "required_for_pass": True,
-            "reference_component": f"solution_steps[{index - 1}]",
-        }
-        for index, _step in enumerate(usable_steps, start=1)
-    ]
-    if len(targets) < 2 and _has_reference_value(question.get("expected_answer")):
+    targets: list[dict[str, Any]] = []
+
+    if _has_reference_value(question.get("expected_answer")):
         targets.append(
             {
                 "key": "reference_answer",
-                "criterion": "Provides the reference answer conclusion",
+                "criterion": (
+                    "给出与标准答案数学等价的最终结论；表达意图一致即可，"
+                    "不能因为缺少非关键书写要求判为未满足。"
+                ),
                 "dimension": "final_answer",
                 "required_for_pass": True,
                 "reference_component": "expected_answer",
             }
         )
+
+    if usable_steps:
+        execution_index = _first_solution_step_index(
+            usable_steps,
+            include_terms=(
+                "计算",
+                "求",
+                "得",
+                "判断",
+                "比较",
+                "化简",
+                "解",
+                "验算",
+                "代入",
+                "×",
+                "+",
+                "-",
+                "÷",
+                "=",
+            ),
+            exclude_terms=("圈出", "最容易错", "完整句", "书写", "格式"),
+        )
+        if execution_index is None:
+            execution_index = 0
+        targets.append(
+            {
+                "key": "mathematical_execution",
+                "criterion": (
+                    "给出支撑结论的关键计算、变形或判断过程；等价过程可接受，"
+                    "不要求逐字复述参考步骤。"
+                ),
+                "dimension": "procedure",
+                "required_for_pass": True,
+                "reference_component": f"solution_steps[{execution_index}]",
+            }
+        )
+
+        relation_index = _first_solution_step_index(
+            usable_steps,
+            include_terms=("关系", "结构", "规则", "公式", "模型", "满足", "必须"),
+            exclude_terms=("圈出", "最容易错", "完整句", "书写", "格式"),
+        )
+        if relation_index is not None and len(targets) < 4:
+            targets.append(
+                {
+                    "key": "core_relation",
+                    "criterion": (
+                        "体现本题核心数学关系或模型；可以通过式子、结构化计算或"
+                        "自然语言体现，不要求照抄规则原文。"
+                    ),
+                    "dimension": "model_relation",
+                    "required_for_pass": False,
+                    "reference_component": f"solution_steps[{relation_index}]",
+                }
+            )
+
+        check_index = _first_solution_step_index(
+            usable_steps,
+            include_terms=("验算", "检验", "检查", "代入", "小于", "合理", "成立"),
+            exclude_terms=("圈出", "最容易错", "完整句", "书写", "格式"),
+        )
+        if check_index is not None and len(targets) < 4:
+            targets.append(
+                {
+                    "key": "verification_or_explanation",
+                    "criterion": (
+                        "补充必要检验或解释。若缺少的是圈出易错点、完整句子等"
+                        "非核心表达要求，只能作为改进建议，不能清零核心数学得分。"
+                    ),
+                    "dimension": "check",
+                    "required_for_pass": False,
+                    "reference_component": f"solution_steps[{check_index}]",
+                }
+            )
+
     if len(targets) < 2:
         raise ValueError(
             "a question without scoring_targets needs at least two independent "
             "solution reference components"
         )
     return targets[:4]
+
+
+def _first_solution_step_index(
+    steps: list[str],
+    *,
+    include_terms: tuple[str, ...],
+    exclude_terms: tuple[str, ...] = (),
+) -> int | None:
+    for index, step in enumerate(steps):
+        if any(term in step for term in exclude_terms):
+            continue
+        if any(term in step for term in include_terms):
+            return index
+    return None
 
 
 def _reference_components(question: dict[str, Any]) -> dict[str, Any]:

@@ -60,7 +60,7 @@ submit immutable attempt
 -> one child feedback/current-state projection
 ```
 
-Normal text uses one GPT call, explicit stuck uses zero model calls, and photo uses one OCR call plus one GPT call. No downstream evaluation/planner/teaching model job is enqueued on this path.
+Normal text and explicit stuck submissions both enter the answer-analysis model path; explicit stuck is a child action signal, not a grading or planning decision. Photo uses one OCR call plus one answer-analysis model call. No downstream evaluation/planner/teaching model job is enqueued until the answer-analysis evidence is accepted or deliberately held pending.
 
 ## Table Ownership
 

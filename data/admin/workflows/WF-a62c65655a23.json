@@ -1,0 +1,178 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "coverage_eligible": true,
+  "created_at": "2026-07-25T06:09:32.645008+00:00",
+  "elapsed_seconds": 74.433,
+  "generation_plan_path": "data/admin/production/PROD-f0041fd1a1eb.json",
+  "item_id": "CAND-10af2bc03bb1",
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {
+    "activation_allowed": false,
+    "activation_implication": "does_not_authorize_activation",
+    "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+    "content_envelope_sha256": "6e084c7aaee60d06b2add4c3dcad51c5945f4bbd69241cdcbbd77219d5ca318f",
+    "family_id": "number_line_position_distance",
+    "item_id": "CAND-10af2bc03bb1",
+    "node_id": "M-G7-NUMBER-LINE",
+    "schema_version": "2026-07-23.codex-admin.stage-candidate-receipt.v1",
+    "stage_receipt_id": "STAGE-dfbd4988f824",
+    "stage_receipt_json_path": "data/admin/staging/STAGE-dfbd4988f824.json",
+    "stage_receipt_json_sha256": "44988659824bc528f3a03f437e5e8200c85f2fefcbd793542c2a78e72e3aa5b3",
+    "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+    "staged_bank_sha256": "777fb6cee827fa93a6e38241497bc16b68053858c6362adeac7d687344be0b66",
+    "staged_item_count": 1,
+    "status": "STAGED_WRITABLE",
+    "structure_fingerprint": "CANON-9550f4a1cc055822",
+    "subject": "math",
+    "write_applied": true
+  },
+  "staging_allowed": true,
+  "staging_scope": {
+    "exclude_from_coverage": false,
+    "not_for_activation": false,
+    "reasons": [],
+    "support_only": false
+  },
+  "status": "WORKFLOW_STAGED",
+  "steps": [
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [
+        "expert_review"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/production/PROD-466117f18007.json",
+      "scope": {},
+      "status": "CANDIDATE_READY_FOR_EXPERT_REVIEW",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [
+        "expert_review"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/production/PROD-10b06d8ad124.json",
+      "scope": {},
+      "status": "SELF_CHECKED_PASS",
+      "step": "machine_contract_check"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/reviews/EXPERT-QA-3d04703864d0.json",
+      "scope": {},
+      "status": "PASS",
+      "step": "expert_review"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [
+        "qa_review"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/model_expert_reviews/MODEL-EXPERT-bd248491d848.json",
+      "scope": {},
+      "status": "PASS",
+      "step": "model_expert_board_review"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [
+        "semantic_qa_review"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/qa_contract_checks/QA-CONTRACT-7e629cbb428d.json",
+      "scope": {},
+      "status": "PASS",
+      "step": "qa_contract_check"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": true,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [
+        "staging_decision"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/qa/QA-SEMANTIC-0e62869a7378.json",
+      "scope": {
+        "exclude_from_coverage": false,
+        "not_for_activation": false,
+        "reasons": [],
+        "support_only": false
+      },
+      "status": "PASS",
+      "step": "semantic_qa_review"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": true,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [
+        "stage_candidate"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/production/PROD-fa6e956e4da5.json",
+      "scope": {},
+      "status": "STAGED_READY",
+      "step": "staging_decision"
+    },
+    {
+      "blocking_codes": [],
+      "blocking_findings": [],
+      "coverage_eligible": false,
+      "family_id": "number_line_position_distance",
+      "finding_counts": {},
+      "item_id": "CAND-10af2bc03bb1",
+      "next_actions": [],
+      "node_id": "M-G7-NUMBER-LINE",
+      "report_path": "data/admin/staging/STAGE-dfbd4988f824.json",
+      "scope": {},
+      "status": "STAGED_WRITABLE",
+      "step": "stage_candidate"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-a62c65655a23",
+  "workflow_json_path": "data/admin/workflows/WF-a62c65655a23.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-a62c65655a23.md",
+  "workflow_markdown_sha256": "4e971efdf00e12fd8cf5c2b9f402796ae5099b8bff97457d5641390417285679",
+  "workflow_write_applied": true
+}

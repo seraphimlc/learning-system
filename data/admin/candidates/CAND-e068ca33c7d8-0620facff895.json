@@ -1,0 +1,188 @@
+{
+  "candidate_sha256": "0620facff8952ee92964db745bf3616ee4fea3d2b583e7ec0000a1e987592a1c",
+  "item": {
+    "accepted_alternatives": [
+      "完整作答可写成：两边都减5，左边的+5被抵消，右边变成17-5；同一个数从相等的两边各减去，等式仍成立。",
+      "完整作答可写成：不是随便变号，而是在3x+5=17的左右两边同时减5；像天平两边各拿走同样的5，仍然平衡。",
+      "完整作答可写成：3x+5=17 两边同减5 得到 3x=12；因为两边做的是同一个减法操作，所以等号保持成立。"
+    ],
+    "answer_format": "短文本作答：写一句话，必须包含“两边都做了什么”和“为什么等号仍成立”。",
+    "child_surface_design": {
+      "backend_evidence_targets": [
+        "能指出等号两边同时减去同一个数5。",
+        "能说明相等的两个量同减同一个量后仍相等。",
+        "能把“+5移到右边变-5”解释为等式性质，而不是无依据口诀。"
+      ],
+      "child_deliverables": [
+        "用一句话说明从原等式到新等式实际做了什么，以及为什么等号仍成立。"
+      ],
+      "difficulty_alignment": {
+        "diagnostic_breakpoint": "能否把移项变号的表面规则还原为等号两边同减同一个量，并说清等式保持的原因。",
+        "difficulty_source": "representation_transfer",
+        "target_difficulty": "L3"
+      },
+      "distractor_design": {
+        "distractors": [
+          {
+            "information": "“把+5移到右边就变成-5”",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "这是课堂中常见的简写说法，但如果不说明两边同减5，就不能作为等式保持的理由。"
+          },
+          {
+            "information": "“左边减5，右边也减5”",
+            "relevance": "required_information",
+            "why_plausible": "这是本题要识别的共同操作，是支撑等式保持的关键。"
+          }
+        ]
+      },
+      "interaction_requirements": {
+        "actions": [],
+        "maximum_selections": 0,
+        "minimum_selections": 0,
+        "response_kind": "short_text"
+      },
+      "language_surface": {
+        "named_characters": [
+          "小林"
+        ],
+        "natural_child_facing_chinese": true,
+        "respectful_age_appropriate": true,
+        "semantic_review_boundary": "requires_independent_semantic_qa",
+        "short_explanation_requests": 1
+      },
+      "primary_task": "解释“移项变号”表象背后的等式两边同减同一个量，并说明等式为什么保持成立。",
+      "student_actions": {
+        "primary": "explain_core_relation",
+        "supporting": [
+          "verify"
+        ]
+      },
+      "task_focus_count": 1,
+      "visual_support": {
+        "asset_ref": "",
+        "inline_visual": "",
+        "mode": "not_needed",
+        "prompt_depends_on_visual": false
+      },
+      "writing_burden": {
+        "burden_level": "light",
+        "estimated_response_lines": 1,
+        "why_necessary": "本题需要观察孩子是否理解等式保持的理由，单写结果无法区分会用性质和只背口诀。"
+      }
+    },
+    "design_rationale": "题目用一个常见课堂说法引出追问，要求的唯一核心证据是把“移项变号”解释为两边同减5并说明等式保持，避免进入完整解方程流程。",
+    "difficulty": "L3",
+    "estimated_minutes": 3,
+    "evidence_goal": "等式保持解释",
+    "exclude_from_coverage": false,
+    "expected_answer": "等号两边同时减去5；因为相等的两个量同减同一个数后仍相等，所以新等式仍成立。",
+    "id": "CAND-e068ca33c7d8",
+    "interaction_schema": {
+      "allow_explanation": true,
+      "choices": [],
+      "explanation_label": "你的说明",
+      "fields": [
+        {
+          "id": "response",
+          "label": "请写一句话说明",
+          "placeholder": "例如：两边都……，因为……",
+          "prefix": "",
+          "suffix": ""
+        }
+      ],
+      "formula_label": "",
+      "placeholder": "两边都……，因为……",
+      "requires_explanation": true,
+      "schema_version": "2026-07-17.question-interaction.v2",
+      "title": "说明等式为什么仍成立",
+      "type": "short_text"
+    },
+    "item_version": "draft.admin-production.v1.attempt-2",
+    "key_score_points": [
+      {
+        "evidence": "明确写出等号两边同时减去5，或左右两边都减5。",
+        "key": "共同操作识别",
+        "mastery_dimension": "operation",
+        "points": 3
+      },
+      {
+        "evidence": "说明左边的+5被减5抵消，右边对应变为17-5或12。",
+        "key": "变形对应关系",
+        "mastery_dimension": "representation_transfer",
+        "points": 2
+      },
+      {
+        "evidence": "说明相等的两个量同减同一个数后仍相等，或用天平两边各拿走同样数量仍平衡解释。",
+        "key": "等式保持理由",
+        "mastery_dimension": "reasoning",
+        "points": 3
+      },
+      {
+        "evidence": "表达出“移项变号”只是简写，真正依据是两边同减同一个量；没有把变号当成无条件规则。",
+        "key": "区分口诀与依据",
+        "mastery_dimension": "concept",
+        "points": 2
+      }
+    ],
+    "math_core_signature": "已成立等式 a+5=b 通过两边同时减5得到 a=b-5；关键不在口诀变号，而在同减同量保持相等。",
+    "node_id": "M-G7-EQUALITY-PROP",
+    "not_for_activation": false,
+    "production_lineage": {
+      "design_brief_id": "EXPERT-IDEAS-46c630030757",
+      "evidence_goal": "等式保持解释",
+      "family_id": "equality_add_subtract_invariance",
+      "generation_attempt": 2,
+      "generation_rationale": "题目用一个常见课堂说法引出追问，要求的唯一核心证据是把“移项变号”解释为两边同减5并说明等式保持，避免进入完整解方程流程。",
+      "previous_rejection_codes": [
+        "child_surface_invalid_interaction_schema",
+        "machine_check_blocks_loop"
+      ],
+      "question_requirement_id": "REQ-6d446298eae0",
+      "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:03"
+    },
+    "prompt": "小林把已成立的等式\n3x+5=17\n变形成\n3x=17-5，也就是 3x=12。\n他说：“这是把左边的 +5 移到右边变成 -5。”\n\n请用一句话说明：这个“变号”背后，等号两边实际做了什么？为什么新等式仍然成立？",
+    "quality": {
+      "canonical_structure_fingerprint": "CANON-1ad58748925ec54c",
+      "model_structure_fingerprint": "已成立等式 a+5=b 通过两边同时减5得到 a=b-5；关键不在口诀变号，而在同减同量保持相等。",
+      "review_status": "draft_generated",
+      "structure_fingerprint": "CANON-1ad58748925ec54c"
+    },
+    "question_type": "equality_add_subtract_invariance",
+    "required_evidence": [
+      "明确两边加或减的是同一个量",
+      "变形后等号两边仍对应同一操作",
+      "能用天平或代入具体相等数解释等式保持",
+      "等式保持解释",
+      "题面和得分点必须落实当前方向：解释移项表象背后的同加减",
+      "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+    ],
+    "rollback_candidates": [],
+    "rubric": [
+      "能指出共同操作是等号两边同时减去5。",
+      "能把左边+5被抵消和右边变为17-5或12对应起来。",
+      "能说明等式保持的理由：相等的量同减同一个量仍相等。",
+      "不把“移项变号”当作唯一理由或无依据口诀。"
+    ],
+    "secondary_node_ids": [],
+    "solution_steps": [
+      "从原等式 3x+5=17 出发，观察新式少了左边的 +5。",
+      "把这个变化还原为两边同时减去5： (3x+5)-5=17-5。",
+      "左边化为3x，右边为12；因为两边同减同一个数，等式仍成立。"
+    ],
+    "source": {
+      "basis": "generated_from_expert_requirement_slot",
+      "type": "ai_original",
+      "usage_mode": "draft_original_generation"
+    },
+    "source_type": "ai_original",
+    "standard_answer": "从 3x+5=17 到 3x=17-5，实际是在等号两边同时减去5：左边 (3x+5)-5=3x，右边 17-5=12。因为原来等号两边相等，相等的两个量同时减去同一个数，结果仍相等，所以新等式仍成立。",
+    "support_only": false,
+    "target_error_tags": [
+      "把移项变号当作无依据的新规则",
+      "只改一边",
+      "缺少等式保持解释"
+    ]
+  },
+  "model_output_sha256": "6196b89a805018276b8aae87bd5b9ed14e74d5f72c923ddf17131c79bec398cf",
+  "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+}

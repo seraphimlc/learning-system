@@ -3,7 +3,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import playwright from "/Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.js";
 
 const { chromium } = playwright;
@@ -17,6 +17,27 @@ const v5HarnessContractPath = path.join(root, "tests", "fixtures", "v5_10_lesson
 const v5HarnessContract = JSON.parse(fs.readFileSync(v5HarnessContractPath, "utf8"));
 const port = await getFreePort();
 const baseUrl = `http://127.0.0.1:${port}`;
+
+const seed = spawnSync("python3", [
+  "-c",
+  [
+    "from pathlib import Path",
+    "from learning_system import db",
+    "from learning_system import test_support",
+    "from scripts import activate_lightweight_answer_contracts",
+    `path = Path(${JSON.stringify(dbPath)})`,
+    "path.parent.mkdir(parents=True, exist_ok=True)",
+    "conn = db.connect(path)",
+    "db.init_schema(conn)",
+    "db.seed_from_assets(conn, Path.cwd())",
+    "test_support.seed_runtime_test_question_bank(conn, Path.cwd())",
+    "conn.close()",
+    "activate_lightweight_answer_contracts.activate(path, project_root=Path.cwd())",
+  ].join("; "),
+], { cwd: root, encoding: "utf8" });
+if (seed.status !== 0) {
+  throw new Error(`Failed to prepare v5.1 smoke DB: ${seed.stderr || seed.stdout}`);
+}
 
 const forbiddenChildTexts = [
   "Codex",
@@ -151,6 +172,8 @@ const server = spawn("python3", [
   env: {
     ...process.env,
     V3_DAILY_RUNTIME_ENABLED: "1",
+    ANSWER_ASSESSMENT_POLICY: "v5.1",
+    KNOWLEDGE_MAP_HOME_POLICY: "v5.1",
     OPENAI_API_KEY: "",
     AI_EVALUATOR_API_KEY: "",
     AI_ANSWER_ANALYSIS_AGENT_API_KEY: "",
@@ -199,7 +222,7 @@ try {
   }));
   assert(loadErrorPanel.state === "load_error", "Bootstrap failure should enter load_error");
   assert(loadErrorPanel.kind === "load_error", "Load error should expose durable panel kind");
-  assert(loadErrorPanel.title.includes("没有连上"), "Load error title should be child-safe");
+  assert(loadErrorPanel.title.includes("重新连接"), "Load error title should explain automatic recovery");
   assert(loadErrorPanel.action.includes("重新连接"), "Load error action should retry loading");
   assert(loadErrorPanel.formHidden === true, "Load error should not show a fake task form");
   assert(loadErrorPanel.role === "status" && loadErrorPanel.live === "polite", "Load error panel should be polite live status");
@@ -942,7 +965,16 @@ try {
   assert(operatorFlow.flows.length === 1, "Smoke should create one v5 daily flow");
   assert(operatorFlow.attempts.length === 1, "Smoke should save exactly one attempt");
   assert(operatorFlow.jobs.some((job) => job.status === "blocked"), "Missing model config should create a blocked job");
-  assert(operatorFlow.evidence_validations.some((item) => item.gate_status === "rejected"), "Blocked evidence should be recorded by the evidence gate");
+  assert(
+    !operatorFlow.evidence_validations.some((item) =>
+      ["accepted", "passed", "usable"].includes(item.gate_status) || item.report_label === "confirmed"
+    ),
+    "Blocked model analysis must not create usable evidence",
+  );
+  assert(
+    !operatorFlow.mastery_decisions?.some((item) => item.applied),
+    "Blocked model analysis must not update mastery",
+  );
 
   await browser.close();
   assert(browserErrors.length === 0, `browser errors: ${browserErrors.join("; ")}`);

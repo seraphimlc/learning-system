@@ -35,6 +35,7 @@ from learning_system import (  # noqa: E402
     reports,
     semantic_agents,
     server,
+    test_support,
 )
 from scripts import activate_lightweight_answer_contracts  # noqa: E402
 
@@ -1367,6 +1368,7 @@ class LessonEnvironment:
         with db.connect(self.db_path) as conn:
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
+            test_support.seed_runtime_test_question_bank(conn, PROJECT_ROOT)
         activate_lightweight_answer_contracts.activate(self.db_path, project_root=PROJECT_ROOT)
         with db.connect(self.db_path) as conn:
             _seed_target_evidence(conn, str(self.state.lesson["target_node_id"]))

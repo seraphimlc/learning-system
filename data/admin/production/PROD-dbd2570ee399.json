@@ -1,0 +1,376 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "family_id": "number_line_position_distance",
+  "finding_counts": {},
+  "findings": [],
+  "generation_plan_paths": [
+    "data/admin/production/PROD-f0041fd1a1eb.json"
+  ],
+  "generation_plans": [
+    {
+      "activation_implication": "does_not_authorize_activation",
+      "allowed_next_agent": "question_designer_agent",
+      "bounded_candidate_packet": {
+        "existing_structure_fingerprints": [],
+        "expert_suggestions": [
+          {
+            "core_scenario": "用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。",
+            "design_idea": "评分合同要围绕这些证据：能把数对应到位置、能区分方向和距离、能用数轴语言解释大小关系。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+            "difficulty": [
+              "L2",
+              "L3"
+            ],
+            "evidence_focus": [
+              "representation",
+              "concept",
+              "model_relation"
+            ],
+            "evidence_goal": [
+              "能把数对应到位置",
+              "能区分方向和距离",
+              "能用数轴语言解释大小关系"
+            ],
+            "existing_count": 0,
+            "family_id": "number_line_position_distance",
+            "family_name": "数轴位置与距离",
+            "missing_to_target": 4,
+            "profile": "assessment_expert",
+            "profile_display": "测评专家",
+            "reject_patterns": [
+              "泛化评分模板",
+              "缺少 accepted alternatives",
+              "把非关键书写作为主扣分项"
+            ],
+            "required_evidence": [
+              "能在文字、式子、图形或数轴之间转换",
+              "能说清数轴的概念边界或反例",
+              "能写出数轴对应的核心关系"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "给起点和移动方向",
+              "给两个点反推距离",
+              "用不画完整数轴的局部刻度判断顺序",
+              "让孩子解释为什么向左不是加大"
+            ],
+            "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+          },
+          {
+            "core_scenario": "用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。",
+            "design_idea": "用“给起点和移动方向”和“给两个点反推距离”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+            "difficulty": [
+              "L2",
+              "L3"
+            ],
+            "evidence_focus": [
+              "representation",
+              "concept",
+              "model_relation"
+            ],
+            "evidence_goal": [
+              "能把数对应到位置",
+              "能区分方向和距离",
+              "能用数轴语言解释大小关系"
+            ],
+            "existing_count": 0,
+            "family_id": "number_line_position_distance",
+            "family_name": "数轴位置与距离",
+            "missing_to_target": 4,
+            "profile": "bridge_diagnosis_teacher",
+            "profile_display": "衔接诊断老师",
+            "reject_patterns": [
+              "错了只能继续刷同类题",
+              "无法判断是概念错还是计算错",
+              "没有回退候选",
+              "把向左移动当加法"
+            ],
+            "required_evidence": [
+              "能在文字、式子、图形或数轴之间转换",
+              "能说清数轴的概念边界或反例",
+              "能写出数轴对应的核心关系"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "给起点和移动方向",
+              "给两个点反推距离",
+              "用不画完整数轴的局部刻度判断顺序",
+              "让孩子解释为什么向左不是加大"
+            ],
+            "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+          },
+          {
+            "core_scenario": "用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。",
+            "design_idea": "用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+            "difficulty": [
+              "L2",
+              "L3"
+            ],
+            "evidence_focus": [
+              "representation",
+              "concept",
+              "model_relation"
+            ],
+            "evidence_goal": [
+              "能把数对应到位置",
+              "能区分方向和距离",
+              "能用数轴语言解释大小关系"
+            ],
+            "existing_count": 0,
+            "family_id": "number_line_position_distance",
+            "family_name": "数轴位置与距离",
+            "missing_to_target": 4,
+            "profile": "frontline_math_teacher",
+            "profile_display": "一线初中数学老师",
+            "reject_patterns": [
+              "只换数字的低龄练习",
+              "只要求最终答案",
+              "题干像后台任务说明",
+              "把向左移动当加法",
+              "把距离带符号"
+            ],
+            "required_evidence": [
+              "能在文字、式子、图形或数轴之间转换",
+              "能说清数轴的概念边界或反例",
+              "能写出数轴对应的核心关系"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "给起点和移动方向",
+              "给两个点反推距离",
+              "用不画完整数轴的局部刻度判断顺序",
+              "让孩子解释为什么向左不是加大"
+            ],
+            "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+          },
+          {
+            "core_scenario": "用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。",
+            "design_idea": "可参考外部资料的范围或结构，如“用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+            "difficulty": [
+              "L2",
+              "L3"
+            ],
+            "evidence_focus": [
+              "representation",
+              "concept",
+              "model_relation"
+            ],
+            "evidence_goal": [
+              "能把数对应到位置",
+              "能区分方向和距离",
+              "能用数轴语言解释大小关系"
+            ],
+            "existing_count": 0,
+            "family_id": "number_line_position_distance",
+            "family_name": "数轴位置与距离",
+            "missing_to_target": 4,
+            "profile": "source_compliance_reviewer",
+            "profile_display": "题源合规 reviewer",
+            "reject_patterns": [
+              "复制商业题干",
+              "改数字洗题",
+              "保存未经许可的图形或解析"
+            ],
+            "required_evidence": [
+              "能在文字、式子、图形或数轴之间转换",
+              "能说清数轴的概念边界或反例",
+              "能写出数轴对应的核心关系"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "给起点和移动方向",
+              "给两个点反推距离",
+              "用不画完整数轴的局部刻度判断顺序",
+              "让孩子解释为什么向左不是加大"
+            ],
+            "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+          },
+          {
+            "core_scenario": "用有方向的移动、两点距离、原点两侧位置关系来检验“数是位置，不是孤立符号”。",
+            "design_idea": "给一个未知点和距离条件，让孩子构造所有可能位置或判断是否唯一。",
+            "difficulty": [
+              "L2",
+              "L3"
+            ],
+            "evidence_focus": [
+              "representation",
+              "concept",
+              "model_relation"
+            ],
+            "evidence_goal": [
+              "能把数对应到位置",
+              "能区分方向和距离",
+              "能用数轴语言解释大小关系"
+            ],
+            "existing_count": 0,
+            "family_id": "number_line_position_distance",
+            "family_name": "数轴位置与距离",
+            "missing_to_target": 4,
+            "profile": "stretch_competition_teacher",
+            "profile_display": "拔高/竞赛老师",
+            "reject_patterns": [
+              "数字变大造成的伪难",
+              "超出主线过远的竞赛技巧",
+              "失败后反向否定基础掌握"
+            ],
+            "required_evidence": [
+              "能在文字、式子、图形或数轴之间转换",
+              "能说清数轴的概念边界或反例",
+              "能写出数轴对应的核心关系"
+            ],
+            "target_count": 4,
+            "variation_logic": [
+              "给起点和移动方向",
+              "给两个点反推距离",
+              "用不画完整数轴的局部刻度判断顺序",
+              "让孩子解释为什么向左不是加大"
+            ],
+            "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+          }
+        ],
+        "family_plan_entry": {
+          "difficulty": [
+            "L2",
+            "L3"
+          ],
+          "evidence_focus": [
+            "representation",
+            "concept",
+            "model_relation"
+          ],
+          "family_id": "number_line_position_distance",
+          "required_evidence": [
+            "能在文字、式子、图形或数轴之间转换",
+            "能说清数轴的概念边界或反例",
+            "能写出数轴对应的核心关系"
+          ],
+          "target_count": 4
+        },
+        "generation_policy": {
+          "avoid_rotemechanical_drill": true,
+          "must_bind_primary_node": "M-G7-NUMBER-LINE",
+          "must_include_mastery_dimension_mapping": true,
+          "must_include_solution_contract": true,
+          "non_key_expression_gap_max_penalty": 1,
+          "simple_node_fast_pass": true
+        },
+        "node_capability": "数轴：数轴把数变成位置，越往右越大；命题必须围绕画数轴、在数轴上表示数、用数轴比较大小产生可观察证据。",
+        "question_requirement": {
+          "coverage_role": "entry_probe",
+          "difficulty": "L2",
+          "evidence_goal": "能把数对应到位置",
+          "expert_basis_profiles": [
+            "assessment_expert",
+            "bridge_diagnosis_teacher",
+            "frontline_math_teacher",
+            "source_compliance_reviewer",
+            "stretch_competition_teacher"
+          ],
+          "family_id": "number_line_position_distance",
+          "max_attempts": 3,
+          "must_include": [
+            "能在文字、式子、图形或数轴之间转换",
+            "能说清数轴的概念边界或反例",
+            "能写出数轴对应的核心关系",
+            "能把数对应到位置"
+          ],
+          "must_not_include": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明",
+            "把向左移动当加法",
+            "把距离带符号",
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "node_id": "M-G7-NUMBER-LINE",
+          "node_name": "数轴",
+          "question_direction": "给起点和移动方向",
+          "question_requirement_id": "REQ-10e106561ff8",
+          "slot_id": "M-G7-NUMBER-LINE:number_line_position_distance:01",
+          "slot_order": 1,
+          "status": "requirement_ready"
+        },
+        "review_must_reject": [
+          "低龄机械口算或竖式刷题",
+          "只换数字没有新结构",
+          "标准答案把非关键书写当主扣分",
+          "下一题仍重复同一个左右移动壳",
+          "只有机械读点",
+          "没有方向、距离或相对位置证据",
+          "把本节点出成角平分线、视图或面积体积题",
+          "把本节点出成无关应用题情境",
+          "把本节点出成工程效率题"
+        ],
+        "scope_in": [
+          "画数轴",
+          "在数轴上表示数",
+          "用数轴比较大小",
+          "能画出三要素：原点、正方向、单位长度",
+          "能用位置比较大小",
+          "在数轴上标5个数",
+          "根据点写数"
+        ],
+        "scope_out": [
+          "低龄机械口算或竖式刷题",
+          "只换数字没有新结构",
+          "标准答案把非关键书写当主扣分",
+          "下一题仍重复同一个左右移动壳",
+          "只有机械读点",
+          "没有方向、距离或相对位置证据",
+          "把本节点出成角平分线、视图或面积体积题",
+          "把本节点出成无关应用题情境",
+          "把本节点出成工程效率题"
+        ]
+      },
+      "candidate_authority": "candidate_only",
+      "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+      "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+      "family_id": "number_line_position_distance",
+      "family_name": "数轴位置与距离",
+      "finding_counts": {},
+      "findings": [],
+      "max_attempts_per_question": 3,
+      "next_actions": [
+        "generate_candidate_from_packet"
+      ],
+      "node_id": "M-G7-NUMBER-LINE",
+      "node_name": "数轴",
+      "production_json_path": "data/admin/production/PROD-f0041fd1a1eb.json",
+      "production_json_sha256": "91daac4d7a37e1f2da9753596513bee98acfeaa9a237fa498bd8d429054f4d98",
+      "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-f0041fd1a1eb.md",
+      "production_markdown_sha256": "d7f0c9a62fb6fc7cd9345be73d016f82e4faebbbcab808d94ca68231d9c8d055",
+      "production_report_id": "PROD-f0041fd1a1eb",
+      "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+      "question_bank_version": "2026-07-23.bank.v18.staged",
+      "question_requirement_id": "REQ-10e106561ff8",
+      "requested_count": 1,
+      "schema_version": "2026-07-23.codex-admin.production-plan.v1",
+      "slot_id": "M-G7-NUMBER-LINE:number_line_position_distance:01",
+      "status": "GENERATION_PACKET_READY",
+      "subject": "math",
+      "write_applied": true
+    }
+  ],
+  "next_actions": [
+    "run_batch"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "node_name": "数轴",
+  "plan_batch_sha256": "6147282fa6aab05c0793869fc5bac77d60c981dc4be6c74fa87cb27a9e602614",
+  "plan_count": 1,
+  "production_json_path": "data/admin/production/PROD-dbd2570ee399.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-dbd2570ee399.md",
+  "production_markdown_sha256": "ec374443b33eb2d7ed137c96a4ff72e74623fe7b98de1f75ef2b8740487ec6dc",
+  "production_report_id": "PROD-dbd2570ee399",
+  "question_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "requested_slot_count": 4,
+  "requirement_plan_path": "data/admin/production/PROD-128c3b3188bf.json",
+  "schema_version": "2026-07-23.codex-admin.production-plan-batch.v1",
+  "selected_slot_count": 1,
+  "status": "PLAN_BATCH_READY",
+  "subject": "math",
+  "write_applied": true
+}

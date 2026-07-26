@@ -1,0 +1,1712 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_budget": {
+    "max": 14,
+    "min": 10,
+    "target": 12
+  },
+  "counts_by_family": {},
+  "current_item_count": 0,
+  "design_json_path": "data/admin/design_ideas/EXPERT-IDEAS-fa437c75408f.json",
+  "design_markdown_path": "docs/system/admin_reports/design_ideas/2026-07-25-EXPERT-IDEAS-fa437c75408f.md",
+  "design_markdown_sha256": "f8ca6705ee8bf629201312b567b549cd0d2350acb45dca27b5716cf95b2e2f7e",
+  "idea_count": 20,
+  "missing_or_underfilled_families": [
+    "number_sense_range_benchmark",
+    "number_sense_bias_direction",
+    "number_sense_magnitude_reasonableness",
+    "number_sense_strategy_selection"
+  ],
+  "next_actions": [
+    "use_requirements_as_generation_slots",
+    "human_review_design_ideas",
+    "do_not_activate_directly"
+  ],
+  "node_essence": "先判断答案大概范围，防止算出离谱结果。",
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "node_name": "数感与估算",
+  "profile_contributions": {
+    "assessment_expert": {
+      "design_principle": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。",
+      "display": "测评专家",
+      "idea_focus": "证据目标、得分点、误判防线。",
+      "suggestions": [
+        {
+          "core_scenario": "先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。",
+          "design_idea": "评分合同要围绕这些证据：估算基准、结果范围、范围依据。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "check"
+          ],
+          "evidence_goal": [
+            "估算基准",
+            "结果范围",
+            "范围依据"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_range_benchmark",
+          "family_name": "估值范围与基准",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "assessment_expert",
+          "profile_display": "测评专家",
+          "reject_patterns": [
+            "泛化评分模板",
+            "缺少 accepted alternatives",
+            "把非关键书写作为主扣分项"
+          ],
+          "required_evidence": [
+            "精算前选出贴近原数且便于心算的基准",
+            "给出能排除离谱答案的区间、上下界或数量级",
+            "说明估值范围为什么覆盖真实结果"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "先精算再反填估算",
+            "上下界方向颠倒",
+            "范围过宽失去检查作用"
+          ],
+          "variation_logic": [
+            "给乘积选择上下界",
+            "给商确定有判别力的上下界区间",
+            "比较两个估算基准的范围紧致性"
+          ],
+          "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+        },
+        {
+          "core_scenario": "围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。",
+          "design_idea": "评分合同要围绕这些证据：偏差来源、偏差方向、偏差合成判断。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "reasoning"
+          ],
+          "evidence_goal": [
+            "偏差来源",
+            "偏差方向",
+            "偏差合成判断"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_bias_direction",
+          "family_name": "近似偏差方向",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "assessment_expert",
+          "profile_display": "测评专家",
+          "reject_patterns": [
+            "泛化评分模板",
+            "缺少 accepted alternatives",
+            "把非关键书写作为主扣分项"
+          ],
+          "required_evidence": [
+            "指出每个近似替换相对原数是增大还是减小",
+            "判断估计结果相对真实结果偏大、偏小或无法仅凭方向确定",
+            "两个量同时变化时说明偏差叠加或抵消关系"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "只看一个量的偏差",
+            "把因数增大对积的影响判断反",
+            "认为一增一减必然完全抵消"
+          ],
+          "variation_logic": [
+            "单个量向上或向下取整",
+            "两个量同向偏差",
+            "两个量反向偏差并判断是否抵消"
+          ],
+          "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+        },
+        {
+          "core_scenario": "给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。",
+          "design_idea": "评分合同要围绕这些证据：数量级、小数点或位数判断、合理性解释。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "magnitude",
+            "representation",
+            "check"
+          ],
+          "evidence_goal": [
+            "数量级",
+            "小数点或位数判断",
+            "合理性解释"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_magnitude_reasonableness",
+          "family_name": "数量级与结果合理性",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "assessment_expert",
+          "profile_display": "测评专家",
+          "reject_patterns": [
+            "泛化评分模板",
+            "缺少 accepted alternatives",
+            "把非关键书写作为主扣分项"
+          ],
+          "required_evidence": [
+            "说出结果应处于哪个数量级或现实范围",
+            "定位候选结果中的小数点、位数、单位或符号异常",
+            "不用完整精算也能说明为何合理或不合理"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "小数点错一位仍接受",
+            "忽略单位导致量级错误",
+            "只看末位数字不看整体大小"
+          ],
+          "variation_logic": [
+            "排除错位小数点",
+            "判断单位量级",
+            "在多个近邻结果中筛选合理值"
+          ],
+          "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+        },
+        {
+          "core_scenario": "提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。",
+          "design_idea": "评分合同要围绕这些证据：策略选择、误差与成本比较、精度充分性。允许等价表达，但必须能区分“会但写少了”和“模型没懂”。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "metacognition",
+            "check"
+          ],
+          "evidence_goal": [
+            "策略选择",
+            "误差与成本比较",
+            "精度充分性"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_strategy_selection",
+          "family_name": "估算策略选择",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "assessment_expert",
+          "profile_display": "测评专家",
+          "reject_patterns": [
+            "泛化评分模板",
+            "缺少 accepted alternatives",
+            "把非关键书写作为主扣分项"
+          ],
+          "required_evidence": [
+            "根据任务目的选择粗估、范围估计或较精细估计",
+            "比较不同策略的计算成本和误差范围",
+            "说明为什么所选精度已经足够"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "无论用途都使用同一估法",
+            "把步骤多误认为更准确",
+            "为了估算仍进行完整精算"
+          ],
+          "variation_logic": [
+            "比较两个取整基准",
+            "按用途选择粗估或精估",
+            "判断已有精度是否足够"
+          ],
+          "why": "每类题必须预先定义可观察证据和评分点，允许等价表达，不把非关键书写当不会。"
+        }
+      ]
+    },
+    "bridge_diagnosis_teacher": {
+      "design_principle": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。",
+      "display": "衔接诊断老师",
+      "idea_focus": "前置探针、近迁移复测、错因回退。",
+      "suggestions": [
+        {
+          "core_scenario": "先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。",
+          "design_idea": "用“给乘积选择上下界”和“给商确定有判别力的上下界区间”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "check"
+          ],
+          "evidence_goal": [
+            "估算基准",
+            "结果范围",
+            "范围依据"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_range_benchmark",
+          "family_name": "估值范围与基准",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "bridge_diagnosis_teacher",
+          "profile_display": "衔接诊断老师",
+          "reject_patterns": [
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "required_evidence": [
+            "精算前选出贴近原数且便于心算的基准",
+            "给出能排除离谱答案的区间、上下界或数量级",
+            "说明估值范围为什么覆盖真实结果"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "先精算再反填估算",
+            "上下界方向颠倒",
+            "范围过宽失去检查作用"
+          ],
+          "variation_logic": [
+            "给乘积选择上下界",
+            "给商确定有判别力的上下界区间",
+            "比较两个估算基准的范围紧致性"
+          ],
+          "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+        },
+        {
+          "core_scenario": "围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。",
+          "design_idea": "用“单个量向上或向下取整”和“两个量同向偏差”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "reasoning"
+          ],
+          "evidence_goal": [
+            "偏差来源",
+            "偏差方向",
+            "偏差合成判断"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_bias_direction",
+          "family_name": "近似偏差方向",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "bridge_diagnosis_teacher",
+          "profile_display": "衔接诊断老师",
+          "reject_patterns": [
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "required_evidence": [
+            "指出每个近似替换相对原数是增大还是减小",
+            "判断估计结果相对真实结果偏大、偏小或无法仅凭方向确定",
+            "两个量同时变化时说明偏差叠加或抵消关系"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "只看一个量的偏差",
+            "把因数增大对积的影响判断反",
+            "认为一增一减必然完全抵消"
+          ],
+          "variation_logic": [
+            "单个量向上或向下取整",
+            "两个量同向偏差",
+            "两个量反向偏差并判断是否抵消"
+          ],
+          "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+        },
+        {
+          "core_scenario": "给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。",
+          "design_idea": "用“排除错位小数点”和“判断单位量级”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "magnitude",
+            "representation",
+            "check"
+          ],
+          "evidence_goal": [
+            "数量级",
+            "小数点或位数判断",
+            "合理性解释"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_magnitude_reasonableness",
+          "family_name": "数量级与结果合理性",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "bridge_diagnosis_teacher",
+          "profile_display": "衔接诊断老师",
+          "reject_patterns": [
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "required_evidence": [
+            "说出结果应处于哪个数量级或现实范围",
+            "定位候选结果中的小数点、位数、单位或符号异常",
+            "不用完整精算也能说明为何合理或不合理"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "小数点错一位仍接受",
+            "忽略单位导致量级错误",
+            "只看末位数字不看整体大小"
+          ],
+          "variation_logic": [
+            "排除错位小数点",
+            "判断单位量级",
+            "在多个近邻结果中筛选合理值"
+          ],
+          "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+        },
+        {
+          "core_scenario": "提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。",
+          "design_idea": "用“比较两个取整基准”和“按用途选择粗估或精估”做成诊断探针；错了以后能区分本节点断点、前置断点和表达不完整。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "metacognition",
+            "check"
+          ],
+          "evidence_goal": [
+            "策略选择",
+            "误差与成本比较",
+            "精度充分性"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_strategy_selection",
+          "family_name": "估算策略选择",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "bridge_diagnosis_teacher",
+          "profile_display": "衔接诊断老师",
+          "reject_patterns": [
+            "错了只能继续刷同类题",
+            "无法判断是概念错还是计算错",
+            "没有回退候选"
+          ],
+          "required_evidence": [
+            "根据任务目的选择粗估、范围估计或较精细估计",
+            "比较不同策略的计算成本和误差范围",
+            "说明为什么所选精度已经足够"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "无论用途都使用同一估法",
+            "把步骤多误认为更准确",
+            "为了估算仍进行完整精算"
+          ],
+          "variation_logic": [
+            "比较两个取整基准",
+            "按用途选择粗估或精估",
+            "判断已有精度是否足够"
+          ],
+          "why": "题目要能暴露第一个断点：是前置不会、模型没建好、步骤不稳，还是迁移不稳。"
+        }
+      ]
+    },
+    "frontline_math_teacher": {
+      "design_principle": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。",
+      "display": "一线初中数学老师",
+      "idea_focus": "课堂可教、表达自然、题面尊重孩子。",
+      "suggestions": [
+        {
+          "core_scenario": "先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。",
+          "design_idea": "先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "check"
+          ],
+          "evidence_goal": [
+            "估算基准",
+            "结果范围",
+            "范围依据"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_range_benchmark",
+          "family_name": "估值范围与基准",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "frontline_math_teacher",
+          "profile_display": "一线初中数学老师",
+          "reject_patterns": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明"
+          ],
+          "required_evidence": [
+            "精算前选出贴近原数且便于心算的基准",
+            "给出能排除离谱答案的区间、上下界或数量级",
+            "说明估值范围为什么覆盖真实结果"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "先精算再反填估算",
+            "上下界方向颠倒",
+            "范围过宽失去检查作用"
+          ],
+          "variation_logic": [
+            "给乘积选择上下界",
+            "给商确定有判别力的上下界区间",
+            "比较两个估算基准的范围紧致性"
+          ],
+          "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+        },
+        {
+          "core_scenario": "围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。",
+          "design_idea": "围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "reasoning"
+          ],
+          "evidence_goal": [
+            "偏差来源",
+            "偏差方向",
+            "偏差合成判断"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_bias_direction",
+          "family_name": "近似偏差方向",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "frontline_math_teacher",
+          "profile_display": "一线初中数学老师",
+          "reject_patterns": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明"
+          ],
+          "required_evidence": [
+            "指出每个近似替换相对原数是增大还是减小",
+            "判断估计结果相对真实结果偏大、偏小或无法仅凭方向确定",
+            "两个量同时变化时说明偏差叠加或抵消关系"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "只看一个量的偏差",
+            "把因数增大对积的影响判断反",
+            "认为一增一减必然完全抵消"
+          ],
+          "variation_logic": [
+            "单个量向上或向下取整",
+            "两个量同向偏差",
+            "两个量反向偏差并判断是否抵消"
+          ],
+          "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+        },
+        {
+          "core_scenario": "给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。",
+          "design_idea": "给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "magnitude",
+            "representation",
+            "check"
+          ],
+          "evidence_goal": [
+            "数量级",
+            "小数点或位数判断",
+            "合理性解释"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_magnitude_reasonableness",
+          "family_name": "数量级与结果合理性",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "frontline_math_teacher",
+          "profile_display": "一线初中数学老师",
+          "reject_patterns": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明"
+          ],
+          "required_evidence": [
+            "说出结果应处于哪个数量级或现实范围",
+            "定位候选结果中的小数点、位数、单位或符号异常",
+            "不用完整精算也能说明为何合理或不合理"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "小数点错一位仍接受",
+            "忽略单位导致量级错误",
+            "只看末位数字不看整体大小"
+          ],
+          "variation_logic": [
+            "排除错位小数点",
+            "判断单位量级",
+            "在多个近邻结果中筛选合理值"
+          ],
+          "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+        },
+        {
+          "core_scenario": "提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。",
+          "design_idea": "提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。 题面应像真实课堂追问：先让孩子作判断，再用一句话说明依据。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "metacognition",
+            "check"
+          ],
+          "evidence_goal": [
+            "策略选择",
+            "误差与成本比较",
+            "精度充分性"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_strategy_selection",
+          "family_name": "估算策略选择",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "frontline_math_teacher",
+          "profile_display": "一线初中数学老师",
+          "reject_patterns": [
+            "只换数字的低龄练习",
+            "只要求最终答案",
+            "题干像后台任务说明"
+          ],
+          "required_evidence": [
+            "根据任务目的选择粗估、范围估计或较精细估计",
+            "比较不同策略的计算成本和误差范围",
+            "说明为什么所选精度已经足够"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "无论用途都使用同一估法",
+            "把步骤多误认为更准确",
+            "为了估算仍进行完整精算"
+          ],
+          "variation_logic": [
+            "比较两个取整基准",
+            "按用途选择粗估或精估",
+            "判断已有精度是否足够"
+          ],
+          "why": "题目要让六升七孩子觉得值得做：少机械计算，多让他说明结构、比较方法、验证结论。"
+        }
+      ]
+    },
+    "source_compliance_reviewer": {
+      "design_principle": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。",
+      "display": "题源合规 reviewer",
+      "idea_focus": "来源边界、原创约束、结构指纹。",
+      "suggestions": [
+        {
+          "core_scenario": "先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。",
+          "design_idea": "可参考外部资料的范围或结构，如“先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "check"
+          ],
+          "evidence_goal": [
+            "估算基准",
+            "结果范围",
+            "范围依据"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_range_benchmark",
+          "family_name": "估值范围与基准",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "source_compliance_reviewer",
+          "profile_display": "题源合规 reviewer",
+          "reject_patterns": [
+            "复制商业题干",
+            "改数字洗题",
+            "保存未经许可的图形或解析"
+          ],
+          "required_evidence": [
+            "精算前选出贴近原数且便于心算的基准",
+            "给出能排除离谱答案的区间、上下界或数量级",
+            "说明估值范围为什么覆盖真实结果"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "先精算再反填估算",
+            "上下界方向颠倒",
+            "范围过宽失去检查作用"
+          ],
+          "variation_logic": [
+            "给乘积选择上下界",
+            "给商确定有判别力的上下界区间",
+            "比较两个估算基准的范围紧致性"
+          ],
+          "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+        },
+        {
+          "core_scenario": "围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。",
+          "design_idea": "可参考外部资料的范围或结构，如“围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "reasoning"
+          ],
+          "evidence_goal": [
+            "偏差来源",
+            "偏差方向",
+            "偏差合成判断"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_bias_direction",
+          "family_name": "近似偏差方向",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "source_compliance_reviewer",
+          "profile_display": "题源合规 reviewer",
+          "reject_patterns": [
+            "复制商业题干",
+            "改数字洗题",
+            "保存未经许可的图形或解析"
+          ],
+          "required_evidence": [
+            "指出每个近似替换相对原数是增大还是减小",
+            "判断估计结果相对真实结果偏大、偏小或无法仅凭方向确定",
+            "两个量同时变化时说明偏差叠加或抵消关系"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "只看一个量的偏差",
+            "把因数增大对积的影响判断反",
+            "认为一增一减必然完全抵消"
+          ],
+          "variation_logic": [
+            "单个量向上或向下取整",
+            "两个量同向偏差",
+            "两个量反向偏差并判断是否抵消"
+          ],
+          "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+        },
+        {
+          "core_scenario": "给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。",
+          "design_idea": "可参考外部资料的范围或结构，如“给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "magnitude",
+            "representation",
+            "check"
+          ],
+          "evidence_goal": [
+            "数量级",
+            "小数点或位数判断",
+            "合理性解释"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_magnitude_reasonableness",
+          "family_name": "数量级与结果合理性",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "source_compliance_reviewer",
+          "profile_display": "题源合规 reviewer",
+          "reject_patterns": [
+            "复制商业题干",
+            "改数字洗题",
+            "保存未经许可的图形或解析"
+          ],
+          "required_evidence": [
+            "说出结果应处于哪个数量级或现实范围",
+            "定位候选结果中的小数点、位数、单位或符号异常",
+            "不用完整精算也能说明为何合理或不合理"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "小数点错一位仍接受",
+            "忽略单位导致量级错误",
+            "只看末位数字不看整体大小"
+          ],
+          "variation_logic": [
+            "排除错位小数点",
+            "判断单位量级",
+            "在多个近邻结果中筛选合理值"
+          ],
+          "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+        },
+        {
+          "core_scenario": "提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。",
+          "design_idea": "可参考外部资料的范围或结构，如“提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。”，但题干、数值、图形、解析和结构指纹必须重新原创。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "metacognition",
+            "check"
+          ],
+          "evidence_goal": [
+            "策略选择",
+            "误差与成本比较",
+            "精度充分性"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_strategy_selection",
+          "family_name": "估算策略选择",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "source_compliance_reviewer",
+          "profile_display": "题源合规 reviewer",
+          "reject_patterns": [
+            "复制商业题干",
+            "改数字洗题",
+            "保存未经许可的图形或解析"
+          ],
+          "required_evidence": [
+            "根据任务目的选择粗估、范围估计或较精细估计",
+            "比较不同策略的计算成本和误差范围",
+            "说明为什么所选精度已经足够"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "无论用途都使用同一估法",
+            "把步骤多误认为更准确",
+            "为了估算仍进行完整精算"
+          ],
+          "variation_logic": [
+            "比较两个取整基准",
+            "按用途选择粗估或精估",
+            "判断已有精度是否足够"
+          ],
+          "why": "题型可以参考公开范围和结构，题干、数据、图形和解析必须原创或有明确许可。"
+        }
+      ]
+    },
+    "stretch_competition_teacher": {
+      "design_principle": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。",
+      "display": "拔高/竞赛老师",
+      "idea_focus": "边界、反例、构造、逆向、迁移。",
+      "suggestions": [
+        {
+          "core_scenario": "先判断结果落在哪个有意义的范围，再决定是否需要精算；题目应让基准和边界可解释。",
+          "design_idea": "L4只增加边界比较或基准选择，不引入竞赛技巧、繁琐精算或其他图谱节点。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "check"
+          ],
+          "evidence_goal": [
+            "估算基准",
+            "结果范围",
+            "范围依据"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_range_benchmark",
+          "family_name": "估值范围与基准",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "stretch_competition_teacher",
+          "profile_display": "拔高/竞赛老师",
+          "reject_patterns": [
+            "数字变大造成的伪难",
+            "超出主线过远的竞赛技巧",
+            "失败后反向否定基础掌握"
+          ],
+          "required_evidence": [
+            "精算前选出贴近原数且便于心算的基准",
+            "给出能排除离谱答案的区间、上下界或数量级",
+            "说明估值范围为什么覆盖真实结果"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "先精算再反填估算",
+            "上下界方向颠倒",
+            "范围过宽失去检查作用"
+          ],
+          "variation_logic": [
+            "给乘积选择上下界",
+            "给商确定有判别力的上下界区间",
+            "比较两个估算基准的范围紧致性"
+          ],
+          "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+        },
+        {
+          "core_scenario": "围绕近似替换如何改变结果设计判断、比较或解释任务，重点观察偏差方向而非精算速度。",
+          "design_idea": "L4允许比较偏差抵消，但不进入误差理论、代数证明或复杂不等式。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "model_relation",
+            "reasoning"
+          ],
+          "evidence_goal": [
+            "偏差来源",
+            "偏差方向",
+            "偏差合成判断"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_bias_direction",
+          "family_name": "近似偏差方向",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "stretch_competition_teacher",
+          "profile_display": "拔高/竞赛老师",
+          "reject_patterns": [
+            "数字变大造成的伪难",
+            "超出主线过远的竞赛技巧",
+            "失败后反向否定基础掌握"
+          ],
+          "required_evidence": [
+            "指出每个近似替换相对原数是增大还是减小",
+            "判断估计结果相对真实结果偏大、偏小或无法仅凭方向确定",
+            "两个量同时变化时说明偏差叠加或抵消关系"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "只看一个量的偏差",
+            "把因数增大对积的影响判断反",
+            "认为一增一减必然完全抵消"
+          ],
+          "variation_logic": [
+            "单个量向上或向下取整",
+            "两个量同向偏差",
+            "两个量反向偏差并判断是否抵消"
+          ],
+          "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+        },
+        {
+          "core_scenario": "给出若干看似接近的结果或一个现实量，让孩子用数量级、单位和范围筛出合理答案。",
+          "design_idea": "L4只增加候选接近度和解释要求，不把科学记数法或单位换算设为主要考点。",
+          "difficulty": [
+            "L2",
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 1,
+            "L3": 1,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "magnitude",
+            "representation",
+            "check"
+          ],
+          "evidence_goal": [
+            "数量级",
+            "小数点或位数判断",
+            "合理性解释"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_magnitude_reasonableness",
+          "family_name": "数量级与结果合理性",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "stretch_competition_teacher",
+          "profile_display": "拔高/竞赛老师",
+          "reject_patterns": [
+            "数字变大造成的伪难",
+            "超出主线过远的竞赛技巧",
+            "失败后反向否定基础掌握"
+          ],
+          "required_evidence": [
+            "说出结果应处于哪个数量级或现实范围",
+            "定位候选结果中的小数点、位数、单位或符号异常",
+            "不用完整精算也能说明为何合理或不合理"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "小数点错一位仍接受",
+            "忽略单位导致量级错误",
+            "只看末位数字不看整体大小"
+          ],
+          "variation_logic": [
+            "排除错位小数点",
+            "判断单位量级",
+            "在多个近邻结果中筛选合理值"
+          ],
+          "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+        },
+        {
+          "core_scenario": "提供两种以上估算路径和明确用途，让孩子选择更合适的方法并解释精度是否够用。",
+          "design_idea": "L4不追求最优算法证明，只要求在给定学习范围内作合理选择。",
+          "difficulty": [
+            "L3",
+            "L4"
+          ],
+          "difficulty_distribution": {
+            "L2": 0,
+            "L3": 2,
+            "L4": 1
+          },
+          "evidence_focus": [
+            "estimation",
+            "metacognition",
+            "check"
+          ],
+          "evidence_goal": [
+            "策略选择",
+            "误差与成本比较",
+            "精度充分性"
+          ],
+          "exclude_from_coverage": false,
+          "existing_count": 0,
+          "family_id": "number_sense_strategy_selection",
+          "family_name": "估算策略选择",
+          "missing_to_target": 3,
+          "not_for_activation": false,
+          "profile": "stretch_competition_teacher",
+          "profile_display": "拔高/竞赛老师",
+          "reject_patterns": [
+            "数字变大造成的伪难",
+            "超出主线过远的竞赛技巧",
+            "失败后反向否定基础掌握"
+          ],
+          "required_evidence": [
+            "根据任务目的选择粗估、范围估计或较精细估计",
+            "比较不同策略的计算成本和误差范围",
+            "说明为什么所选精度已经足够"
+          ],
+          "secondary_nodes": [],
+          "support_only": false,
+          "target_count": 3,
+          "target_misconceptions": [
+            "无论用途都使用同一估法",
+            "把步骤多误认为更准确",
+            "为了估算仍进行完整精算"
+          ],
+          "variation_logic": [
+            "比较两个取整基准",
+            "按用途选择粗估或精估",
+            "判断已有精度是否足够"
+          ],
+          "why": "拔高不是堆数字，而是改变表示、条件、方向或边界，让孩子迁移同一个本质。"
+        }
+      ]
+    }
+  },
+  "question_bank_status": "staged_not_active",
+  "question_bank_version": "2026-07-23.bank.v18.staged",
+  "question_requirements": [
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L2",
+      "evidence_goal": "估算基准",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_range_benchmark",
+      "max_attempts": 3,
+      "must_include": [
+        "估算基准",
+        "精算前选出贴近原数且便于心算的基准",
+        "题面和得分点必须落实当前方向：给乘积选择上下界",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "给乘积选择上下界",
+      "question_requirement_id": "REQ-959cfd4c7a53",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:01",
+      "slot_order": 1,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "先精算再反填估算"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "结果范围",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_range_benchmark",
+      "max_attempts": 3,
+      "must_include": [
+        "结果范围",
+        "给出能排除离谱答案的区间、上下界或数量级",
+        "题面和得分点必须落实当前方向：给商确定有判别力的上下界区间",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "给商确定有判别力的上下界区间",
+      "question_requirement_id": "REQ-11beb7243c4b",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:02",
+      "slot_order": 2,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "上下界方向颠倒"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "范围依据",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_range_benchmark",
+      "max_attempts": 3,
+      "must_include": [
+        "范围依据",
+        "说明估值范围为什么覆盖真实结果",
+        "题面和得分点必须落实当前方向：比较两个估算基准的范围紧致性",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "比较两个估算基准的范围紧致性",
+      "question_requirement_id": "REQ-2fe0054b27d3",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:03",
+      "slot_order": 3,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "范围过宽失去检查作用"
+      ]
+    },
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L3",
+      "evidence_goal": "偏差来源",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_bias_direction",
+      "max_attempts": 3,
+      "must_include": [
+        "偏差来源",
+        "指出每个近似替换相对原数是增大还是减小",
+        "题面和得分点必须落实当前方向：单个量向上或向下取整",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "单个量向上或向下取整",
+      "question_requirement_id": "REQ-f8aef82fe787",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_bias_direction:01",
+      "slot_order": 4,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "只看一个量的偏差"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "偏差方向",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_bias_direction",
+      "max_attempts": 3,
+      "must_include": [
+        "偏差方向",
+        "判断估计结果相对真实结果偏大、偏小或无法仅凭方向确定",
+        "题面和得分点必须落实当前方向：两个量同向偏差",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "两个量同向偏差",
+      "question_requirement_id": "REQ-c5ec7a00207a",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_bias_direction:02",
+      "slot_order": 5,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "把因数变化对积的影响判断反"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "偏差合成判断",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_bias_direction",
+      "max_attempts": 3,
+      "must_include": [
+        "偏差合成判断",
+        "两个量同时变化时说明偏差叠加或抵消关系",
+        "题面和得分点必须落实当前方向：两个量反向偏差并判断是否抵消",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "两个量反向偏差并判断是否抵消",
+      "question_requirement_id": "REQ-ca0512cf8706",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_bias_direction:03",
+      "slot_order": 6,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "认为一增一减必然完全抵消"
+      ]
+    },
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L2",
+      "evidence_goal": "数量级",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_magnitude_reasonableness",
+      "max_attempts": 3,
+      "must_include": [
+        "数量级",
+        "说出结果应处于哪个数量级或现实范围",
+        "题面和得分点必须落实当前方向：排除错位小数点",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "排除错位小数点",
+      "question_requirement_id": "REQ-b189c7708065",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_magnitude_reasonableness:01",
+      "slot_order": 7,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "小数点错一位仍接受"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "小数点或位数判断",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_magnitude_reasonableness",
+      "max_attempts": 3,
+      "must_include": [
+        "小数点或位数判断",
+        "定位候选结果中的小数点、位数、单位或符号异常",
+        "题面和得分点必须落实当前方向：判断单位量级",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "判断单位量级",
+      "question_requirement_id": "REQ-70ade98b27bf",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_magnitude_reasonableness:02",
+      "slot_order": 8,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "忽略单位导致量级错误"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "合理性解释",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_magnitude_reasonableness",
+      "max_attempts": 3,
+      "must_include": [
+        "合理性解释",
+        "不用完整精算也能说明为何合理或不合理",
+        "题面和得分点必须落实当前方向：在多个近邻结果中筛选合理值",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "在多个近邻结果中筛选合理值",
+      "question_requirement_id": "REQ-21d1e4bc028f",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_magnitude_reasonableness:03",
+      "slot_order": 9,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "只看末位数字不看整体大小"
+      ]
+    },
+    {
+      "coverage_role": "entry_probe",
+      "difficulty": "L3",
+      "evidence_goal": "策略选择",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_strategy_selection",
+      "max_attempts": 3,
+      "must_include": [
+        "策略选择",
+        "根据任务目的选择粗估、范围估计或较精细估计",
+        "题面和得分点必须落实当前方向：比较两个取整基准",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "比较两个取整基准",
+      "question_requirement_id": "REQ-e16f969e7b31",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_strategy_selection:01",
+      "slot_order": 10,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "无论用途都用同一估法"
+      ]
+    },
+    {
+      "coverage_role": "confirmation_or_variant",
+      "difficulty": "L3",
+      "evidence_goal": "误差与成本比较",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_strategy_selection",
+      "max_attempts": 3,
+      "must_include": [
+        "误差与成本比较",
+        "比较不同策略的计算成本和误差范围",
+        "题面和得分点必须落实当前方向：按用途选择粗估或精估",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "按用途选择粗估或精估",
+      "question_requirement_id": "REQ-b91b363bd671",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_strategy_selection:02",
+      "slot_order": 11,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "把步骤多误认为更准确"
+      ]
+    },
+    {
+      "coverage_role": "transfer_or_stretch",
+      "difficulty": "L4",
+      "evidence_goal": "精度充分性",
+      "exclude_from_coverage": false,
+      "expert_basis_profiles": [
+        "assessment_expert",
+        "bridge_diagnosis_teacher",
+        "frontline_math_teacher",
+        "source_compliance_reviewer",
+        "stretch_competition_teacher"
+      ],
+      "family_id": "number_sense_strategy_selection",
+      "max_attempts": 3,
+      "must_include": [
+        "精度充分性",
+        "说明为什么所选精度已经足够",
+        "题面和得分点必须落实当前方向：判断已有精度是否足够",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务"
+      ],
+      "must_not_include": [
+        "只换数字的低龄练习",
+        "只要求最终答案",
+        "题干像后台任务说明",
+        "错了只能继续刷同类题",
+        "无法判断是概念错还是计算错",
+        "没有回退候选",
+        "数字变大造成的伪难",
+        "超出主线过远的竞赛技巧"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "node_name": "数感与估算",
+      "not_for_activation": false,
+      "question_direction": "判断已有精度是否足够",
+      "question_requirement_id": "REQ-7365b77f6fce",
+      "secondary_nodes": [],
+      "slot_id": "M-PRE-NUMBER-SENSE:number_sense_strategy_selection:03",
+      "slot_order": 12,
+      "status": "requirement_ready",
+      "support_only": false,
+      "target_misconceptions": [
+        "为了估算仍完整精算"
+      ]
+    }
+  ],
+  "report_id": "EXPERT-IDEAS-fa437c75408f",
+  "requirement_count": 12,
+  "schema_version": "2026-07-23.codex-admin.expert-design-ideas.v1",
+  "subject": "math",
+  "write_applied": true
+}

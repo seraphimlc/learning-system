@@ -1,0 +1,187 @@
+{
+  "absolute_deadline_monotonic": 40134.568397958,
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "batch_id": "BATCH-7f491a5f28dc",
+  "batch_json_path": "data/admin/workflows/BATCH-7f491a5f28dc.json",
+  "batch_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-BATCH-7f491a5f28dc.md",
+  "batch_markdown_sha256": "c0add7ce993dbfe36cc9a0967b6ed67b5a7f3e81d634fbdc6886307c3e6911a7",
+  "batch_write_applied": true,
+  "blocked_reason": "",
+  "blocking_code_counts": {
+    "blocked_model_error": 1,
+    "child_surface_answer_format_requires_missing_explanation_control": 1,
+    "child_surface_invalid_interaction_schema": 1,
+    "child_surface_projection_failed": 5,
+    "child_surface_writing_burden_understates_control": 3,
+    "expert_review_blocks_loop": 2,
+    "family_evidence_contract_mismatch": 1,
+    "machine_check_blocks_loop": 5,
+    "standard_answer_lower_bound_insufficient": 1,
+    "unmet_required_evidence_origin": 1
+  },
+  "created_at": "2026-07-25T08:52:09.879060+00:00",
+  "elapsed_seconds": 671.625,
+  "executed_slot_count": 9,
+  "failed_slot_count": 6,
+  "generation_batch_size": 1,
+  "max_attempts_per_slot": 3,
+  "max_runtime_seconds": 1800.0,
+  "parallel_execution_enabled": true,
+  "parallel_workers": 2,
+  "requested_plan_count": 9,
+  "schema_version": "2026-07-23.codex-admin.batch-production-workflow.v1",
+  "selected_plan_count": 9,
+  "semantic_collision_json_path": "data/admin/semantic_collision/SEMANTIC-COLLISION-7177142c064f61c0.json",
+  "semantic_collision_status": "PASS",
+  "semantic_collision_transport_attempts": [
+    {
+      "candidate_ordinal": 0,
+      "elapsed_seconds": 14.744,
+      "endpoint": "responses",
+      "error_class": "",
+      "error_message": "",
+      "outcome": "response_received",
+      "request_digest_sha256": "8f8be6f2617e882b0f18e683120f1cccbd5dc8a714f17dd06b6f8d748cb81a1a",
+      "response_digest_sha256": "42518435ee8517016e1a8e56e3a11666f24c138f92b9a89d06a7040424b1f54b",
+      "retry_after_seconds": null,
+      "status_code": null,
+      "structured_json_mode": "json_schema"
+    }
+  ],
+  "skipped_slot_count": 0,
+  "slot_workflows": [
+    {
+      "attempt_count": 1,
+      "blocking_codes": [],
+      "elapsed_seconds": 125.308,
+      "generation_plan_path": "data/admin/production/PROD-01507715c7fc.json",
+      "item_id": "CAND-331b880cdc6f",
+      "status": "WORKFLOW_STAGED",
+      "workflow_id": "WF-bbd9977f3641",
+      "workflow_json_path": "data/admin/workflows/WF-bbd9977f3641.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-bbd9977f3641.md"
+    },
+    {
+      "attempt_count": 3,
+      "blocking_codes": [
+        "child_surface_projection_failed",
+        "child_surface_writing_burden_understates_control",
+        "expert_review_blocks_loop",
+        "machine_check_blocks_loop",
+        "standard_answer_lower_bound_insufficient"
+      ],
+      "elapsed_seconds": 184.551,
+      "generation_plan_path": "data/admin/production/PROD-6f35eef18d43.json",
+      "item_id": "CAND-64a919042ded",
+      "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+      "workflow_id": "WF-08a7f1557c42",
+      "workflow_json_path": "data/admin/workflows/WF-08a7f1557c42.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-08a7f1557c42.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "elapsed_seconds": 136.869,
+      "generation_plan_path": "data/admin/production/PROD-22dd708eea20.json",
+      "item_id": "",
+      "status": "BLOCKED_MODEL_ERROR",
+      "workflow_id": "WF-ad13be854bf6",
+      "workflow_json_path": "data/admin/workflows/WF-ad13be854bf6.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-ad13be854bf6.md"
+    },
+    {
+      "attempt_count": 3,
+      "blocking_codes": [
+        "child_surface_projection_failed",
+        "machine_check_blocks_loop"
+      ],
+      "elapsed_seconds": 106.965,
+      "generation_plan_path": "data/admin/production/PROD-695ed51ae630.json",
+      "item_id": "CAND-e6fe993a5b82",
+      "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+      "workflow_id": "WF-f1321731f54e",
+      "workflow_json_path": "data/admin/workflows/WF-f1321731f54e.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-f1321731f54e.md"
+    },
+    {
+      "attempt_count": 3,
+      "blocking_codes": [
+        "child_surface_projection_failed",
+        "machine_check_blocks_loop"
+      ],
+      "elapsed_seconds": 125.47,
+      "generation_plan_path": "data/admin/production/PROD-13e989348461.json",
+      "item_id": "CAND-c7ae40fcdf2f",
+      "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+      "workflow_id": "WF-3927ce427282",
+      "workflow_json_path": "data/admin/workflows/WF-3927ce427282.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-3927ce427282.md"
+    },
+    {
+      "attempt_count": 3,
+      "blocking_codes": [
+        "child_surface_projection_failed",
+        "child_surface_writing_burden_understates_control",
+        "expert_review_blocks_loop",
+        "family_evidence_contract_mismatch",
+        "machine_check_blocks_loop",
+        "unmet_required_evidence_origin"
+      ],
+      "elapsed_seconds": 255.821,
+      "generation_plan_path": "data/admin/production/PROD-5ae65c2f18c1.json",
+      "item_id": "CAND-77fb2287fd3b",
+      "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+      "workflow_id": "WF-b9e0983dcdb1",
+      "workflow_json_path": "data/admin/workflows/WF-b9e0983dcdb1.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-b9e0983dcdb1.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [],
+      "elapsed_seconds": 140.639,
+      "generation_plan_path": "data/admin/production/PROD-3db49bc0def9.json",
+      "item_id": "CAND-e1c8e0fce8a0",
+      "status": "WORKFLOW_STAGED",
+      "workflow_id": "WF-081b17191be4",
+      "workflow_json_path": "data/admin/workflows/WF-081b17191be4.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-081b17191be4.md"
+    },
+    {
+      "attempt_count": 3,
+      "blocking_codes": [
+        "child_surface_answer_format_requires_missing_explanation_control",
+        "child_surface_invalid_interaction_schema",
+        "child_surface_projection_failed",
+        "child_surface_writing_burden_understates_control",
+        "machine_check_blocks_loop"
+      ],
+      "elapsed_seconds": 128.542,
+      "generation_plan_path": "data/admin/production/PROD-c747c81d585e.json",
+      "item_id": "CAND-4afbb0a207f9",
+      "status": "LOOP_BLOCKED_MAX_ATTEMPTS",
+      "workflow_id": "WF-899f9df0c9b9",
+      "workflow_json_path": "data/admin/workflows/WF-899f9df0c9b9.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-899f9df0c9b9.md"
+    },
+    {
+      "attempt_count": 1,
+      "blocking_codes": [],
+      "elapsed_seconds": 74.425,
+      "generation_plan_path": "data/admin/production/PROD-f40065ca94b6.json",
+      "item_id": "CAND-8b4b626cd73a",
+      "status": "WORKFLOW_STAGED",
+      "workflow_id": "WF-86021c2a563e",
+      "workflow_json_path": "data/admin/workflows/WF-86021c2a563e.json",
+      "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-86021c2a563e.md"
+    }
+  ],
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_slot_count": 3,
+  "staging_allowed": false,
+  "status": "BATCH_COMPLETED_WITH_FAILURES",
+  "subject": "math"
+}

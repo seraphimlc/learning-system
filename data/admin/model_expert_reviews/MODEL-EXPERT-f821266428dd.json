@@ -1,0 +1,147 @@
+{
+  "activation_implication": "does_not_authorize_activation",
+  "candidate_sha256": "39633d206997f550b6905d1c804e7b0b355749dfad4bb2894e97206302caf422",
+  "confidence": 0.86,
+  "family_id": "number_sense_range_benchmark",
+  "finding_counts": {
+    "P2": 1
+  },
+  "findings": [
+    {
+      "code": "difficulty_scope_slightly_overclaimed",
+      "item_id": "CAND-925d5efd185f",
+      "message": "题目选项已提供 30、35 等候选边界，学生主要是在识别并验证区间；可作为数感与估算的有效诊断，但对“独立选择贴近原数且便于心算的基准”的 L3 证据较弱，建议按 L2-L3 过渡范围使用或增加基准选择说明。",
+      "profile": "bridge_diagnosis_teacher",
+      "severity": "P2"
+    }
+  ],
+  "item_id": "CAND-925d5efd185f",
+  "model_expert_review_json_path": "data/admin/model_expert_reviews/MODEL-EXPERT-f821266428dd.json",
+  "model_expert_review_markdown_path": "docs/system/admin_reports/model_expert_reviews/2026-07-25-MODEL-EXPERT-f821266428dd.md",
+  "model_expert_review_markdown_sha256": "c0530140f0e5f07d503ffc1d88d027fd7df1c427a0b3b10974c87a956c98a9ec",
+  "model_expert_review_report_id": "MODEL-EXPERT-f821266428dd",
+  "next_actions": [
+    "qa_review"
+  ],
+  "node_id": "M-PRE-NUMBER-SENSE",
+  "overall_status": "pass_with_scope",
+  "profile_reviews": [
+    {
+      "blocking_item_ids": [],
+      "profile": "frontline_math_teacher",
+      "reasons": [
+        "题面中文自然、尊重，适合六年级毕业进入七年级学生。",
+        "任务不是机械口算，要求先判断商的合理区间并说明依据，有课堂诊断价值。",
+        "书写负担轻，一句依据足以观察是否理解上下界判断。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "bridge_diagnosis_teacher",
+      "reasons": [
+        "题目绑定 M-PRE-NUMBER-SENSE 下的估值范围与基准 family，核心证据来自商的上下界和合理区间。",
+        "若学生选 A、C、D 或不能说明上下界，可分别暴露单点近似停留、方向判断错误、范围过宽等断点。",
+        "选项已经给出区间边界，学生不需要完全独立选择估算基准，因此更适合作为 L2-L3 过渡诊断，不宜单独作为 L3 独立基准选择的强证据。"
+      ],
+      "repair_suggestions": [
+        "若要严格作为 L3，可在题干或追问中要求学生说明为什么选择 30 和 35 作为边界，而不只是选择已给区间。"
+      ],
+      "status": "pass_with_scope"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "stretch_competition_teacher",
+      "reasons": [
+        "该题为 L3 基础诊断题，不属于 L4/L5 伸展题；难度来源是边界反推而非数字变大。",
+        "数学结构公平、可教，但不提供迁移或竞赛味证据。"
+      ],
+      "repair_suggestions": [
+        "不要把该题标为 L4/L5 或作为迁移能力证明；它适合作为范围估商的常规诊断。"
+      ],
+      "status": "pass_with_scope"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "assessment_expert",
+      "reasons": [
+        "标准答案、可接受替代表达、评分点与题目要求一致。",
+        "题目要求选择并写依据，能区分猜中选项、精算后作答、只给过宽范围与真正建立上下界。",
+        "答案中的 30×3.8=114、35×3.8=133 与不等式推理自洽，无互相矛盾的最终答案。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    },
+    {
+      "blocking_item_ids": [],
+      "profile": "source_compliance_reviewer",
+      "reasons": [
+        "来源标注为 ai_original / generated_from_expert_requirement_slot，未见商业题库或私有材料复制痕迹。",
+        "题干、选项、答案和解析均为普通原创结构表达，没有外部图片、表格或版式依赖。"
+      ],
+      "repair_suggestions": [],
+      "status": "pass"
+    }
+  ],
+  "prompt_meta": {
+    "contract_version": "2026-07-23.admin-question-expert-review.v1",
+    "minimum_confidence_to_apply": 0.86,
+    "prompt_template_path": "learning_system/prompts/admin_question_expert_review.v1.md",
+    "prompt_template_sha256": "2e183b55a128e65f2bde5cfc6d0385bcf5c0724e1ef04523548986a99e16f867",
+    "rendered_prompt_sha256": "11cba563e06489649916c573e52928252ed42a3546dc19347a2df531c6b7193a",
+    "response_schema_sha256": "765a6d1d6196eb1ac020f6d4a29f5b027043cd929e8aea8aaf432b7a57c8bd96",
+    "response_schema_version": "2026-07-23.admin-question-expert-review.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "question_bank_status": "candidate_only",
+  "question_bank_version": "v18",
+  "retryable": false,
+  "reviewed_item_count": 1,
+  "route": {
+    "agent_key": "admin_question_expert_review_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "model_elapsed_ms": 27762,
+    "model_wall_deadline_monotonic": 38570.929313416,
+    "model_wall_deadline_seconds": 120.0,
+    "provider": "gpt",
+    "raw_response_sha256": "c7d126c46052a778d05073fc85a9ef73d349609f55f2eb3ae7945e762cf7ad6d",
+    "structured_json_endpoint": "responses",
+    "structured_json_mode": "json_schema",
+    "task": "admin_question_expert_review",
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 27.761,
+        "endpoint": "responses",
+        "error_class": "",
+        "error_message": "",
+        "outcome": "response_received",
+        "request_digest_sha256": "3c0802a6fda33660dab9f8392f31af7d8193b9845718eabdd4956def2a39fd3c",
+        "response_digest_sha256": "72b4e5e9981a2a02040afdf6d84571977315d0be5fe7bfce7fe686d9ee0feeb2",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.model-expert-board-review.v1",
+  "source_file_sha256": "d1be95e1c06b1d0ee83c64b777e0bd42aaef585c3f23df5d96241f912734f51a",
+  "source_path": "data/admin/candidates/CAND-925d5efd185f-39633d206997.json",
+  "staging_allowed": false,
+  "status": "PASS_WITH_SCOPE",
+  "subject": "math",
+  "write_applied": true
+}

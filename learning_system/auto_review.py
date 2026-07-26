@@ -562,6 +562,130 @@ def _photo_ocr_response_schema() -> dict[str, Any]:
     }
 
 
+def _handwriting_input_response_schema() -> dict[str, Any]:
+    return {
+        "type": "json_schema",
+        "name": "math_handwriting_input_recognition",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "status": {"type": "string", "enum": ["usable", "unclear"]},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "transcript": {"type": "string"},
+                "math_tokens": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 24,
+                },
+                "critical_token_uncertainties": {
+                    "type": "array",
+                    "maxItems": 12,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "token": {"type": "string"},
+                            "location": {"type": "string"},
+                            "reason": {"type": "string"},
+                        },
+                        "required": ["token", "location", "reason"],
+                    },
+                },
+                "notes": {"type": "string"},
+            },
+            "required": [
+                "status",
+                "confidence",
+                "transcript",
+                "math_tokens",
+                "critical_token_uncertainties",
+                "notes",
+            ],
+        },
+    }
+
+
+def recognize_handwriting_input(
+    question: dict[str, Any],
+    handwriting_image_data_url: str,
+) -> dict[str, Any]:
+    route = model_router.answer_photo_vision_route()
+    if not route.enabled:
+        return {
+            "status": "not_configured",
+            "confidence": 0.0,
+            "transcript": "",
+            "math_tokens": [],
+            "critical_token_uncertainties": [],
+            "notes": "vision model route is not configured",
+        }
+    prompt = json.dumps(
+        {
+            "role": "single_child_math_handwriting_input_reader",
+            "task": "Transcribe only the child's handwritten answer. Do not solve, grade, or silently repair it.",
+            "question_context": {
+                "prompt": question.get("prompt"),
+                "answer_format": question.get("answer_format"),
+            },
+            "recognition_rules": [
+                "Preserve line order and mathematical notation.",
+                "Never silently correct minus signs, decimal points, fraction bars, exponents, parentheses, equality or inequality signs.",
+                "When any critical token is uncertain, list it in critical_token_uncertainties and explain the visible ambiguity in Chinese.",
+                "Prefer unclear over inventing a symbol or missing step.",
+                "Return Chinese transcript and notes.",
+            ],
+        },
+        ensure_ascii=False,
+    )
+    result = model_router.call_structured_json(
+        route,
+        {
+            "instructions": "You are a careful math handwriting transcription model. Return only valid JSON.",
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": prompt},
+                        {"type": "input_image", "image_url": handwriting_image_data_url},
+                    ],
+                }
+            ],
+        },
+        schema=_handwriting_input_response_schema(),
+        plain_json_instruction="Return only JSON matching the schema; no markdown.",
+    )
+    raw = result.value
+    status = str(raw.get("status") or "")
+    if status not in {"usable", "unclear"}:
+        raise ValueError("invalid handwriting recognition status")
+    confidence = max(0.0, min(1.0, float(raw.get("confidence") or 0.0)))
+    transcript = str(raw.get("transcript") or "").strip()[:4000]
+    uncertainties = raw.get("critical_token_uncertainties")
+    if not isinstance(uncertainties, list):
+        raise ValueError("invalid handwriting critical token uncertainties")
+    normalized_uncertainties = [
+        {
+            "token": str(item.get("token") or "")[:40],
+            "location": str(item.get("location") or "")[:120],
+            "reason": str(item.get("reason") or "")[:240],
+        }
+        for item in uncertainties[:12]
+        if isinstance(item, dict)
+    ]
+    if status == "usable" and (not transcript or confidence < MIN_PHOTO_OCR_CONFIDENCE):
+        status = "unclear"
+    return {
+        "status": status,
+        "confidence": confidence,
+        "transcript": transcript,
+        "math_tokens": [str(value)[:80] for value in (raw.get("math_tokens") or [])[:24]],
+        "critical_token_uncertainties": normalized_uncertainties,
+        "notes": str(raw.get("notes") or "")[:500],
+    }
+
+
 def _review_answer_photo(
     question: dict[str, Any],
     answer: str,

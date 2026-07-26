@@ -1,0 +1,309 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "candidate": {
+    "candidate_sha256": "087ac670230cc6690e85c55f3df645d124c604bb9e0895709ff97d7ac46633ae",
+    "item": {
+      "accepted_alternatives": [
+        "选 B；理由可写成“等号两边没有同时减 7，所以不能保证相等”。",
+        "选 B；理由可写成“合法的同减 7 应该是 a-7=b-7”。",
+        "最终选项必须为 B；完整作答仍需包含“只改一边”或“没有两边同减同一个量”的依据。"
+      ],
+      "answer_format": "选择一个选项，并写一句简短说明。",
+      "child_surface_design": {
+        "backend_evidence_targets": [
+          "能识别只在等式一边减同一个数不能保证等式保持",
+          "能说出合法变形需要等号两边同减同一个量"
+        ],
+        "child_deliverables": [
+          "选择一个判断选项",
+          "用一句话说明依据"
+        ],
+        "difficulty_alignment": {
+          "diagnostic_breakpoint": "是否能把等式保持的关键条件定位到“两边同减同一个量”，而不是只看原等式成立或只改一边。",
+          "difficulty_source": "error_discrimination",
+          "target_difficulty": "L2"
+        },
+        "distractor_design": {
+          "distractors": [
+            {
+              "information": "A. 合法，因为原来 a=b，所以左边减 7 后仍一定相等。",
+              "relevance": "plausibly_relevant_but_unneeded",
+              "why_plausible": "学生可能只注意到原等式成立，忽略变形时只改了一边。"
+            },
+            {
+              "information": "C. 合法，因为减法只是把左边写得更简单。",
+              "relevance": "plausibly_relevant_but_unneeded",
+              "why_plausible": "学生可能把任何形式变化都看作可接受，未检查等号两边是否做了同一操作。"
+            }
+          ]
+        },
+        "interaction_requirements": {
+          "actions": [],
+          "maximum_selections": 1,
+          "minimum_selections": 1,
+          "response_kind": "select_one"
+        },
+        "language_surface": {
+          "named_characters": [
+            "小林"
+          ],
+          "natural_child_facing_chinese": true,
+          "respectful_age_appropriate": true,
+          "semantic_review_boundary": "requires_independent_semantic_qa",
+          "short_explanation_requests": 1
+        },
+        "primary_task": "判断从已成立等式出发只改一边的减法变形是否合法，并说明是否满足两边同减同一个量。",
+        "student_actions": {
+          "primary": "compare_or_classify",
+          "supporting": [
+            "explain_core_relation"
+          ]
+        },
+        "task_focus_count": 1,
+        "visual_support": {
+          "asset_ref": "",
+          "inline_visual": "",
+          "mode": "not_needed",
+          "prompt_depends_on_visual": false
+        },
+        "writing_burden": {
+          "burden_level": "light",
+          "estimated_response_lines": 1,
+          "why_necessary": "需要一句简短依据来区分是理解“两边同量”，还是只凭感觉选择。"
+        }
+      },
+      "design_rationale": "本题以一个已成立等式和一个只改左边的变形为诊断探针，要求学生作判断并给出一句依据，直接观察其是否掌握等式同加减保持的关键条件：两边同量、同操作。难度来自错误方法辨析，而不是计算量。",
+      "difficulty": "L2",
+      "estimated_minutes": 2,
+      "evidence_goal": "两边同量",
+      "exclude_from_coverage": false,
+      "expected_answer": "B，并说明只在左边减 7 不合法；要保证等式保持，应两边同减 7。",
+      "id": "CAND-e1c8e0fce8a0",
+      "interaction_schema": {
+        "allow_explanation": true,
+        "choices": [
+          {
+            "id": "A",
+            "label": "同意。因为原来 a=b，所以 a-7=b 也一定成立。"
+          },
+          {
+            "id": "B",
+            "label": "不同意。因为只在左边减 7，右边没有同样减 7，不能保证等式仍成立。"
+          },
+          {
+            "id": "C",
+            "label": "同意。因为减法只是改变左边的写法，不会影响等式成立。"
+          }
+        ],
+        "explanation_label": "请用一句话说明依据",
+        "fields": [],
+        "formula_label": "",
+        "placeholder": "",
+        "requires_explanation": true,
+        "schema_version": "2026-07-17.question-interaction.v2",
+        "title": "判断等式变形是否合法",
+        "type": "single_choice"
+      },
+      "item_version": "draft.admin-production.v1.attempt-1",
+      "key_score_points": [
+        {
+          "evidence": "选择 B，判断小林的变形不能保证合法。",
+          "key": "judgment_choice",
+          "mastery_dimension": "等式保持判断",
+          "points": 4
+        },
+        {
+          "evidence": "说明等式两边必须同减同一个量，而不是只在一边减 7。",
+          "key": "same_operation_condition",
+          "mastery_dimension": "两边同量意识",
+          "points": 4
+        },
+        {
+          "evidence": "能写出或说出合法对应形式是 a-7=b-7，或等价表达“右边也要减 7”。",
+          "key": "legal_counterform",
+          "mastery_dimension": "同加减操作对应",
+          "points": 2
+        }
+      ],
+      "math_core_signature": "given a=b; proposed transform a-7=b; classify legality by checking whether both sides subtract identical quantity; correct legal transform a-7=b-7",
+      "node_id": "M-G7-EQUALITY-PROP",
+      "not_for_activation": false,
+      "production_lineage": {
+        "design_brief_id": "EXPERT-IDEAS-46c630030757",
+        "evidence_goal": "两边同量",
+        "family_id": "equality_add_subtract_invariance",
+        "generation_attempt": 1,
+        "generation_rationale": "本题以一个已成立等式和一个只改左边的变形为诊断探针，要求学生作判断并给出一句依据，直接观察其是否掌握等式同加减保持的关键条件：两边同量、同操作。难度来自错误方法辨析，而不是计算量。",
+        "previous_rejection_codes": [],
+        "question_requirement_id": "REQ-dad534f040bb",
+        "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:01"
+      },
+      "prompt": "已知等式 a=b 成立。小林把它变成：a-7=b。\n\n小林说：“这个变形一定合法，因为只是在等式里减了 7。”\n\n你同意吗？选出最合适的判断，并用一句话说明依据。",
+      "quality": {
+        "canonical_structure_fingerprint": "CANON-8282d5c247451bda",
+        "model_structure_fingerprint": "given a=b; proposed transform a-7=b; classify legality by checking whether both sides subtract identical quantity; correct legal transform a-7=b-7",
+        "review_status": "draft_generated",
+        "structure_fingerprint": "CANON-8282d5c247451bda"
+      },
+      "question_type": "equality_add_subtract_invariance",
+      "required_evidence": [
+        "明确识别小林只改变了等式左边",
+        "明确说明合法保持等式需要两边同减同一个量",
+        "作出不同意或不合法的判断",
+        "两边同量",
+        "明确两边加或减的是同一个量",
+        "题面和得分点必须落实当前方向：判断同加减是否合法",
+        "只要求支撑当前证据目标的最少数学证据，不得附带同题型其他 slot 的诊断任务",
+        "变形后等号两边仍对应同一操作",
+        "能用天平或代入具体相等数解释等式保持"
+      ],
+      "rollback_candidates": [],
+      "rubric": [
+        "选择 B，并指出只在左边减 7，右边没有做同样操作。",
+        "能表达等式保持需要两边同加或同减同一个量。",
+        "若只选 B 但没有依据，只能部分得分。",
+        "若选择 A 或 C，说明未识别只改一边的问题。"
+      ],
+      "secondary_node_ids": [],
+      "solution_steps": [
+        "从已知 a=b 出发，判断变形时等号两边做了什么操作。",
+        "左边从 a 变成 a-7，是减 7；右边仍是 b，没有减 7。",
+        "两边没有同减同一个量，所以 a-7=b 不能保证成立，选 B。"
+      ],
+      "source": {
+        "basis": "generated_from_expert_requirement_slot",
+        "type": "ai_original",
+        "usage_mode": "draft_original_generation"
+      },
+      "source_type": "ai_original",
+      "standard_answer": "选 B。依据是：等式要保持成立，必须在等号两边做同样的加减操作；这里只把左边减 7，右边没有减 7，所以不能保证 a-7=b 仍成立。如果要用同减 7 的合法变形，应写成 a-7=b-7。",
+      "support_only": false,
+      "target_error_tags": [
+        "只改一边",
+        "把原等式成立误认为任意单边变形仍成立"
+      ]
+    },
+    "model_output_sha256": "6ba84402e2360efd3dde856469af098354cf0c5e947ccdb2d4da04736cdcf4d5",
+    "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+  },
+  "candidate_authority": "candidate_only",
+  "candidate_json_path": "data/admin/candidates/CAND-e1c8e0fce8a0-087ac670230c.json",
+  "candidate_json_sha256": "9339a09ca0328e224f6cb85abb0f334a81698c7e33de05ad342e1887e2e73780",
+  "candidate_sha256": "087ac670230cc6690e85c55f3df645d124c604bb9e0895709ff97d7ac46633ae",
+  "candidate_write_applied": true,
+  "design_brief_id": "EXPERT-IDEAS-46c630030757",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+  "family_id": "equality_add_subtract_invariance",
+  "finding_counts": {},
+  "findings": [],
+  "generation_attempt": 1,
+  "generation_plan_path": "data/admin/production/PROD-3db49bc0def9.json",
+  "item_id": "CAND-e1c8e0fce8a0",
+  "machine_report": {
+    "activation_implication": "does_not_authorize_activation",
+    "candidate_sha256": "087ac670230cc6690e85c55f3df645d124c604bb9e0895709ff97d7ac46633ae",
+    "design_brief_id": "EXPERT-IDEAS-46c630030757",
+    "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-46c630030757.json",
+    "family_id": "equality_add_subtract_invariance",
+    "finding_counts": {},
+    "findings": [],
+    "item_id": "CAND-e1c8e0fce8a0",
+    "machine_checked": true,
+    "next_actions": [
+      "expert_review"
+    ],
+    "node_id": "M-G7-EQUALITY-PROP",
+    "question_bank_version": "v18",
+    "question_requirement_id": "REQ-dad534f040bb",
+    "requirement_scope": {
+      "exclude_from_coverage": false,
+      "not_for_activation": false,
+      "secondary_nodes": [],
+      "support_only": false
+    },
+    "schema_version": "2026-07-23.codex-admin.production-candidate-check.v1",
+    "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:01",
+    "staging_allowed": false,
+    "status": "SELF_CHECKED_PASS",
+    "subject": "math"
+  },
+  "next_actions": [
+    "expert_review"
+  ],
+  "node_id": "M-G7-EQUALITY-PROP",
+  "previous_rejection_codes": [],
+  "production_json_path": "data/admin/production/PROD-6306fce9404c.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-6306fce9404c.md",
+  "production_markdown_sha256": "5e2ff666a26daa6aa378b16eda249bc88772798717cff9a151f53479be608b24",
+  "production_report_id": "PROD-6306fce9404c",
+  "prompt_meta": {
+    "contract_version": "2026-07-24.question-candidate.compact.v1",
+    "prompt_template_path": "learning_system/prompts/question_candidate.v1.md",
+    "prompt_template_sha256": "4cffd2604c69e184452a7193090a21d4772bf40b80e7fd09b08afe1c6731218a",
+    "rendered_prompt_sha256": "cd965db04cf399aff581a108300badffe0bd9d0a38e2f429ef96ade79bf445c9",
+    "response_schema_sha256": "3cf4e388568974cc7869c1aee6eb09f1405421b32dc876ead6b261bee3ea43c8",
+    "response_schema_version": "2026-07-23.question-candidate.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "question_requirement_id": "REQ-dad534f040bb",
+  "retryable": false,
+  "route": {
+    "agent_key": "question_designer_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "model_elapsed_ms": 88394,
+    "model_wall_deadline_monotonic": 38872.226160916,
+    "model_wall_deadline_seconds": 150.0,
+    "provider": "gpt",
+    "raw_response_sha256": "4f51301e4260d3b3b4c57fb85311cd786669d6f97f430785264a46e10d376f2a",
+    "structured_json_endpoint": "responses",
+    "structured_json_mode": "json_schema",
+    "task": "question_candidate",
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 45.109,
+        "endpoint": "responses",
+        "error_class": "ModelCallError",
+        "error_message": "wall-clock timeout after 45.00s for question_designer_agent:question_candidate",
+        "outcome": "retryable_failure",
+        "request_digest_sha256": "7fdc7f013f24940600f296c6e55cd9d2cb81b359d25a8472a369cc5e4e1530eb",
+        "response_digest_sha256": "",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      },
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 42.78,
+        "endpoint": "responses",
+        "error_class": "",
+        "error_message": "",
+        "outcome": "response_received",
+        "request_digest_sha256": "7fdc7f013f24940600f296c6e55cd9d2cb81b359d25a8472a369cc5e4e1530eb",
+        "response_digest_sha256": "0090f17ca714d09b5fa8a7275098b4f70ed109968c97494d59e26b34772982c0",
+        "retry_after_seconds": null,
+        "status_code": null,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "schema_version": "2026-07-23.codex-admin.generated-question-candidate.v1",
+  "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:01",
+  "staging_allowed": false,
+  "status": "CANDIDATE_READY_FOR_EXPERT_REVIEW",
+  "subject": "math",
+  "write_applied": true
+}

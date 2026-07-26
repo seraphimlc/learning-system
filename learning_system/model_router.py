@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import hashlib
+import math
 import multiprocessing
 import os
 import ssl
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -24,6 +26,10 @@ DEFAULT_VISION_MODEL = "doubao-seed-2-0-pro-260215"
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 HTTP_WORKER_TERMINATE_GRACE_SECONDS = 0.5
 HTTP_WORKER_REAP_GRACE_SECONDS = 0.1
+DEFAULT_MODEL_ROUTE_MAX_CONCURRENCY = 2
+DEFAULT_TRANSPORT_MAX_RETRIES = 2
+DEFAULT_TRANSPORT_RETRY_BASE_SECONDS = 0.5
+DEFAULT_TRANSPORT_RETRY_MAX_SECONDS = 8.0
 
 
 class ModelCallError(RuntimeError):
@@ -35,12 +41,14 @@ class ModelCallError(RuntimeError):
         retry_after_seconds: float | None = None,
         endpoint: str = "",
         structured_json_mode: str = "",
+        transport_error_kind: str = "",
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.retry_after_seconds = retry_after_seconds
         self.endpoint = endpoint
         self.structured_json_mode = structured_json_mode
+        self.transport_error_kind = transport_error_kind
 
 
 class ModelJSONParseError(ModelCallError):
@@ -190,6 +198,10 @@ def bind_structured_transport_lifecycle(
 
 
 _STRUCTURED_TRANSPORT_CACHE: dict[tuple[str, str, str, str], tuple[str, str]] = {}
+_MODEL_ROUTE_LIMITERS: dict[
+    tuple[str, str, str, str, int], threading.BoundedSemaphore
+] = {}
+_MODEL_ROUTE_LIMITERS_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -244,6 +256,7 @@ def configured_route_statuses() -> dict[str, dict[str, Any]]:
         "teaching": teaching_route(),
         "question_designer": question_designer_route(),
         "question_reviewer": question_reviewer_route(),
+        "admin_question_expert_review": admin_question_expert_review_route(),
         "question_node_set_review": question_node_set_review_route(),
         "question_node_global_verifier": question_node_global_verifier_route(),
         "question_node_global_finalizer": question_node_global_finalizer_route(),
@@ -345,6 +358,7 @@ def question_designer_route() -> ModelRoute:
         default_model=DEFAULT_QUESTION_MODEL,
         model_envs=("AI_QUESTION_MODEL", "AI_EVALUATOR_MODEL"),
         timeout_envs=("AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
+        default_timeout_seconds=150.0,
     )
 
 
@@ -355,6 +369,18 @@ def question_reviewer_route() -> ModelRoute:
         default_model=DEFAULT_QUESTION_MODEL,
         model_envs=("AI_QUESTION_REVIEW_MODEL", "AI_QUESTION_MODEL", "AI_EVALUATOR_MODEL"),
         timeout_envs=("AI_QUESTION_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
+        default_timeout_seconds=120.0,
+    )
+
+
+def admin_question_expert_review_route() -> ModelRoute:
+    return resolve_route(
+        "admin_question_expert_review_agent",
+        task="admin_question_expert_review",
+        default_model=DEFAULT_QUESTION_MODEL,
+        model_envs=("AI_ADMIN_QUESTION_EXPERT_REVIEW_MODEL", "AI_QUESTION_REVIEW_MODEL", "AI_QUESTION_MODEL", "AI_EVALUATOR_MODEL"),
+        timeout_envs=("AI_ADMIN_QUESTION_EXPERT_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
+        default_timeout_seconds=120.0,
     )
 
 
@@ -437,6 +463,7 @@ def resolve_route(
     api_key_envs: Iterable[str] = (),
     base_url_envs: Iterable[str] = (),
     timeout_envs: Iterable[str] = (),
+    default_timeout_seconds: float = 45.0,
 ) -> ModelRoute:
     agent_env = _env_key(agent_key)
     task_env = _env_key(task)
@@ -477,7 +504,7 @@ def resolve_route(
             f"AI_{agent_env}_TIMEOUT_SECONDS",
             f"AI_{task_env}_TIMEOUT_SECONDS",
         ),
-        45.0,
+        default_timeout_seconds,
     )
     provider = _first_env(
         (
@@ -528,30 +555,45 @@ def _call_http_json_with_wall_deadline(
     url: str,
     outbound: dict[str, Any],
 ) -> dict[str, Any]:
-    request_spec = {
-        "url": url,
-        "data": json.dumps(outbound, ensure_ascii=False).encode("utf-8"),
-        "headers": {
-            "Authorization": f"Bearer {route.api_key}",
-            "Content-Type": "application/json",
-        },
-        "method": "POST",
-        "socket_timeout_seconds": float(route.timeout_seconds),
-    }
-    process, pipe = _spawn_http_json_process(request_spec)
-    deadline = max(0.01, float(route.timeout_seconds))
-    try:
-        if not pipe.poll(deadline):
-            _cleanup_http_json_process(process, pipe, close_pipe=False, force=True)
+    wall_timeout_seconds = max(0.01, float(route.timeout_seconds))
+    wall_deadline_monotonic = time.monotonic() + wall_timeout_seconds
+    with _acquire_model_route_slot(
+        route, wall_deadline_monotonic=wall_deadline_monotonic
+    ):
+        remaining = wall_deadline_monotonic - time.monotonic()
+        if remaining <= 0:
             raise ModelCallError(
-                f"wall-clock timeout after {deadline:.2f}s for {route.agent_key}:{route.task}"
+                f"wall-clock deadline exhausted for {route.agent_key}:{route.task}",
+                transport_error_kind="deadline",
             )
+        request_spec = {
+            "url": url,
+            "data": json.dumps(outbound, ensure_ascii=False).encode("utf-8"),
+            "headers": {
+                "Authorization": f"Bearer {route.api_key}",
+                "Content-Type": "application/json",
+            },
+            "method": "POST",
+            "socket_timeout_seconds": remaining,
+        }
+        process, pipe = _spawn_http_json_process(request_spec)
         try:
-            message = pipe.recv()
-        except EOFError as exc:
-            raise ModelCallError(f"{route.agent_key}:{route.task} HTTP worker exited without a result") from exc
-    finally:
-        _cleanup_http_json_process(process, pipe)
+            if not pipe.poll(remaining):
+                _cleanup_http_json_process(process, pipe, close_pipe=False, force=True)
+                raise ModelCallError(
+                    f"wall-clock timeout after {wall_timeout_seconds:.2f}s for "
+                    f"{route.agent_key}:{route.task}",
+                    transport_error_kind="timeout",
+                )
+            try:
+                message = pipe.recv()
+            except EOFError as exc:
+                raise ModelCallError(
+                    f"{route.agent_key}:{route.task} HTTP worker exited without a result",
+                    transport_error_kind="worker_exit",
+                ) from exc
+        finally:
+            _cleanup_http_json_process(process, pipe)
     if not isinstance(message, dict):
         raise ModelCallError(f"{route.agent_key}:{route.task} HTTP worker returned malformed result")
     if not message.get("ok"):
@@ -559,6 +601,7 @@ def _call_http_json_with_wall_deadline(
             str(message.get("error") or "model HTTP request failed"),
             status_code=message.get("status_code"),
             retry_after_seconds=message.get("retry_after_seconds"),
+            transport_error_kind=str(message.get("transport_error_kind") or ""),
         )
     raw = str(message.get("raw") or "")
     try:
@@ -630,6 +673,7 @@ def _http_json_worker_main(conn, request_spec: dict[str, Any]) -> None:
                 "error": str(exc)[:800],
                 "status_code": getattr(exc, "status_code", None),
                 "retry_after_seconds": getattr(exc, "retry_after_seconds", None),
+                "transport_error_kind": getattr(exc, "transport_error_kind", ""),
             }
         )
     finally:
@@ -656,9 +700,16 @@ def _http_json_worker_request(request_spec: dict[str, Any]) -> str:
             f"HTTP {exc.code} {detail}",
             status_code=int(exc.code),
             retry_after_seconds=_retry_after_seconds(exc.headers.get("Retry-After")),
+            transport_error_kind="http_status",
         ) from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
-        raise ModelCallError(str(exc)) from exc
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", None)
+        kind = "timeout" if isinstance(reason, TimeoutError) else "connection"
+        raise ModelCallError(str(exc), transport_error_kind=kind) from exc
+    except TimeoutError as exc:
+        raise ModelCallError(str(exc), transport_error_kind="timeout") from exc
+    except (ConnectionError, ssl.SSLError) as exc:
+        raise ModelCallError(str(exc), transport_error_kind="connection") from exc
 
 
 def _retry_after_seconds(value: Any) -> float | None:
@@ -680,6 +731,108 @@ def _retry_after_seconds(value: Any) -> float | None:
         return None
 
 
+@contextmanager
+def _acquire_model_route_slot(
+    route: ModelRoute,
+    *,
+    wall_deadline_monotonic: float | None = None,
+    wall_timeout_seconds: float | None = None,
+) -> Iterator[None]:
+    if wall_deadline_monotonic is not None and wall_timeout_seconds is not None:
+        raise ValueError("provide either wall_deadline_monotonic or wall_timeout_seconds")
+    if wall_deadline_monotonic is None:
+        timeout = (
+            float(wall_timeout_seconds)
+            if wall_timeout_seconds is not None
+            else float(route.timeout_seconds)
+        )
+        wall_deadline_monotonic = time.monotonic() + max(0.0, timeout)
+    limit = _model_route_max_concurrency(route)
+    limiter_key = (
+        route.agent_key,
+        route.task,
+        route.base_url.rstrip("/").lower(),
+        route.model.lower(),
+        limit,
+    )
+    with _MODEL_ROUTE_LIMITERS_LOCK:
+        limiter = _MODEL_ROUTE_LIMITERS.get(limiter_key)
+        if limiter is None:
+            limiter = threading.BoundedSemaphore(limit)
+            _MODEL_ROUTE_LIMITERS[limiter_key] = limiter
+    remaining = wall_deadline_monotonic - time.monotonic()
+    if remaining <= 0 or not limiter.acquire(timeout=remaining):
+        raise ModelCallError(
+            f"model route concurrency deadline exhausted for "
+            f"{route.agent_key}:{route.task}",
+            transport_error_kind="deadline",
+        )
+    try:
+        yield
+    finally:
+        limiter.release()
+
+
+def _model_route_max_concurrency(route: ModelRoute) -> int:
+    agent_env = _env_key(route.agent_key)
+    task_env = _env_key(route.task)
+    return _positive_int_env(
+        (
+            f"AI_{agent_env}_{task_env}_MAX_CONCURRENCY",
+            f"AI_{agent_env}_MAX_CONCURRENCY",
+            f"AI_{task_env}_MAX_CONCURRENCY",
+            "AI_MODEL_ROUTE_MAX_CONCURRENCY",
+        ),
+        DEFAULT_MODEL_ROUTE_MAX_CONCURRENCY,
+    )
+
+
+def _transport_max_retries(route: ModelRoute) -> int:
+    agent_env = _env_key(route.agent_key)
+    task_env = _env_key(route.task)
+    return _nonnegative_int_env(
+        (
+            f"AI_{agent_env}_{task_env}_TRANSPORT_MAX_RETRIES",
+            f"AI_{agent_env}_TRANSPORT_MAX_RETRIES",
+            f"AI_{task_env}_TRANSPORT_MAX_RETRIES",
+            "AI_MODEL_TRANSPORT_MAX_RETRIES",
+        ),
+        DEFAULT_TRANSPORT_MAX_RETRIES,
+    )
+
+
+def _transport_retry_delay_seconds(
+    route: ModelRoute,
+    *,
+    retry_index: int,
+    retry_after_seconds: float | None,
+) -> float:
+    agent_env = _env_key(route.agent_key)
+    task_env = _env_key(route.task)
+    base = _nonnegative_float_env(
+        (
+            f"AI_{agent_env}_{task_env}_TRANSPORT_RETRY_BASE_SECONDS",
+            f"AI_{agent_env}_TRANSPORT_RETRY_BASE_SECONDS",
+            f"AI_{task_env}_TRANSPORT_RETRY_BASE_SECONDS",
+            "AI_MODEL_TRANSPORT_RETRY_BASE_SECONDS",
+        ),
+        DEFAULT_TRANSPORT_RETRY_BASE_SECONDS,
+    )
+    maximum = _nonnegative_float_env(
+        (
+            f"AI_{agent_env}_{task_env}_TRANSPORT_RETRY_MAX_SECONDS",
+            f"AI_{agent_env}_TRANSPORT_RETRY_MAX_SECONDS",
+            f"AI_{task_env}_TRANSPORT_RETRY_MAX_SECONDS",
+            "AI_MODEL_TRANSPORT_RETRY_MAX_SECONDS",
+        ),
+        DEFAULT_TRANSPORT_RETRY_MAX_SECONDS,
+    )
+    exponential = min(maximum, base * (2 ** max(0, retry_index - 1)))
+    if retry_after_seconds is None:
+        return exponential
+    return max(exponential, max(0.0, float(retry_after_seconds)))
+
+
 def call_structured_json(
     route: ModelRoute,
     payload: dict[str, Any],
@@ -687,6 +840,7 @@ def call_structured_json(
     schema: dict[str, Any],
     plain_json_instruction: str = "Return only one valid JSON object; no markdown.",
     retryable_errors_fallback: bool = True,
+    include_fallback_schema: bool = True,
 ) -> StructuredJSONResult:
     if not isinstance(schema, dict) or not schema:
         raise ModelJSONParseError("local JSON schema is required before transport")
@@ -704,10 +858,18 @@ def call_structured_json(
     lifecycle_observer = (
         bound_lifecycle.observer if bound_lifecycle is not None else None
     )
-    wall_deadline_monotonic = (
+    bound_wall_deadline_monotonic = (
         bound_lifecycle.wall_deadline_monotonic
         if bound_lifecycle is not None
         else None
+    )
+    wall_deadline_monotonic = (
+        bound_wall_deadline_monotonic
+        if bound_wall_deadline_monotonic is not None
+        else time.monotonic() + max(0.01, float(route.timeout_seconds))
+    )
+    max_transport_retries = (
+        _transport_max_retries(route) if retryable_errors_fallback else 0
     )
     transport_key = (
         route.agent_key,
@@ -722,121 +884,147 @@ def call_structured_json(
             schema=schema,
             mode=mode,
             plain_json_instruction=plain_json_instruction,
+            include_fallback_schema=include_fallback_schema,
         )
-        candidate_route = route
-        if wall_deadline_monotonic is not None:
+        request_digest = hashlib.sha256(
+            json.dumps(
+                {
+                    "agent_key": route.agent_key,
+                    "task": route.task,
+                    "provider": route.provider,
+                    "model": route.model,
+                    "base_url": route.base_url.rstrip("/"),
+                    "candidate_ordinal": candidate_ordinal,
+                    "endpoint": endpoint,
+                    "structured_json_mode": mode,
+                    "payload": adapted,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        retry_index = 0
+        while True:
             remaining = wall_deadline_monotonic - time.monotonic()
             if remaining <= 0:
                 raise ModelCallError(
                     "structured transport wall deadline exhausted",
                     endpoint=endpoint,
                     structured_json_mode=mode,
+                    transport_error_kind="deadline",
                 )
             candidate_route = replace(
                 route,
                 timeout_seconds=min(float(route.timeout_seconds), remaining),
             )
-        attempt_context = None
-        if lifecycle_observer is not None:
-            request_digest = hashlib.sha256(
-                json.dumps(
-                    {
-                        "agent_key": route.agent_key,
-                        "task": route.task,
-                        "provider": route.provider,
-                        "model": route.model,
-                        "base_url": route.base_url.rstrip("/"),
-                        "candidate_ordinal": candidate_ordinal,
-                        "endpoint": endpoint,
-                        "structured_json_mode": mode,
-                        "payload": adapted,
-                    },
-                    ensure_ascii=False,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode("utf-8")
-            ).hexdigest()
-            attempt_context = StructuredTransportAttemptContext(
-                batch_attempt_id=batch_attempt_id,
-                candidate_ordinal=candidate_ordinal,
-                endpoint=endpoint,
-                structured_json_mode=mode,
-                request_digest_sha256=request_digest,
-                wall_deadline_monotonic=wall_deadline_monotonic,
-            )
-            lifecycle_observer.provider_attempt_started(attempt_context)
-        provider_outcome_recorded = False
-        try:
-            if endpoint == "responses":
-                raw = call_responses(candidate_route, adapted)
-                text = extract_response_text(raw)
-            elif endpoint == "chat_completions":
-                chat_payload = _adapt_responses_payload_to_chat_completions(adapted)
-                raw = call_chat_completions(candidate_route, chat_payload)
-                text = extract_response_text(raw)
-            else:
-                raise ValueError(f"Unknown model endpoint: {endpoint}")
-            if lifecycle_observer is not None and attempt_context is not None:
-                provider_outcome_recorded = True
-                lifecycle_observer.provider_attempt_finished(
-                    attempt_context,
-                    StructuredTransportAttemptOutcome(
-                        outcome="response_received",
-                        response_digest_sha256=hashlib.sha256(
-                            json.dumps(
-                                raw,
-                                ensure_ascii=False,
-                                sort_keys=True,
-                                separators=(",", ":"),
-                            ).encode("utf-8")
-                        ).hexdigest(),
-                    ),
+            attempt_context = None
+            if lifecycle_observer is not None:
+                attempt_context = StructuredTransportAttemptContext(
+                    batch_attempt_id=batch_attempt_id,
+                    candidate_ordinal=candidate_ordinal,
+                    endpoint=endpoint,
+                    structured_json_mode=mode,
+                    request_digest_sha256=request_digest,
+                    wall_deadline_monotonic=wall_deadline_monotonic,
                 )
-            value = loads_model_json_object(text)
-            if _is_answer_contract_review_route(route):
-                _STRUCTURED_TRANSPORT_CACHE[transport_key] = (endpoint, mode)
-            return StructuredJSONResult(
-                value=value,
-                mode=mode,
-                raw_response=raw,
-                endpoint=endpoint,
-            )
-        except ModelCallError as exc:
-            exc.endpoint = endpoint
-            exc.structured_json_mode = mode
-            if (
-                lifecycle_observer is not None
-                and attempt_context is not None
-                and not provider_outcome_recorded
-            ):
-                provider_outcome_recorded = True
-                lifecycle_observer.provider_attempt_finished(
-                    attempt_context,
-                    StructuredTransportAttemptOutcome(
-                        outcome=(
-                            "retryable_failure"
-                            if (
-                                _is_endpoint_retryable_error(exc)
-                                or is_response_format_unsupported_error(exc)
-                            )
-                            else "terminal_failure"
+                lifecycle_observer.provider_attempt_started(attempt_context)
+            provider_outcome_recorded = False
+            try:
+                if endpoint == "responses":
+                    raw = call_responses(candidate_route, adapted)
+                    text = extract_response_text(raw)
+                elif endpoint == "chat_completions":
+                    chat_payload = _adapt_responses_payload_to_chat_completions(adapted)
+                    raw = call_chat_completions(candidate_route, chat_payload)
+                    text = extract_response_text(raw)
+                else:
+                    raise ValueError(f"Unknown model endpoint: {endpoint}")
+                if lifecycle_observer is not None and attempt_context is not None:
+                    provider_outcome_recorded = True
+                    lifecycle_observer.provider_attempt_finished(
+                        attempt_context,
+                        StructuredTransportAttemptOutcome(
+                            outcome="response_received",
+                            response_digest_sha256=hashlib.sha256(
+                                json.dumps(
+                                    raw,
+                                    ensure_ascii=False,
+                                    sort_keys=True,
+                                    separators=(",", ":"),
+                                ).encode("utf-8")
+                            ).hexdigest(),
                         ),
+                    )
+                value = loads_model_json_object(text)
+                omitted_constraint_errors = _provider_omitted_constraint_errors(
+                    schema,
+                    value,
+                )
+                if omitted_constraint_errors:
+                    raise ModelJSONParseError(
+                        "model output violates canonical schema: "
+                        + "; ".join(omitted_constraint_errors[:8])
+                    )
+                if _is_answer_contract_review_route(route):
+                    _STRUCTURED_TRANSPORT_CACHE[transport_key] = (endpoint, mode)
+                return StructuredJSONResult(
+                    value=value,
+                    mode=mode,
+                    raw_response=raw,
+                    endpoint=endpoint,
+                )
+            except ModelCallError as exc:
+                exc.endpoint = endpoint
+                exc.structured_json_mode = mode
+                format_unsupported = is_response_format_unsupported_error(exc)
+                transport_retryable = is_retryable_model_call_error(exc)
+                if (
+                    lifecycle_observer is not None
+                    and attempt_context is not None
+                    and not provider_outcome_recorded
+                ):
+                    provider_outcome_recorded = True
+                    lifecycle_observer.provider_attempt_finished(
+                        attempt_context,
+                        StructuredTransportAttemptOutcome(
+                            outcome=(
+                                "retryable_failure"
+                                if format_unsupported or transport_retryable
+                                else "terminal_failure"
+                            ),
+                            status_code=exc.status_code,
+                            retry_after_seconds=exc.retry_after_seconds,
+                            error_class=type(exc).__name__,
+                            error_message=str(exc)[:800],
+                        ),
+                    )
+                if isinstance(exc, ModelJSONParseError):
+                    raise
+                if format_unsupported:
+                    errors.append(f"{endpoint}:{mode}:{exc}")
+                    break
+                if not transport_retryable or retry_index >= max_transport_retries:
+                    raise
+                retry_index += 1
+                retry_delay = _transport_retry_delay_seconds(
+                    route,
+                    retry_index=retry_index,
+                    retry_after_seconds=exc.retry_after_seconds,
+                )
+                remaining = wall_deadline_monotonic - time.monotonic()
+                if remaining <= 0 or retry_delay >= remaining:
+                    raise ModelCallError(
+                        "structured transport retry would exceed wall deadline",
                         status_code=exc.status_code,
                         retry_after_seconds=exc.retry_after_seconds,
-                        error_class=type(exc).__name__,
-                        error_message=str(exc)[:800],
-                    ),
-                )
-            if isinstance(exc, ModelJSONParseError):
-                raise
-            if _is_endpoint_retryable_error(exc) and not retryable_errors_fallback:
-                raise
-            if is_response_format_unsupported_error(exc) or _is_endpoint_retryable_error(exc):
-                errors.append(f"{endpoint}:{mode}:{exc}")
-                continue
-            raise
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise ModelJSONParseError("model returned invalid JSON object") from exc
+                        endpoint=endpoint,
+                        structured_json_mode=mode,
+                        transport_error_kind="deadline",
+                    ) from exc
+                time.sleep(retry_delay)
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ModelJSONParseError("model returned invalid JSON object") from exc
     raise ModelCallError("No compatible structured JSON response format worked: " + " | ".join(errors))
 
 
@@ -945,6 +1133,14 @@ def extract_response_text(data: dict[str, Any]) -> str:
 
 
 def is_response_format_unsupported_error(exc: Exception) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code is not None:
+        try:
+            normalized_status = int(status_code)
+        except (TypeError, ValueError):
+            return False
+        if normalized_status not in {400, 404, 415, 422}:
+            return False
     text = str(exc).lower()
     format_terms = (
         "response_format",
@@ -953,15 +1149,26 @@ def is_response_format_unsupported_error(exc: Exception) -> bool:
         "json_object",
         "structured output",
     )
-    unsupported_terms = (
+    explicit_unsupported_terms = (
         "not supported",
-        "not valid",
-        "invalid",
         "unsupported",
+        "does not support",
+        "unknown parameter",
+        "unrecognized parameter",
+    )
+    explicit_parameter_terms = (
         "invalidparameter",
         "invalid parameter",
     )
-    return any(term in text for term in format_terms) and any(term in text for term in unsupported_terms)
+    mentions_format = any(term in text for term in format_terms)
+    if not mentions_format:
+        return False
+    if any(term in text for term in explicit_unsupported_terms):
+        return True
+    return (
+        any(term in text for term in ("response_format", "text.format"))
+        and any(term in text for term in explicit_parameter_terms)
+    )
 
 
 def loads_model_json_object(text: str) -> dict[str, Any]:
@@ -1009,9 +1216,49 @@ def _float_env(names: Iterable[str], default: float) -> float:
         if not value:
             continue
         try:
-            return float(value)
+            parsed = float(value)
         except ValueError:
             return default
+        return parsed if math.isfinite(parsed) else default
+    return default
+
+
+def _nonnegative_float_env(names: Iterable[str], default: float) -> float:
+    for name in names:
+        value = os.environ.get(name)
+        if value is None or value == "":
+            continue
+        try:
+            parsed = float(value)
+        except ValueError:
+            return default
+        return parsed if math.isfinite(parsed) and parsed >= 0 else default
+    return default
+
+
+def _positive_int_env(names: Iterable[str], default: int) -> int:
+    for name in names:
+        value = os.environ.get(name)
+        if value is None or value == "":
+            continue
+        try:
+            parsed = int(value)
+        except ValueError:
+            return default
+        return parsed if parsed > 0 else default
+    return default
+
+
+def _nonnegative_int_env(names: Iterable[str], default: int) -> int:
+    for name in names:
+        value = os.environ.get(name)
+        if value is None or value == "":
+            continue
+        try:
+            parsed = int(value)
+        except ValueError:
+            return default
+        return parsed if parsed >= 0 else default
     return default
 
 
@@ -1036,6 +1283,8 @@ def _json_mode_sequence(route: ModelRoute) -> list[str]:
     model = route.model.lower()
     if provider in {"gpt", "openai"} or model.startswith("gpt-"):
         return ["json_schema", "json_object", "plain_json"]
+    if provider == "glm" or "glm" in model:
+        return ["json_schema", "json_object", "plain_json"]
     if provider in {"deepseek", "doubao"} or "deepseek" in model or "doubao" in model:
         return ["json_object", "plain_json"]
     return ["json_object", "plain_json", "json_schema"]
@@ -1047,6 +1296,8 @@ def _endpoint_sequence(route: ModelRoute) -> list[str]:
         return override[:1] if override else ["responses"]
     if override:
         return override
+    if route.provider.lower() == "glm" or "glm" in route.model.lower():
+        return ["chat_completions", "responses"]
     return ["responses", "chat_completions"]
 
 
@@ -1125,6 +1376,22 @@ def _json_mode_override(route: ModelRoute) -> list[str]:
 
 
 def _is_endpoint_retryable_error(exc: Exception) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code == 429 or (
+        isinstance(status_code, int) and 500 <= status_code <= 599
+    ):
+        return True
+    transport_error_kind = str(
+        getattr(exc, "transport_error_kind", "") or ""
+    ).lower()
+    if transport_error_kind in {
+        "connection",
+        "timeout",
+        "worker_exit",
+    }:
+        return True
+    if transport_error_kind == "deadline":
+        return False
     text = str(exc).lower()
     return any(term in text for term in (
         "timed out",
@@ -1193,14 +1460,19 @@ def _adapt_structured_json_payload(
     schema: dict[str, Any],
     mode: str,
     plain_json_instruction: str,
+    include_fallback_schema: bool = True,
 ) -> dict[str, Any]:
     adapted = deepcopy(payload)
     if mode == "json_schema":
         adapted["text"] = {"format": _json_schema_format(schema)}
         return adapted
-    fallback_instruction = _plain_json_schema_instruction(
-        schema,
-        plain_json_instruction=plain_json_instruction,
+    fallback_instruction = (
+        _plain_json_schema_instruction(
+            schema,
+            plain_json_instruction=plain_json_instruction,
+        )
+        if include_fallback_schema
+        else plain_json_instruction
     )
     adapted["instructions"] = _append_instruction(
         str(adapted.get("instructions") or ""),
@@ -1355,6 +1627,7 @@ def _normalize_schema_node(node: Any, *, is_schema_node: bool) -> Any:
     normalized = {
         key: _normalize_schema_child(key, value)
         for key, value in node.items()
+        if key != "uniqueItems"
     }
     if "type" not in normalized:
         inferred = _infer_json_schema_type(normalized)
@@ -1391,6 +1664,53 @@ def _normalize_schema_node(node: Any, *, is_schema_node: bool) -> Any:
         normalized["additionalProperties"] = _normalize_schema_node(additional_properties, is_schema_node=True)
 
     return normalized
+
+
+def _provider_omitted_constraint_errors(
+    schema: dict[str, Any],
+    value: Any,
+) -> list[str]:
+    root = schema
+    if schema.get("type") == "json_schema" and isinstance(schema.get("schema"), dict):
+        root = schema["schema"]
+    errors: list[str] = []
+
+    def inspect(schema_node: Any, current: Any, path: str) -> None:
+        if not isinstance(schema_node, dict):
+            return
+        if schema_node.get("uniqueItems") is True and isinstance(current, list):
+            seen: set[str] = set()
+            for index, item in enumerate(current):
+                fingerprint = json.dumps(
+                    item,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                if fingerprint in seen:
+                    errors.append(f"{path}: uniqueItems violated at index {index}")
+                    break
+                seen.add(fingerprint)
+
+        properties = schema_node.get("properties")
+        if isinstance(properties, dict) and isinstance(current, dict):
+            for key, child_schema in properties.items():
+                if key in current:
+                    inspect(child_schema, current[key], f"{path}.{key}")
+
+        items = schema_node.get("items")
+        if isinstance(items, dict) and isinstance(current, list):
+            for index, item in enumerate(current):
+                inspect(items, item, f"{path}[{index}]")
+
+        for keyword in ("allOf", "anyOf", "oneOf"):
+            branches = schema_node.get(keyword)
+            if isinstance(branches, list):
+                for branch in branches:
+                    inspect(branch, current, path)
+
+    inspect(root, value, "$")
+    return errors
 
 
 def _normalize_schema_child(key: str, value: Any) -> Any:

@@ -1,0 +1,170 @@
+{
+  "candidate_sha256": "e8d122f621ce714f1e985c552fdaf6bf394a8e86044560cb20a84bfed6e10e81",
+  "item": {
+    "accepted_alternatives": [
+      "最终结果可写成“B=-5”，但完整作答仍需包含不同意小林以及“向左变小/从-2往左数3格”的依据。",
+      "可用式子表示为 -2-3=-5，但完整作答仍需说明这是因为向左移动3个单位。",
+      "可表述为“从-2往左走三格是-5，不是1”，等价有效。"
+    ],
+    "answer_format": "写成两行即可：第1行写“同意/不同意，点B表示……”；第2行用一句数轴上的方向或位置关系说明。",
+    "child_surface_design": {
+      "backend_evidence_targets": [
+        "能把起点-2对应为数轴上的位置",
+        "能把“向左移动3个单位”理解为位置向更小的数移动",
+        "能区分移动距离3个单位与最终位置的符号"
+      ],
+      "child_deliverables": [
+        "写出点B表示的数",
+        "用一句话说明为什么不是另一个方向的结果"
+      ],
+      "difficulty_alignment": {
+        "diagnostic_breakpoint": "能否把负数看成数轴位置，并把向左移动解释为到更小的数，而不是把距离3直接带符号或把方向看反。",
+        "difficulty_source": "representation_transfer",
+        "target_difficulty": "L2"
+      },
+      "distractor_design": {
+        "distractors": [
+          {
+            "information": "小林认为从-2向左移动3个单位后到1",
+            "relevance": "plausibly_relevant_but_unneeded",
+            "why_plausible": "容易把“向左移动”误当成数值变大，或只看到距离3而忽略方向。"
+          },
+          {
+            "information": "数轴上越往右数越大，越往左数越小",
+            "relevance": "required_information",
+            "why_plausible": "这是判断方向移动后位置大小的核心依据。"
+          }
+        ]
+      },
+      "language_surface": {
+        "named_characters": [
+          "小林"
+        ],
+        "natural_child_facing_chinese": true,
+        "respectful_age_appropriate": true,
+        "short_explanation_requests": 1
+      },
+      "primary_task": "把“从数轴上一个点按方向移动若干单位”转换为新位置，并用数轴方向说明依据。",
+      "student_actions": {
+        "primary": "model_or_represent",
+        "supporting": [
+          "explain_core_relation"
+        ]
+      },
+      "task_focus_count": 1,
+      "visual_support": {
+        "asset_ref": "",
+        "mode": "inline_in_prompt",
+        "prompt_depends_on_visual": true
+      },
+      "writing_burden": {
+        "burden_level": "light",
+        "estimated_response_lines": 2,
+        "why_necessary": "需要一个数值结论和一句依据，才能区分是会定位但表达少，还是把方向关系理解错。"
+      }
+    },
+    "design_rationale": "本题不是单纯计算-2-3，而是要求学生把文字中的起点和方向放到数轴位置上解释。小林的错误结论1能诊断学生是否把向左移动误判为变大，或是否只做符号运算而没有建立位置模型。",
+    "difficulty": "L2",
+    "estimated_minutes": 3,
+    "evidence_goal": "能把数对应到位置",
+    "expected_answer": "不同意；点B表示 -5；理由包含：数轴上向左是变小，从 -2 向左移动3个单位到 -5。",
+    "id": "CAND-10af2bc03bb1",
+    "item_version": "draft.admin-production.v1.attempt-1",
+    "key_score_points": [
+      {
+        "evidence": "明确写出“不同意”或等价否定。",
+        "key": "判断小林说法",
+        "mastery_dimension": "方向判断与结论一致性",
+        "points": 1.5
+      },
+      {
+        "evidence": "写出点B表示 -5。",
+        "key": "确定点B表示的数",
+        "mastery_dimension": "数轴位置表示",
+        "points": 3.0
+      },
+      {
+        "evidence": "说明数轴上向左移动会到更小的数，或从-2往左数。",
+        "key": "说明向左移动的含义",
+        "mastery_dimension": "数轴方向与大小关系",
+        "points": 2.5
+      },
+      {
+        "evidence": "能说明移动3格/3个单位，如-3、-4、-5或等价表述。",
+        "key": "体现3个单位的距离过程",
+        "mastery_dimension": "距离与位置的区分",
+        "points": 2.0
+      },
+      {
+        "evidence": "答案中没有同时说同意和不同意、没有把-5与1混用等关键矛盾；轻微措辞问题不重扣。",
+        "key": "表达清楚且无关键矛盾",
+        "mastery_dimension": "数学表达一致性",
+        "points": 1.0
+      }
+    ],
+    "math_core_signature": "number_line(start=-2, move=left 3 units, result=-5, distractor=1 from reversed direction); concept: left means smaller, distance is nonnegative movement length.",
+    "node_id": "M-G7-NUMBER-LINE",
+    "production_lineage": {
+      "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+      "evidence_goal": "能把数对应到位置",
+      "family_id": "number_line_position_distance",
+      "generation_attempt": 1,
+      "generation_rationale": "本题不是单纯计算-2-3，而是要求学生把文字中的起点和方向放到数轴位置上解释。小林的错误结论1能诊断学生是否把向左移动误判为变大，或是否只做符号运算而没有建立位置模型。",
+      "previous_rejection_codes": [],
+      "question_requirement_id": "REQ-10e106561ff8",
+      "slot_id": "M-G7-NUMBER-LINE:number_line_position_distance:01"
+    },
+    "prompt": "看这段数轴：\n\n-6  -5  -4  -3  -2  -1   0   1   2\n←———————————————|———————————————→\n\n点A在数轴上表示 -2。从点A出发，向左移动3个单位到点B。\n\n小林说：“点B表示 1。”\n\n你同意小林的说法吗？请写出点B表示的数，并用一句话说明理由。",
+    "quality": {
+      "canonical_structure_fingerprint": "CANON-9550f4a1cc055822",
+      "model_structure_fingerprint": "number_line(start=-2, move=left 3 units, result=-5, distractor=1 from reversed direction); concept: left means smaller, distance is nonnegative movement length.",
+      "review_status": "draft_generated",
+      "structure_fingerprint": "CANON-9550f4a1cc055822"
+    },
+    "question_type": "number_line_position_distance",
+    "required_evidence": [
+      "能在给出的数轴刻度中定位 -2。",
+      "能把“向左移动3个单位”转换为向更小的数移动3格。",
+      "能给出点B的位置数 -5，并排除 1。",
+      "能把数对应到位置",
+      "能在文字、式子、图形或数轴之间转换",
+      "能说清数轴的概念边界或反例",
+      "能写出数轴对应的核心关系"
+    ],
+    "rollback_candidates": [
+      "画数轴三要素：原点、正方向、单位长度",
+      "在数轴上表示数",
+      "根据点写数",
+      "用位置比较大小"
+    ],
+    "rubric": [
+      "能明确判断小林说法不正确。",
+      "能写出点B对应的数是-5。",
+      "能用数轴方向说明向左移动会到更小的数。",
+      "能把3个单位理解为移动距离，不把距离本身当作带符号的最终位置。",
+      "非关键书写问题最多扣1分；只要数轴关系表达清楚，不因句式不同扣主要分。"
+    ],
+    "solution_steps": [
+      "确定起点：点A表示 -2。",
+      "理解方向：数轴上向左移动，数会变小。",
+      "从 -2 向左移动3个单位：-2到-3是1个单位，到-4是2个单位，到-5是3个单位。",
+      "所以点B表示 -5。",
+      "小林说点B表示1，是把方向看成了向右或把移动理解错了，因此不同意。"
+    ],
+    "source": {
+      "basis": "generated_from_expert_requirement_slot",
+      "type": "ai_original",
+      "usage_mode": "draft_original_generation"
+    },
+    "source_type": "ai_original",
+    "standard_answer": "不同意。点B表示 -5。因为在数轴上向左移动，位置会到更小的数；从 -2 向左数3个单位，依次到 -3、-4、-5，所以不是 1。",
+    "target_error_tags": [
+      "left_move_as_increase",
+      "distance_used_as_signed_position",
+      "negative_position_not_modeled",
+      "direction_and_distance_confusion"
+    ]
+  },
+  "model_output_sha256": "be41154125111c496126adf3565dffe2b6a39a3ef19a29ebf6182ffa5b5245f2",
+  "schema_version": "2026-07-23.codex-admin.question-candidate-artifact.v1"
+}

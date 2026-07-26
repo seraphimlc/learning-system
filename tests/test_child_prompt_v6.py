@@ -210,6 +210,37 @@ class ChildPromptV6Tests(unittest.TestCase):
         self.assertEqual("填写 x^2", surface["interaction_rendering"]["title"]["text"])
         self.assertEqual("算式 y^k", surface["interaction_rendering"]["formula_label"]["text"])
 
+    def test_fill_blank_allows_one_mathematical_field(self):
+        surface = child_prompt.project_child_surface(
+            prompt="相邻两个刻度相差 0.5，每格表示多少？",
+            prompt_format=child_prompt.CHILD_PROMPT_FORMAT,
+            interaction_schema=_schema(
+                "fill_blank",
+                title="填写单位长度",
+                fields=[{"id": "unit", "label": "每格表示"}],
+            ),
+            allow_legacy=False,
+        )
+
+        self.assertEqual(1, len(surface["interaction_schema"]["fields"]))
+
+    def test_current_interaction_types_reject_fields_owned_by_other_controls(self):
+        choice = _schema(
+            "single_choice",
+            choices=[{"id": "A", "label": "甲"}, {"id": "B", "label": "乙"}],
+        )
+        choice["formula_label"] = "不应出现"
+        fill = _schema("fill_blank", fields=[{"id": "value", "label": "结果"}])
+        fill["placeholder"] = "不应出现"
+        no_explanation = _schema("short_text")
+        no_explanation["allow_explanation"] = False
+        no_explanation["explanation_label"] = "不应出现"
+
+        for schema in (choice, fill, no_explanation):
+            with self.subTest(interaction_type=schema["type"]):
+                with self.assertRaises(child_prompt.ChildPromptContractError):
+                    child_prompt.normalize_interaction_schema(schema, allow_legacy=False)
+
     def test_forbidden_sources_fail_closed(self):
         cases = {
             "markdown": "| 项 | 值 |\n|---|---|",
@@ -228,11 +259,8 @@ class ChildPromptV6Tests(unittest.TestCase):
                         allow_legacy=False,
                     )
 
-    def test_schema_alignment_and_exact_required_explanation_are_enforced(self):
-        with self.assertRaisesRegex(
-            child_prompt.ChildPromptContractError,
-            "select_all_requires_multi_choice",
-        ):
+    def test_schema_semantics_are_supplied_by_review_verdict_not_prompt_matching(self):
+        with self.assertRaisesRegex(child_prompt.ChildPromptContractError, "prompt_interaction:mismatch"):
             child_prompt.project_child_surface(
                 prompt="请选择所有正确答案。",
                 prompt_format=child_prompt.CHILD_PROMPT_FORMAT,
@@ -241,6 +269,7 @@ class ChildPromptV6Tests(unittest.TestCase):
                     {"id": "B", "label": "乙"},
                 ]),
                 allow_legacy=False,
+                prompt_interaction_verdict="mismatch",
             )
         projected = child_prompt.project_child_surface(
             prompt="请选择所有正确答案。",
@@ -266,7 +295,33 @@ class ChildPromptV6Tests(unittest.TestCase):
         self.assertEqual("y^k 与 x^2", legacy["prompt"])
         self.assertTrue(legacy["legacy_compatibility_applied"])
 
-    def test_legacy_v1_explanation_requirement_is_derived_into_v2(self):
+    def test_legacy_generator_meta_language_is_cleaned_for_child_surface(self):
+        source_prompt = (
+            "本题沿用的规则是：数感估算要先看乘数与1的关系，再判断结果范围。 "
+            "变式题：判断 8.2×1.9 应接近16还是160。 "
+            "请先指出要使用的结构，再解答。 "
+            "做完后把最容易错的一步圈出来。 本题重点：数感与估算。"
+        )
+
+        for kwargs in (
+            {"interaction_schema": _schema(), "allow_legacy": True},
+            {
+                "prompt_format": child_prompt.CHILD_PROMPT_FORMAT,
+                "interaction_schema": _schema(),
+                "allow_legacy": False,
+            },
+        ):
+            with self.subTest(kwargs=sorted(kwargs)):
+                projected = child_prompt.project_child_surface(
+                    prompt=source_prompt,
+                    **kwargs,
+                )
+                self.assertIn("先想清楚规则：数感估算要先看乘数与1的关系，再判断结果范围。", projected["prompt"])
+                self.assertIn("题目：判断 8.2×1.9 应接近16还是160。", projected["prompt"])
+                for forbidden in ("本题沿用的规则", "变式题", "请先指出要使用的结构", "最容易错", "本题重点"):
+                    self.assertNotIn(forbidden, projected["prompt"])
+
+    def test_legacy_v1_does_not_infer_explanation_requirement_from_prompt_text(self):
         legacy_schema = _schema(
             "single_choice",
             choices=[
@@ -287,7 +342,7 @@ class ChildPromptV6Tests(unittest.TestCase):
             child_prompt.QUESTION_INTERACTION_SCHEMA_V2,
             projected["interaction_schema"]["schema_version"],
         )
-        self.assertTrue(projected["interaction_schema"]["requires_explanation"])
+        self.assertFalse(projected["interaction_schema"]["requires_explanation"])
 
         answer_only = child_prompt.project_child_surface(
             prompt="请选择更合适的关系。",

@@ -1,0 +1,344 @@
+{
+  "agent_key": "question_designer_agent",
+  "contract_key": "question_candidate_batch",
+  "contract_version": "2026-07-24.question-candidate-batch.child-surface.v1",
+  "prompt_version_id": "2026-07-24.question-candidate-batch.prompt.child-surface.v1",
+  "prompt_template_path": "learning_system/prompts/question_candidate_batch.v1.md",
+  "response_schema_version": "2026-07-23.question-candidate-batch.schema.v1",
+  "minimum_confidence_to_apply": 0.75,
+  "engine_type": "model",
+  "authority": "candidate_only",
+  "does_not_authorize_staging_or_activation": true,
+  "program_owned_fields": [
+    "id",
+    "item_version",
+    "node_id",
+    "question_type",
+    "difficulty",
+    "source_type",
+    "source",
+    "production_lineage",
+    "quality",
+    "usage_policy"
+  ],
+  "interaction_schema_contract": {
+    "schema_version": "2026-07-17.question-interaction.v2",
+    "supported_types": [
+      "short_text",
+      "fill_blank",
+      "single_choice",
+      "multi_choice",
+      "formula_input"
+    ],
+    "source_of_truth": "learning_system.child_prompt.INTERACTION_TYPES"
+  },
+  "child_surface_design_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "task_focus_count",
+      "primary_task",
+      "child_deliverables",
+      "backend_evidence_targets",
+      "student_actions",
+      "interaction_requirements",
+      "writing_burden",
+      "visual_support",
+      "language_surface",
+      "distractor_design",
+      "difficulty_alignment"
+    ],
+    "properties": {
+      "task_focus_count": {
+        "const": 1
+      },
+      "primary_task": {
+        "type": "string",
+        "minLength": 1
+      },
+      "child_deliverables": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 2,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "backend_evidence_targets": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "student_actions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "primary",
+          "supporting"
+        ],
+        "properties": {
+          "primary": {
+            "type": "string",
+            "enum": [
+              "compute_or_solve",
+              "model_or_represent",
+              "compare_or_classify",
+              "explain_core_relation",
+              "diagnose_error",
+              "estimate",
+              "verify"
+            ]
+          },
+          "supporting": {
+            "type": "array",
+            "maxItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "compute_or_solve",
+                "model_or_represent",
+                "compare_or_classify",
+                "explain_core_relation",
+                "diagnose_error",
+                "estimate",
+                "verify"
+              ]
+            }
+          }
+        }
+      },
+      "interaction_requirements": {
+        "type": "object",
+        "additionalProperties": false,
+    "required": [
+      "response_kind",
+      "actions",
+      "minimum_selections",
+      "maximum_selections"
+    ],
+        "properties": {
+          "response_kind": {
+            "type": "string",
+            "enum": [
+              "short_text",
+              "fill_blank",
+              "select_one",
+              "select_many",
+              "formula_input",
+              "direct_manipulation"
+            ]
+          },
+          "actions": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "action",
+                "target"
+              ],
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "move",
+                    "draw",
+                    "connect",
+                    "click_location"
+                  ]
+                },
+                "target": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "minimum_selections": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "maximum_selections": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          }
+        }
+      },
+      "writing_burden": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "burden_level",
+          "estimated_response_lines",
+          "why_necessary"
+        ],
+        "properties": {
+          "burden_level": {
+            "type": "string",
+            "enum": [
+              "light",
+              "moderate"
+            ]
+          },
+          "estimated_response_lines": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "why_necessary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "visual_support": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "prompt_depends_on_visual",
+          "asset_ref",
+          "inline_visual"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "not_needed",
+              "inline_in_prompt",
+              "external_asset"
+            ]
+          },
+          "prompt_depends_on_visual": {
+            "type": "boolean"
+          },
+          "asset_ref": {
+            "type": "string"
+          },
+          "inline_visual": {
+            "type": "string"
+          }
+        }
+      },
+      "language_surface": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "natural_child_facing_chinese",
+          "respectful_age_appropriate",
+          "semantic_review_boundary",
+          "named_characters",
+          "short_explanation_requests"
+        ],
+        "properties": {
+          "natural_child_facing_chinese": {
+            "const": true
+          },
+          "respectful_age_appropriate": {
+            "const": true
+          },
+          "semantic_review_boundary": {
+            "const": "requires_independent_semantic_qa"
+          },
+          "named_characters": {
+            "type": "array",
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "short_explanation_requests": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "distractor_design": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "distractors"
+        ],
+        "properties": {
+          "distractors": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "information",
+                "relevance",
+                "why_plausible"
+              ],
+              "properties": {
+                "information": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "relevance": {
+                  "type": "string",
+                  "enum": [
+                    "required_information",
+                    "plausibly_relevant_but_unneeded"
+                  ]
+                },
+                "why_plausible": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "difficulty_alignment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_difficulty",
+          "diagnostic_breakpoint",
+          "difficulty_source"
+        ],
+        "properties": {
+          "target_difficulty": {
+            "type": "string",
+            "enum": [
+              "L2",
+              "L3",
+              "L4",
+              "L5"
+            ]
+          },
+          "diagnostic_breakpoint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "difficulty_source": {
+            "type": "string",
+            "enum": [
+              "mathematical_structure",
+              "representation_transfer",
+              "error_discrimination",
+              "multi_step_dependency",
+              "strategy_choice"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

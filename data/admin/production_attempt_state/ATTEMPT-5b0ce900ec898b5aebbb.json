@@ -1,0 +1,100 @@
+{
+  "content_attempts_consumed": 3,
+  "crash_recovery_count": 0,
+  "created_at": "2026-07-25T08:49:46.548426+00:00",
+  "execution_contract_sha256": "4d1bf3d7e227e5aa75731af6c3e89efd28406e3cc60802c8562de83f67bce67f",
+  "history": [
+    {
+      "at": "2026-07-25T08:49:46.550300+00:00",
+      "content_attempt": 1,
+      "event": "content_attempt_started",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:1"
+    },
+    {
+      "at": "2026-07-25T08:50:27.543200+00:00",
+      "consumed": true,
+      "content_attempt": 1,
+      "event": "content_attempt_completed",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:1",
+      "outcome": "NEEDS_REGENERATION"
+    },
+    {
+      "at": "2026-07-25T08:50:27.546720+00:00",
+      "content_attempt": 2,
+      "event": "content_attempt_started",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:2"
+    },
+    {
+      "at": "2026-07-25T08:51:12.475335+00:00",
+      "consumed": true,
+      "content_attempt": 2,
+      "event": "content_attempt_completed",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:2",
+      "outcome": "NEEDS_REGENERATION"
+    },
+    {
+      "at": "2026-07-25T08:51:12.477384+00:00",
+      "content_attempt": 3,
+      "event": "content_attempt_started",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:3"
+    },
+    {
+      "at": "2026-07-25T08:51:55.084836+00:00",
+      "consumed": true,
+      "content_attempt": 3,
+      "event": "content_attempt_completed",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:3",
+      "outcome": "NEEDS_REGENERATION"
+    }
+  ],
+  "locator_id": "5b0ce900ec898b5aebbb",
+  "max_content_attempts": 3,
+  "pending_content_attempt": null,
+  "pending_review_checkpoint": null,
+  "pending_stage_checkpoint": null,
+  "provider_transport_attempt_count": 3,
+  "provider_transport_events": [
+    {
+      "content_attempt": 1,
+      "event_id": "b43cd9e8f933aa6c13e2e66a52b0ccef2ab939cbb6bff2617c11ffaf6c9c1344",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:1",
+      "ordinal": 0,
+      "outcome": "response_received",
+      "recorded_at": "2026-07-25T08:50:27.541597+00:00",
+      "request_digest_sha256": "24a61249be174c124f6c01061985dd877aaff4f8b2189cabecde49654e2c7a17",
+      "stage": "generate_candidate",
+      "status_code": null
+    },
+    {
+      "content_attempt": 2,
+      "event_id": "c986d5d76f942f864a90c84a7eda1347709bdcf8699ad5705f8975508a891cd0",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:2",
+      "ordinal": 0,
+      "outcome": "response_received",
+      "recorded_at": "2026-07-25T08:51:12.474483+00:00",
+      "request_digest_sha256": "6b996865e5466c28fa5bc45ea8c57c6b0ac0ae12596bc8bac430007cb63f974a",
+      "stage": "generate_candidate",
+      "status_code": null
+    },
+    {
+      "content_attempt": 3,
+      "event_id": "c7c923d1b13cc574e1888a2b03fda1d6efdde72bd636a517351799ce59209076",
+      "lease_id": "ATTEMPT-2f995d0e50847a267ba8:3",
+      "ordinal": 0,
+      "outcome": "response_received",
+      "recorded_at": "2026-07-25T08:51:55.084147+00:00",
+      "request_digest_sha256": "056aef7aa382379f11189a45775a5f3618a1d58c2902583015ec3c0765bb1e5a",
+      "stage": "generate_candidate",
+      "status_code": null
+    }
+  ],
+  "provider_transport_retry_count": 0,
+  "question_requirement_id": "REQ-869b5230ff3d",
+  "resume_rejection_path": "",
+  "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+  "slot_id": "M-G7-EQUALITY-PROP:equality_add_subtract_invariance:02",
+  "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+  "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+  "state_id": "ATTEMPT-2f995d0e50847a267ba8",
+  "updated_at": "2026-07-25T08:51:55.087109+00:00"
+}

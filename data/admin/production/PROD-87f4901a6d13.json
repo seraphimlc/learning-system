@@ -1,0 +1,40 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "attempt_accounting": {
+    "content_regeneration_consumed": false,
+    "provider_retry_required": true
+  },
+  "blocking_rejection_codes": [],
+  "family_id": "solution_trace_repair",
+  "finding_counts": {
+    "P1": 1
+  },
+  "findings": [
+    {
+      "code": "blocked_model_error",
+      "item_id": "",
+      "message": "模型调用未完成，workflow 必须先修复模型路由/超时，不能当成候选题质量问题。",
+      "node_id": "M-G7-EQUALITY-PROP",
+      "profile": "admin_production_gate",
+      "severity": "P1"
+    }
+  ],
+  "generation_attempt": 1,
+  "item_id": null,
+  "max_attempts": 3,
+  "next_action": "retry_or_repair_model_route",
+  "node_id": "M-G7-EQUALITY-PROP",
+  "production_json_path": "data/admin/production/PROD-87f4901a6d13.json",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-87f4901a6d13.md",
+  "production_markdown_sha256": "de56aa2c547fff0441e5df8d6fa93002798bbbcf10315515f0682ec60f5d1357",
+  "production_report_id": "PROD-87f4901a6d13",
+  "question_requirement_id": "REQ-14b1b30782f9",
+  "regeneration_input": {},
+  "schema_version": "2026-07-23.codex-admin.production-loop-decision.v1",
+  "slot_id": "M-G7-EQUALITY-PROP:solution_trace_repair:01",
+  "staging_allowed": false,
+  "status": "BLOCKED_MODEL_ERROR",
+  "subject": "math",
+  "write_applied": true
+}

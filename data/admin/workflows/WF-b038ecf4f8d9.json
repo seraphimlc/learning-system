@@ -1,0 +1,140 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "artifact_root": ".",
+  "attempt_count": 1,
+  "content_attempt_state": {
+    "content_attempts_consumed": 0,
+    "crash_recovery_count": 0,
+    "created_at": "2026-07-25T08:27:21.959333+00:00",
+    "history": [
+      {
+        "at": "2026-07-25T08:27:21.964117+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-8a71f654a56598924bd8:1"
+      },
+      {
+        "at": "2026-07-25T08:27:21.976272+00:00",
+        "consumed": false,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-8a71f654a56598924bd8:1",
+        "outcome": "BLOCKED_MODEL_ERROR"
+      },
+      {
+        "at": "2026-07-25T08:29:12.488846+00:00",
+        "content_attempt": 1,
+        "event": "content_attempt_started",
+        "lease_id": "ATTEMPT-8a71f654a56598924bd8:1"
+      },
+      {
+        "at": "2026-07-25T08:29:57.516265+00:00",
+        "consumed": false,
+        "content_attempt": 1,
+        "event": "content_attempt_completed",
+        "lease_id": "ATTEMPT-8a71f654a56598924bd8:1",
+        "outcome": "BLOCKED_MODEL_ERROR"
+      }
+    ],
+    "locator_id": "5f214b9d1edc35d949f0",
+    "max_content_attempts": 3,
+    "pending_content_attempt": null,
+    "pending_review_checkpoint": null,
+    "pending_stage_checkpoint": null,
+    "provider_transport_attempt_count": 1,
+    "provider_transport_events": [
+      {
+        "content_attempt": 1,
+        "event_id": "828928ac3b77f7516b546781813853dd5905470a4bbec9c8dc30b26b016339b9",
+        "lease_id": "ATTEMPT-8a71f654a56598924bd8:1",
+        "ordinal": 0,
+        "outcome": "terminal_failure",
+        "recorded_at": "2026-07-25T08:29:57.515520+00:00",
+        "request_digest_sha256": "1932ac721131d8ea5db2e66629cc52ce4818c1fdc6a7f892c406e6b30bf8def1",
+        "stage": "generate_candidate",
+        "status_code": null
+      }
+    ],
+    "provider_transport_retry_count": 0,
+    "question_requirement_id": "REQ-11beb7243c4b",
+    "resume_rejection_path": "",
+    "schema_version": "2026-07-25.codex-admin.production-attempt-state.v1",
+    "slot_id": "M-PRE-NUMBER-SENSE:number_sense_range_benchmark:02",
+    "staged_bank_digest": "4edfa0b62627989af8fceef71ce1b6393c9af7abe2a07d57fffd9c0f0c5ded32",
+    "staged_bank_path": "/Users/liuchang/Documents/gitproject/son-ai-learning-system/data/question_banks/v18/staged_candidates_v18.json",
+    "state_id": "ATTEMPT-8a71f654a56598924bd8",
+    "updated_at": "2026-07-25T08:29:57.516272+00:00"
+  },
+  "coverage_eligible": false,
+  "created_at": "2026-07-25T08:29:57.517177+00:00",
+  "elapsed_seconds": 45.035,
+  "generation_plan_path": "data/admin/production/PROD-6f35eef18d43.json",
+  "interrupted_before_stage": "",
+  "item_id": "",
+  "pending_stage": {},
+  "schema_version": "2026-07-23.codex-admin.slot-production-workflow.v1",
+  "staged_bank_path": "data/question_banks/v18/staged_candidates_v18.json",
+  "staged_receipt": {},
+  "staging_allowed": false,
+  "staging_scope": {},
+  "status": "BLOCKED_MODEL_ERROR",
+  "steps": [
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "model route concurrency deadline exhausted for question_designer_agent:question_candidate",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-96919defdcf4.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "generate_candidate"
+    },
+    {
+      "blocking_codes": [
+        "blocked_model_error"
+      ],
+      "blocking_findings": [
+        {
+          "code": "blocked_model_error",
+          "message": "model route concurrency deadline exhausted for question_designer_agent:question_candidate",
+          "profile": "admin_production_workflow",
+          "severity": "P1"
+        }
+      ],
+      "coverage_eligible": false,
+      "family_id": "number_sense_range_benchmark",
+      "finding_counts": {},
+      "item_id": null,
+      "next_actions": [
+        "retry_or_repair_model_route"
+      ],
+      "node_id": "M-PRE-NUMBER-SENSE",
+      "report_path": "data/admin/production/PROD-96919defdcf4.json",
+      "scope": {},
+      "status": "BLOCKED_MODEL_ERROR",
+      "step": "machine_contract_check"
+    }
+  ],
+  "subject": "math",
+  "workflow_id": "WF-b038ecf4f8d9",
+  "workflow_json_path": "data/admin/workflows/WF-b038ecf4f8d9.json",
+  "workflow_markdown_path": "docs/system/admin_reports/workflows/2026-07-25-WF-b038ecf4f8d9.md",
+  "workflow_markdown_sha256": "07d8d6769b34ff955cc1d3c60009e924b28267115dc6619c648fa8526229c01d",
+  "workflow_write_applied": true
+}

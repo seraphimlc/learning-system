@@ -1,0 +1,86 @@
+{
+  "activation_allowed": false,
+  "activation_implication": "does_not_authorize_activation",
+  "candidate": {},
+  "candidate_authority": "candidate_only",
+  "candidate_write_applied": false,
+  "design_brief_id": "EXPERT-IDEAS-3d60d6287352",
+  "design_brief_path": "data/admin/design_ideas/EXPERT-IDEAS-3d60d6287352.json",
+  "family_id": "estimate_direction_and_magnitude",
+  "finding_counts": {},
+  "findings": [],
+  "generation_attempt": 1,
+  "generation_plan_path": "data/admin/production/PROD-7d62bdda6b73.json",
+  "machine_report": {},
+  "model_error": {
+    "endpoint": "responses",
+    "error_class": "ModelCallError",
+    "message": "HTTP 400 {\"error\":{\"message\":\"Invalid schema for response_format 'v5_semantic_agent_response': In context=('properties', 'child_surface_design', 'properties', 'child_deliverables'), 'uniqueItems' is not permitted.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"}}",
+    "retry_after_seconds": null,
+    "status_code": 400,
+    "structured_json_mode": "json_schema"
+  },
+  "next_actions": [
+    "retry_or_repair_model_route"
+  ],
+  "node_id": "M-G7-NUMBER-LINE",
+  "previous_rejection_codes": [],
+  "production_json_path": "data/admin/production/PROD-d8fbb6e681da.json",
+  "production_json_sha256": "8b003183ccc0d7cab0eff89bc9adda8bfda9de73952420b89a7e76c2fae1534a",
+  "production_markdown_path": "docs/system/admin_reports/production/2026-07-25-PROD-d8fbb6e681da.md",
+  "production_markdown_sha256": "6f46b279d3e11016a6b8245531f5b18160d62bd01a9f755f3926309eaaa9afbb",
+  "production_report_id": "PROD-d8fbb6e681da",
+  "prompt_meta": {
+    "contract_version": "2026-07-24.question-candidate.compact.v1",
+    "prompt_template_path": "learning_system/prompts/question_candidate.v1.md",
+    "prompt_template_sha256": "056294aa9d249fa040fc2041cddc065dfaf779728b7696b3c055eea9569af274",
+    "rendered_prompt_sha256": "c0d5c737609094c7cdf09fb77c2c6bf56912c00443d0592f133e6df0d5ac576b",
+    "response_schema_sha256": "4bdaecc791a9de33c29631e6caa29485794fe4ce1f2811318cda9b594e800ba6",
+    "response_schema_version": "2026-07-23.question-candidate.schema.v1"
+  },
+  "provider_mode": "live_model",
+  "question_requirement_id": "REQ-d8cea0519ec3",
+  "retryable": false,
+  "route": {
+    "agent_key": "question_designer_agent",
+    "base_url": "https://api.amux.xyb2b.com/v1",
+    "enabled": true,
+    "endpoints": [
+      "responses",
+      "chat_completions"
+    ],
+    "json_modes": [
+      "json_schema",
+      "json_object",
+      "plain_json"
+    ],
+    "model": "gpt-5.5",
+    "model_alias": "gpt-5.5",
+    "provider": "gpt",
+    "task": "question_candidate"
+  },
+  "schema_version": "2026-07-23.codex-admin.generated-question-candidate.v1",
+  "slot_id": "M-G7-NUMBER-LINE:estimate_direction_and_magnitude:01",
+  "staging_allowed": false,
+  "status": "BLOCKED_MODEL_ERROR",
+  "subject": "math",
+  "transport_meta": {
+    "model_wall_deadline_seconds": 45.0,
+    "transport_attempts": [
+      {
+        "candidate_ordinal": 0,
+        "elapsed_seconds": 2.593,
+        "endpoint": "responses",
+        "error_class": "ModelCallError",
+        "error_message": "HTTP 400 {\"error\":{\"message\":\"Invalid schema for response_format 'v5_semantic_agent_response': In context=('properties', 'child_surface_design', 'properties', 'child_deliverables'), 'uniqueItems' is not permitted.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"}}",
+        "outcome": "terminal_failure",
+        "request_digest_sha256": "1ae3496c3d7410d8c7bf9ff2482fada9423bd41957f2b8869ae6a2b8ad233520",
+        "response_digest_sha256": "",
+        "retry_after_seconds": null,
+        "status_code": 400,
+        "structured_json_mode": "json_schema"
+      }
+    ]
+  },
+  "write_applied": true
+}

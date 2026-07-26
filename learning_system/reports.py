@@ -21,7 +21,7 @@ CORE_PIPELINE_PHASES = [
 
 
 REPORT_CLAIM_LABELS = db.V3_REPORT_CLAIM_LABELS
-V5_MODEL_JOB_PHASES = ("answer_analysis", "evaluation_update", "planner_decision", "teaching_generation")
+V5_MODEL_JOB_PHASES = ("answer_analysis", "group_answer_analysis", "evaluation_update", "planner_decision", "teaching_generation")
 
 
 def report_claim_label(
@@ -65,7 +65,7 @@ def v5_stage_lineage_summary(conn: sqlite3.Connection, flow_id: str) -> dict[str
                last_error, blocked_reason, dead_letter_reason
         from background_jobs
         where flow_id = ?
-          and job_type in ('answer_analysis','evaluation_update','planner_decision','teaching_generation')
+          and job_type in ('answer_analysis','group_answer_analysis','evaluation_update','planner_decision','teaching_generation')
         order by created_at, id
         """,
         (flow_id,),

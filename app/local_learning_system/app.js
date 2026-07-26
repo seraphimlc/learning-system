@@ -74,12 +74,39 @@ const state = {
   completionMessage: null,
   planId: null,
   reviewPollTimer: null,
+  loadRecoveryTimer: null,
+  loadRecoveryAttempts: 0,
   skipNextCompletionBrief: false,
   groupCompletionInFlight: false,
   errorPanel: null,
   pendingEvidence: {
     photoDataUrl: "",
     photoName: "",
+  },
+  multimodalInput: {
+    stepKey: "",
+    mode: "typed",
+    typedDraft: "",
+    recognitionHandle: "",
+    originalRecognizedText: "",
+    recognizedText: "",
+    uncertainties: [],
+    confirmed: false,
+    mediaDataUrl: "",
+    mediaName: "",
+    mediaContentType: "",
+    handwritingStrokes: [],
+    activeStroke: null,
+    voiceRecorder: null,
+    voiceRecognition: null,
+    voiceStream: null,
+    voiceChunks: [],
+    voiceFinalSegments: [],
+    voiceInterimText: "",
+    voiceConfidenceValues: [],
+    voiceStopping: false,
+    recognitionInFlight: false,
+    recognitionRequestVersion: 0,
   },
   v3ClientSubmitKey: "",
   v3SubmitInFlight: false,
@@ -100,7 +127,11 @@ const state = {
 
 const V3_BLOCKED_RECOVERY_MAX_ATTEMPTS = 3;
 const V3_BLOCKED_RECOVERY_DELAY_MS = 1000;
+const LOAD_RECOVERY_BASE_DELAY_MS = 1800;
+const LOAD_RECOVERY_MAX_DELAY_MS = 8000;
 const CHILD_SAFE_UNAVAILABLE_MESSAGE = "当前步骤还没有准备好，请稍后再试。";
+const INPUT_EVIDENCE_SCHEMA_VERSION = "2026-07-25.answer-input-evidence.v1";
+const INPUT_MEDIA_VERSION = 1;
 
 const $ = (id) => document.getElementById(id);
 const sessionStorageKey = (planId) => `son-ai-learning-session:${planId || "latest"}`;
@@ -355,10 +386,10 @@ function renderV51AssessmentFeedback(feedback) {
         <strong>${escapeHtml(feedback.score_label || "--/10")}</strong>
       </div>
       <dl class="assessment-feedback-list">
-        <div><dt>标准答案</dt><dd>${escapeHtml(feedback.reference_answer || "暂时没有可展示的标准答案")}</dd></div>
-        <div><dt>与标准答案的差距</dt><dd>${escapeHtml(feedback.answer_gap || "没有影响得分的数学差距")}</dd></div>
+        <div><dt>参考答案</dt><dd>${escapeHtml(feedback.reference_answer || "暂时没有可展示的参考答案")}</dd></div>
+        <div><dt>还可以补一句</dt><dd>${escapeHtml(feedback.answer_gap || "核心数学已经成立")}</dd></div>
         <div>
-          <dt>改进方向</dt>
+          <dt>下次注意</dt>
           <dd>${improvements.length
             ? `<ul>${improvements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
             : "这一步已经完成得很稳"}</dd>
@@ -412,7 +443,10 @@ function canonicalSegmentsHtml(segments, expectedSource) {
 }
 
 function canonicalPromptHtml(step) {
-  return window.ChildPromptRenderer?.promptHtml(step) ?? null;
+  const rendered = window.ChildPromptRenderer?.promptHtml(step) ?? null;
+  if (rendered !== null) return rendered;
+  const prompt = String(step?.prompt || "").trim();
+  return prompt ? escapeHtml(prompt).replaceAll("\n", "<br>") : null;
 }
 
 function canonicalInlineHtml(rendering, expectedText) {
@@ -420,6 +454,8 @@ function canonicalInlineHtml(rendering, expectedText) {
 }
 
 function canonicalInteractionRenderingValid(schema, rendering) {
+  if (!schema) return true;
+  if (!rendering) return true;
   return window.ChildPromptRenderer?.interactionRenderingValid(schema, rendering) === true;
 }
 
@@ -575,9 +611,9 @@ function childSafeLoadErrorMessage(error) {
     return CHILD_SAFE_UNAVAILABLE_MESSAGE;
   }
   if (raw.includes("Failed to fetch") || raw.includes("NetworkError")) {
-    return "网络刚才断了一下，请重新连接";
+    return "刚才没取到最新状态，正在自动重连";
   }
-  return "页面刚才没有连上，请重新连接";
+  return "刚才没取到最新状态，正在自动重连";
 }
 
 function errorPanelCopy(kind, message = "") {
@@ -585,8 +621,8 @@ function errorPanelCopy(kind, message = "") {
     const unavailable = message === CHILD_SAFE_UNAVAILABLE_MESSAGE;
     return {
       kind,
-      title: unavailable ? "当前步骤还没有准备好" : "页面刚才没有连上",
-      body: unavailable ? CHILD_SAFE_UNAVAILABLE_MESSAGE : "请再试一次。已经保存过的答案不会因为刷新而改变。",
+      title: unavailable ? "当前步骤还没有准备好" : "正在重新连接",
+      body: unavailable ? CHILD_SAFE_UNAVAILABLE_MESSAGE : "请稍等，页面会自动取回最新进度。已经保存过的答案不会因为刷新而改变。",
       actionLabel: unavailable ? "刷新" : "重新连接",
       unavailable,
     };
@@ -906,6 +942,8 @@ async function load() {
   clearErrorPanel();
   $("dbStatus").textContent = "连接中";
   const payload = validateChildBootstrapPayload(await api("/api/child-bootstrap"));
+  clearLoadRecoveryPoll();
+  state.loadRecoveryAttempts = 0;
   state.data = payload;
   state.v3PollFailureCount = 0;
   if (canonicalV5ChildState(state.data?.child_state || "") !== V5_CANONICAL_CHILD_STATES.BLOCKED) {
@@ -1008,6 +1046,249 @@ function v3AllowedResponseModes(step, { teachingOnly = false, clarify = false } 
   return modes;
 }
 
+function currentStepInputKey(step = state.data?.current_step) {
+  if (!step) return "";
+  return `${String(step.step_handle || "")}:${Number(step.position || 0)}`;
+}
+
+function voiceRecognitionConstructor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function voiceInputSupported() {
+  return Boolean(
+    voiceRecognitionConstructor()
+    && window.MediaRecorder
+    && navigator.mediaDevices?.getUserMedia
+  );
+}
+
+function normalizedCurrentInteraction() {
+  return normalizeInteractionSchema(state.data?.current_step?.interaction_schema);
+}
+
+function primaryTypedValue() {
+  const normalized = normalizedCurrentInteraction();
+  if (normalized?.type === "formula_input") {
+    return document.querySelector("[data-interaction-formula]")?.value || "";
+  }
+  return $("childAnswerRaw").value || "";
+}
+
+function setPrimaryTypedValue(value) {
+  const normalized = normalizedCurrentInteraction();
+  const text = String(value || "");
+  if (normalized?.type === "formula_input") {
+    const formula = document.querySelector("[data-interaction-formula]");
+    if (formula) formula.value = text;
+    return;
+  }
+  $("childAnswerRaw").value = text;
+}
+
+function stopVoiceDevices() {
+  const input = state.multimodalInput;
+  try {
+    if (input.voiceRecognition) input.voiceRecognition.abort();
+  } catch (_error) {
+    // The browser may already have stopped speech recognition.
+  }
+  try {
+    if (input.voiceRecorder?.state && input.voiceRecorder.state !== "inactive") {
+      input.voiceRecorder.stop();
+    }
+  } catch (_error) {
+    // The recorder may already have emitted its final data event.
+  }
+  if (input.voiceStream) {
+    input.voiceStream.getTracks().forEach((track) => track.stop());
+  }
+  input.voiceRecorder = null;
+  input.voiceRecognition = null;
+  input.voiceStream = null;
+  input.voiceChunks = [];
+  input.voiceStopping = false;
+}
+
+function clearRecognitionState({ restoreTypedDraft = false, preserveMode = false } = {}) {
+  const input = state.multimodalInput;
+  input.recognitionRequestVersion += 1;
+  input.recognitionInFlight = false;
+  stopVoiceDevices();
+  if (restoreTypedDraft) setPrimaryTypedValue(input.typedDraft);
+  input.recognitionHandle = "";
+  input.originalRecognizedText = "";
+  input.recognizedText = "";
+  input.uncertainties = [];
+  input.confirmed = false;
+  input.mediaDataUrl = "";
+  input.mediaName = "";
+  input.mediaContentType = "";
+  input.voiceFinalSegments = [];
+  input.voiceInterimText = "";
+  input.voiceConfidenceValues = [];
+  if (!preserveMode) input.mode = "typed";
+  const recognized = $("recognizedAnswerText");
+  if (recognized) recognized.value = "";
+  const confirmed = $("recognitionConfirmed");
+  if (confirmed) confirmed.checked = false;
+}
+
+function hasUnconfirmedRecognition() {
+  const input = state.multimodalInput;
+  return Boolean(input.recognitionHandle && input.recognizedText.trim() && !input.confirmed);
+}
+
+function renderRecognitionBusyControls() {
+  const input = state.multimodalInput;
+  const busy = input.recognitionInFlight;
+  const voiceActive = Boolean(input.voiceRecorder && input.voiceRecorder.state !== "inactive");
+  document.querySelectorAll("[data-answer-input-mode]").forEach((button) => {
+    button.disabled = busy || voiceActive;
+  });
+  const canvas = $("handwritingCanvas");
+  if (canvas) canvas.setAttribute("aria-busy", busy ? "true" : "false");
+  ["undoHandwritingBtn", "clearHandwritingBtn", "recognizeHandwritingBtn"].forEach((id) => {
+    const control = $(id);
+    if (control) control.disabled = busy;
+  });
+}
+
+function setRecognitionBusy(busy) {
+  state.multimodalInput.recognitionInFlight = Boolean(busy);
+  renderRecognitionBusyControls();
+}
+
+function resetMultimodalForStep(step) {
+  const key = currentStepInputKey(step);
+  if (state.multimodalInput.stepKey === key) return;
+  clearRecognitionState();
+  state.multimodalInput.stepKey = key;
+  state.multimodalInput.mode = "typed";
+  state.multimodalInput.typedDraft = "";
+  state.multimodalInput.handwritingStrokes = [];
+  state.multimodalInput.activeStroke = null;
+  redrawHandwritingCanvas();
+}
+
+function inputModeAvailability(normalizedInteraction, allowText, showForm) {
+  const type = normalizedInteraction?.type || (allowText ? "short_text" : "");
+  return {
+    typed: Boolean(showForm),
+    handwriting: Boolean(showForm && ["formula_input", "short_text"].includes(type)),
+    voice: Boolean(showForm && type === "short_text" && voiceInputSupported()),
+  };
+}
+
+function renderRecognitionUncertainty() {
+  const input = state.multimodalInput;
+  const panel = $("recognitionUncertainty");
+  if (!panel) return;
+  const unresolved = input.uncertainties.length > 0
+    && input.recognizedText.trim() === input.originalRecognizedText.trim();
+  if (!input.uncertainties.length) {
+    panel.hidden = true;
+    panel.textContent = "";
+    return;
+  }
+  const tokens = input.uncertainties
+    .map((item) => String(item.token || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  panel.textContent = unresolved
+    ? `有符号没有看清${tokens.length ? `（${tokens.join("、")}）` : ""}，请核对并改正识别结果。`
+    : "内容改过了，请再核对刚才没看清的符号。";
+  panel.hidden = false;
+}
+
+function renderRecognitionState() {
+  const input = state.multimodalInput;
+  const hasRecognition = Boolean(input.recognitionHandle && input.recognizedText.trim());
+  const confirmPanel = $("recognitionConfirmPanel");
+  const recognized = $("recognizedAnswerText");
+  const confirmed = $("recognitionConfirmed");
+  if (recognized && recognized.value !== input.recognizedText) {
+    recognized.value = input.recognizedText;
+  }
+  if (confirmed) {
+    confirmed.checked = input.confirmed;
+    const unresolved = input.uncertainties.length > 0
+      && input.recognizedText.trim() === input.originalRecognizedText.trim();
+    confirmed.disabled = !hasRecognition || unresolved;
+  }
+  if (confirmPanel) confirmPanel.hidden = input.mode === "typed" || !hasRecognition;
+  renderRecognitionUncertainty();
+  renderRecognitionBusyControls();
+}
+
+function applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm }) {
+  const input = state.multimodalInput;
+  const availability = inputModeAvailability(normalizedInteraction, allowText, showForm);
+  if (!availability[input.mode]) input.mode = "typed";
+  const modePanel = $("answerInputModePanel");
+  const alternativeCount = Number(availability.handwriting) + Number(availability.voice);
+  if (modePanel) modePanel.hidden = !showForm || alternativeCount === 0;
+  document.querySelectorAll("[data-answer-input-mode]").forEach((button) => {
+    const mode = button.dataset.answerInputMode;
+    button.hidden = !availability[mode];
+    button.setAttribute("aria-pressed", input.mode === mode ? "true" : "false");
+    button.classList.toggle("active", input.mode === mode);
+  });
+
+  const answerLabel = document.querySelector('label[for="childAnswerRaw"]');
+  const textarea = $("childAnswerRaw");
+  const interactionPanel = $("interactionAnswerPanel");
+  const isShortText = normalizedInteraction?.type === "short_text" || (!normalizedInteraction && allowText);
+  const allowExplanation = normalizedInteraction
+    ? (isShortText || normalizedInteraction.allow_explanation)
+    : allowText;
+  const showTypedSurface = input.mode === "typed";
+  const showExplanationSurface = allowExplanation && (
+    showTypedSurface
+    || (input.mode === "handwriting" && normalizedInteraction?.type === "formula_input" && normalizedInteraction.requires_explanation)
+  );
+  if (interactionPanel) {
+    interactionPanel.hidden = !normalizedInteraction || (!showTypedSurface && normalizedInteraction.type === "formula_input");
+  }
+  if (answerLabel) answerLabel.hidden = !showExplanationSurface;
+  if (textarea) textarea.hidden = !showExplanationSurface;
+  $("handwritingInputPanel").hidden = input.mode !== "handwriting";
+  $("voiceInputPanel").hidden = input.mode !== "voice";
+  renderRecognitionState();
+}
+
+function setAnswerInputMode(mode) {
+  const input = state.multimodalInput;
+  if (mode === input.mode) return;
+  if (input.recognitionInFlight || (input.voiceRecorder && input.voiceRecorder.state !== "inactive")) {
+    toast("正在整理这次输入，请稍等一下");
+    return;
+  }
+  if (hasUnconfirmedRecognition()) {
+    toast("请先确认识别结果，或取消本次识别");
+    $("recognizedAnswerText")?.focus({ preventScroll: true });
+    return;
+  }
+  if (mode === "typed") {
+    clearRecognitionState({ restoreTypedDraft: !input.confirmed });
+  } else {
+    input.typedDraft = primaryTypedValue();
+    clearRecognitionState({ preserveMode: true });
+    input.mode = mode;
+  }
+  const step = state.data?.current_step || null;
+  const normalizedInteraction = normalizeInteractionSchema(step?.interaction_schema);
+  const allowedModes = v3AllowedResponseModes(step || {});
+  const allowText = allowedModes.has("text") || allowedModes.has("text_photo") || allowedModes.has("clarification");
+  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm: !$("childAttemptForm").hidden });
+  if (mode === "handwriting") {
+    redrawHandwritingCanvas();
+    $("handwritingCanvas").focus({ preventScroll: true });
+  } else if (mode === "voice") {
+    $("voiceRecordBtn").focus({ preventScroll: true });
+  }
+}
+
 function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel, placeholder, interactionSchema, interactionRendering }) {
   const form = $("childAttemptForm");
   const answerLabel = document.querySelector('label[for="childAnswerRaw"]');
@@ -1016,6 +1297,7 @@ function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel
   const photoField = document.querySelector(".photo-field");
   const stuckPanel = $("v3StuckChoicePanel");
   const normalizedInteraction = normalizeInteractionSchema(interactionSchema);
+  resetMultimodalForStep(state.data?.current_step || null);
   const isShortText = normalizedInteraction?.type === "short_text";
   const allowExplanationText = normalizedInteraction
     ? (isShortText || normalizedInteraction.allow_explanation)
@@ -1066,6 +1348,7 @@ function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel
     stuckPanel.innerHTML = "";
   }
   $("childSubmitBtn").textContent = submitLabel || "保存";
+  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm });
 }
 
 function setQuestionVisualAnswerEnabled(enabled) {
@@ -1289,9 +1572,17 @@ function renderV3CurrentStep() {
   $("pageTitle").textContent = "今天的数学学习";
   $("childHeading").textContent = step.topic_label || "当前步骤";
   $("childTaskType").textContent = step.kind_label || "学习";
-  $("childProgressText").textContent = "当前步骤";
-  $("childPendingText").textContent = "";
-  $("childProgressBar").style.width = "0%";
+  const groupCurrent = Number(step.group_progress?.current || 0);
+  const groupMaximum = Number(step.group_progress?.maximum || 0);
+  if (groupCurrent > 0 && groupMaximum >= groupCurrent) {
+    $("childProgressText").textContent = `第 ${groupCurrent} 题 · 最多 ${groupMaximum} 题`;
+    $("childPendingText").textContent = groupCurrent <= 2 ? "前两题做完一起看" : "做完再统一看";
+    $("childProgressBar").style.width = `${Math.round(((groupCurrent - 1) / groupMaximum) * 100)}%`;
+  } else {
+    $("childProgressText").textContent = "当前步骤";
+    $("childPendingText").textContent = "";
+    $("childProgressBar").style.width = "0%";
+  }
   $("childHandoffState").hidden = true;
   $("childTaskContent").hidden = false;
   $("childTaskContent").innerHTML = `
@@ -1360,9 +1651,9 @@ function renderV3ChildState() {
   }
   if (childState === V5_CANONICAL_CHILD_STATES.ANALYZING_PENDING) {
     renderV3ShellMessage({
-      title: message.title || "正在看你的步骤",
+      title: message.title || "正在统一看这一组答案",
       typeLabel: "分析中",
-      body: message.body || "答案已经保存。文字通常半分钟左右；有照片可能接近一分钟。不用反复点，页面会自动刷新，结果好了会出现下一步。",
+      body: message.body || "这一组答案已经保存，正在统一批阅并安排下一步。页面会自动刷新，可以先休息。",
       actionLabel: message.action_label || "刷新看看",
     });
     scheduleV3StatePoll();
@@ -1390,6 +1681,17 @@ function renderV3ChildState() {
   }
   if (childState === V5_CANONICAL_CHILD_STATES.SUMMARY) {
     renderV3SummaryState();
+    return;
+  }
+  if (message.blocked_kind === "content_preparation") {
+    renderV3ShellMessage({
+      title: message.title || "今天的数学题还在准备",
+      typeLabel: "准备中",
+      body: message.body || "今天的题目还没有准备好，准备好后才能开始。你现在不用做什么。",
+      actionLabel: message.action_label || "稍后再看",
+      focusState: "blocked",
+    });
+    $("v3SecondaryActionBtn").hidden = true;
     return;
   }
   renderV3ShellMessage({
@@ -1564,11 +1866,11 @@ function renderLoadErrorState() {
   clearReviewPoll();
   $("pageTitle").textContent = "今天的数学学习";
   const unavailable = state.errorPanel?.unavailable === true;
-  $("dbStatus").textContent = unavailable ? "等待" : "连接失败";
-  $("childHeading").textContent = unavailable ? "当前步骤还没有准备好" : "页面刚才没有连上";
+  $("dbStatus").textContent = unavailable ? "等待" : "重连中";
+  $("childHeading").textContent = unavailable ? "当前步骤还没有准备好" : "正在重新连接";
   $("childTaskType").textContent = unavailable ? "等待" : "重试";
-  $("childProgressText").textContent = unavailable ? "暂时不可用" : "还没连接";
-  $("childPendingText").textContent = unavailable ? CHILD_SAFE_UNAVAILABLE_MESSAGE : "请再试一次";
+  $("childProgressText").textContent = unavailable ? "暂时不可用" : "自动恢复中";
+  $("childPendingText").textContent = unavailable ? CHILD_SAFE_UNAVAILABLE_MESSAGE : "答案已保存";
   $("childProgressBar").style.width = "0%";
   $("childHandoffState").hidden = true;
   $("childTaskContent").hidden = true;
@@ -1610,6 +1912,22 @@ function renderChildTask() {
       : "暂无任务";
     $("childPendingText").textContent = `已保存 ${progress.done}`;
     $("childProgressBar").style.width = `${percent}%`;
+  }
+  if (closingStatus === "blocked") {
+    state.uiState = CHILD_UI_STATES.BLOCKED;
+    clearErrorPanel();
+    clearReviewPoll();
+    $("childHandoffState").hidden = false;
+    $("childTaskContent").hidden = true;
+    $("childAttemptForm").hidden = true;
+    $("childHandoffTitle").textContent = "今天的数学题还在准备";
+    $("childHeading").textContent = "今天的数学题还在准备";
+    $("childTaskType").textContent = "准备中";
+    $("childHandoffText").textContent = "今天的题目还没有准备好，准备好后才能开始。你现在不用做什么。";
+    renderReviewPoints(null);
+    renderCoachPoints(null);
+    $("startNextRoundBtn").hidden = true;
+    return;
   }
   if (!progress.total) {
     state.uiState = CHILD_UI_STATES.EMPTY;
@@ -1766,6 +2084,33 @@ function clearReviewPoll() {
   state.reviewPollTimer = null;
 }
 
+function clearLoadRecoveryPoll() {
+  if (!state.loadRecoveryTimer) return;
+  window.clearTimeout(state.loadRecoveryTimer);
+  state.loadRecoveryTimer = null;
+}
+
+function scheduleLoadRecoveryPoll() {
+  clearLoadRecoveryPoll();
+  state.loadRecoveryAttempts += 1;
+  const delay = Math.min(
+    LOAD_RECOVERY_MAX_DELAY_MS,
+    LOAD_RECOVERY_BASE_DELAY_MS * Math.max(1, state.loadRecoveryAttempts)
+  );
+  state.loadRecoveryTimer = window.setTimeout(async () => {
+    try {
+      await load();
+      state.loadRecoveryAttempts = 0;
+      setPrimarySurface("learning_step");
+      toast("已经恢复到最新进度");
+    } catch (error) {
+      const message = childSafeLoadErrorMessage(error);
+      setErrorPanel(CHILD_UI_STATES.LOAD_ERROR, message, false);
+      scheduleLoadRecoveryPoll();
+    }
+  }, delay);
+}
+
 function scheduleReviewPoll() {
   clearReviewPoll();
   state.reviewPollTimer = window.setTimeout(async () => {
@@ -1789,7 +2134,7 @@ function scheduleReviewPoll() {
   }, 3500);
 }
 
-function scheduleV3StatePoll() {
+function scheduleV3StatePoll(delayMs = 2500) {
   clearReviewPoll();
   state.reviewPollTimer = window.setTimeout(async () => {
     try {
@@ -1803,7 +2148,7 @@ function scheduleV3StatePoll() {
         scheduleV3StatePoll();
       }
     }
-  }, 2500);
+  }, delayMs);
 }
 
 function scheduleV3BlockedRecoveryPoll() {
@@ -1837,6 +2182,346 @@ function readFileAsDataUrl(file) {
     reader.addEventListener("error", () => reject(new Error("照片读取失败")));
     reader.readAsDataURL(file);
   });
+}
+
+function handwritingCanvasPoint(event) {
+  const canvas = $("handwritingCanvas");
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+  };
+}
+
+function redrawHandwritingCanvas() {
+  const canvas = $("handwritingCanvas");
+  if (!canvas) return;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = 7;
+  context.strokeStyle = "#17201b";
+  state.multimodalInput.handwritingStrokes.forEach((stroke) => {
+    if (!stroke.length) return;
+    context.beginPath();
+    context.moveTo(stroke[0].x, stroke[0].y);
+    stroke.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+    if (stroke.length === 1) context.lineTo(stroke[0].x + 0.1, stroke[0].y + 0.1);
+    context.stroke();
+  });
+}
+
+function beginHandwritingStroke(event) {
+  if (state.multimodalInput.mode !== "handwriting" || state.multimodalInput.recognitionInFlight) return;
+  const point = handwritingCanvasPoint(event);
+  if (!point) return;
+  event.preventDefault();
+  $("handwritingCanvas").setPointerCapture?.(event.pointerId);
+  state.multimodalInput.activeStroke = [point];
+  state.multimodalInput.handwritingStrokes.push(state.multimodalInput.activeStroke);
+  redrawHandwritingCanvas();
+}
+
+function extendHandwritingStroke(event) {
+  if (state.multimodalInput.recognitionInFlight) return;
+  const stroke = state.multimodalInput.activeStroke;
+  if (!stroke) return;
+  const point = handwritingCanvasPoint(event);
+  if (!point) return;
+  event.preventDefault();
+  stroke.push(point);
+  redrawHandwritingCanvas();
+}
+
+function endHandwritingStroke(event) {
+  if (!state.multimodalInput.activeStroke) return;
+  event.preventDefault();
+  state.multimodalInput.activeStroke = null;
+}
+
+function whiteBackedHandwritingDataUrl() {
+  const source = $("handwritingCanvas");
+  const output = document.createElement("canvas");
+  output.width = source.width;
+  output.height = source.height;
+  const context = output.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, output.width, output.height);
+  context.drawImage(source, 0, 0);
+  return output.toDataURL("image/png");
+}
+
+async function recognizeHandwriting() {
+  const input = state.multimodalInput;
+  const step = state.data?.current_step || null;
+  if (!step || input.mode !== "handwriting") return;
+  if (!input.handwritingStrokes.some((stroke) => stroke.length)) {
+    $("handwritingStatus").textContent = "先在上面写出答案或算式。";
+    return;
+  }
+  const button = $("recognizeHandwritingBtn");
+  const stepKey = currentStepInputKey(step);
+  const imageDataUrl = whiteBackedHandwritingDataUrl();
+  const requestVersion = input.recognitionRequestVersion + 1;
+  input.recognitionRequestVersion = requestVersion;
+  setRecognitionBusy(true);
+  $("handwritingStatus").textContent = "正在识别，请稍等。";
+  try {
+    const result = await api("/api/input-recognition/handwriting", {
+      method: "POST",
+      body: JSON.stringify({
+        step_handle: step.step_handle,
+        position: step.position,
+        handwriting_image_data_url: imageDataUrl,
+      }),
+    });
+    if (
+      state.multimodalInput.stepKey !== stepKey
+      || state.multimodalInput.mode !== "handwriting"
+      || input.recognitionRequestVersion !== requestVersion
+    ) return;
+    input.recognitionHandle = String(result.recognition_handle || "");
+    input.originalRecognizedText = String(result.recognized_text || "").trim();
+    input.recognizedText = input.originalRecognizedText;
+    input.uncertainties = Array.isArray(result.critical_token_uncertainties)
+      ? result.critical_token_uncertainties.slice(0, 24)
+      : [];
+    input.confirmed = false;
+    input.mediaDataUrl = imageDataUrl;
+    input.mediaName = `handwriting-${Date.now()}.png`;
+    input.mediaContentType = "image/png";
+    renderRecognitionState();
+    $("handwritingStatus").textContent = input.uncertainties.length
+      ? "有符号没有看清，请在识别文字里改正。"
+      : "识别完成，请检查下面的文字。";
+    $("recognizedAnswerText").focus({ preventScroll: true });
+  } catch (_error) {
+    $("handwritingStatus").textContent = "手写识别暂时没有完成，请重新试一次或改用键盘。";
+  } finally {
+    if (input.recognitionRequestVersion === requestVersion) setRecognitionBusy(false);
+  }
+}
+
+function preferredVoiceMimeType() {
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  return candidates.find((value) => window.MediaRecorder?.isTypeSupported?.(value)) || "";
+}
+
+function voiceTranscript() {
+  const input = state.multimodalInput;
+  return `${input.voiceFinalSegments.join("")} ${input.voiceInterimText}`.trim();
+}
+
+function releaseVoiceStream() {
+  const input = state.multimodalInput;
+  input.voiceStream?.getTracks().forEach((track) => track.stop());
+  input.voiceStream = null;
+}
+
+async function finalizeVoiceCapture(recorder, stepKey, contentType) {
+  const input = state.multimodalInput;
+  if (input.stepKey !== stepKey || input.voiceRecorder !== recorder) return;
+  const transcript = voiceTranscript();
+  const chunks = input.voiceChunks.slice();
+  releaseVoiceStream();
+  input.voiceRecorder = null;
+  input.voiceRecognition = null;
+  input.voiceStopping = false;
+  $("voiceRecordBtn").disabled = false;
+  $("voiceRecordBtn").textContent = "重新说一次";
+  $("voiceRecordBtn").setAttribute("aria-pressed", "false");
+  if (!transcript || !chunks.length) {
+    $("voiceStatus").textContent = "这次没有听清，请重新说一次，或改用键盘。";
+    return;
+  }
+  const normalizedType = String(contentType || chunks[0]?.type || "audio/webm").split(";")[0];
+  const blob = new Blob(chunks, { type: normalizedType });
+  if (blob.size > 8 * 1024 * 1024) {
+    $("voiceStatus").textContent = "这段语音太长了，请分短一点再说。";
+    return;
+  }
+  const audioDataUrl = await readFileAsDataUrl(blob);
+  $("voiceStatus").textContent = "正在整理你说的话。";
+  const requestVersion = input.recognitionRequestVersion + 1;
+  input.recognitionRequestVersion = requestVersion;
+  setRecognitionBusy(true);
+  try {
+    const confidenceValues = input.voiceConfidenceValues.filter((value) => Number.isFinite(value) && value > 0);
+    const confidence = confidenceValues.length
+      ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length
+      : undefined;
+    const step = state.data?.current_step || null;
+    const result = await api("/api/input-recognition/voice", {
+      method: "POST",
+      body: JSON.stringify({
+        step_handle: step?.step_handle,
+        position: step?.position,
+        recognized_text: transcript,
+        recognition_confidence: confidence,
+        voice_audio_data_url: audioDataUrl,
+      }),
+    });
+    if (
+      input.stepKey !== stepKey
+      || input.mode !== "voice"
+      || input.recognitionRequestVersion !== requestVersion
+    ) return;
+    input.recognitionHandle = String(result.recognition_handle || "");
+    input.originalRecognizedText = String(result.recognized_text || transcript).trim();
+    input.recognizedText = input.originalRecognizedText;
+    input.uncertainties = [];
+    input.confirmed = false;
+    input.mediaDataUrl = audioDataUrl;
+    input.mediaName = `voice-answer-${Date.now()}.${normalizedType === "audio/mp4" ? "m4a" : "webm"}`;
+    input.mediaContentType = normalizedType;
+    renderRecognitionState();
+    $("voiceStatus").textContent = "已经转成文字，请检查后确认。";
+    $("recognizedAnswerText").focus({ preventScroll: true });
+  } catch (_error) {
+    $("voiceStatus").textContent = "语音没有整理成功，请重新说一次或改用键盘。";
+  } finally {
+    if (input.recognitionRequestVersion === requestVersion) setRecognitionBusy(false);
+  }
+}
+
+function stopVoiceCapture({ fromRecognitionEnd = false } = {}) {
+  const input = state.multimodalInput;
+  if (!input.voiceRecorder || input.voiceStopping) return;
+  input.voiceStopping = true;
+  $("voiceRecordBtn").disabled = true;
+  $("voiceStatus").textContent = "正在整理你说的话。";
+  if (!fromRecognitionEnd) {
+    try {
+      input.voiceRecognition?.stop();
+    } catch (_error) {
+      // Speech recognition may already be stopping.
+    }
+  }
+  try {
+    if (input.voiceRecorder.state !== "inactive") input.voiceRecorder.stop();
+  } catch (_error) {
+    input.voiceStopping = false;
+    $("voiceRecordBtn").disabled = false;
+    $("voiceStatus").textContent = "这次没有录好，请重新说一次。";
+    releaseVoiceStream();
+  }
+}
+
+async function startVoiceCapture() {
+  const input = state.multimodalInput;
+  const step = state.data?.current_step || null;
+  if (!step || input.mode !== "voice") return;
+  if (input.voiceRecorder?.state === "recording") {
+    stopVoiceCapture();
+    return;
+  }
+  if (!voiceInputSupported()) {
+    $("voiceStatus").textContent = "这个浏览器暂时不能录音，请改用键盘。";
+    return;
+  }
+  clearRecognitionState({ preserveMode: true });
+  input.mode = "voice";
+  input.voiceChunks = [];
+  input.voiceFinalSegments = [];
+  input.voiceInterimText = "";
+  input.voiceConfidenceValues = [];
+  const stepKey = currentStepInputKey(step);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (input.stepKey !== stepKey || input.mode !== "voice") {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    const mimeType = preferredVoiceMimeType();
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+    const Recognition = voiceRecognitionConstructor();
+    const recognition = new Recognition();
+    input.voiceStream = stream;
+    input.voiceRecorder = recorder;
+    input.voiceRecognition = recognition;
+    input.voiceStopping = false;
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size) input.voiceChunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      finalizeVoiceCapture(recorder, stepKey, mimeType || recorder.mimeType || "audio/webm");
+    };
+    recognition.lang = "zh-CN";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (event) => {
+      let interim = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = String(result[0]?.transcript || "");
+        const confidence = Number(result[0]?.confidence);
+        if (result.isFinal) {
+          input.voiceFinalSegments.push(transcript);
+          if (Number.isFinite(confidence)) input.voiceConfidenceValues.push(confidence);
+        } else {
+          interim += transcript;
+        }
+      }
+      input.voiceInterimText = interim;
+      $("voiceStatus").textContent = voiceTranscript() || "正在听，讲完点停止。";
+    };
+    recognition.onerror = (event) => {
+      if (event.error === "aborted") return;
+      $("voiceStatus").textContent = event.error === "not-allowed"
+        ? "没有打开麦克风，继续打字也可以。"
+        : "这次没有听清，请重新说一次。";
+    };
+    recognition.onend = () => stopVoiceCapture({ fromRecognitionEnd: true });
+    recorder.start();
+    recognition.start();
+    $("voiceRecordBtn").textContent = "停止录音";
+    $("voiceRecordBtn").setAttribute("aria-pressed", "true");
+    $("voiceStatus").textContent = "正在听，讲完点停止。";
+  } catch (_error) {
+    stopVoiceDevices();
+    $("voiceRecordBtn").disabled = false;
+    $("voiceRecordBtn").textContent = "开始说答案";
+    $("voiceRecordBtn").setAttribute("aria-pressed", "false");
+    $("voiceStatus").textContent = "没有打开麦克风，继续打字也可以。";
+  }
+}
+
+function currentRecognitionSubmission() {
+  const input = state.multimodalInput;
+  if (!(["handwriting", "voice"].includes(input.mode))) return null;
+  const text = input.recognizedText.trim();
+  if (!input.recognitionHandle || !text || !input.confirmed) {
+    throw new Error("先检查并确认识别文字");
+  }
+  const corrections = text === input.originalRecognizedText.trim()
+    ? []
+    : [{ from: input.originalRecognizedText.trim(), to: text }];
+  if (input.uncertainties.length && !corrections.length) {
+    throw new Error("有符号没有看清，请先改正识别文字");
+  }
+  return {
+    answerText: text,
+    inputEvidence: {
+      schema_version: INPUT_EVIDENCE_SCHEMA_VERSION,
+      input_mode: input.mode,
+      recognition_status: "confirmed",
+      recognition_handle: input.recognitionHandle,
+      recognized_text: input.originalRecognizedText,
+      critical_token_uncertainties: input.uncertainties,
+      child_confirmed: true,
+      child_confirmed_text: text,
+      media_version: INPUT_MEDIA_VERSION,
+      client_corrections: corrections,
+    },
+    handwritingImageDataUrl: input.mode === "handwriting" ? input.mediaDataUrl : "",
+    handwritingImageName: input.mode === "handwriting" ? input.mediaName : "",
+    voiceAudioDataUrl: input.mode === "voice" ? input.mediaDataUrl : "",
+    voiceAudioName: input.mode === "voice" ? input.mediaName : "",
+  };
 }
 
 function clearChildPhoto() {
@@ -1893,6 +2578,11 @@ function clearPendingEvidenceAfterSave() {
   state.pendingEvidence.photoName = "";
   $("childAnswerRaw").value = "";
   clearChildPhoto();
+  clearRecognitionState();
+  state.multimodalInput.stepKey = "";
+  state.multimodalInput.handwritingStrokes = [];
+  state.multimodalInput.activeStroke = null;
+  redrawHandwritingCanvas();
 }
 
 $("childAttemptForm").addEventListener("submit", async (event) => {
@@ -1970,6 +2660,17 @@ async function submitV3CurrentStep() {
     toast("题面图还没有加载好，请刷新页面后再试");
     return;
   }
+  let recognitionSubmission = null;
+  if (!state.v3Stuck) {
+    try {
+      recognitionSubmission = currentRecognitionSubmission();
+    } catch (error) {
+      const message = error.message || "先检查并确认识别文字";
+      toast(message);
+      $("recognizedAnswerText").focus({ preventScroll: true });
+      return;
+    }
+  }
   const freeText = $("childAnswerRaw").value.trim();
   const answerField = $("childAnswerRaw");
   const attemptError = $("childAttemptError");
@@ -2009,11 +2710,14 @@ async function submitV3CurrentStep() {
     return;
   }
   const button = $("childSubmitBtn");
+  const submitLabel = button.textContent || "保存";
+  let transitioned = false;
   state.v3SubmitInFlight = true;
   state.uiState = CHILD_UI_STATES.SAVING;
   clearErrorPanel();
   button.disabled = true;
   button.textContent = "正在保存...";
+  const submittedAsStuck = state.v3Stuck;
   try {
     state.v3ClientSubmitKey = state.v3ClientSubmitKey || (
       window.crypto?.randomUUID?.() || `submit-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -2026,8 +2730,13 @@ async function submitV3CurrentStep() {
         client_idempotency_key: state.v3ClientSubmitKey,
         answer_text: answerText,
         interaction_response: interactionResponse || undefined,
+        input_evidence: recognitionSubmission?.inputEvidence || undefined,
         answer_photo_data_url: state.pendingEvidence.photoDataUrl || undefined,
         answer_photo_name: state.pendingEvidence.photoName || undefined,
+        handwriting_image_data_url: recognitionSubmission?.handwritingImageDataUrl || undefined,
+        handwriting_image_name: recognitionSubmission?.handwritingImageName || undefined,
+        voice_audio_data_url: recognitionSubmission?.voiceAudioDataUrl || undefined,
+        voice_audio_name: recognitionSubmission?.voiceAudioName || undefined,
         stuck: state.v3Stuck,
       }),
     });
@@ -2039,8 +2748,16 @@ async function submitV3CurrentStep() {
       state.data = result;
       state.uiState = v3UiState(result.child_state);
       renderV3ChildState();
+      if (
+        submittedAsStuck
+        && canonicalV5ChildState(result.child_state) === V5_CANONICAL_CHILD_STATES.ANALYZING_PENDING
+      ) {
+        scheduleV3StatePoll(100);
+      }
+      transitioned = true;
     } else {
       await load();
+      transitioned = true;
     }
     toast("已保存");
   } catch (error) {
@@ -2051,7 +2768,7 @@ async function submitV3CurrentStep() {
   } finally {
     state.v3SubmitInFlight = false;
     button.disabled = false;
-    renderChildTask();
+    if (!transitioned) button.textContent = submitLabel;
   }
 }
 
@@ -2089,10 +2806,84 @@ async function continueV3CurrentStep(stuck = false) {
 
 $("childAnswerPhoto").addEventListener("change", handleChildPhotoChange);
 $("removeChildPhoto").addEventListener("click", clearChildPhoto);
+document.querySelectorAll("[data-answer-input-mode]").forEach((button) => {
+  button.addEventListener("click", () => setAnswerInputMode(button.dataset.answerInputMode || "typed"));
+});
+$("handwritingCanvas").addEventListener("pointerdown", beginHandwritingStroke);
+$("handwritingCanvas").addEventListener("pointermove", extendHandwritingStroke);
+$("handwritingCanvas").addEventListener("pointerup", endHandwritingStroke);
+$("handwritingCanvas").addEventListener("pointercancel", endHandwritingStroke);
+$("undoHandwritingBtn").addEventListener("click", () => {
+  clearRecognitionState({ preserveMode: true });
+  state.multimodalInput.mode = "handwriting";
+  state.multimodalInput.handwritingStrokes.pop();
+  redrawHandwritingCanvas();
+  renderRecognitionState();
+  $("handwritingStatus").textContent = state.multimodalInput.handwritingStrokes.length
+    ? "已撤销最后一笔。"
+    : "请在上面写答案或算式。";
+});
+$("clearHandwritingBtn").addEventListener("click", () => {
+  clearRecognitionState({ preserveMode: true });
+  state.multimodalInput.mode = "handwriting";
+  state.multimodalInput.handwritingStrokes = [];
+  state.multimodalInput.activeStroke = null;
+  redrawHandwritingCanvas();
+  renderRecognitionState();
+  $("handwritingStatus").textContent = "已经清空，可以重新写。";
+});
+$("recognizeHandwritingBtn").addEventListener("click", recognizeHandwriting);
+$("voiceRecordBtn").addEventListener("click", startVoiceCapture);
+$("recognizedAnswerText").addEventListener("input", (event) => {
+  const input = state.multimodalInput;
+  input.recognizedText = event.currentTarget.value;
+  input.confirmed = false;
+  $("recognitionConfirmed").checked = false;
+  renderRecognitionState();
+  if (input.recognitionHandle) {
+    if (input.mode === "handwriting") $("handwritingStatus").textContent = "内容改过了，请再确认。";
+    if (input.mode === "voice") $("voiceStatus").textContent = "内容改过了，请再确认。";
+  }
+});
+$("recognitionConfirmed").addEventListener("change", (event) => {
+  const input = state.multimodalInput;
+  if (!event.currentTarget.checked) {
+    input.confirmed = false;
+    return;
+  }
+  const text = input.recognizedText.trim();
+  const unresolved = input.uncertainties.length > 0
+    && text === input.originalRecognizedText.trim();
+  if (!text || unresolved) {
+    event.currentTarget.checked = false;
+    input.confirmed = false;
+    toast(!text ? "先检查识别文字" : "有符号没有看清，请先改正识别文字");
+    $("recognizedAnswerText").focus({ preventScroll: true });
+    return;
+  }
+  input.confirmed = true;
+  setPrimaryTypedValue(text);
+  if (input.mode === "handwriting") $("handwritingStatus").textContent = "已确认，可以保存。";
+  if (input.mode === "voice") $("voiceStatus").textContent = "已确认，可以保存。";
+});
+$("cancelRecognitionBtn").addEventListener("click", () => {
+  const input = state.multimodalInput;
+  clearRecognitionState({ restoreTypedDraft: true });
+  input.mode = "typed";
+  const step = state.data?.current_step || null;
+  const normalizedInteraction = normalizeInteractionSchema(step?.interaction_schema);
+  const allowedModes = v3AllowedResponseModes(step || {});
+  const allowText = allowedModes.has("text") || allowedModes.has("text_photo") || allowedModes.has("clarification");
+  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm: !$("childAttemptForm").hidden });
+  $("childAnswerRaw")?.focus({ preventScroll: true });
+  toast("已取消本次识别");
+});
 
 async function retryLoadFromPanel() {
   state.uiState = CHILD_UI_STATES.LOADING;
   state.data = null;
+  clearLoadRecoveryPoll();
+  state.loadRecoveryAttempts = 0;
   clearErrorPanel();
   try {
     await load();
@@ -2323,6 +3114,7 @@ function enterLoadError(error) {
   renderLoadErrorState();
   focusErrorPanel();
   toast(message);
+  scheduleLoadRecoveryPoll();
 }
 
 function applyFixtureForChildState(uiState) {

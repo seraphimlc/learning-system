@@ -55,50 +55,30 @@ Open:
 http://127.0.0.1:8765
 ```
 
-Generate the Codex-side progress report:
-
-```bash
-python3 scripts/generate_daily_report.py --db data/local_learning_system.sqlite
-```
-
-The report is written to `docs/system/daily_reports/YYYY-MM-DD.md` and
-`docs/system/daily_reports/latest.md`. It is derived from the local DB and marks
-old or incomplete session lineage as such instead of inventing history.
+Codex-side progress reports are generated from the current SQLite evidence when
+needed. Report files are not treated as durable source data; stale or incomplete
+lineage must be labeled as such instead of reused as proof.
 
 ## Data Contract
 
 - Source graph: `data/knowledge_graphs/math/math_knowledge_graph_v2.json`
-- Source diagnostic: `data/questions/math_diagnostic_v1.json`
+- Knowledge view config: `data/knowledge_graphs/math/math_knowledge_views_v5_1.json`
+- Knowledge cards: `data/knowledge_cards/`
+- v18 question-bank source assets: `data/question_banks/v18/`
 - Local DB: `data/local_learning_system.sqlite`
 - Current pinned graph hash:
   `1067b9c318efb116f6463fb7dd3db1a3888b440b6d33384c81313f79711a2971`
-- Current pinned diagnostic hash:
-  `6fba455b0fd92f7da120d36e31232a587b3183519023c46159f931c5bc1f4714`
 - Graph nodes seeded: 56
-- Active practice question minimum: 1120, twenty latest-version `QB9`
-  graph-generated non-diagnostic items per graph node. The twenty items are
-  independent diagnostic/transfer slots, not historical-version padding. Current
-  scheduler lookups prefer the newest `item_version`, require reviewer approval,
-  and, when real evidence exists, rank candidates by error tags, unstable answer
-  dimensions, evolved-question lineage, and recent-question avoidance.
-- Active child learning round size: 10 tasks. Planner selection uses graph-bound
-  task slots rather than padding: model selection, error spotting, two-method
-  comparison, near/far transfer, missing-condition checks, representation
-  conversion, self-correction, and controlled stretch are mixed in one round.
-  Old attempted questions may remain as evidence rows, but they are not active
-  scheduling candidates unless they are current-version or approved evolved
-  items.
-- Diagnostic questions seeded: 48. Current diagnostic schema is `1.1.0`, version
-  `2026-07-05.v2`; every item carries quality-gate metadata and requires
-  observable reasoning.
-- Question production contract: `question_designer_agent` creates graph-bound,
-  six-to-seven-bridge candidates; `question_reviewer_agent` rejects low-age
-  mechanical drills, answer-only prompts, child-facing generator/meta wording,
-  and items without visible process evidence. Only approved `graph_generated`
-  and `evolved` questions are eligible for active scheduling. Every active
-  graph-generated or evolved question now records a durable
-  `question_review_records` row; reviewer approval is recomputed by code and
-  cannot be forged by candidate metadata.
+- Active question bank: only the currently released v18 bank is child-schedulable.
+  `data/question_banks/v18/staged_candidates_v18.json` is a staging file and is
+  not active until it passes the v18 activation gate.
+- Child learning flow is adaptive. The page shows the current step or a small
+  batch for the selected node; planning chooses the next step from graph-bound
+  evidence instead of exposing a fixed worksheet.
+- Question production contract: expert design board defines node coverage and
+  item requirements, the generation agent creates candidates, expert review
+  accepts or rejects them, and the staging gate prevents rejected or incomplete
+  candidates from becoming schedulable.
 - Model-backed question production: when weak analyzed evidence is available and
   `OPENAI_API_KEY` is configured, `question_designer_agent` asks the per-agent
   routed model for one graph-bound retest candidate using `AI_QUESTION_MODEL`
@@ -337,16 +317,11 @@ python3 -m learning_system.server --db data/local_learning_system.sqlite --port 
 ```
 
 - If the port is occupied, use another port such as `8766`.
-- Open `/api/bootstrap` once and confirm schema `1.4.0`, 56 graph nodes, at
-  least 1120 practice questions, and 48 diagnostic questions. If the DB preserves
-  older attempted question versions, the practice count can be higher; the current
-  plan should still contain 10 tasks and use `QB9` or approved evolved question ids.
-  Also open `/api/child-bootstrap` and confirm the child-facing plan has 10 tasks,
-  no stale active learning group, and at least 8 picture-level challenge tasks in
-  `scripts/audit_question_bank_grade_level.py`. Also confirm
-  `agent_reports.question_production_agent.status == "ready"`. If a port returns
-  an older schema, stop that stale local server or use a clean port before the
-  child starts.
+- Open `/api/bootstrap` once and confirm the current schema, 56 graph nodes, and
+  no stale active learning group. Also open `/api/child-bootstrap` and confirm
+  the child-facing state is either the knowledge home or a current v5.1 learning
+  step. If a port returns an older schema, stop that stale local server or use a
+  clean port before the child starts.
 - Do not rerun seeding during the child session unless you intend to keep the DB
   clean and have not recorded real evidence yet.
 - For real evidence, keep `data/local_learning_system.sqlite` and
@@ -402,11 +377,11 @@ Manual checks not covered by automation:
 
 ```bash
 python3 -m unittest tests/test_learning_system.py -v
+python3 -m unittest tests/test_answer_assessment_v51.py tests/test_knowledge_views_v51.py -v
+python3 -m unittest tests/test_question_bank_v18_activation_gate.py tests/test_admin_console_inventory.py tests/test_admin_console_production_loop.py tests/test_question_bank_v18_blueprints.py tests/test_admin_full_bank_runner_priority.py -v
 /Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node tests/browser_smoke_learning_system.mjs
-node scripts/validate_math_diagnostic_v1.mjs
-node scripts/verify_math_diagnostic_page_export.mjs
 jq empty data/knowledge_graphs/math/math_knowledge_graph_v2.json
-jq empty data/questions/math_diagnostic_v1.json
+jq empty data/knowledge_graphs/math/math_knowledge_views_v5_1.json
 ```
 
 ## Boundaries

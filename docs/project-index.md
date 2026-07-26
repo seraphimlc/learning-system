@@ -15,7 +15,8 @@ If this file is stale, update it only for the routes affected by the current tas
 
 | Domain | Domain index | Main roots | Validation |
 |---|---|---|---|
-| Math learning system | `docs/domain-index/math-learning.md` | `learning_system/`, `app/local_learning_system/`, `data/knowledge_graphs/math/`, `data/questions/`, `docs/product/ai_native_math_learning_prd_v5.md`, `docs/architecture/daily_learning_runtime_contract_v1.md` | `python3 -m unittest tests/test_learning_system.py -v`; browser smoke when server is running |
+| Math learning system | `docs/domain-index/math-learning.md` | `learning_system/`, `app/local_learning_system/`, `data/knowledge_graphs/math/`, `data/knowledge_cards/`, `docs/product/ai_native_math_learning_prd_v5.md`, `docs/architecture/daily_learning_runtime_contract_v1.md` | targeted unit tests plus browser smoke when server is running |
+| Codex admin module / content management | `docs/product/admin_console_prd_v1.md`, `docs/architecture/codex_admin_module_technical_plan_v1.md` | `data/knowledge_graphs/math/`, `data/question_banks/v18/`, `data/knowledge_cards/`, `docs/design/specs/2026-07-23-question-bank-production-spec-v18.1.md` | v18 admin/gate tests |
 
 ## Main Entrypoints
 
@@ -25,42 +26,28 @@ Fill with stable routes only:
 - Frontend: `app/local_learning_system/index.html`, `app/local_learning_system/app.js`, `app/local_learning_system/styles.css`
 - Workers/tasks: `learning_system/auto_review.py`, `learning_system/orchestrator.py`, `learning_system/model_router.py`, `learning_system/job_queue.py`
 - Teaching agents: `learning_system/internal_agents.py`, `learning_system/prompts/`, `learning_system/agent_contracts/`
-- v3 runtime/gates: `learning_system/daily_runtime.py`, `learning_system/graph_runtime.py`, `learning_system/evidence_gate.py`
+- v5 runtime/gates: `learning_system/daily_runtime.py`, `learning_system/graph_runtime.py`, `learning_system/evidence_gate.py`
 - Planning/question bank: `learning_system/planner.py`, `learning_system/question_bank.py`
 - Data/migrations: `scripts/init_learning_system_db.py`, `data/local_learning_system.sqlite`
-- Reports: `scripts/generate_daily_report.py`, `docs/system/daily_reports/latest.md`
+- Reports: `learning_system/reports.py`, generated from current SQLite evidence when needed
 - Tests: `tests/test_learning_system.py`, `tests/browser_smoke_learning_system.mjs`
 - Product baseline: `docs/product/ai_native_math_learning_prd_v5.md`
-- Product review: `docs/collaboration/reviews/prd_v5_clean_slate_review_2026-07-11.md`
-- Historical product docs: `docs/product/ai_native_math_learning_prd_v2.md`,
-  `docs/product/ai_native_math_learning_prd_v3.md`,
-  `docs/product/ai_native_math_learning_prd_v4.md`,
-  `docs/product/ai_native_math_learning_product_structure_v4.md`
-- Architecture baseline: `docs/architecture/ai_native_learning_system_architecture_v3.md`
+- Product amendment: `docs/product/ai_native_math_learning_prd_v5_1_dual_knowledge_views_amendment.md`
+- Codex admin module product baseline: `docs/product/admin_console_prd_v1.md`
+- Codex admin module technical baseline: `docs/architecture/codex_admin_module_technical_plan_v1.md`
+- Product structure: `docs/product/ai_native_math_learning_product_structure_v5.md`
 - Runtime contract: `docs/architecture/daily_learning_runtime_contract_v1.md`
-- Technical plan v3: `docs/architecture/technical_plan_v3.md`
-- Code skeleton pass v3: `docs/architecture/code_skeleton_pass_v3.md`
-- Technical plan v3 reviews:
-  `docs/collaboration/reviews/2026-07-10-jinghua-technical-plan-v3-rereview.md`,
-  `docs/collaboration/reviews/2026-07-10-guanzhi-technical-plan-v3-qa-rereview.md`
+- Technical plan: `docs/architecture/technical_plan_v5.md`
+- Implementation blueprint: `docs/architecture/implementation_blueprint_v5.md`
+- v18 question-bank production: `docs/design/specs/2026-07-23-question-bank-production-spec-v18.1.md`
 
 ## Validation Entrypoints
 
 Fill with commands that agents may run locally:
 
 ```bash
-python3 -m unittest tests/test_learning_system.py -v
-python3 - <<'PY'
-import re, subprocess, sys
-from pathlib import Path
-text = Path("tests/test_learning_system.py").read_text()
-names = [
-    "tests.test_learning_system.LearningSystemTest." + name
-    for name in re.findall(r"def (test_v3_[^(]+)\(", text)
-]
-raise SystemExit(subprocess.call([sys.executable, "-m", "unittest", *names, "-v"]))
-PY
-python3 scripts/generate_daily_report.py --db data/local_learning_system.sqlite
+python3 -m unittest tests/test_learning_system.py tests/test_knowledge_views_v51.py -v
+python3 -m unittest tests/test_question_bank_v18_activation_gate.py tests/test_admin_console_inventory.py tests/test_admin_console_production_loop.py tests/test_question_bank_v18_blueprints.py tests/test_admin_full_bank_runner_priority.py -v
 python3 -m learning_system.server --db data/local_learning_system.sqlite --port 8765
 ```
 

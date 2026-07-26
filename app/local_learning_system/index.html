@@ -66,8 +66,42 @@
 
           <form id="childAttemptForm" class="attempt-form" novalidate>
             <div id="interactionAnswerPanel" class="interaction-answer-panel" hidden></div>
+            <div id="answerInputModePanel" class="answer-input-mode" hidden>
+              <span class="answer-input-mode-label">作答方式</span>
+              <div class="segmented-control" role="group" aria-label="选择作答方式">
+                <button type="button" data-answer-input-mode="typed" aria-pressed="true">键盘</button>
+                <button type="button" data-answer-input-mode="handwriting" aria-pressed="false" hidden>手写</button>
+                <button type="button" data-answer-input-mode="voice" aria-pressed="false" hidden>语音</button>
+              </div>
+            </div>
             <label for="childAnswerRaw">我的答案和步骤</label>
             <textarea id="childAnswerRaw" name="answerRaw" rows="7" placeholder="写关键步骤、答案；如果卡住，就写卡在哪一步"></textarea>
+
+            <section id="handwritingInputPanel" class="recognition-panel" aria-label="手写作答" hidden>
+              <canvas id="handwritingCanvas" width="900" height="360" tabindex="0" aria-label="手写区域"></canvas>
+              <div class="recognition-actions">
+                <button id="undoHandwritingBtn" type="button">撤销一笔</button>
+                <button id="clearHandwritingBtn" type="button">清空</button>
+                <button id="recognizeHandwritingBtn" class="primary" type="button">识别手写</button>
+              </div>
+              <p id="handwritingStatus" class="recognition-status" aria-live="polite">请在上面写答案或算式。</p>
+            </section>
+
+            <section id="voiceInputPanel" class="recognition-panel" aria-label="语音作答" hidden>
+              <button id="voiceRecordBtn" class="voice-record" type="button" aria-pressed="false">开始说答案</button>
+              <p id="voiceStatus" class="recognition-status" aria-live="polite">说完后再检查识别文字。</p>
+            </section>
+
+            <section id="recognitionConfirmPanel" class="recognition-confirm" hidden>
+              <label for="recognizedAnswerText">识别结果</label>
+              <textarea id="recognizedAnswerText" rows="4" placeholder="请检查负号、小数点、分数线和括号"></textarea>
+              <div id="recognitionUncertainty" class="recognition-uncertainty" hidden></div>
+              <label class="recognition-check">
+                <input id="recognitionConfirmed" type="checkbox">
+                <span>我检查过了，使用这个答案</span>
+              </label>
+              <button id="cancelRecognitionBtn" class="recognition-cancel" type="button">取消本次识别</button>
+            </section>
             <p id="childAttemptError" class="attempt-error" role="alert" aria-live="assertive" hidden></p>
 
             <div class="photo-field">
