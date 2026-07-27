@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 import time
 import uuid
 from contextlib import nullcontext
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import assessment_policy, db
@@ -693,6 +696,245 @@ def checkpoint_semantic_assessment_output(
     return _assessment_from_row(row)
 
 
+def _canonical_sha256(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def model_response_checkpoint_for_input(
+    conn: sqlite3.Connection,
+    *,
+    checkpoint_kind: str,
+    immutable_input_digest_sha256: str,
+) -> dict[str, Any] | None:
+    checkpoint_kind = _nonempty_text(checkpoint_kind, "checkpoint_kind")
+    immutable_input_digest_sha256 = _nonempty_text(
+        immutable_input_digest_sha256,
+        "immutable_input_digest_sha256",
+    )
+    row = conn.execute(
+        """
+        select *
+        from model_response_checkpoints
+        where checkpoint_kind = ? and immutable_input_digest_sha256 = ?
+        limit 1
+        """,
+        (checkpoint_kind, immutable_input_digest_sha256),
+    ).fetchone()
+    if not row:
+        return None
+    checkpoint = dict(row)
+    output = db.json_load(checkpoint.pop("output_json"), None)
+    envelope = db.json_load(checkpoint.pop("envelope_json"), None)
+    if not isinstance(output, dict) or not output:
+        raise ValueError("model response checkpoint output is invalid")
+    if not isinstance(envelope, dict) or not envelope:
+        raise ValueError("model response checkpoint envelope is invalid")
+    if _canonical_sha256(output) != checkpoint["output_digest_sha256"]:
+        raise ValueError("model response checkpoint output digest mismatch")
+    if _canonical_sha256(envelope) != checkpoint["envelope_digest_sha256"]:
+        raise ValueError("model response checkpoint envelope digest mismatch")
+    checkpoint["output"] = output
+    checkpoint["envelope"] = envelope
+    return checkpoint
+
+
+def checkpoint_model_response(
+    conn: sqlite3.Connection,
+    *,
+    checkpoint_kind: str,
+    immutable_input_digest_sha256: str,
+    source_job_id: str,
+    output: dict[str, Any],
+    envelope: dict[str, Any],
+    commit: bool = True,
+) -> dict[str, Any]:
+    checkpoint_kind = _nonempty_text(checkpoint_kind, "checkpoint_kind")
+    immutable_input_digest_sha256 = _nonempty_text(
+        immutable_input_digest_sha256,
+        "immutable_input_digest_sha256",
+    )
+    if not isinstance(output, dict) or not output:
+        raise ValueError("model response checkpoint output must be a non-empty object")
+    if not isinstance(envelope, dict) or not envelope:
+        raise ValueError("model response checkpoint envelope must be a non-empty object")
+    output_digest = _canonical_sha256(output)
+    envelope_digest = _canonical_sha256(envelope)
+    with (conn if commit else nullcontext()):
+        conn.execute(
+            """
+            insert or ignore into model_response_checkpoints(
+              id, checkpoint_kind, immutable_input_digest_sha256,
+              source_job_id, output_json, output_digest_sha256,
+              envelope_json, envelope_digest_sha256, created_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                f"MRC-{uuid.uuid4().hex[:12]}",
+                checkpoint_kind,
+                immutable_input_digest_sha256,
+                str(source_job_id or ""),
+                db.json_dump(output),
+                output_digest,
+                db.json_dump(envelope),
+                envelope_digest,
+                db.now_iso(),
+            ),
+        )
+        checkpoint = model_response_checkpoint_for_input(
+            conn,
+            checkpoint_kind=checkpoint_kind,
+            immutable_input_digest_sha256=immutable_input_digest_sha256,
+        )
+        if not checkpoint:
+            raise ValueError("model response checkpoint could not be read back")
+        if (
+            checkpoint["output_digest_sha256"] != output_digest
+            or checkpoint["envelope_digest_sha256"] != envelope_digest
+        ):
+            raise ValueError("model response checkpoint retry has conflicting content")
+    return checkpoint
+
+
+def acquire_model_response_operation(
+    conn: sqlite3.Connection,
+    *,
+    checkpoint_kind: str,
+    immutable_input_digest_sha256: str,
+    owner_token: str,
+    lease_seconds: float,
+) -> dict[str, Any]:
+    checkpoint_kind = _nonempty_text(checkpoint_kind, "checkpoint_kind")
+    immutable_input_digest_sha256 = _nonempty_text(
+        immutable_input_digest_sha256,
+        "immutable_input_digest_sha256",
+    )
+    owner_token = _nonempty_text(owner_token, "owner_token")
+    lease_seconds = max(1.0, float(lease_seconds))
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat(timespec="microseconds")
+    lease_expires_at = (now_dt + timedelta(seconds=lease_seconds)).isoformat(
+        timespec="microseconds"
+    )
+    _ensure_busy_timeout(conn, minimum_ms=5000)
+    try:
+        conn.execute("begin immediate")
+        checkpoint = model_response_checkpoint_for_input(
+            conn,
+            checkpoint_kind=checkpoint_kind,
+            immutable_input_digest_sha256=immutable_input_digest_sha256,
+        )
+        if checkpoint:
+            conn.commit()
+            return {"acquired": False, "checkpoint": checkpoint}
+        conn.execute(
+            """
+            insert into model_response_inflight(
+              checkpoint_kind, immutable_input_digest_sha256, owner_token,
+              lease_expires_at, created_at, updated_at
+            ) values (?, ?, ?, ?, ?, ?)
+            on conflict(checkpoint_kind, immutable_input_digest_sha256)
+            do update set
+              owner_token = excluded.owner_token,
+              lease_expires_at = excluded.lease_expires_at,
+              updated_at = excluded.updated_at
+            where model_response_inflight.owner_token = excluded.owner_token
+               or model_response_inflight.lease_expires_at <= ?
+            """,
+            (
+                checkpoint_kind,
+                immutable_input_digest_sha256,
+                owner_token,
+                lease_expires_at,
+                now,
+                now,
+                now,
+            ),
+        )
+        row = conn.execute(
+            """
+            select owner_token, lease_expires_at
+            from model_response_inflight
+            where checkpoint_kind = ? and immutable_input_digest_sha256 = ?
+            """,
+            (checkpoint_kind, immutable_input_digest_sha256),
+        ).fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    acquired = bool(row and row["owner_token"] == owner_token)
+    return {
+        "acquired": acquired,
+        "checkpoint": None,
+        "lease_expires_at": str(row["lease_expires_at"] if row else ""),
+    }
+
+
+def wait_for_model_response_operation(
+    conn: sqlite3.Connection,
+    *,
+    checkpoint_kind: str,
+    immutable_input_digest_sha256: str,
+    owner_token: str,
+    lease_seconds: float,
+    wait_timeout_seconds: float,
+    poll_interval_seconds: float = 0.05,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + max(1.0, float(wait_timeout_seconds))
+    while True:
+        claimed = acquire_model_response_operation(
+            conn,
+            checkpoint_kind=checkpoint_kind,
+            immutable_input_digest_sha256=immutable_input_digest_sha256,
+            owner_token=owner_token,
+            lease_seconds=lease_seconds,
+        )
+        if claimed.get("checkpoint") or claimed.get("acquired"):
+            return claimed
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                "timed out waiting for an in-flight model response checkpoint"
+            )
+        time.sleep(min(max(0.01, poll_interval_seconds), remaining))
+
+
+def release_model_response_operation(
+    conn: sqlite3.Connection,
+    *,
+    checkpoint_kind: str,
+    immutable_input_digest_sha256: str,
+    owner_token: str,
+) -> bool:
+    checkpoint_kind = _nonempty_text(checkpoint_kind, "checkpoint_kind")
+    immutable_input_digest_sha256 = _nonempty_text(
+        immutable_input_digest_sha256,
+        "immutable_input_digest_sha256",
+    )
+    owner_token = _nonempty_text(owner_token, "owner_token")
+    _ensure_busy_timeout(conn, minimum_ms=5000)
+    with conn:
+        deleted = conn.execute(
+            """
+            delete from model_response_inflight
+            where checkpoint_kind = ? and immutable_input_digest_sha256 = ?
+              and owner_token = ?
+            """,
+            (
+                checkpoint_kind,
+                immutable_input_digest_sha256,
+                owner_token,
+            ),
+        )
+    return deleted.rowcount == 1
+
+
 def _validated_feedback(feedback: Any) -> dict[str, Any]:
     if not isinstance(feedback, dict):
         raise TypeError("feedback must be a mapping")
@@ -778,7 +1020,7 @@ def accept_assessment(
         if question_passed is not calculated["question_passed"]:
             raise ValueError("question pass result does not match deterministic policy")
         derived_compatibility_score = calculated["score_out_of_10"] / 5
-        if calculated["score_out_of_10"] == 10 and calculated["question_passed"]:
+        if calculated["question_passed"]:
             derived_compatibility_result = "correct"
         elif calculated["score_out_of_10"] == 0:
             derived_compatibility_result = "wrong"

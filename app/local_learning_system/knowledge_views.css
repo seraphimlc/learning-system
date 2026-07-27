@@ -519,6 +519,7 @@
 .knowledge-node-button.is-recommended::after {
   content: "建议看看";
   display: block;
+  grid-column: 2;
   margin-top: 3px;
   color: var(--kv-amber);
   font-size: 12px;

@@ -357,14 +357,21 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
                     TEST_BANK_VERSION,
                     self.graph_lineage,
                     "a" * 64,
-                    len(selected_node_ids),
+                    len(set(selected_node_ids)),
                     len(selected_node_ids),
                     now,
                     now,
                     now,
                 ),
             )
+            node_occurrences: dict[str, int] = {}
             for index, node_id in enumerate(selected_node_ids, 1):
+                node_occurrences[node_id] = node_occurrences.get(node_id, 0) + 1
+                variant_context = (
+                    f"这是同一知识点的第 {node_occurrences[node_id]} 个不同情境。"
+                    if selected_node_ids.count(node_id) > 1
+                    else ""
+                )
                 question_id = f"KV51-Q-{index:02d}"
                 review_record_id = f"KV51-QRR-{index:02d}"
                 contract_id = f"KV51-AC-{index:02d}"
@@ -390,6 +397,7 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
                         f"围绕「{node_name}」判断这段说法："
                         f"“{essence}，所以遇到同类题只要写最后答案就能证明会了。”"
                         "请指出这句话哪一部分可用、哪一部分不够，并用一个小例子或检验说明理由。"
+                        f"{variant_context}"
                     ),
                     "answer_format": "可用部分 + 不够部分 + 例子或检验",
                     "expected_answer": (
@@ -657,6 +665,7 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
         asset: dict,
         *,
         status_code: str = "B",
+        answer_model_provider: str = "openai",
     ) -> dict:
         now = "2026-07-15T00:05:00+08:00"
         session_id = f"LS-{asset['question_id']}"
@@ -678,7 +687,7 @@ class KnowledgeViewsV51TestCase(unittest.TestCase):
             status="accepted",
             confidence=0.95,
             output={"schema_version": "answer-review.v3", "criteria": []},
-            model_provider="openai",
+            model_provider=answer_model_provider,
             model_name="gpt-5.5",
             model_alias="gpt-5.5",
             commit=False,
@@ -1264,6 +1273,28 @@ class KnowledgeMapProjectionTests(KnowledgeViewsV51TestCase):
                 self.assertEqual("untested", stale_row["mastery_band"])
                 self.assertEqual("还没有留下学习记录", stale_row["mastery_summary"])
 
+    def test_mastery_projection_does_not_depend_on_a_hard_coded_live_provider_label(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ):
+            with closing(db.connect(path)) as conn:
+                assets = self._install_view_activation(conn, config_payload=config)
+                self._install_authoritative_mastery(
+                    conn,
+                    assets[0],
+                    answer_model_provider="gpt",
+                )
+                payload = self._projection_for_conn(conn)
+
+        row = next(
+            item
+            for item in payload["nodes"]
+            if item["name"] == self.nodes[assets[0]["node_id"]]["name"]
+        )
+        self.assertEqual("developing", row["mastery_band"])
+        self.assertNotEqual("还没有留下学习记录", row["mastery_summary"])
+
     def test_projection_exposes_child_evidence_actions_and_learning_path_order(self):
         config = self._load_view_config_json()
         selected_node_ids = sorted(self.child_visible_node_ids)[:2]
@@ -1801,6 +1832,120 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
             "client_idempotency_key": key,
         }
 
+    def test_new_target_cancels_unconsumed_applied_plan_and_old_key_cannot_retake_control(self):
+        from learning_system import daily_runtime
+
+        config = self._load_view_config_json()
+        node_ids = sorted(self.child_visible_node_ids)[:3]
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ), closing(db.connect(path)) as conn:
+            assets = self._install_view_activation(
+                conn,
+                config_payload=config,
+                assessment_node_ids=node_ids,
+            )
+            self._install_visual_activation(conn)
+            service = self._service(conn)
+            projection = self._projection_for_conn(conn)
+
+            first_request = self._request_for_asset(
+                projection,
+                assets[0],
+                key="target-replace-source",
+            )
+            self.assertEqual(
+                "applied",
+                service.select_target(child_key="single-child", request=first_request)["status"],
+            )
+            flow = conn.execute(
+                "select * from daily_flows where local_date = ? order by created_at desc limit 1",
+                (date.today().isoformat(),),
+            ).fetchone()
+            source_step_id = flow["current_step_id"]
+            conn.execute(
+                "update flow_steps set status = 'analyzing' where id = ?",
+                (source_step_id,),
+            )
+            conn.commit()
+
+            reserved_request = self._request_for_asset(
+                projection,
+                assets[1],
+                key="target-replace-reserved",
+            )
+            self.assertEqual(
+                "waiting_for_safe_boundary",
+                service.select_target(child_key="single-child", request=reserved_request)["status"],
+            )
+            reserved_intent = conn.execute(
+                "select * from learning_target_intents where client_idempotency_key = ?",
+                (reserved_request["client_idempotency_key"],),
+            ).fetchone()
+            runtime = daily_runtime.DailyLearningRuntime(conn, project_root=PROJECT_ROOT)
+            planned = runtime._materialize_target_intent_locked(
+                reserved_intent["id"],
+                service._runtime_authority(),
+                planned_position=2,
+                preserve_current_step=True,
+            )
+            self.assertEqual("applied", planned["status"])
+            planned_step_id = planned["step_id"]
+            self.assertEqual(
+                "planned",
+                conn.execute(
+                    "select status from flow_steps where id = ?",
+                    (planned_step_id,),
+                ).fetchone()["status"],
+            )
+            conn.execute(
+                "update flow_steps set status = 'selected' where id = ?",
+                (source_step_id,),
+            )
+            conn.commit()
+
+            replacement_request = self._request_for_asset(
+                projection,
+                assets[2],
+                key="target-replace-current",
+            )
+            replacement = service.select_target(
+                child_key="single-child",
+                request=replacement_request,
+            )
+            self.assertEqual("applied", replacement["status"])
+            self.assertEqual(
+                "cancelled",
+                conn.execute(
+                    "select status from learning_target_intents where id = ?",
+                    (reserved_intent["id"],),
+                ).fetchone()["status"],
+            )
+            self.assertEqual(
+                "superseded",
+                conn.execute(
+                    "select status from flow_steps where id = ?",
+                    (planned_step_id,),
+                ).fetchone()["status"],
+            )
+            current_before_replay = conn.execute(
+                "select current_step_id from daily_flows where id = ?",
+                (flow["id"],),
+            ).fetchone()["current_step_id"]
+            with self.assertRaises(KnowledgeMapError) as replay_error:
+                service.select_target(
+                    child_key="single-child",
+                    request=reserved_request,
+                )
+            self.assertEqual(409, replay_error.exception.status)
+            self.assertEqual(
+                current_before_replay,
+                conn.execute(
+                    "select current_step_id from daily_flows where id = ?",
+                    (flow["id"],),
+                ).fetchone()["current_step_id"],
+            )
+
     def test_select_revalidates_inside_immediate_transaction_and_materializes_exactly_once(self):
         config = self._load_view_config_json()
         with self._temp_database() as path, self._policy_env(
@@ -1850,6 +1995,112 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
             }
             self.assertEqual("applied", retried["status"])
             self.assertEqual(before, after)
+
+    def test_same_target_with_new_idempotency_key_reuses_current_unanswered_step(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ), closing(db.connect(path)) as conn:
+            assets = self._install_view_activation(conn, config_payload=config)
+            self._install_visual_activation(conn)
+            service = self._service(conn)
+
+            first_projection = self._projection_for_conn(conn)
+            first_request = self._request_for_asset(
+                first_projection,
+                assets[0],
+                key="same-target-first-click",
+            )
+            first = service.select_target(child_key="single-child", request=first_request)
+            self.assertEqual("applied", first["status"])
+
+            second_projection = self._projection_for_conn(conn)
+            second_request = self._request_for_asset(
+                second_projection,
+                assets[0],
+                key="same-target-second-click",
+            )
+            second = service.select_target(child_key="single-child", request=second_request)
+            self.assertEqual("applied", second["status"])
+
+            rows = conn.execute(
+                """
+                select * from learning_target_intents
+                where client_idempotency_key in (?, ?)
+                order by client_idempotency_key
+                """,
+                (
+                    first_request["client_idempotency_key"],
+                    second_request["client_idempotency_key"],
+                ),
+            ).fetchall()
+            self.assertEqual(2, len(rows))
+            self.assertTrue(all(row["status"] == "applied" for row in rows))
+            self.assertEqual(1, len({row["applied_flow_id"] for row in rows}))
+            self.assertEqual(1, len({row["applied_step_id"] for row in rows}))
+            self.assertEqual(
+                1,
+                conn.execute("select count(*) from daily_flows").fetchone()[0],
+            )
+            self.assertEqual(
+                1,
+                conn.execute("select count(*) from flow_steps").fetchone()[0],
+            )
+
+    def test_selecting_from_home_after_summary_starts_a_new_same_day_flow(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ), closing(db.connect(path)) as conn:
+            assets = self._install_view_activation(conn, config_payload=config)
+            self._install_visual_activation(conn)
+            service = self._service(conn)
+
+            first_projection = self._projection_for_conn(conn)
+            first_request = self._request_for_asset(
+                first_projection,
+                assets[0],
+                key="before-summary-selection",
+            )
+            first = service.select_target(child_key="single-child", request=first_request)
+            self.assertEqual("applied", first["status"])
+            first_intent = conn.execute(
+                "select * from learning_target_intents where client_idempotency_key = ?",
+                (first_request["client_idempotency_key"],),
+            ).fetchone()
+            conn.execute(
+                "update flow_steps set status = 'completed' where id = ?",
+                (first_intent["applied_step_id"],),
+            )
+            conn.execute(
+                """
+                update daily_flows
+                set status = 'completed', current_step_id = null, updated_at = ?
+                where id = ?
+                """,
+                (db.now_iso(), first_intent["applied_flow_id"]),
+            )
+            conn.commit()
+
+            summary_projection = service.child_projection(child_key="single-child")
+            self.assertEqual("summary", summary_projection["current_learning"]["state"])
+            second_request = self._request_for_asset(
+                summary_projection,
+                assets[1],
+                key="after-summary-selection",
+            )
+            second = service.select_target(child_key="single-child", request=second_request)
+            self.assertEqual("applied", second["status"])
+
+            second_intent = conn.execute(
+                "select * from learning_target_intents where client_idempotency_key = ?",
+                (second_request["client_idempotency_key"],),
+            ).fetchone()
+            self.assertNotEqual(first_intent["applied_flow_id"], second_intent["applied_flow_id"])
+            self.assertNotEqual(first_intent["applied_step_id"], second_intent["applied_step_id"])
+            current = service.child_projection(child_key="single-child")["current_learning"]
+            self.assertEqual("current_step", current["state"])
+            self.assertEqual(self.nodes[assets[1]["node_id"]]["name"], current["topic_label"])
 
     def test_enabled_descriptors_share_runtime_eligibility_and_fulfill_result_behavior(self):
         config = self._load_view_config_json()

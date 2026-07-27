@@ -45,9 +45,14 @@ MAX_ANSWER_PHOTO_BYTES = 8 * 1024 * 1024
 MAX_ANSWER_AUDIO_BYTES = 8 * 1024 * 1024
 DEFAULT_REVIEW_MINI_GROUP_SIZE = 5
 DEFAULT_MICRO_CHECK_MINI_GROUP_SIZE = 3
+CROSS_SESSION_COOLDOWN_DAYS = 14
+CROSS_SESSION_COOLDOWN_FLOW_LIMIT = 3
 MINI_GROUP_METADATA_VERSION = "2026-07-20.v5.1.short-question-group.v1"
 GROUP_ANSWER_REVIEW_SCHEMA_VERSION = "2026-07-21.answer-review.v5.1.group.schema.v1"
 ANSWERABLE_STEP_TYPES = frozenset({"question", "micro_check", "standard_check", "variant_check", "clarify_evidence"})
+UNIQUE_PROBLEM_INSTANCE_STEP_TYPES = (
+    ANSWERABLE_STEP_TYPES - {"clarify_evidence"}
+) | frozenset({"worked_example"})
 QUESTION_BACKED_STEP_TYPES = ANSWERABLE_STEP_TYPES | frozenset({"worked_example", "teaching_repair"})
 SIMPLE_FOUNDATION_NODE_PRACTICE_PROFILES = {
     "M-G7-NUMBER-LINE": {
@@ -79,6 +84,7 @@ def _authoritative_target_asset(
     *,
     node_id: str,
     action: str,
+    excluded_problem_instance_ids: set[str] | None = None,
 ) -> dict[str, Any] | None:
     assets = list(
         authority.get("assessment", {})
@@ -87,15 +93,61 @@ def _authoritative_target_asset(
     )
     if not assets:
         return None
+
+    required_purpose = {
+        "diagnostic": "diagnostic",
+        "challenge": "diagnostic",
+        "review": "practice",
+        "learn": "teaching",
+    }.get(str(action or ""), "")
+    if required_purpose:
+        assets = [
+            item
+            for item in assets
+            if not list(item.get("allowed_purposes") or [])
+            or required_purpose in list(item.get("allowed_purposes") or [])
+        ]
+        if not assets:
+            return None
+    if action == "learn" and excluded_problem_instance_ids:
+        assets = [
+            item
+            for item in assets
+            if str(
+                (item.get("question") or {}).get("problem_instance_id")
+                or ((item.get("question") or {}).get("source") or {}).get(
+                    "problem_instance_id"
+                )
+                or ""
+            ).strip()
+            not in excluded_problem_instance_ids
+        ]
+        if not assets:
+            return None
+
+    def selection_priority(item: dict[str, Any]) -> int:
+        question = item.get("question") or {}
+        try:
+            value = int(question.get("selection_priority") or 0)
+        except (TypeError, ValueError):
+            value = 0
+        return value if value > 0 else 10_000
+
     if action == "challenge":
         assets.sort(
             key=lambda item: (
                 "stretch" not in str((item.get("question") or {}).get("kind") or ""),
+                selection_priority(item),
                 str(item.get("question_id") or ""),
             )
         )
     else:
-        assets.sort(key=lambda item: str(item.get("question_id") or ""))
+        assets.sort(
+            key=lambda item: (
+                selection_priority(item),
+                str(item.get("question_id") or ""),
+            )
+        )
     return assets[0]
 
 
@@ -165,11 +217,24 @@ def qualify_knowledge_target_action(
     status_by_node: dict[str, str] | None = None,
     source_step: sqlite3.Row | dict[str, Any] | None = None,
     preserve_current_step: bool = False,
+    excluded_problem_instance_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     node = authority.get("snapshot", {}).get("nodes", {}).get(str(node_id or "")) or {}
+    source_step_data = dict(source_step) if source_step else {}
+    source_step_status = str(source_step_data.get("status") or "")
+    resumable_question_step = bool(
+        source_step_data.get("question_id")
+        and source_step_data.get("superseded_by_step_id") is None
+        and str(source_step_data.get("step_type") or "") in ANSWERABLE_STEP_TYPES
+        and source_step_status in {"selected", "displayed"}
+    )
     result_behavior = (
         "wait_for_safe_boundary"
-        if source_step and str(source_step["status"] or "") == "analyzing" and not preserve_current_step
+        if not preserve_current_step
+        and (
+            source_step_status == "analyzing"
+            or (action == "learn" and resumable_question_step)
+        )
         else "enter_now"
     )
 
@@ -195,8 +260,23 @@ def qualify_knowledge_target_action(
         authority,
         node_id=str(node_id),
         action=action,
+        excluded_problem_instance_ids=excluded_problem_instance_ids,
     )
     if asset is None:
+        if (
+            action == "learn"
+            and excluded_problem_instance_ids
+            and _authoritative_target_asset(
+                authority,
+                node_id=str(node_id),
+                action=action,
+            )
+            is not None
+        ):
+            return blocked(
+                "target_teaching_instance_exhausted",
+                "这个知识点在当前学习里没有新的例题可用，请先完成当前学习。",
+            )
         return blocked(
             "target_asset_not_authoritative",
             "这个知识点的小检测和学习材料还没有完成完整审查，暂时不能开始。",
@@ -657,7 +737,21 @@ class DailyLearningRuntime:
                 "select * from flow_steps where id = ?",
                 (intent.get("applied_step_id") or "",),
             ).fetchone()
-            if flow and step and step["flow_id"] == flow["id"]:
+            step_status = str(step["status"] or "") if step else ""
+            active_step = bool(
+                flow
+                and step
+                and step["flow_id"] == flow["id"]
+                and step["superseded_by_step_id"] is None
+                and (
+                    (
+                        step_status in {"selected", "displayed", "analyzing"}
+                        and flow["current_step_id"] == step["id"]
+                    )
+                    or step_status == "planned"
+                )
+            )
+            if active_step:
                 return {
                     "status": "applied",
                     "intent": intent,
@@ -693,6 +787,9 @@ class DailyLearningRuntime:
                 "select * from flow_steps where id = ?",
                 (flow["current_step_id"],),
             ).fetchone()
+        reserved_problem_instance_ids = self._reserved_problem_instance_ids_for_flow(
+            str(flow["id"] or "") if flow else ""
+        )
         status_by_node = {
             str(row["node_id"]): str(row["status_code"])
             for row in db.authoritative_learner_node_status_rows(
@@ -711,6 +808,7 @@ class DailyLearningRuntime:
             status_by_node=status_by_node,
             source_step=current_step,
             preserve_current_step=preserve_current_step,
+            excluded_problem_instance_ids=reserved_problem_instance_ids,
         )
         if not qualification["enabled"]:
             self.conn.execute(
@@ -739,6 +837,46 @@ class DailyLearningRuntime:
             return {"status": "waiting_for_safe_boundary", "reason": "current_assessment_must_finish"}
         asset = qualification["asset"]
         action = str(intent["action"])
+        reusable_current_step = bool(
+            action == "diagnostic"
+            and flow
+            and current_step
+            and not preserve_current_step
+            and str(current_step["node_id"] or "") == str(intent["node_id"])
+            and str(current_step["status"] or "") in {"selected", "displayed"}
+            and current_step["attempt_id"] is None
+            and current_step["superseded_by_step_id"] is None
+            and str(current_step["question_id"] or "") == str(asset["question"].get("id") or "")
+            and str(current_step["question_item_version"] or "")
+            == str(asset["question"].get("item_version") or "")
+            and str(current_step["answer_contract_id"] or "")
+            == str(asset["contract"].get("id") or "")
+        )
+        if reusable_current_step:
+            now = db.now_iso()
+            updated = self.conn.execute(
+                """
+                update learning_target_intents
+                set status = 'applied', applied_flow_id = ?, applied_step_id = ?,
+                    reason = '', updated_at = ?
+                where id = ? and status in ('pending','waiting_for_safe_boundary')
+                """,
+                (flow["id"], current_step["id"], now, intent_id),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("target intent did not bind to the reusable current step")
+            return {
+                "status": "applied",
+                "intent": dict(
+                    self.conn.execute(
+                        "select * from learning_target_intents where id = ?",
+                        (intent_id,),
+                    ).fetchone()
+                ),
+                "flow_id": flow["id"],
+                "step_id": current_step["id"],
+                "reused": True,
+            }
         if flow is None:
             flow = self._create_daily_flow(target_local_date, graph_version)
         flow_dict = dict(flow)
@@ -786,18 +924,48 @@ class DailyLearningRuntime:
             "source_next_step_decision_id": source_next_step_decision_id or None,
             "target_node_id": str(intent["node_id"]),
         }
+        requested_usage = {
+            "diagnostic": {
+                "purpose": "diagnostic",
+                "purpose_role": "entry_probe",
+            },
+            "challenge": {
+                "purpose": "diagnostic",
+                "purpose_role": "confirmation_transfer",
+            },
+            "review": {
+                "purpose": "practice",
+                "purpose_role": "consolidation",
+                "practice_role": "stabilize_fluency",
+            },
+            "learn": {
+                "purpose": "teaching",
+                "purpose_role": "worked_example",
+            },
+        }[action]
         if action != "learn":
             selection_reason = self._mini_group_selection_reason(
                 selection_reason,
                 flow=flow_dict,
                 step_type=step_type,
                 group_role=(
-                    "review_short_set"
-                    if action in {"diagnostic", "review"}
+                    "practice_adaptive_block"
+                    if action == "review"
+                    else "review_short_set"
+                    if action == "diagnostic"
                     else "challenge_short_set"
                 ),
                 target_node_id=str(intent["node_id"]),
                 question_id=str(question.get("id") or ""),
+                requested_usage=requested_usage,
+            )
+        else:
+            selection_reason["requested_usage_context"] = (
+                self._explicit_question_usage_context(
+                    question_id=str(question.get("id") or ""),
+                    requested_usage=requested_usage,
+                    block_id=f"TEACH-{uuid.uuid4().hex[:12]}",
+                )
             )
         step_id = self._create_question_step(
             flow_id=flow_dict["id"],
@@ -992,6 +1160,9 @@ class DailyLearningRuntime:
             status_by_node=status_by_node,
             source_step=source_step,
             preserve_current_step=True,
+            excluded_problem_instance_ids=self._reserved_problem_instance_ids_for_flow(
+                str(flow.get("id") or "")
+            ),
         )
         if not qualification["enabled"]:
             self.conn.execute(
@@ -1269,7 +1440,11 @@ class DailyLearningRuntime:
                 )
                 review_meta = {
                     "status": "deferred_until_group_end"
-                    if self._mini_group_is_deferred(step_dict) and not is_stuck_submission
+                    if (
+                        self._mini_group_is_deferred(step_dict)
+                        and not is_stuck_submission
+                        and not command.answer_photo_data_url
+                    )
                     else "queued",
                     "needs_ai_review": not is_stuck_submission,
                     "stuck": is_stuck_submission,
@@ -1539,19 +1714,12 @@ class DailyLearningRuntime:
                             commit=False,
                         )
                         self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
-                    elif self._mini_group_is_deferred(step_dict):
-                        self._advance_or_close_mini_group_after_submission(
-                            step_dict=step_dict,
-                            attempt_id=attempt_id,
-                            force_close=bool(command.answer_photo_data_url),
-                        )
                     else:
-                        self._ensure_answer_analysis_job_for_attempt(
+                        self._continue_after_persisted_non_stuck_attempt(
                             step_dict,
                             attempt_id,
                             source="v5_current_step_submit",
                         )
-                        self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
                 except Exception:
                     for path in written_paths:
                         path.unlink(missing_ok=True)
@@ -1568,8 +1736,19 @@ class DailyLearningRuntime:
                 ):
                     raise SubmissionIdempotencyConflict() from exc
                 with self.conn:
-                    self._ensure_answer_analysis_job_for_attempt(step_dict, existing_attempt["id"], source="integrity_recovery")
-                    self._mark_step_analyzing(step_dict["id"], existing_attempt["id"], step_dict["flow_id"])
+                    if existing_attempt.get("answer_source") == "v3_stuck":
+                        self._mark_step_analyzing(
+                            step_dict["id"],
+                            existing_attempt["id"],
+                            step_dict["flow_id"],
+                        )
+                    else:
+                        self._continue_after_persisted_non_stuck_attempt(
+                            step_dict,
+                            existing_attempt["id"],
+                            source="integrity_recovery",
+                            prefer_existing_group_step=True,
+                        )
                 return self.project_child_state(self._flow_by_id(step_dict["flow_id"]))
             raise ChildSafeRuntimeError("答案已经在保存中，请稍后刷新。") from exc
         return self.project_child_state(self._flow_by_id(step_dict["flow_id"]))
@@ -1651,6 +1830,10 @@ class DailyLearningRuntime:
         flow = self._flow_by_id(flow_id)
         if not flow:
             return None
+        source_usage_context = db.flow_step_usage_context(
+            self.conn,
+            step_dict["id"],
+        )["raw"]
         selection = self._select_question_for_node(
             node_id,
             graph_version=str(step_dict.get("graph_version") or flow["graph_version"]),
@@ -1664,6 +1847,7 @@ class DailyLearningRuntime:
             },
             preferred_kinds=[str(step_dict.get("step_type") or "")],
             selection_intent="same_node_recovery",
+            required_purpose=str(source_usage_context.get("purpose") or ""),
         )
         if not selection:
             return None
@@ -1686,7 +1870,14 @@ class DailyLearningRuntime:
             graph_version=str(step_dict.get("graph_version") or flow["graph_version"]),
             question=selection["question"],
             review_record_id=selection["review_record_id"],
-            selection_reason=selection["selection_reason"],
+            selection_reason={
+                **selection["selection_reason"],
+                "requested_usage_context": self._explicit_question_usage_context(
+                    question_id=str(selection["question"].get("id") or ""),
+                    requested_usage=source_usage_context,
+                    block_id=f"RECOVERY-{uuid.uuid4().hex[:12]}",
+                ),
+            },
             candidate_packet=selection["candidate_packet"],
             support_hint="先完成当前这一步。",
             step_type=str(step_dict.get("step_type") or "question"),
@@ -1820,9 +2011,41 @@ class DailyLearningRuntime:
                 return self.project_child_state(self._flow_by_id(flow["id"]))
             source_attempt_id = str(db.json_load(step["selection_reason_json"], {}).get("source_attempt_id") or "")
             attempt = db.get_attempt(self.conn, source_attempt_id) if source_attempt_id else None
-            if attempt:
-                next_selection = self._next_selection_after_attempt(flow, attempt=attempt)
+            practice_usage_request: dict[str, str] | None = None
+            if attempt and attempt.get("answer_source") == "v3_stuck":
+                selected = self._select_question_for_node(
+                    attempt["node_id"],
+                    graph_version=flow["graph_version"],
+                    flow_id=flow["id"],
+                    flow_revision=int(flow.get("flow_revision") or 1) + 1,
+                    reason={
+                        "reason": "same_node_check_after_explicit_stuck",
+                        "source_step_id": step["id"],
+                        "source_attempt_id": attempt["id"],
+                        "source_node_id": attempt["node_id"],
+                    },
+                    preferred_kinds=["variant", "standard_example", "transfer_retest"],
+                    selection_intent="same_node_after_explicit_stuck",
+                    next_evidence_goal="first_step_after_teaching",
+                    required_purpose="practice",
+                )
+                next_selection = {
+                    **selected,
+                    "action": "same_structure_retest",
+                    "reason": "孩子明确表示不会；先在同一知识点用不同实例确认刚讲的第一步。",
+                } if selected else None
+            elif attempt:
+                next_selection = self._next_selection_after_attempt(
+                    flow,
+                    attempt=attempt,
+                    required_purpose="practice",
+                )
             elif step["step_type"] == "worked_example":
+                practice_usage_request = {
+                    "purpose": "practice",
+                    "purpose_role": "consolidation",
+                    "practice_role": "repair_specific_gap",
+                }
                 selected = self._select_question_for_node(
                     step["node_id"],
                     graph_version=flow["graph_version"],
@@ -1836,6 +2059,7 @@ class DailyLearningRuntime:
                     preferred_kinds=["variant", "standard_example", "transfer_retest"],
                     selection_intent="partial_unstable",
                     next_evidence_goal="micro_check_after_worked_example",
+                    required_purpose=practice_usage_request["purpose"],
                 )
                 next_selection = {
                     **selected,
@@ -1879,6 +2103,19 @@ class DailyLearningRuntime:
                 "select count(*) from flow_steps where flow_id = ?",
                 (flow["id"],),
             ).fetchone()[0]) + 1
+            practice_usage_context = self._explicit_question_usage_context(
+                question_id=str(next_selection["question"].get("id") or ""),
+                requested_usage=practice_usage_request or {
+                    "purpose": "practice",
+                    "purpose_role": "consolidation",
+                    "practice_role": (
+                        "near_transfer"
+                        if next_selection.get("action") == "near_transfer_retest"
+                        else "repair_specific_gap"
+                    ),
+                },
+                block_id=f"PRACTICE-{uuid.uuid4().hex[:12]}",
+            )
             new_step_id = self._create_question_step(
                 flow_id=flow["id"],
                 position=position_next,
@@ -1891,6 +2128,7 @@ class DailyLearningRuntime:
                     "source_attempt_id": source_attempt_id,
                     "reason": "micro_check_after_teaching",
                     "new_knowledge_phase": "micro_check" if step["step_type"] == "worked_example" else "repair_check",
+                    "requested_usage_context": practice_usage_context,
                 },
                 candidate_packet=next_selection.get("candidate_packet") or {},
                 support_hint="刚才讲过的那一点先用上：写清关键关系，再做小检查。",
@@ -2029,15 +2267,33 @@ class DailyLearningRuntime:
         worker_id: str,
         now: str | None = None,
         flow_id: str | None = None,
+        job_id: str | None = None,
     ) -> dict[str, Any]:
         """Claim and process one durable job from the v5 semantic-Agent DAG."""
         queue = job_queue.JobQueue(self.conn)
         now = now or db.now_iso()
         queue.recover(now)
-        claimed = queue.claim(worker_id, now, limit=1, lease_seconds=180, flow_id=flow_id)
+        if job_id:
+            exact_job = queue.claim_job(
+                job_id,
+                worker_id,
+                now,
+                lease_seconds=180,
+            )
+            claimed = [exact_job] if exact_job else []
+        else:
+            claimed = queue.claim(
+                worker_id,
+                now,
+                limit=1,
+                lease_seconds=180,
+                flow_id=flow_id,
+            )
         if not claimed:
             return {"processed": 0, "status": "idle"}
         job = claimed[0]
+        if flow_id and str(job.get("flow_id") or "") != str(flow_id):
+            raise ValueError("claimed job does not belong to requested flow")
         fence = {
             "job_id": job["id"],
             "worker_id": worker_id,
@@ -2376,12 +2632,49 @@ class DailyLearningRuntime:
             "next_step_decision_id": decision["id"],
         }
 
+    def _semantic_envelope_from_response_checkpoint(
+        self,
+        checkpoint: dict[str, Any],
+        *,
+        default_provider_mode: str = "live_model",
+        default_prompt_version_id: str = "",
+        default_response_schema_version: str = "",
+    ) -> semantic_agents.SemanticAgentEnvelope:
+        output = checkpoint.get("output")
+        envelope = checkpoint.get("envelope")
+        if not isinstance(output, dict) or not output:
+            raise ValueError("model response checkpoint output is missing")
+        if not isinstance(envelope, dict) or not envelope:
+            raise ValueError("model response checkpoint envelope is missing")
+        return semantic_agents.SemanticAgentEnvelope(
+            agent_key=str(envelope.get("agent_key") or "answer_analysis_agent"),
+            phase=str(envelope.get("phase") or "answer_analysis"),
+            status=str(envelope.get("status") or "accepted"),
+            provider_mode=str(
+                envelope.get("provider_mode") or default_provider_mode
+            ),
+            retryable=bool(envelope.get("retryable", False)),
+            confidence=float(envelope.get("confidence") or 0.0),
+            output=output,
+            validation_errors=tuple(envelope.get("validation_errors") or ()),
+            error_reason=str(envelope.get("error_reason") or ""),
+            route_meta=dict(envelope.get("route_meta") or {}),
+            prompt_version_id=str(
+                envelope.get("prompt_version_id") or default_prompt_version_id
+            ),
+            response_schema_version=str(
+                envelope.get("response_schema_version")
+                or default_response_schema_version
+            ),
+        )
+
     def _handle_group_answer_analysis_job(self, job: dict[str, Any]) -> dict[str, Any]:
         payload = db.json_load(job.get("payload_json"), {})
         flow_id = str(job.get("flow_id") or payload.get("flow_id") or "")
         mini_group_id = str(payload.get("mini_group_id") or "")
+        group_digest_sha256 = str(payload.get("group_digest_sha256") or "")
         raw_items = payload.get("group_items") if isinstance(payload.get("group_items"), list) else []
-        if not flow_id or not mini_group_id or not raw_items:
+        if not flow_id or not mini_group_id or not group_digest_sha256 or not raw_items:
             return {"job_status": "blocked", "reason": "missing_group_answer_analysis_lineage"}
 
         group_items: list[dict[str, Any]] = []
@@ -2464,49 +2757,104 @@ class DailyLearningRuntime:
         already_accepted = [item for item in group_items if item.get("accepted")]
         pending_items = [item for item in group_items if not item.get("accepted")]
         if pending_items:
-            prompt = self._group_answer_analysis_prompt(
-                flow_id=flow_id,
-                mini_group_id=mini_group_id,
-                items=pending_items,
+            response_checkpoint = assessment_store.model_response_checkpoint_for_input(
+                self.conn,
+                checkpoint_kind="group_answer_analysis",
+                immutable_input_digest_sha256=group_digest_sha256,
             )
-            schema = _group_answer_review_schema(max_items=len(pending_items))
-            result = model_router.call_structured_json(
-                route,
-                {
-                    "instructions": "You are a v5.1 math answer-analysis agent. Return only schema-valid JSON.",
-                    "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
-                    "temperature": 0,
-                },
-                schema=schema,
-                retryable_errors_fallback=True,
-            )
-            output = result.value
+            operation_owner_token = ""
+            if response_checkpoint is None:
+                operation_owner_token = f"MRO-{uuid.uuid4().hex}"
+                operation_lease_seconds = max(
+                    30.0,
+                    float(route.timeout_seconds) + 30.0,
+                )
+                operation = assessment_store.wait_for_model_response_operation(
+                    self.conn,
+                    checkpoint_kind="group_answer_analysis",
+                    immutable_input_digest_sha256=group_digest_sha256,
+                    owner_token=operation_owner_token,
+                    lease_seconds=operation_lease_seconds,
+                    wait_timeout_seconds=operation_lease_seconds + 30.0,
+                )
+                response_checkpoint = operation.get("checkpoint")
+                if not operation.get("acquired"):
+                    operation_owner_token = ""
+            if response_checkpoint:
+                output = response_checkpoint["output"]
+                envelope = self._semantic_envelope_from_response_checkpoint(
+                    response_checkpoint
+                )
+            else:
+                try:
+                    prompt = self._group_answer_analysis_prompt(
+                        flow_id=flow_id,
+                        mini_group_id=mini_group_id,
+                        items=pending_items,
+                    )
+                    schema = _group_answer_review_schema(max_items=len(pending_items))
+                    result = model_router.call_structured_json(
+                        route,
+                        {
+                            "instructions": "You are a v5.1 math answer-analysis agent. Return only schema-valid JSON.",
+                            "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
+                            "temperature": 0,
+                        },
+                        schema=schema,
+                        retryable_errors_fallback=True,
+                        provider_idempotency_key=group_digest_sha256,
+                    )
+                    output = result.value
+                    prompt_sha = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+                    schema_sha = db._digest_json(schema)
+                    agent_contract = internal_agents.load_v5_contract_for_agent(
+                        "answer_analysis_agent"
+                    )
+                    envelope = semantic_agents.SemanticAgentEnvelope(
+                        agent_key="answer_analysis_agent",
+                        phase="answer_analysis",
+                        status="accepted",
+                        provider_mode="live_model",
+                        retryable=False,
+                        confidence=float(output.get("confidence") or 0.0),
+                        output=output,
+                        route_meta={
+                            "source": "group_answer_analysis",
+                            "structured_json_endpoint": result.endpoint,
+                            "structured_json_mode": result.mode,
+                            "provider_idempotency_enabled": result.provider_idempotency_enabled,
+                            "provider_idempotency_key_digest_sha256": result.provider_idempotency_key_digest_sha256,
+                            "prompt_template_sha256": prompt_sha,
+                            "rendered_prompt_sha256": prompt_sha,
+                            "response_schema_sha256": schema_sha,
+                            "raw_response_sha256": hashlib.sha256(
+                                json.dumps(result.raw_response, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                            ).hexdigest(),
+                        },
+                        prompt_version_id=str(agent_contract.get("prompt_version_id") or ""),
+                        response_schema_version=GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                    )
+                    response_checkpoint = assessment_store.checkpoint_model_response(
+                        self.conn,
+                        checkpoint_kind="group_answer_analysis",
+                        immutable_input_digest_sha256=group_digest_sha256,
+                        source_job_id=str(job.get("id") or ""),
+                        output=output,
+                        envelope={
+                            **envelope.as_result_refs(),
+                            "route_meta": envelope.route_meta or {},
+                        },
+                        commit=True,
+                    )
+                finally:
+                    if operation_owner_token:
+                        assessment_store.release_model_response_operation(
+                            self.conn,
+                            checkpoint_kind="group_answer_analysis",
+                            immutable_input_digest_sha256=group_digest_sha256,
+                            owner_token=operation_owner_token,
+                        )
             self._validate_group_answer_analysis_output(output, pending_items)
-            prompt_sha = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-            schema_sha = db._digest_json(schema)
-            contract = internal_agents.load_v5_contract_for_agent("answer_analysis_agent")
-            envelope = semantic_agents.SemanticAgentEnvelope(
-                agent_key="answer_analysis_agent",
-                phase="answer_analysis",
-                status="accepted",
-                provider_mode="live_model",
-                retryable=False,
-                confidence=float(output.get("confidence") or 0.0),
-                output=output,
-                route_meta={
-                    "source": "group_answer_analysis",
-                    "structured_json_endpoint": result.endpoint,
-                    "structured_json_mode": result.mode,
-                    "prompt_template_sha256": prompt_sha,
-                    "rendered_prompt_sha256": prompt_sha,
-                    "response_schema_sha256": schema_sha,
-                    "raw_response_sha256": hashlib.sha256(
-                        json.dumps(result.raw_response, ensure_ascii=False, sort_keys=True).encode("utf-8")
-                    ).hexdigest(),
-                },
-                prompt_version_id=str(contract.get("prompt_version_id") or ""),
-                response_schema_version=GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
-            )
             group_answer_envelope = envelope
             output_by_attempt = {
                 str(item.get("attempt_id") or ""): item
@@ -2517,6 +2865,28 @@ class DailyLearningRuntime:
             group_answer_envelope = None
             group_answer_run = None
             output_by_attempt = {}
+
+        unclear_items = [
+            item
+            for item in pending_items
+            if self._v51_answer_review_requires_clarification(
+                output_by_attempt.get(item["attempt"]["id"]) or {},
+                contract=assessment_store.policy_contract_for_assessment(item["contract"]),
+            )
+        ]
+        if unclear_items and group_answer_envelope is not None:
+            return self._handle_group_accepted_unclear_review(
+                job=job,
+                flow_id=flow_id,
+                mini_group_id=mini_group_id,
+                payload=payload,
+                group_items=group_items,
+                pending_items=pending_items,
+                unclear_item=unclear_items[0],
+                output_by_attempt=output_by_attempt,
+                envelope=group_answer_envelope,
+                route=route,
+            )
 
         accepted_items: list[dict[str, Any]] = list(already_accepted)
         validation_ids: list[str] = []
@@ -2800,6 +3170,167 @@ class DailyLearningRuntime:
             "source_validation_ids": validation_ids,
             "source_mastery_decision_ids": mastery_ids,
             **(mini_group_result or {}),
+        }
+
+    def _handle_group_accepted_unclear_review(
+        self,
+        *,
+        job: dict[str, Any],
+        flow_id: str,
+        mini_group_id: str,
+        payload: dict[str, Any],
+        group_items: list[dict[str, Any]],
+        pending_items: list[dict[str, Any]],
+        unclear_item: dict[str, Any],
+        output_by_attempt: dict[str, dict[str, Any]],
+        envelope: semantic_agents.SemanticAgentEnvelope,
+        route: model_router.ModelRoute,
+    ) -> dict[str, Any]:
+        unclear_attempt_id = str(unclear_item["attempt"]["id"])
+        unclear_output = output_by_attempt[unclear_attempt_id]
+        reason = _child_safe_chinese_feedback_text(
+            unclear_output.get("answer_gap") or "这一题暂时看不清，不能安全判断。",
+            "这一题暂时看不清，不能安全判断。",
+            limit=500,
+        )
+        with self.conn:
+            self._assert_active_job_fence(job)
+            snapshot_reason = self._group_snapshot_rejection_reason(payload)
+            if snapshot_reason:
+                return {
+                    "job_status": "blocked",
+                    "reason": snapshot_reason,
+                    "mini_group_id": mini_group_id,
+                }
+            group_run = self._record_model_agent_run_from_envelope(
+                envelope,
+                session_id=str(unclear_item["attempt"].get("session_id") or ""),
+                trigger=f"v5_group_answer_analysis:{mini_group_id}:{payload.get('group_digest_sha256') or job['id']}:unclear",
+                input_refs={
+                    "flow_id": flow_id,
+                    "mini_group_id": mini_group_id,
+                    "attempt_ids": [item["attempt"]["id"] for item in pending_items],
+                    "question_ids": [item["question"]["id"] for item in pending_items],
+                    "group_digest_sha256": payload.get("group_digest_sha256") or "",
+                    "accepted_unclear": True,
+                },
+                route=route,
+            )
+            item_envelope = semantic_agents.SemanticAgentEnvelope(
+                agent_key="answer_analysis_agent",
+                phase="answer_analysis",
+                status="accepted",
+                provider_mode=envelope.provider_mode,
+                retryable=False,
+                confidence=float(unclear_output.get("confidence") or 0.0),
+                output=unclear_output,
+                route_meta={
+                    "source": "group_answer_analysis_unclear_item",
+                    "group_answer_analysis_agent_run_id": group_run["id"],
+                },
+                prompt_version_id=envelope.prompt_version_id,
+                response_schema_version=envelope.response_schema_version,
+            )
+            item_run = self._record_model_agent_run_from_envelope(
+                item_envelope,
+                session_id=str(unclear_item["attempt"].get("session_id") or ""),
+                trigger=f"v5_group_answer_analysis_item:{mini_group_id}:{unclear_attempt_id}:unclear",
+                input_refs={
+                    "attempt_id": unclear_attempt_id,
+                    "question_id": unclear_item["question"]["id"],
+                    "flow_id": flow_id,
+                    "flow_step_id": unclear_item["attempt"].get("flow_step_id"),
+                    "mini_group_id": mini_group_id,
+                    "group_answer_analysis_agent_run_id": group_run["id"],
+                    "accepted_unclear": True,
+                },
+                route=route,
+            )
+            for item in pending_items:
+                latest = db.get_attempt(self.conn, item["attempt"]["id"])
+                if latest.get("grading_status") != "pending_review" or latest.get("evidence_status") != "active":
+                    continue
+                review_output = output_by_attempt.get(latest["id"]) or {}
+                review_meta = dict(latest.get("review_meta") or {})
+                review_meta.update(
+                    {
+                        "status": "group_superseded_by_clarification",
+                        "provider_mode": envelope.provider_mode,
+                        "confidence": float(review_output.get("confidence") or 0.0),
+                        "unclear_attempt_id": unclear_attempt_id,
+                    }
+                )
+                self.conn.execute(
+                    """
+                    update attempts
+                    set grading_status = 'blocked',
+                        result = 'submitted',
+                        evidence_status = 'invalidated',
+                        analysis_status = 'invalidated',
+                        analysis_version = analysis_version + 1,
+                        evidence_note = 'The group review was not reliable enough to score.',
+                        parent_note = 'No group score was accepted; one answer needs clarification.',
+                        review_meta_json = ?,
+                        answer_analysis_json = ?
+                    where id = ?
+                    """,
+                    (
+                        db.json_dump(review_meta),
+                        db.json_dump(
+                            {
+                                "status": "unclear" if latest["id"] == unclear_attempt_id else "group_not_finalized",
+                                "answer_gap": reason if latest["id"] == unclear_attempt_id else "同组存在低置信证据，本题未计分。",
+                                "confidence": float(review_output.get("confidence") or 0.0),
+                                "provider_mode": envelope.provider_mode,
+                            }
+                        ),
+                        latest["id"],
+                    ),
+                )
+                self.conn.execute(
+                    "update flow_steps set status = 'completed', attempt_id = ?, updated_at = ? where id = ?",
+                    (latest["id"], db.now_iso(), latest.get("flow_step_id")),
+                )
+                self.conn.execute(
+                    """
+                    update attempt_assessments
+                    set status = 'rejected', rejection_reason = 'group_superseded_by_clarification', updated_at = ?
+                    where attempt_id = ? and status = 'pending'
+                    """,
+                    (db.now_iso(), latest["id"]),
+                )
+            unclear_attempt = db.get_attempt(self.conn, unclear_attempt_id)
+            validation = evidence_gate.EvidenceGate(
+                self.conn,
+                current_graph_version=self.graph.current_graph_version(),
+                current_question_bank_version=str(
+                    unclear_attempt.get("question_bank_version")
+                    or question_bank.QUESTION_BANK_VERSION
+                ),
+            ).validate_attempt(
+                unclear_attempt_id,
+                analysis_version=int(unclear_attempt.get("analysis_version") or 1),
+                provider_mode=envelope.provider_mode,
+                answer_analysis_agent_run_id=item_run["id"],
+                commit=False,
+            )
+            decision = self._create_clarify_step(
+                flow_id=flow_id,
+                source_step_id=str(unclear_attempt.get("flow_step_id") or ""),
+                attempt=unclear_attempt,
+                validation=validation,
+                provider_mode=envelope.provider_mode,
+                reason=reason,
+            )
+        return {
+            "job_status": "succeeded",
+            "next_action": "clarify_evidence",
+            "reason": reason,
+            "mini_group_id": mini_group_id,
+            "unclear_attempt_id": unclear_attempt_id,
+            "answer_analysis_agent_run_id": item_run["id"],
+            "evidence_validation_id": validation.validation_id,
+            "next_step_decision_id": decision["id"],
         }
 
     def _group_item_lineage_rejection_reason(
@@ -3319,7 +3850,8 @@ class DailyLearningRuntime:
 
     def current_target_flow(self, local_date: str | None = None) -> sqlite3.Row | None:
         """Return the same current flow authority used by child bootstrap."""
-        return self._active_flow(local_date or date.today().isoformat())
+        target_date = local_date or date.today().isoformat()
+        return self._active_flow(target_date) or self._latest_terminal_flow(target_date)
 
     def _latest_terminal_flow(self, local_date: str) -> sqlite3.Row | None:
         placeholders = ",".join("?" for _ in TERMINAL_FLOW_STATUSES)
@@ -3372,6 +3904,10 @@ class DailyLearningRuntime:
                 group_role="review_short_set",
             target_node_id=str(question.get("node_id") or ""),
             question_id=str(question.get("id") or ""),
+            requested_usage={
+                "purpose": "diagnostic",
+                "purpose_role": "entry_probe",
+            },
         ),
             candidate_packet=selected.get("candidate_packet") or {},
         )
@@ -3433,6 +3969,7 @@ class DailyLearningRuntime:
             }
         return {
             **selection_reason,
+            "requested_usage_context": usage_context,
             "mini_group": {
                 "schema_version": MINI_GROUP_METADATA_VERSION,
                 "id": block_id,
@@ -3501,33 +4038,24 @@ class DailyLearningRuntime:
         if not policy:
             raise ChildSafeRuntimeError("这道题缺少用途约束，暂时不能安排。", status=503, child_action="稍后重试")
         requested = requested_usage or {}
-        if not requested and step_type == "clarify_evidence" and selection_reason.get("source_attempt_id"):
-            requested = self._attempt_usage_snapshot(str(selection_reason.get("source_attempt_id") or ""))
+        if not requested:
+            raise ValueError("question usage context must be selected before materialization")
+        if str(requested.get("schema_version") or "") == question_usage.USAGE_CONTEXT_VERSION:
+            question_usage.validate_context(requested)
+            if (
+                requested.get("question_usage_policy_digest_sha256")
+                == policy["policy_digest_sha256"]
+                and
+                str(requested.get("block_id") or "") == str(block_id or "")
+                and int(requested.get("block_index") or 1) == int(block_index)
+            ):
+                return dict(requested)
         purpose = str(requested.get("purpose") or "")
         purpose_role = str(requested.get("purpose_role") or "")
         practice_family = str(requested.get("practice_family") or "")
         practice_role = str(requested.get("practice_role") or "")
         if not purpose:
-            target_action = str(selection_reason.get("target_action") or "")
-            reason = str(selection_reason.get("reason") or "")
-            planner_action = str(selection_reason.get("planner_action") or "")
-            if step_type in {"worked_example", "teaching_repair"}:
-                purpose, purpose_role = "teaching", "worked_example" if step_type == "worked_example" else "targeted_repair"
-            elif group_role == "repair_micro_set" or step_type in {"micro_check", "standard_check", "variant_check"}:
-                purpose, purpose_role = "practice", "repair_specific_gap"
-            elif target_action == "review":
-                purpose, purpose_role = "practice", "consolidation"
-            elif planner_action in {"same_structure_retest", "near_transfer_retest"}:
-                purpose, purpose_role = "practice", "consolidation"
-                practice_role = "near_transfer" if planner_action == "near_transfer_retest" else "stabilize_fluency"
-            elif planner_action == "prerequisite_probe":
-                purpose, purpose_role = "diagnostic", "prerequisite_probe"
-            elif planner_action == "stretch":
-                purpose, purpose_role = "diagnostic", "confirmation_transfer"
-            elif target_action == "challenge" or reason == "planned_after_v5.1_mini_group_feedback":
-                purpose, purpose_role = "diagnostic", "confirmation_transfer"
-            else:
-                purpose, purpose_role = "diagnostic", "entry_probe"
+            raise ValueError("requested usage purpose is missing")
         if purpose not in policy["allowed_purposes"]:
             raise ChildSafeRuntimeError(
                 "这道题不适合当前学习用途，系统没有把它安排给你。请稍后重试。",
@@ -3537,10 +4065,10 @@ class DailyLearningRuntime:
         if purpose == "practice":
             practice_family = practice_family or policy["default_practice_family"]
             allowed_roles = list(policy["allowed_practice_roles"])
-            preferred_role = "repair_specific_gap" if group_role == "repair_micro_set" else "stabilize_fluency"
             if practice_role not in allowed_roles:
-                practice_role = preferred_role if preferred_role in allowed_roles else allowed_roles[0]
-            purpose_role = "consolidation"
+                practice_role = allowed_roles[0]
+            if purpose_role != "consolidation":
+                raise ValueError("practice usage must request consolidation")
         elif purpose == "diagnostic":
             roles = list(policy["diagnostic_roles"])
             purpose_role = purpose_role if purpose_role in roles else roles[0]
@@ -3556,6 +4084,66 @@ class DailyLearningRuntime:
             practice_family=practice_family,
             practice_role=practice_role,
         )
+
+    def _explicit_question_usage_context(
+        self,
+        *,
+        question_id: str,
+        requested_usage: dict[str, Any],
+        block_id: str,
+        block_index: int = 1,
+    ) -> dict[str, Any]:
+        return self._step_usage_context_for_question(
+            question_id=question_id,
+            step_type="",
+            group_role="",
+            selection_reason={},
+            block_id=block_id,
+            block_index=block_index,
+            requested_usage=requested_usage,
+        )
+
+    def _usage_request_for_planned_action(self, action: str) -> dict[str, Any]:
+        if action == "same_structure_retest":
+            return {
+                "purpose": "practice",
+                "purpose_role": "consolidation",
+                "practice_role": "stabilize_fluency",
+            }
+        if action == "near_transfer_retest":
+            return {
+                "purpose": "practice",
+                "purpose_role": "consolidation",
+                "practice_role": "near_transfer",
+            }
+        if action == "prerequisite_probe":
+            return {
+                "purpose": "diagnostic",
+                "purpose_role": "prerequisite_probe",
+            }
+        return {
+            "purpose": "diagnostic",
+            "purpose_role": "confirmation_transfer",
+        }
+
+    def _clarification_usage_request(self, question_id: str) -> dict[str, Any]:
+        policy = db.active_question_usage_policy(self.conn, question_id)
+        if not policy:
+            raise ChildSafeRuntimeError(
+                "这道题缺少用途约束，暂时不能安排。",
+                status=503,
+                child_action="稍后重试",
+            )
+        if "practice" in set(policy["allowed_purposes"]):
+            return {
+                "purpose": "practice",
+                "purpose_role": "consolidation",
+                "practice_role": "repair_specific_gap",
+            }
+        return {
+            "purpose": "teaching",
+            "purpose_role": "targeted_repair",
+        }
 
     def _practice_profile_for_node(self, node_id: str) -> dict[str, Any]:
         return dict(SIMPLE_FOUNDATION_NODE_PRACTICE_PROFILES.get(str(node_id or ""), {}))
@@ -3661,6 +4249,7 @@ class DailyLearningRuntime:
                 flow_revision=int((dict(flow).get("flow_revision") if flow else 1) or 1),
                 reason={"reason": "initial_review_target_pool", "target_node_id": node_id},
                 selection_intent="initial_review",
+                required_purpose="diagnostic",
             )
             if selected:
                 return selected
@@ -3687,6 +4276,8 @@ class DailyLearningRuntime:
                 flow_id=str((dict(flow).get("id") if flow else "") or ""),
                 flow_revision=int((dict(flow).get("flow_revision") if flow else 1) or 1),
                 reason={"reason": "active_bank_version_fallback", "target_node_id": row["node_id"]},
+                selection_intent="initial_review",
+                required_purpose="diagnostic",
             )
             if selected:
                 return selected
@@ -3731,6 +4322,7 @@ class DailyLearningRuntime:
                 selection_intent="new_knowledge_teaching",
                 next_evidence_goal="teaching_context",
                 prerequisite_ready=ready,
+                required_purpose="teaching",
             )
             if not selected:
                 continue
@@ -3848,6 +4440,31 @@ class DailyLearningRuntime:
             """,
             (f"%{attempt_id}%",),
         ).fetchone()
+        if decision and decision["action"] == "clarify_evidence":
+            clarify_step = self.conn.execute(
+                """
+                select id
+                from flow_steps
+                where flow_id = ?
+                  and step_type = 'clarify_evidence'
+                  and selection_reason_json like ?
+                order by created_at desc, id desc
+                limit 1
+                """,
+                (str(job.get("flow_id") or ""), f"%{decision['id']}%"),
+            ).fetchone()
+            return {
+                **base,
+                "reason": "existing_clarify_step_replayed",
+                "answer_analysis_job_id": str(job.get("id") or ""),
+                "answer_analysis_agent_run_id": run["id"],
+                "evidence_validation_id": validation["id"],
+                "gate_status": validation["gate_status"],
+                "report_label": str(predicate.get("report_label") or validation["gate_status"]),
+                "next_step_decision_id": decision["id"],
+                "clarify_step_id": clarify_step["id"] if clarify_step else "",
+                "next_action": "clarify_evidence",
+            }
         accepted_assessment = assessment_store.accepted_assessment_for_attempt(
             self.conn,
             attempt_id,
@@ -3995,6 +4612,23 @@ class DailyLearningRuntime:
             raise ValueError("attempt evidence revision does not bind the submission request")
         if not multimodal_evidence.allows_downstream_evidence(revision):
             raise ValueError("attempt input evidence is not confirmed for downstream analysis")
+        for attachment in db.attachments_for_attempt(
+            self.conn, str(attempt.get("id") or "")
+        ):
+            path = (
+                self.project_root / str(attachment.get("relative_path") or "")
+            ).resolve()
+            try:
+                path.relative_to(self.project_root.resolve())
+                media = path.read_bytes()
+            except (OSError, ValueError) as exc:
+                raise ValueError("attempt media attachment is missing or unsafe") from exc
+            if (
+                len(media) != int(attachment.get("byte_size") or 0)
+                or hashlib.sha256(media).hexdigest()
+                != str(attachment.get("sha256") or "")
+            ):
+                raise ValueError("attempt media attachment changed after job creation")
         recognition_run_id = str(revision.get("recognition_run_id") or "")
         if recognition_run_id:
             recognition = db.get_media_recognition_run(self.conn, recognition_run_id)
@@ -4082,6 +4716,21 @@ class DailyLearningRuntime:
             }
         question = db.get_question(self.conn, attempt["question_id"])
         photo_data_url = self._answer_photo_data_url_for_attempt(attempt_id)
+        photo_ocr = None
+        if photo_data_url:
+            try:
+                photo_ocr = self._photo_ocr_evidence_for_attempt(
+                    attempt=attempt,
+                    step=dict(source_step),
+                    question=question,
+                    photo_data_url=photo_data_url,
+                )
+            except ValueError as exc:
+                return {
+                    "job_status": "blocked",
+                    "reason": f"photo_ocr_lineage_invalid:{exc}",
+                    "attempt_id": attempt_id,
+                }
         route = model_router.answer_analysis_route()
         provider_mode = _provider_mode(route)
         self._persist_pre_model_job_metadata(
@@ -4089,9 +4738,6 @@ class DailyLearningRuntime:
             provider_mode=provider_mode,
             route_meta={"route": "answer_analysis", **route.audit_metadata()},
         )
-        photo_ocr = None
-        if photo_data_url:
-            photo_ocr = auto_review._review_answer_photo(question, attempt["answer_raw"], photo_data_url)
         contract = assessment_store.bound_active_contract_for_flow_step(
             self.conn, str(attempt.get("flow_step_id") or "")
         )
@@ -4206,9 +4852,14 @@ class DailyLearningRuntime:
 
         grade = self._grade_from_answer_agent_output(answer_output, route=route, provider_mode=envelope.provider_mode, photo_ocr=photo_ocr)
         with self.conn:
-            latest, _ = self._revalidate_answer_job_for_commit(
+            latest, latest_step = self._revalidate_answer_job_for_commit(
                 job=job,
                 attempt_id=attempt_id,
+            )
+            self._validate_photo_ocr_evidence_for_commit(
+                attempt=latest,
+                step=latest_step,
+                photo_ocr=photo_ocr,
             )
             if latest["grading_status"] != "pending_review" or latest.get("evidence_status") != "active":
                 return {"job_status": "succeeded", "reason": "attempt_no_longer_active", "attempt_id": attempt_id}
@@ -4233,6 +4884,8 @@ class DailyLearningRuntime:
                     "flow_id": flow_id,
                     "flow_step_id": graded.get("flow_step_id"),
                     "has_photo": photo_data_url is not None,
+                    "photo_recognition_run_id": str((photo_ocr or {}).get("recognition_run_id") or ""),
+                    "photo_recognition_output_digest_sha256": str((photo_ocr or {}).get("output_digest_sha256") or ""),
                     "trusted_question_package": True,
                     "untrusted_child_answer": True,
                 },
@@ -4340,19 +4993,45 @@ class DailyLearningRuntime:
             answer_contract_id=contract["id"],
             assessment_input_digest_sha256=input_digest,
         )
+        response_checkpoint = assessment_store.model_response_checkpoint_for_input(
+            self.conn,
+            checkpoint_kind="answer_analysis",
+            immutable_input_digest_sha256=input_digest,
+        )
 
         policy_contract = assessment_store.policy_contract_for_assessment(contract)
         expected_contract = internal_agents.load_v5_contract_for_agent(
             "answer_analysis_agent"
         )
-        checkpoint_output = (
+        pending_checkpoint_output = (
             pending.get("semantic_output")
             if pending
             and isinstance(pending.get("semantic_output"), dict)
             and pending.get("semantic_output_digest_sha256")
             else None
         )
-        checkpoint_envelope = (
+        operation_owner_token = ""
+        if response_checkpoint is None and not pending_checkpoint_output:
+            operation_owner_token = f"MRO-{uuid.uuid4().hex}"
+            operation_lease_seconds = max(
+                30.0,
+                float(route.timeout_seconds) + 30.0,
+            )
+            operation = assessment_store.wait_for_model_response_operation(
+                self.conn,
+                checkpoint_kind="answer_analysis",
+                immutable_input_digest_sha256=input_digest,
+                owner_token=operation_owner_token,
+                lease_seconds=operation_lease_seconds,
+                wait_timeout_seconds=operation_lease_seconds + 30.0,
+            )
+            response_checkpoint = operation.get("checkpoint")
+            if not operation.get("acquired"):
+                operation_owner_token = ""
+        checkpoint_output = response_checkpoint["output"] if response_checkpoint else (
+            pending_checkpoint_output
+        )
+        checkpoint_envelope = response_checkpoint["envelope"] if response_checkpoint else (
             pending.get("semantic_envelope")
             if pending
             and isinstance(pending.get("semantic_envelope"), dict)
@@ -4360,33 +5039,19 @@ class DailyLearningRuntime:
             else {}
         )
         if checkpoint_output:
-            checkpoint_needed = False
-            envelope = semantic_agents.SemanticAgentEnvelope(
-                agent_key=str(
-                    checkpoint_envelope.get("agent_key")
-                    or "answer_analysis_agent"
-                ),
-                phase=str(checkpoint_envelope.get("phase") or "answer_analysis"),
-                status=str(checkpoint_envelope.get("status") or "accepted"),
-                provider_mode=str(
-                    checkpoint_envelope.get("provider_mode") or provider_mode
-                ),
-                retryable=bool(checkpoint_envelope.get("retryable", False)),
-                confidence=float(checkpoint_envelope.get("confidence") or 0.0),
-                output=checkpoint_output,
-                validation_errors=tuple(
-                    checkpoint_envelope.get("validation_errors") or ()
-                ),
-                error_reason=str(checkpoint_envelope.get("error_reason") or ""),
-                route_meta=dict(checkpoint_envelope.get("route_meta") or {}),
-                prompt_version_id=str(
-                    checkpoint_envelope.get("prompt_version_id")
-                    or expected_contract["prompt_version_id"]
-                ),
-                response_schema_version=str(
-                    checkpoint_envelope.get("response_schema_version")
-                    or expected_contract["response_schema_version"]
-                ),
+            checkpoint_needed = not bool(
+                pending and pending.get("semantic_output_digest_sha256")
+            )
+            envelope = self._semantic_envelope_from_response_checkpoint(
+                {
+                    "output": checkpoint_output,
+                    "envelope": checkpoint_envelope,
+                },
+                default_provider_mode=provider_mode,
+                default_prompt_version_id=expected_contract["prompt_version_id"],
+                default_response_schema_version=expected_contract[
+                    "response_schema_version"
+                ],
             )
         else:
             checkpoint_needed = True
@@ -4395,28 +5060,63 @@ class DailyLearningRuntime:
                 if isinstance(payload.get("recorded_agent_output"), dict)
                 else None
             )
-            request = self._answer_analysis_request(
-                job=job,
-                attempt=attempt,
-                question=question,
-                provider_mode=provider_mode,
-                photo_ocr=photo_ocr,
-                recorded_output=recorded_output,
-                answer_contract=contract,
-            )
-            envelope = semantic_agents.call_answer_analysis_agent(request)
-            if envelope.status != "accepted":
-                return self._handle_pending_answer_analysis(
-                    job,
+            try:
+                request = self._answer_analysis_request(
+                    job=job,
                     attempt=attempt,
                     question=question,
-                    review={
-                        "status": envelope.status,
-                        "reason": envelope.error_reason or "answer_analysis_agent blocked",
-                    },
-                    provider_mode=envelope.provider_mode,
+                    provider_mode=provider_mode,
+                    photo_ocr=photo_ocr,
+                    recorded_output=recorded_output,
+                    answer_contract=contract,
+                    operation_idempotency_source=input_digest,
                 )
+                envelope = semantic_agents.call_answer_analysis_agent(request)
+                if envelope.status != "accepted":
+                    return self._handle_pending_answer_analysis(
+                        job,
+                        attempt=attempt,
+                        question=question,
+                        review={
+                            "status": envelope.status,
+                            "reason": envelope.error_reason or "answer_analysis_agent blocked",
+                        },
+                        provider_mode=envelope.provider_mode,
+                    )
+                response_checkpoint = assessment_store.checkpoint_model_response(
+                    self.conn,
+                    checkpoint_kind="answer_analysis",
+                    immutable_input_digest_sha256=input_digest,
+                    source_job_id=str(job.get("id") or ""),
+                    output=envelope.output,
+                    envelope={
+                        **envelope.as_result_refs(),
+                        "route_meta": envelope.route_meta or {},
+                    },
+                    commit=True,
+                )
+            finally:
+                if operation_owner_token:
+                    assessment_store.release_model_response_operation(
+                        self.conn,
+                        checkpoint_kind="answer_analysis",
+                        immutable_input_digest_sha256=input_digest,
+                        owner_token=operation_owner_token,
+                    )
         output = envelope.output
+        if response_checkpoint is None:
+            assessment_store.checkpoint_model_response(
+                self.conn,
+                checkpoint_kind="answer_analysis",
+                immutable_input_digest_sha256=input_digest,
+                source_job_id=str(job.get("id") or ""),
+                output=output,
+                envelope={
+                    **envelope.as_result_refs(),
+                    "route_meta": envelope.route_meta or {},
+                },
+                commit=True,
+            )
         expected_fields = {
             "schema_version",
             "criteria",
@@ -4463,7 +5163,11 @@ class DailyLearningRuntime:
             raise model_router.ModelJSONParseError(
                 "answer review v3 improvement_direction is invalid"
             )
-        if self._v51_answer_review_requires_clarification(output, photo_ocr=photo_ocr):
+        if self._v51_answer_review_requires_clarification(
+            output,
+            contract=policy_contract,
+            photo_ocr=photo_ocr,
+        ):
             return self._handle_v51_accepted_unclear_answer_review(
                 job=job,
                 attempt=attempt,
@@ -4516,9 +5220,14 @@ class DailyLearningRuntime:
             ),
         }
         with self.conn:
-            latest, _ = self._revalidate_answer_job_for_commit(
+            latest, latest_step = self._revalidate_answer_job_for_commit(
                 job=job,
                 attempt_id=attempt_id,
+            )
+            self._validate_photo_ocr_evidence_for_commit(
+                attempt=latest,
+                step=latest_step,
+                photo_ocr=photo_ocr,
             )
             if (
                 latest["grading_status"] != "pending_review"
@@ -4564,6 +5273,8 @@ class DailyLearningRuntime:
                     "answer_contract_id": contract["id"],
                     "answer_contract_version": contract["contract_version"],
                     "answer_contract_digest_sha256": contract["contract_digest_sha256"],
+                    "photo_recognition_run_id": str((photo_ocr or {}).get("recognition_run_id") or ""),
+                    "photo_recognition_output_digest_sha256": str((photo_ocr or {}).get("output_digest_sha256") or ""),
                 },
                 route=route,
             )
@@ -4708,6 +5419,38 @@ class DailyLearningRuntime:
                 "select count(*) from flow_steps where flow_id = ?",
                 (flow_id,),
             ).fetchone()[0]) + 1
+            source_step_row = self.conn.execute(
+                "select selection_reason_json from flow_steps where id = ?",
+                (str(graded.get("flow_step_id") or ""),),
+            ).fetchone()
+            source_step_reason = (
+                db.json_load(source_step_row["selection_reason_json"], {})
+                if source_step_row
+                else {}
+            )
+            source_new_knowledge_phase = str(
+                source_step_reason.get("new_knowledge_phase") or ""
+            )
+            planned_step_type = ""
+            planned_new_knowledge_phase = ""
+            planned_usage_request = (
+                {
+                    "purpose": "practice",
+                    "purpose_role": "consolidation",
+                    "practice_role": "near_transfer",
+                }
+                if source_new_knowledge_phase
+                and self._attempt_recognition_allows_mastery(attempt_id)
+                else {
+                    "purpose": "diagnostic",
+                    "purpose_role": "confirmation_transfer",
+                }
+            )
+            plan_new_knowledge_repair = bool(
+                needs_repair
+                and source_new_knowledge_phase
+                in {"micro_check", "standard", "variant"}
+            )
             budget = self._interaction_budget(flow)
             if budget["completed_interactions"] >= budget["minimum"]:
                 next_selection = None
@@ -4730,7 +5473,10 @@ class DailyLearningRuntime:
                 planned_step_id = ""
             else:
                 target_plan = None
-                if self._evaluation_can_drive_next_step(evaluation):
+                if (
+                    not source_new_knowledge_phase
+                    and self._evaluation_can_drive_next_step(evaluation)
+                ):
                     target_plan = self._plan_pending_target_after_assessment_locked(
                         flow=flow,
                         source_step_id=str(graded.get("flow_step_id") or ""),
@@ -4749,12 +5495,37 @@ class DailyLearningRuntime:
                     decision = target_plan["decision"]
                     planned_step_id = str(target_plan["step_id"])
                 else:
-                    next_selection = self._next_selection_after_attempt(
-                        flow,
-                        attempt=graded,
-                    )
+                    if plan_new_knowledge_repair:
+                        next_selection = None
+                    elif source_new_knowledge_phase == "variant":
+                        next_selection = None
+                    else:
+                        next_selection = self._next_selection_after_attempt(
+                            flow,
+                            attempt=graded,
+                            required_purpose=planned_usage_request["purpose"],
+                        )
+                    if next_selection and source_new_knowledge_phase:
+                        transition = normalize_new_knowledge_transition(
+                            previous_phase=source_new_knowledge_phase,
+                            requested_action=str(next_selection.get("action") or ""),
+                            candidate_kind=str(
+                                (next_selection.get("question") or {}).get("kind")
+                                or ""
+                            ),
+                        )
+                        next_selection = {
+                            **next_selection,
+                            "action": transition["action"],
+                        }
+                        planned_step_type = transition["step_type"]
+                        planned_new_knowledge_phase = transition[
+                            "new_knowledge_phase"
+                        ]
                     next_action = str(
-                        (next_selection or {}).get("action") or "summary"
+                        "micro_teach"
+                        if plan_new_knowledge_repair
+                        else (next_selection or {}).get("action") or "summary"
                     )
                     decision = self._record_next_step_decision(
                         flow=flow,
@@ -4770,12 +5541,18 @@ class DailyLearningRuntime:
                         else [],
                         provider_mode="deterministic_runtime",
                         reason=(
-                            str(
-                                next_selection.get("reason")
-                                or "先展示本题解析，再继续下一题。"
+                            "新知识检查暴露了数学缺口；先展示本题解析，再进入针对性修复。"
+                            if plan_new_knowledge_repair
+                            else "新知识变式已经完成；先展示本题解析，再完成总结。"
+                            if source_new_knowledge_phase == "variant"
+                            else (
+                                str(
+                                    next_selection.get("reason")
+                                    or "先展示本题解析，再继续下一题。"
+                                )
+                                if next_selection
+                                else "先展示本题解析；当前没有合适的下一题，随后完成本次总结。"
                             )
-                            if next_selection
-                            else "先展示本题解析；当前没有合适的下一题，随后完成本次总结。"
                         ),
                         candidate_packet=(next_selection or {}).get(
                             "candidate_packet"
@@ -4798,11 +5575,43 @@ class DailyLearningRuntime:
                 contract=contract,
                 needs_repair=needs_repair,
             )
-            if next_selection:
+            if plan_new_knowledge_repair:
+                planned_step_id = self._create_teaching_repair_step(
+                    flow=flow,
+                    source_attempt=graded,
+                    source_step_id=str(graded.get("flow_step_id") or ""),
+                    source_next_step_decision_id=decision["id"],
+                    position=feedback_position + 1,
+                    initial_status="planned",
+                )
+                repair_row = self.conn.execute(
+                    "select selection_reason_json from flow_steps where id = ?",
+                    (planned_step_id,),
+                ).fetchone()
+                repair_reason = (
+                    db.json_load(repair_row["selection_reason_json"], {})
+                    if repair_row
+                    else {}
+                )
+                repair_reason["new_knowledge_phase"] = "repair"
+                self.conn.execute(
+                    """
+                    update flow_steps
+                    set selection_reason_json = ?, updated_at = ?
+                    where id = ?
+                    """,
+                    (db.json_dump(repair_reason), db.now_iso(), planned_step_id),
+                )
+            elif next_selection:
                 planned_contract = self._active_answer_contract_for_question(
                     next_selection["question"]
                 )
                 if planned_contract is not None:
+                    planned_usage_context = self._explicit_question_usage_context(
+                        question_id=str(next_selection["question"].get("id") or ""),
+                        requested_usage=planned_usage_request,
+                        block_id=f"PLAN-{uuid.uuid4().hex[:12]}",
+                    )
                     planned_step_id = self._create_question_step(
                         flow_id=flow_id,
                         position=feedback_position + 1,
@@ -4814,6 +5623,14 @@ class DailyLearningRuntime:
                             "reason": "planned_after_v5.1_assessment_feedback",
                             "source_next_step_decision_id": decision["id"],
                             "source_attempt_id": attempt_id,
+                            "requested_usage_context": planned_usage_context,
+                            **(
+                                {
+                                    "new_knowledge_phase": planned_new_knowledge_phase
+                                }
+                                if planned_new_knowledge_phase
+                                else {}
+                            ),
                         },
                         candidate_packet=next_selection.get("candidate_packet") or {},
                         support_hint=(
@@ -4821,7 +5638,10 @@ class DailyLearningRuntime:
                             if needs_repair
                             else "换一个情境再做一次，确认方法是否稳定。"
                         ),
-                        step_type="micro_check" if needs_repair else "question",
+                        step_type=(
+                            planned_step_type
+                            or ("micro_check" if needs_repair else "question")
+                        ),
                         initial_status="planned",
                         answer_contract=planned_contract,
                     )
@@ -4854,6 +5674,76 @@ class DailyLearningRuntime:
             "teaching_explanation": output["teaching_explanation"],
         }
 
+    def _create_next_mini_group_step_after_assessment(
+        self,
+        *,
+        flow_id: str,
+        source_step: dict[str, Any],
+        meta: dict[str, Any],
+    ) -> str:
+        flow = dict(self._flow_by_id(flow_id))
+        next_selection = self._select_question_for_node(
+            source_step["node_id"],
+            graph_version=source_step["graph_version"],
+            flow_id=flow_id,
+            flow_revision=int(flow.get("flow_revision") or 1) + 1,
+            reason={
+                "reason": "mini_group_next_question_after_individual_media_assessment",
+                "mini_group_id": meta["id"],
+                "mini_group_index": int(meta["index"]) + 1,
+                "source_step_id": source_step["id"],
+                "target_node_id": source_step["node_id"],
+            },
+            selection_intent="short_group_review",
+            next_evidence_goal="collect_before_group_assessment",
+            required_purpose=str((meta.get("usage_context") or {}).get("purpose") or ""),
+        )
+        if not next_selection:
+            return ""
+        next_contract = self._active_answer_contract_for_question(
+            next_selection["question"]
+        )
+        if next_contract is None:
+            return ""
+        position = int(
+            self.conn.execute(
+                "select count(*) from flow_steps where flow_id = ?",
+                (flow_id,),
+            ).fetchone()[0]
+        ) + 1
+        new_step_id = self._create_question_step(
+            flow_id=flow_id,
+            position=position,
+            graph_version=source_step["graph_version"],
+            question=next_selection["question"],
+            review_record_id=next_selection["review_record_id"],
+            selection_reason=self._mini_group_selection_reason(
+                next_selection.get("selection_reason") or {},
+                flow=flow,
+                step_type=str(source_step.get("step_type") or "question"),
+                group_role=meta["role"],
+                group_id=meta["id"],
+                group_index=int(meta["index"]) + 1,
+                group_size=int(meta["size"]),
+                target_node_id=str(source_step.get("node_id") or ""),
+                question_id=str((next_selection.get("question") or {}).get("id") or ""),
+                requested_usage=meta.get("usage_context") or {},
+            ),
+            candidate_packet=next_selection.get("candidate_packet") or {},
+            step_type=str(source_step.get("step_type") or "question"),
+            answer_contract=next_contract,
+        )
+        self.conn.execute(
+            """
+            update daily_flows
+            set status = 'reviewing', current_step_id = ?,
+                flow_revision = flow_revision + 1, updated_at = ?
+            where id = ? and status not in ('completed','superseded')
+            """,
+            (new_step_id, db.now_iso(), flow_id),
+        )
+        return new_step_id
+
     def _maybe_handle_v51_mini_group_after_assessment(
         self,
         *,
@@ -4874,21 +5764,72 @@ class DailyLearningRuntime:
         meta = self._mini_group_meta(source_step)
         if not meta or meta["size"] <= 1 or not meta["defer_analysis_until_group_end"]:
             return None
-        if meta["index"] < meta["size"]:
-            return {
-                "next_action": "mini_group_accumulating",
-                "reason": "mini group assessment stored; feedback waits for group end",
-                "mini_group_id": meta["id"],
-                "mini_group_index": meta["index"],
-            }
-
+        adaptive = meta.get("adaptive_block") or {}
+        analysis_after = int(adaptive.get("analysis_after") or 0)
+        close_after = analysis_after if analysis_after > 0 else int(meta["size"])
         pairs = self._mini_group_step_attempts(flow_id=flow_id, mini_group_id=meta["id"])
+        indexed_steps = [
+            (int((self._mini_group_meta(step) or {}).get("index") or 0), step)
+            for step, _attempt in pairs
+        ]
+        current_group_index, latest_group_step = max(
+            indexed_steps,
+            key=lambda item: item[0],
+            default=(int(meta["index"]), dict(source_step)),
+        )
+        if current_group_index < close_after:
+            latest_meta = self._mini_group_meta(latest_group_step) or meta
+            next_step_id = self._create_next_mini_group_step_after_assessment(
+                flow_id=flow_id,
+                source_step=dict(latest_group_step),
+                meta=latest_meta,
+            )
+            if next_step_id:
+                return {
+                    "next_action": "mini_group_accumulating",
+                    "reason": "mini group assessment stored; next question is ready",
+                    "mini_group_id": meta["id"],
+                    "mini_group_index": current_group_index,
+                    "next_step_id": next_step_id,
+                }
+            return None
+
+        missing_assessments = [
+            attempt
+            for _step, attempt in pairs
+            if assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt.get("attempt_version") or 1),
+            )
+            is None
+            and attempt.get("grading_status") == "pending_review"
+            and attempt.get("evidence_status") == "active"
+        ]
+        if missing_assessments:
+            pending_job_id = self._enqueue_next_pending_mini_group_single_analysis(
+                flow_id=flow_id,
+                mini_group_id=meta["id"],
+                depends_on_job_id=str(job.get("id") or "") or None,
+            )
+            if pending_job_id:
+                return {
+                    "next_action": "mini_group_sequential_analysis",
+                    "reason": "photo evidence was assessed first; remaining group evidence is queued safely",
+                    "mini_group_id": meta["id"],
+                    "pending_attempt_ids": [attempt["id"] for attempt in missing_assessments],
+                    "pending_job_id": pending_job_id,
+                }
         group_items: list[dict[str, Any]] = []
         for index, (step, attempt) in enumerate(pairs, start=1):
             assessment = assessment_store.accepted_assessment_for_attempt(
                 self.conn,
                 attempt["id"],
                 int(attempt.get("attempt_version") or 1),
+            )
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                step["id"],
             )
             if not assessment:
                 self._block_flow(
@@ -4900,11 +5841,22 @@ class DailyLearningRuntime:
                     "reason": "mini_group_missing_accepted_assessment",
                     "mini_group_id": meta["id"],
                 }
+            if not contract:
+                self._block_flow(
+                    flow_id,
+                    "这一组有题目缺少评分标准，系统已经安全停下；稍后恢复后继续。",
+                )
+                return {
+                    "next_action": "blocked",
+                    "reason": "mini_group_missing_answer_contract",
+                    "mini_group_id": meta["id"],
+                }
             group_items.append({
                 "index": index,
                 "step": step,
                 "attempt": attempt,
                 "assessment": assessment,
+                "contract": contract,
             })
         if not group_items:
             return None
@@ -4927,8 +5879,6 @@ class DailyLearningRuntime:
         scores = [int(item["assessment"].get("score_out_of_10") or 0) for item in group_items]
         average_score = round(sum(scores) / max(len(scores), 1), 1)
         all_attempt_ids = [item["attempt"]["id"] for item in group_items]
-        adaptive = meta.get("adaptive_block") or {}
-        analysis_after = int(adaptive.get("analysis_after") or 0)
         maximum_size = int(adaptive.get("maximum_size") or 5)
         passed_flags = [bool(item["assessment"].get("question_passed")) for item in group_items]
         mixed_first_read = (
@@ -5059,7 +6009,25 @@ class DailyLearningRuntime:
         else:
             planning_item = untrusted_group_items[0] if untrusted_group_items else weakest
             weakest_attempt = db.get_attempt(self.conn, planning_item["attempt"]["id"])
-            next_selection = self._next_selection_after_attempt(flow, attempt=weakest_attempt)
+            weak_group = int(weakest["assessment"].get("score_out_of_10") or 0) < 8
+            planned_step_type = "micro_check" if weak_group else "question"
+            planned_usage_request = (
+                {
+                    "purpose": "practice",
+                    "purpose_role": "consolidation",
+                    "practice_role": "repair_specific_gap",
+                }
+                if weak_group
+                else {
+                    "purpose": "diagnostic",
+                    "purpose_role": "confirmation_transfer",
+                }
+            )
+            next_selection = self._next_selection_after_attempt(
+                flow,
+                attempt=weakest_attempt,
+                required_purpose=planned_usage_request["purpose"],
+            )
             action = str((next_selection or {}).get("action") or "summary")
             decision = self._record_next_step_decision(
                 flow=flow,
@@ -5088,11 +6056,6 @@ class DailyLearningRuntime:
                     next_selection["question"]
                 )
                 if planned_contract is not None:
-                    planned_step_type = (
-                        "micro_check"
-                        if int(weakest["assessment"].get("score_out_of_10") or 0) < 8
-                        else "question"
-                    )
                     planned_step_id = self._create_question_step(
                         flow_id=flow_id,
                         position=feedback_position + 1,
@@ -5118,6 +6081,7 @@ class DailyLearningRuntime:
                                 (next_selection["question"] or {}).get("node_id") or ""
                             ),
                             question_id=str((next_selection["question"] or {}).get("id") or ""),
+                            requested_usage=planned_usage_request,
                         ),
                         candidate_packet=next_selection.get("candidate_packet") or {},
                         support_hint=(
@@ -5256,6 +6220,7 @@ class DailyLearningRuntime:
     ) -> str:
         question = db.get_question(self.conn, source_attempt["question_id"])
         per_question_lines: list[str] = []
+        per_question_feedback: list[dict[str, Any]] = []
         improvement_items: list[str] = []
         for item in group_items[:5]:
             assessment = item["assessment"]
@@ -5267,15 +6232,36 @@ class DailyLearningRuntime:
                 limit=160,
             )
             per_question_lines.append(f"第 {item['index']} 题 {score_label}：{gap}")
-            for improvement in feedback.get("improvement_direction") or []:
+            safe_improvements = [
+                _child_safe_chinese_feedback_text(
+                    improvement,
+                    "如果核心思路已经对了，只补一句必要的数学说明。",
+                    limit=180,
+                )
+                for improvement in (feedback.get("improvement_direction") or [])
+                if str(improvement or "").strip()
+            ]
+            per_question_feedback.append(
+                {
+                    "index": int(item["index"]),
+                    "score_label": score_label,
+                    "reference_answer": self._assessment_reference_answer(item["contract"]),
+                    "answer_gap": gap,
+                    "improvement_direction": _dedupe_child_safe_texts(safe_improvements)[:3],
+                    "expression_judgment": _child_safe_chinese_feedback_text(
+                        feedback.get("expression_judgment") or "按数学意图判断表达。",
+                        "表达按数学意图判断；意思清楚且数学成立即可。",
+                        limit=260,
+                    ),
+                }
+            )
+            for improvement in safe_improvements:
                 improvement_items.append(
-                    _child_safe_chinese_feedback_text(
-                        improvement,
-                        "如果核心思路已经对了，只补一句必要的数学说明。",
-                        limit=180,
-                    )
+                    improvement
                 )
         feedback = {
+            "scope": "mini_group",
+            "items": per_question_feedback,
             "score_label": f"{average_score:g}/10",
             "reference_answer": (
                 f"这一组共 {len(group_items)} 题，平均 {average_score:g}/10。"
@@ -5441,15 +6427,24 @@ class DailyLearningRuntime:
         self,
         output: dict[str, Any],
         *,
+        contract: dict[str, Any] | None = None,
         photo_ocr: dict[str, Any] | None = None,
     ) -> bool:
         criteria = output.get("criteria")
-        if isinstance(criteria, list) and any(
-            str(item.get("status") or "") == "unclear"
-            for item in criteria
-            if isinstance(item, dict)
-        ):
-            return True
+        if isinstance(criteria, list):
+            required_keys = {
+                str(point.get("key") or "")
+                for point in (contract or {}).get("score_points", [])
+                if isinstance(point, dict) and point.get("required_for_pass") is True
+            }
+            unclear_keys = {
+                str(item.get("criterion_key") or "")
+                for item in criteria
+                if isinstance(item, dict)
+                and str(item.get("status") or "") == "unclear"
+            }
+            if unclear_keys and (not contract or unclear_keys.intersection(required_keys)):
+                return True
         if float(output.get("confidence") or 0.0) < 0.35:
             return True
         if isinstance(photo_ocr, dict):
@@ -5487,9 +6482,14 @@ class DailyLearningRuntime:
             else "unclear"
         )
         with self.conn:
-            latest, _ = self._revalidate_answer_job_for_commit(
+            latest, latest_step = self._revalidate_answer_job_for_commit(
                 job=job,
                 attempt_id=attempt["id"],
+            )
+            self._validate_photo_ocr_evidence_for_commit(
+                attempt=latest,
+                step=latest_step,
+                photo_ocr=photo_ocr,
             )
             if (
                 latest["grading_status"] != "pending_review"
@@ -5571,6 +6571,8 @@ class DailyLearningRuntime:
                     "assessment_input_digest_sha256": assessment_input_digest_sha256,
                     "accepted_unclear": True,
                     "has_photo": photo_ocr is not None,
+                    "photo_recognition_run_id": str((photo_ocr or {}).get("recognition_run_id") or ""),
+                    "photo_recognition_output_digest_sha256": str((photo_ocr or {}).get("output_digest_sha256") or ""),
                 },
                 route=route,
             )
@@ -5759,9 +6761,14 @@ class DailyLearningRuntime:
         )
         review_status = "photo_ocr_unusable" if isinstance(photo_ocr, dict) and str(photo_ocr.get("status") or "") in {"unclear", "low_confidence", "unusable"} else "unclear"
         with self.conn:
-            latest, _ = self._revalidate_answer_job_for_commit(
+            latest, latest_step = self._revalidate_answer_job_for_commit(
                 job=job,
                 attempt_id=attempt["id"],
+            )
+            self._validate_photo_ocr_evidence_for_commit(
+                attempt=latest,
+                step=latest_step,
+                photo_ocr=photo_ocr,
             )
             if latest["grading_status"] != "pending_review" or latest.get("evidence_status") != "active":
                 return {"job_status": "succeeded", "reason": "attempt_no_longer_active", "attempt_id": attempt["id"]}
@@ -5805,6 +6812,8 @@ class DailyLearningRuntime:
                     "flow_step_id": updated_attempt.get("flow_step_id"),
                     "accepted_unclear": True,
                     "has_photo": photo_ocr is not None,
+                    "photo_recognition_run_id": str((photo_ocr or {}).get("recognition_run_id") or ""),
+                    "photo_recognition_output_digest_sha256": str((photo_ocr or {}).get("output_digest_sha256") or ""),
                 },
                 route=route,
             )
@@ -5998,7 +7007,11 @@ class DailyLearningRuntime:
         )
         recorded = payload.get("recorded_agent_output") if isinstance(payload.get("recorded_agent_output"), dict) else None
         if recorded is None and self._can_use_default_recorded_fixture(payload, provider_mode):
-            next_selection = self._next_selection_after_attempt(flow, attempt=attempt)
+            next_selection = self._next_selection_after_attempt(
+                flow,
+                attempt=attempt,
+                required_purpose="diagnostic",
+            )
             if next_selection:
                 recorded = {
                     "schema_version": "2026-07-11.planner-next-step.v5.schema.v2",
@@ -6397,6 +7410,7 @@ class DailyLearningRuntime:
         photo_ocr: dict[str, Any] | None = None,
         recorded_output: dict[str, Any] | None = None,
         answer_contract: dict[str, Any] | None = None,
+        operation_idempotency_source: str = "",
     ) -> semantic_agents.SemanticAgentRequest:
         graph_node = db.get_graph_node(self.conn, attempt["node_id"])
         step_package: dict[str, Any] = {}
@@ -6472,6 +7486,7 @@ class DailyLearningRuntime:
             },
             provider_mode=provider_mode,
             source_refs=db.json_load(job.get("payload_json"), {}),
+            operation_idempotency_source=operation_idempotency_source,
         )
 
     def _semantic_answer_output_from_legacy_review(self, review: dict[str, Any]) -> dict[str, Any]:
@@ -7296,7 +8311,13 @@ class DailyLearningRuntime:
         next_goal = ""
         stable_context = {"supported": False, "learner_status": "", "prerequisite_ready": False}
         result = str(attempt.get("result") or "")
-        if source_phase in {"micro_check", "repair_check"} and result != "correct":
+        if source_phase == "micro_check" and result == "correct":
+            intent = "same_structure_retest"
+            next_goal = "same_structure_retest"
+        elif source_phase == "standard" and result == "correct":
+            intent = "near_transfer_retest"
+            next_goal = "near_transfer_retest"
+        elif source_phase in {"micro_check", "repair_check"} and result != "correct":
             intent = "partial_unstable"
         elif result == "partial":
             intent = "partial_unstable"
@@ -7308,6 +8329,14 @@ class DailyLearningRuntime:
             else:
                 intent = "correct_narrow"
                 next_goal = "near_transfer_retest"
+        recent_problem_instance_ids = sorted(
+            self._recent_question_problem_instance_ids(flow["id"])
+        )
+        exclusions = {
+            "recent_question_ids": sorted(self._recent_question_ids_for_flow(flow["id"])),
+        }
+        if recent_problem_instance_ids:
+            exclusions["recent_problem_instance_ids"] = recent_problem_instance_ids
         packet = question_bank.QuestionBankService.candidate_packet_for_node(
             self.conn,
             node_id=node_id,
@@ -7315,20 +8344,20 @@ class DailyLearningRuntime:
             flow_id=flow["id"],
             flow_revision=int(flow.get("flow_revision") or 1),
             limit=8,
-            exclusions={"recent_question_ids": sorted(self._recent_question_ids_for_flow(flow["id"]))},
+            exclusions=exclusions,
             question_bank_version=str(flow.get("question_bank_version") or attempt.get("question_bank_version") or question_bank.QUESTION_BANK_VERSION),
             selection_intent=intent,
             next_evidence_goal=next_goal,
             learner_status=stable_context["learner_status"] if attempt.get("result") == "correct" else "",
             prerequisite_ready=stable_context["prerequisite_ready"] if attempt.get("result") == "correct" else False,
         )
-        packet = self._filter_recent_prompt_repetition(packet, flow["id"])
+        packet = self._filter_recent_prompt_repetition(
+            packet,
+            flow["id"],
+            block_problem_instances=True,
+        )
         candidates = list(packet.get("candidates") or [])[:8]
-        packet["candidates"] = candidates
-        packet["candidate_count"] = len(candidates)
-        if not packet.get("packet_hash"):
-            packet["packet_hash"] = db._digest_json(packet)
-        return packet
+        return _finalize_candidate_packet(packet, candidates)
 
     def _bounded_prerequisite_candidate_packet_for_planner(
         self,
@@ -7340,10 +8369,12 @@ class DailyLearningRuntime:
         if not rollback_nodes:
             return None
         recent_question_ids = sorted(self._recent_question_ids_for_flow(flow["id"]))
+        recent_problem_instance_ids = sorted(self._recent_question_problem_instance_ids(flow["id"]))
         flow_revision = int(flow.get("flow_revision") or 1)
         target_error_tags = [str(tag) for tag in (attempt.get("error_tags") or []) if str(tag)]
         aggregate_filter: dict[str, int] = {}
         candidates: list[dict[str, Any]] = []
+        seen_problem_instance_ids: set[str] = set()
         per_node_limit = 2 if len(rollback_nodes) <= 4 else 1
         for target_node_id in rollback_nodes:
             packet = question_bank.QuestionBankService.candidate_packet_for_node(
@@ -7353,7 +8384,10 @@ class DailyLearningRuntime:
                 flow_id=flow["id"],
                 flow_revision=flow_revision,
                 limit=per_node_limit,
-                exclusions={"recent_question_ids": recent_question_ids},
+                exclusions={
+                    "recent_question_ids": recent_question_ids,
+                    "recent_problem_instance_ids": recent_problem_instance_ids,
+                },
                 question_bank_version=str(flow.get("question_bank_version") or attempt.get("question_bank_version") or question_bank.QUESTION_BANK_VERSION),
                 selection_intent="wrong_blocking",
             )
@@ -7363,6 +8397,12 @@ class DailyLearningRuntime:
             for candidate in list(packet.get("candidates") or [])[:per_node_limit]:
                 if len(candidates) >= 8:
                     break
+                problem_instance_id = str(candidate.get("problem_instance_id") or "").strip()
+                if problem_instance_id and problem_instance_id in seen_problem_instance_ids:
+                    aggregate_filter["excluded_cross_prerequisite_problem_instance"] = (
+                        aggregate_filter.get("excluded_cross_prerequisite_problem_instance", 0) + 1
+                    )
+                    continue
                 enriched = dict(candidate)
                 candidate_tags = [str(tag) for tag in (enriched.get("target_error_tags") or []) if str(tag)]
                 merged_tags = list(dict.fromkeys([*target_error_tags, *candidate_tags]))
@@ -7378,6 +8418,8 @@ class DailyLearningRuntime:
                     ),
                 })
                 candidates.append(enriched)
+                if problem_instance_id:
+                    seen_problem_instance_ids.add(problem_instance_id)
             if len(candidates) >= 8:
                 break
         if not candidates:
@@ -7697,6 +8739,11 @@ class DailyLearningRuntime:
                     action = normalized["action"]
                     new_phase = normalized["new_knowledge_phase"]
                     step_type = normalized["step_type"]
+                usage_context = self._explicit_question_usage_context(
+                    question_id=str(question.get("id") or ""),
+                    requested_usage=self._usage_request_for_planned_action(action),
+                    block_id=f"PLAN-{uuid.uuid4().hex[:12]}",
+                )
                 step_id = self._create_question_step(
                     flow_id=flow["id"],
                     position=int(self.conn.execute("select count(*) from flow_steps where flow_id = ?", (flow["id"],)).fetchone()[0]) + 1,
@@ -7708,6 +8755,7 @@ class DailyLearningRuntime:
                         "planner_action": action,
                         "source_next_step_decision_id": decision["id"],
                         "source_attempt_id": attempt["id"],
+                        "requested_usage_context": usage_context,
                         **({"new_knowledge_phase": new_phase} if new_phase else {}),
                     },
                     candidate_packet=candidate_packet,
@@ -7789,6 +8837,22 @@ class DailyLearningRuntime:
                 "update flow_steps set status = 'completed', updated_at = ? where id = ?",
                 (db.now_iso(), source_step_id),
             )
+        if step_type == "clarify_evidence":
+            usage_request = self._clarification_usage_request(question["id"])
+        else:
+            usage_request = {
+                "purpose": "teaching",
+                "purpose_role": (
+                    "worked_example"
+                    if step_type == "worked_example"
+                    else "targeted_repair"
+                ),
+            }
+        usage_context = self._explicit_question_usage_context(
+            question_id=str(question.get("id") or ""),
+            requested_usage=usage_request,
+            block_id=f"TEACH-{uuid.uuid4().hex[:12]}",
+        )
         return self._create_question_step(
             flow_id=flow["id"],
             position=int(self.conn.execute("select count(*) from flow_steps where flow_id = ?", (flow["id"],)).fetchone()[0]) + 1,
@@ -7802,6 +8866,7 @@ class DailyLearningRuntime:
                 "source_next_step_decision_id": source_next_step_decision_id,
                 "teaching_agent_run_id": teaching_agent_run_id,
                 "new_knowledge_phase": "worked_example" if payload.get("new_knowledge_request") else ("repair" if step_type == "teaching_repair" else step_type),
+                "requested_usage_context": usage_context,
             },
             candidate_packet={},
             support_hint=prompt_text,
@@ -8131,12 +9196,120 @@ class DailyLearningRuntime:
                 (new_step_id, now, step_dict["flow_id"]),
             )
             return
+        pairs = self._mini_group_step_attempts(
+            flow_id=step_dict["flow_id"],
+            mini_group_id=meta["id"],
+        )
+        if any(bool((attempt.get("review_meta") or {}).get("has_photo")) for _, attempt in pairs):
+            self._enqueue_next_pending_mini_group_single_analysis(
+                flow_id=step_dict["flow_id"],
+                mini_group_id=meta["id"],
+            )
+            return
         self._enqueue_mini_group_answer_analysis(
             flow_id=step_dict["flow_id"],
             mini_group_id=meta["id"],
             current_step_id=step_dict["id"],
             current_attempt_id=attempt_id,
         )
+
+    def _enqueue_next_pending_mini_group_single_analysis(
+        self,
+        *,
+        flow_id: str,
+        mini_group_id: str,
+        depends_on_job_id: str | None = None,
+    ) -> str:
+        for step, attempt in self._mini_group_step_attempts(
+            flow_id=flow_id,
+            mini_group_id=mini_group_id,
+        ):
+            if (
+                attempt.get("grading_status") != "pending_review"
+                or attempt.get("evidence_status") != "active"
+            ):
+                continue
+            job_id = self._ensure_answer_analysis_job_for_attempt(
+                step,
+                attempt["id"],
+                source="mini_group_sequential_after_photo",
+                depends_on_job_id=depends_on_job_id,
+            )
+            self._mark_step_analyzing(step["id"], attempt["id"], flow_id)
+            return job_id
+        return ""
+
+    def _continue_after_persisted_non_stuck_attempt(
+        self,
+        step_dict: dict[str, Any],
+        attempt_id: str,
+        *,
+        source: str,
+        prefer_existing_group_step: bool = False,
+    ) -> None:
+        attempt = db.get_attempt(self.conn, attempt_id)
+        has_raw_photo = bool((attempt.get("review_meta") or {}).get("has_photo"))
+        if has_raw_photo:
+            self._ensure_answer_analysis_job_for_attempt(
+                step_dict,
+                attempt_id,
+                source=f"{source}:photo_pre_group_analysis",
+            )
+            self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
+            return
+        if self._mini_group_is_deferred(step_dict):
+            if prefer_existing_group_step and self._restore_existing_next_mini_group_step(
+                step_dict=step_dict,
+                attempt_id=attempt_id,
+            ):
+                return
+            self._advance_or_close_mini_group_after_submission(
+                step_dict=step_dict,
+                attempt_id=attempt_id,
+                force_close=False,
+            )
+            return
+        self._ensure_answer_analysis_job_for_attempt(
+            step_dict,
+            attempt_id,
+            source=source,
+        )
+        self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
+
+    def _restore_existing_next_mini_group_step(
+        self,
+        *,
+        step_dict: dict[str, Any],
+        attempt_id: str,
+    ) -> bool:
+        meta = self._mini_group_meta(step_dict)
+        if not meta:
+            return False
+        for candidate in self._mini_group_steps(
+            flow_id=str(step_dict.get("flow_id") or ""),
+            mini_group_id=str(meta.get("id") or ""),
+        ):
+            candidate_meta = self._mini_group_meta(candidate)
+            if not candidate_meta or int(candidate_meta.get("index") or 0) != int(meta["index"]) + 1:
+                continue
+            self.conn.execute(
+                "update flow_steps set status = 'completed', attempt_id = ?, updated_at = ? where id = ?",
+                (attempt_id, db.now_iso(), step_dict["id"]),
+            )
+            self.conn.execute(
+                "update flow_steps set status = 'selected', updated_at = ? where id = ?",
+                (db.now_iso(), candidate["id"]),
+            )
+            self.conn.execute(
+                """
+                update daily_flows
+                set status = 'reviewing', current_step_id = ?, updated_at = ?
+                where id = ? and status not in ('completed','superseded')
+                """,
+                (candidate["id"], db.now_iso(), step_dict["flow_id"]),
+            )
+            return True
+        return False
 
     def _invalidate_deferred_mini_group_attempts_on_stuck(
         self,
@@ -8188,6 +9361,73 @@ class DailyLearningRuntime:
                     rejection_reason = 'practice_group_interrupted_by_stuck',
                     updated_at = ?
                 where attempt_id = ? and status = 'pending'
+                """,
+                (db.now_iso(), attempt["id"]),
+            )
+
+    def _invalidate_deferred_mini_group_attempts_on_clarification(
+        self,
+        *,
+        step_dict: dict[str, Any],
+        source_attempt_id: str,
+        clarification_decision_id: str,
+    ) -> None:
+        meta = self._mini_group_meta(step_dict)
+        if not meta or not meta.get("defer_analysis_until_group_end"):
+            return
+        for _step, attempt in self._mini_group_step_attempts(
+            flow_id=str(step_dict.get("flow_id") or ""),
+            mini_group_id=str(meta.get("id") or ""),
+        ):
+            if attempt["id"] == source_attempt_id:
+                continue
+            if (
+                attempt.get("grading_status") != "pending_review"
+                or attempt.get("evidence_status") != "active"
+            ):
+                continue
+            review_meta = dict(attempt.get("review_meta") or {})
+            review_meta.update(
+                {
+                    "status": "group_interrupted_by_clarification",
+                    "clarification_source_attempt_id": source_attempt_id,
+                    "clarification_decision_id": clarification_decision_id,
+                }
+            )
+            self.conn.execute(
+                """
+                update attempts
+                set result = 'interrupted',
+                    grading_status = 'blocked',
+                    evidence_status = 'invalidated',
+                    analysis_status = 'invalidated',
+                    evidence_note = 'The deferred group was interrupted because another answer needs clarification.',
+                    parent_note = 'This pending group answer was not scored and cannot drive planning.',
+                    review_meta_json = ?
+                where id = ?
+                  and grading_status = 'pending_review'
+                  and evidence_status = 'active'
+                """,
+                (db.json_dump(review_meta), attempt["id"]),
+            )
+            self.conn.execute(
+                """
+                update attempt_assessments
+                set status = 'rejected',
+                    rejection_reason = 'group_interrupted_by_clarification',
+                    updated_at = ?
+                where attempt_id = ? and status = 'pending'
+                """,
+                (db.now_iso(), attempt["id"]),
+            )
+            self.conn.execute(
+                """
+                update background_jobs
+                set status = 'blocked',
+                    blocked_reason = 'group_interrupted_by_clarification',
+                    updated_at = ?
+                where attempt_id = ?
+                  and status in ('queued','retry')
                 """,
                 (db.now_iso(), attempt["id"]),
             )
@@ -8721,6 +9961,25 @@ class DailyLearningRuntime:
                 }
             meta = self._mini_group_meta(step)
             if meta and meta["size"] > 1:
+                attempt = (
+                    db.get_attempt(self.conn, str(step.get("attempt_id") or ""))
+                    if step.get("attempt_id")
+                    else None
+                )
+                if (
+                    job_state.get("job_type") == "answer_analysis"
+                    and attempt
+                    and bool((attempt.get("review_meta") or {}).get("has_photo"))
+                ):
+                    return {
+                        **base,
+                        "child_state": "analyzing",
+                        "message": {
+                            "title": "正在看清你的纸面答案",
+                            "body": "照片已经保存，正在识别并判断这一题。看完后会自动进入下一题或给出需要补充的地方。",
+                            "action_label": "刷新看看",
+                        },
+                    }
                 return {
                     **base,
                     "child_state": "analyzing",
@@ -8735,7 +9994,7 @@ class DailyLearningRuntime:
                 "child_state": "analyzing",
                 "message": {
                     "title": "正在整理这一步",
-                    "body": "答案已经保存，正在整理判断和下一步。页面会自动刷新，可以先休息。",
+                    "body": "答案已经保存，正在整理判断和下一步。页面会自动刷新。",
                     "action_label": "刷新看看",
                 },
             }
@@ -9194,7 +10453,17 @@ class DailyLearningRuntime:
             elif any(token and token in role_text for token in preferred):
                 preferred_score = 20
             stretch_penalty = -16 if "stretch" in role_text and selection_intent not in {"stretch", "controlled_extension"} else 0
-            return (kind_score + level_score + preferred_score + stretch_penalty, -int(candidate.get("recent_seen_count") or 0), str(candidate.get("question_id") or ""))
+            try:
+                selection_priority = int(candidate.get("selection_priority") or 0)
+            except (TypeError, ValueError):
+                selection_priority = 0
+            expert_order_score = (
+                2000 - selection_priority * 200
+                if selection_priority > 0
+                and selection_intent in {"general", "initial_review", "short_group_review"}
+                else 0
+            )
+            return (expert_order_score + kind_score + level_score + preferred_score + stretch_penalty, -int(candidate.get("recent_seen_count") or 0), str(candidate.get("question_id") or ""))
 
         return sorted(candidates, key=score, reverse=True)
 
@@ -9216,6 +10485,61 @@ class DailyLearningRuntime:
         required_purpose: str = "",
     ) -> dict[str, Any] | None:
         recent_question_ids = self._recent_question_ids_for_flow(flow_id)
+        block_problem_instances = True
+        recent_problem_instance_ids = self._recent_question_problem_instance_ids(flow_id)
+        flow_question_bank_version = self._question_bank_version_for_flow(flow_id)
+
+        def selected_result(
+            candidate: dict[str, Any],
+            source_packet: dict[str, Any],
+            *,
+            blocked_question_ids: set[str],
+            cooldown_relaxed: bool = False,
+        ) -> dict[str, Any] | None:
+            question_id = str(candidate.get("question_id") or "")
+            review_record_id = str(candidate.get("review_record_id") or "")
+            if not question_id or question_id in blocked_question_ids:
+                return None
+            try:
+                question = db.get_question(self.conn, question_id)
+            except KeyError:
+                return None
+            usage_policy = db.active_question_usage_policy(self.conn, question_id)
+            if required_purpose and required_purpose not in list(
+                (usage_policy or {}).get("allowed_purposes") or []
+            ):
+                return None
+            if not db.is_child_schedulable_question(
+                self.conn,
+                question,
+                question_bank_version=flow_question_bank_version,
+            ):
+                return None
+            if not db.question_review_record_allows_active_use(
+                self.conn,
+                question,
+                review_record_id,
+            ):
+                return None
+            return {
+                "question": question,
+                "review_record_id": review_record_id,
+                "candidate_packet": source_packet,
+                "selection_reason": {
+                    **reason,
+                    "candidate_packet_id": source_packet.get("packet_id", ""),
+                    "candidate_packet_hash": source_packet.get("packet_hash", ""),
+                    "candidate_filter_summary": source_packet.get("filter_summary", {}),
+                    "bounded_candidate_count": source_packet.get("candidate_count", 0),
+                    "cross_session_cooldown_relaxed": cooldown_relaxed,
+                },
+            }
+
+        exclusions: dict[str, Any] = {
+            "recent_question_ids": sorted(recent_question_ids),
+        }
+        if recent_problem_instance_ids:
+            exclusions["recent_problem_instance_ids"] = sorted(recent_problem_instance_ids)
         packet = question_bank.QuestionBankService.candidate_packet_for_node(
             self.conn,
             node_id=node_id,
@@ -9223,59 +10547,116 @@ class DailyLearningRuntime:
             flow_id=flow_id,
             flow_revision=flow_revision,
             limit=8,
-            exclusions={"recent_question_ids": sorted(recent_question_ids)},
-            question_bank_version=self._question_bank_version_for_flow(flow_id),
+            exclusions=exclusions,
+            question_bank_version=flow_question_bank_version,
             selection_intent=selection_intent,
             next_evidence_goal=next_evidence_goal,
             learner_status=learner_status,
             prerequisite_ready=prerequisite_ready,
+            required_purpose=required_purpose,
         )
-        packet = self._filter_recent_prompt_repetition(packet, flow_id)
-        flow_question_bank_version = self._question_bank_version_for_flow(flow_id)
+        packet = self._filter_recent_prompt_repetition(
+            packet,
+            flow_id,
+            block_problem_instances=block_problem_instances,
+        )
         ranked_candidates = self._rank_candidates_for_child_step(
             list(packet.get("candidates") or []),
             preferred_kinds=preferred_kinds,
             selection_intent=selection_intent,
         )
-        packet["candidates"] = ranked_candidates
-        packet["candidate_count"] = len(ranked_candidates)
+        packet = _finalize_candidate_packet(packet, ranked_candidates)
         for candidate in ranked_candidates:
-            question_id = str(candidate.get("question_id") or "")
-            review_record_id = str(candidate.get("review_record_id") or "")
-            if not question_id or question_id in recent_question_ids:
-                continue
-            try:
-                question = db.get_question(self.conn, question_id)
-            except KeyError:
-                continue
-            usage_policy = db.active_question_usage_policy(self.conn, question_id)
-            if required_purpose and required_purpose not in list((usage_policy or {}).get("allowed_purposes") or []):
-                continue
-            if not db.is_child_schedulable_question(
-                self.conn,
-                question,
-                question_bank_version=flow_question_bank_version,
-            ):
-                continue
-            if not db.question_review_record_allows_active_use(self.conn, question, review_record_id):
-                continue
-            return {
-                "question": question,
-                "review_record_id": review_record_id,
-                "candidate_packet": packet,
-                "selection_reason": {
-                    **reason,
-                    "candidate_packet_id": packet.get("packet_id", ""),
-                    "candidate_packet_hash": packet.get("packet_hash", ""),
-                    "candidate_filter_summary": packet.get("filter_summary", {}),
-                    "bounded_candidate_count": packet.get("candidate_count", 0),
-                },
-            }
+            result = selected_result(
+                candidate,
+                packet,
+                blocked_question_ids=recent_question_ids,
+            )
+            if result:
+                return result
 
-        if flow_question_bank_version in {
-            question_bank.QUESTION_BANK_V12_VERSION,
-            question_bank.QUESTION_BANK_VERSION,
-        }:
+        formal_bank = db.is_ledger_managed_question_bank_version(
+            self.conn,
+            flow_question_bank_version,
+        )
+        filter_summary = packet.get("filter_summary") if isinstance(packet.get("filter_summary"), dict) else {}
+        cooldown_exclusions = sum(
+            int(filter_summary.get(key) or 0)
+            for key in (
+                "excluded_cooldown",
+                "excluded_problem_instance_cooldown",
+                "excluded_recent_prompt_repetition",
+                "excluded_recent_problem_instance",
+            )
+        )
+        if formal_bank and not ranked_candidates and cooldown_exclusions > 0:
+            current_rows = self._current_flow_question_rows(flow_id)
+            current_question_ids = {
+                str(row["id"]) for row in current_rows if row["id"]
+            }
+            current_problem_instance_ids = {
+                str(
+                    db.row_to_question(row).get("problem_instance_id")
+                    or (db.row_to_question(row).get("source") or {}).get("problem_instance_id")
+                    or ""
+                )
+                for row in current_rows
+            }
+            current_problem_instance_ids.discard("")
+            relaxed_exclusions: dict[str, Any] = {
+                "recent_question_ids": sorted(current_question_ids),
+            }
+            if current_problem_instance_ids:
+                relaxed_exclusions["recent_problem_instance_ids"] = sorted(
+                    current_problem_instance_ids
+                )
+            relaxed_packet = question_bank.QuestionBankService.candidate_packet_for_node(
+                self.conn,
+                node_id=node_id,
+                graph_version=graph_version,
+                flow_id=flow_id,
+                flow_revision=flow_revision,
+                limit=8,
+                exclusions=relaxed_exclusions,
+                question_bank_version=flow_question_bank_version,
+                selection_intent=selection_intent,
+                next_evidence_goal=next_evidence_goal,
+                learner_status=learner_status,
+                prerequisite_ready=prerequisite_ready,
+                required_purpose=required_purpose,
+            )
+            relaxed_packet = self._filter_recent_prompt_repetition(
+                relaxed_packet,
+                flow_id,
+                block_problem_instances=block_problem_instances,
+                current_flow_only=True,
+            )
+            relaxed_candidates = self._rank_cooldown_reuse_candidates(
+                list(relaxed_packet.get("candidates") or []),
+                flow_id=flow_id,
+            )
+            relaxed_packet = _finalize_candidate_packet(
+                {
+                    **relaxed_packet,
+                    "filter_summary": {
+                        **dict(relaxed_packet.get("filter_summary") or {}),
+                        "cross_session_cooldown_relaxed": True,
+                        "original_cooldown_exclusions": cooldown_exclusions,
+                    },
+                },
+                relaxed_candidates,
+            )
+            for candidate in relaxed_candidates:
+                result = selected_result(
+                    candidate,
+                    relaxed_packet,
+                    blocked_question_ids=current_question_ids,
+                    cooldown_relaxed=True,
+                )
+                if result:
+                    return result
+
+        if formal_bank:
             return None
 
         try:
@@ -9327,8 +10708,25 @@ class DailyLearningRuntime:
             },
         }
 
-    def _filter_recent_prompt_repetition(self, packet: dict[str, Any], flow_id: str) -> dict[str, Any]:
-        recent_fingerprints = self._recent_question_structure_fingerprints(flow_id)
+    def _filter_recent_prompt_repetition(
+        self,
+        packet: dict[str, Any],
+        flow_id: str,
+        *,
+        block_problem_instances: bool = True,
+        current_flow_only: bool = False,
+    ) -> dict[str, Any]:
+        recent_fingerprints = (
+            self._current_flow_structure_fingerprints(
+                flow_id,
+                prefer_problem_instance=block_problem_instances,
+            )
+            if current_flow_only
+            else self._recent_question_structure_fingerprints(
+                flow_id,
+                prefer_problem_instance=block_problem_instances,
+            )
+        )
         if not recent_fingerprints:
             return packet
         candidates = list(packet.get("candidates") or [])
@@ -9336,6 +10734,7 @@ class DailyLearningRuntime:
             return packet
         kept: list[dict[str, Any]] = []
         excluded = 0
+        excluded_problem_instances = 0
         for candidate in candidates:
             question_id = str(candidate.get("question_id") or "")
             try:
@@ -9343,62 +10742,262 @@ class DailyLearningRuntime:
             except KeyError:
                 kept.append(candidate)
                 continue
-            fingerprint = _question_structure_repetition_fingerprint(question)
+            fingerprint = _question_structure_repetition_fingerprint(
+                question,
+                prefer_problem_instance=block_problem_instances,
+            )
             if fingerprint and fingerprint in recent_fingerprints:
                 excluded += 1
+                if fingerprint.startswith("problem_instance:"):
+                    excluded_problem_instances += 1
                 continue
             kept.append(candidate)
         filter_summary = packet.get("filter_summary") if isinstance(packet.get("filter_summary"), dict) else {}
         if excluded:
             filter_summary["excluded_recent_prompt_repetition"] = int(filter_summary.get("excluded_recent_prompt_repetition") or 0) + excluded
+        if excluded_problem_instances:
+            filter_summary["excluded_recent_problem_instance"] = int(
+                filter_summary.get("excluded_recent_problem_instance") or 0
+            ) + excluded_problem_instances
         if kept:
             packet = {
                 **packet,
                 "filter_summary": filter_summary,
-                "candidates": kept,
-                "candidate_count": len(kept),
             }
-            packet["packet_hash"] = db._digest_json(packet)
+            packet = _finalize_candidate_packet(packet, kept)
         else:
             filter_summary["recent_prompt_repetition_filter_saturated"] = True
-            packet = {**packet, "filter_summary": filter_summary}
+            if excluded_problem_instances:
+                filter_summary["recent_problem_instance_filter_saturated"] = True
+            packet = {
+                **packet,
+                "filter_summary": filter_summary,
+            }
+            packet = _finalize_candidate_packet(packet, [])
         return packet
 
-    def _recent_question_structure_fingerprints(self, flow_id: str) -> set[str]:
-        rows = self.conn.execute(
+    def _recent_question_structure_fingerprints(
+        self,
+        flow_id: str,
+        *,
+        prefer_problem_instance: bool = True,
+    ) -> set[str]:
+        rows = self._recent_visible_question_rows(flow_id)
+        fingerprints: set[str] = set()
+        for row in rows:
+            fingerprint = _question_structure_repetition_fingerprint(
+                db.row_to_question(row),
+                prefer_problem_instance=prefer_problem_instance,
+            )
+            if fingerprint:
+                fingerprints.add(fingerprint)
+        return fingerprints
+
+    def _current_flow_question_rows(self, flow_id: str) -> list[sqlite3.Row]:
+        if not flow_id:
+            return []
+        return self.conn.execute(
             """
             select q.*
             from flow_steps s
             join question_items q on q.id = s.question_id
             where s.flow_id = ?
               and s.question_id is not null
+              and s.status <> 'superseded'
+              and s.superseded_by_step_id is null
             order by s.created_at desc, s.id desc
-            limit 6
             """,
             (flow_id,),
         ).fetchall()
+
+    def _current_flow_structure_fingerprints(
+        self,
+        flow_id: str,
+        *,
+        prefer_problem_instance: bool = True,
+    ) -> set[str]:
         fingerprints: set[str] = set()
-        for row in rows:
-            fingerprint = _question_structure_repetition_fingerprint(db.row_to_question(row))
+        for row in self._current_flow_question_rows(flow_id):
+            fingerprint = _question_structure_repetition_fingerprint(
+                db.row_to_question(row),
+                prefer_problem_instance=prefer_problem_instance,
+            )
             if fingerprint:
                 fingerprints.add(fingerprint)
         return fingerprints
 
+    def _rank_cooldown_reuse_candidates(
+        self,
+        candidates: list[dict[str, Any]],
+        *,
+        flow_id: str,
+    ) -> list[dict[str, Any]]:
+        flow = self._flow_by_id(flow_id) if flow_id else None
+        if not flow:
+            return candidates
+        flow_dict = dict(flow)
+        rows = self.conn.execute(
+            """
+            select s.question_id, max(s.created_at) as last_seen_at
+            from flow_steps s
+            join daily_flows f on f.id = s.flow_id
+            where f.child_key = ?
+              and f.question_bank_version = ?
+              and s.question_id is not null
+              and s.superseded_by_step_id is null
+              and (
+                s.attempt_id is not null
+                or s.status in ('selected','displayed','analyzing','completed','blocked')
+              )
+            group by s.question_id
+            """,
+            (
+                str(flow_dict.get("child_key") or self.child_key),
+                str(flow_dict.get("question_bank_version") or ""),
+            ),
+        ).fetchall()
+        last_seen = {
+            str(row["question_id"]): str(row["last_seen_at"] or "")
+            for row in rows
+            if row["question_id"]
+        }
+
+        def reuse_key(candidate: dict[str, Any]) -> tuple[str, int, str]:
+            try:
+                priority = int(candidate.get("selection_priority") or 0)
+            except (TypeError, ValueError):
+                priority = 0
+            return (
+                last_seen.get(str(candidate.get("question_id") or ""), ""),
+                priority if priority > 0 else 10_000,
+                str(candidate.get("question_id") or ""),
+            )
+
+        return sorted(candidates, key=reuse_key)
+
     def _recent_question_ids_for_flow(self, flow_id: str) -> set[str]:
+        return {
+            str(row["id"])
+            for row in self._recent_visible_question_rows(flow_id)
+            if row["id"]
+        }
+
+    def _recent_question_problem_instance_ids(self, flow_id: str) -> set[str]:
+        rows = self._recent_visible_question_rows(flow_id)
+        instance_ids: set[str] = set()
+        for row in rows:
+            question = db.row_to_question(row)
+            problem_instance_id = str(
+                question.get("problem_instance_id")
+                or (question.get("source") or {}).get("problem_instance_id")
+                or ""
+            ).strip()
+            if problem_instance_id:
+                instance_ids.add(problem_instance_id)
+        return instance_ids
+
+    def _reserved_problem_instance_ids_for_flow(self, flow_id: str) -> set[str]:
         if not flow_id:
             return set()
         rows = self.conn.execute(
             """
-            select distinct question_id
+            select question_id, step_type
             from flow_steps
             where flow_id = ?
               and question_id is not null
-            order by created_at desc
-            limit 40
+              and superseded_by_step_id is null
+            order by position, created_at, id
             """,
             (flow_id,),
         ).fetchall()
-        return {str(row["question_id"]) for row in rows if row["question_id"]}
+        instance_ids: set[str] = set()
+        for row in rows:
+            if str(row["step_type"] or "") not in UNIQUE_PROBLEM_INSTANCE_STEP_TYPES:
+                continue
+            try:
+                question = db.get_question(self.conn, str(row["question_id"] or ""))
+            except KeyError:
+                continue
+            fingerprint = _question_structure_repetition_fingerprint(
+                question,
+                prefer_problem_instance=True,
+            )
+            if fingerprint.startswith("problem_instance:"):
+                instance_ids.add(fingerprint.removeprefix("problem_instance:"))
+        return instance_ids
+
+    def _recent_visible_question_rows(self, flow_id: str) -> list[sqlite3.Row]:
+        flow = self._flow_by_id(flow_id) if flow_id else None
+        if not flow:
+            return []
+        flow_dict = dict(flow)
+        cooldown_flow_ids = self._cross_session_cooldown_flow_ids(flow_dict)
+        params: list[Any] = [flow_id]
+        cross_session_clause = ""
+        if cooldown_flow_ids:
+            placeholders = ",".join("?" for _ in cooldown_flow_ids)
+            cross_session_clause = f"""
+                or (
+                  s.flow_id in ({placeholders})
+                  and s.superseded_by_step_id is null
+                  and (
+                    s.attempt_id is not null
+                    or s.status in ('selected','displayed','analyzing','completed','blocked')
+                  )
+                )
+            """
+            params.extend(cooldown_flow_ids)
+        return self.conn.execute(
+            f"""
+            select q.*
+            from flow_steps s
+            join question_items q on q.id = s.question_id
+            where s.question_id is not null
+              and (
+                (
+                  s.flow_id = ?
+                  and s.status <> 'superseded'
+                  and s.superseded_by_step_id is null
+                )
+                {cross_session_clause}
+              )
+            order by s.created_at desc, s.id desc
+            limit 400
+            """,
+            params,
+        ).fetchall()
+
+    def _cross_session_cooldown_flow_ids(self, flow: dict[str, Any]) -> list[str]:
+        local_date = str(flow.get("local_date") or "")[:10]
+        date_filters = ""
+        params: list[Any] = [
+            str(flow.get("child_key") or self.child_key),
+            str(flow.get("question_bank_version") or ""),
+            str(flow.get("id") or ""),
+        ]
+        try:
+            anchor = date.fromisoformat(local_date)
+        except ValueError:
+            anchor = None
+        if anchor is not None:
+            cutoff = anchor - timedelta(days=CROSS_SESSION_COOLDOWN_DAYS)
+            date_filters = "and local_date between ? and ?"
+            params.extend([cutoff.isoformat(), anchor.isoformat()])
+        params.append(CROSS_SESSION_COOLDOWN_FLOW_LIMIT)
+        rows = self.conn.execute(
+            f"""
+            select id
+            from daily_flows
+            where child_key = ?
+              and question_bank_version = ?
+              and id <> ?
+              {date_filters}
+            order by local_date desc, updated_at desc, created_at desc, id desc
+            limit ?
+            """,
+            params,
+        ).fetchall()
+        return [str(row["id"]) for row in rows if row["id"]]
 
     def _question_bank_version_for_flow(self, flow_id: str) -> str:
         if not flow_id:
@@ -9434,6 +11033,7 @@ class DailyLearningRuntime:
         teaching_sections: dict[str, Any] | None = None,
         knowledge_card_components: list[dict[str, Any]] | None = None,
         assessment_feedback: dict[str, Any] | None = None,
+        continue_label: str = "",
         initial_status: str = "selected",
         answer_contract: dict[str, Any] | None = None,
     ) -> str:
@@ -9503,27 +11103,93 @@ class DailyLearningRuntime:
             if isinstance(selection_reason.get("mini_group"), dict)
             else {}
         )
-        if isinstance(mini_group.get("usage_context"), dict):
+        mini_group_id = str(mini_group.get("id") or "").strip()
+        problem_instance_fingerprint = _question_structure_repetition_fingerprint(
+            question,
+            prefer_problem_instance=True,
+        )
+        if step_type == "clarify_evidence":
+            source_attempt_id = str(selection_reason.get("source_attempt_id") or "")
+            source_step_id = str(selection_reason.get("source_step_id") or "")
+            if not source_attempt_id or not source_step_id:
+                raise ValueError("clarify evidence must inherit an explicit source attempt and step")
+            source_attempt = db.get_attempt(self.conn, source_attempt_id)
+            source_step = self.conn.execute(
+                "select flow_id, question_id from flow_steps where id = ?",
+                (source_step_id,),
+            ).fetchone()
+            if (
+                not source_step
+                or str(source_step["flow_id"] or "") != flow_id
+                or str(source_step["question_id"] or "") != str(question.get("id") or "")
+                or str(source_attempt.get("flow_step_id") or "") != source_step_id
+                or str(source_attempt.get("question_id") or "") != str(question.get("id") or "")
+            ):
+                raise ValueError("clarify evidence source lineage does not match the inherited question")
+        if (
+            step_type in UNIQUE_PROBLEM_INSTANCE_STEP_TYPES
+            and problem_instance_fingerprint.startswith("problem_instance:")
+        ):
+            existing_steps = self.conn.execute(
+                """
+                select *
+                from flow_steps
+                where flow_id = ?
+                  and question_id is not null
+                  and superseded_by_step_id is null
+                order by position, created_at, id
+                """,
+                (flow_id,),
+            ).fetchall()
+            for existing_row in existing_steps:
+                existing_step = dict(existing_row)
+                if str(existing_step.get("step_type") or "") not in UNIQUE_PROBLEM_INSTANCE_STEP_TYPES:
+                    continue
+                existing_question_id = str(existing_step.get("question_id") or "")
+                if not existing_question_id:
+                    continue
+                try:
+                    existing_question = db.get_question(self.conn, existing_question_id)
+                except KeyError:
+                    continue
+                existing_fingerprint = _question_structure_repetition_fingerprint(
+                    existing_question,
+                    prefer_problem_instance=True,
+                )
+                if existing_fingerprint == problem_instance_fingerprint:
+                    existing_group = self._mini_group_meta(existing_step)
+                    same_group = bool(
+                        mini_group_id
+                        and existing_group
+                        and existing_group.get("id") == mini_group_id
+                    )
+                    raise ValueError(
+                        (
+                            "mini-group duplicate problem instance rejected: "
+                            if same_group
+                            else "answerable problem instance already seen in flow: "
+                        )
+                        + f"{mini_group_id}:{problem_instance_fingerprint}"
+                    )
+        if step_type == "assessment_feedback":
+            raw_usage_context = None
+        elif isinstance(mini_group.get("usage_context"), dict):
             raw_usage_context = dict(mini_group["usage_context"])
         elif isinstance(selection_reason.get("requested_usage_context"), dict):
+            requested_context = dict(selection_reason["requested_usage_context"])
+            requested_block_id = str(requested_context.get("block_id") or f"STEP-{step_id}")
+            requested_block_index = int(requested_context.get("block_index") or 1)
             raw_usage_context = self._step_usage_context_for_question(
                 question_id=str(question.get("id") or ""),
                 step_type=step_type,
                 group_role="",
                 selection_reason=selection_reason,
-                block_id=f"STEP-{step_id}",
-                block_index=1,
-                requested_usage=dict(selection_reason["requested_usage_context"]),
+                block_id=requested_block_id,
+                block_index=requested_block_index,
+                requested_usage=requested_context,
             )
         else:
-            raw_usage_context = self._step_usage_context_for_question(
-                question_id=str(question.get("id") or ""),
-                step_type=step_type,
-                group_role="",
-                selection_reason=selection_reason,
-                block_id=f"STEP-{step_id}",
-                block_index=1,
-            )
+            raise ValueError("question usage context must be selected before step creation")
         question_interaction_schema = (
             _child_safe_interaction_schema(question.get("interaction_schema"))
             if isinstance(question.get("interaction_schema"), dict)
@@ -9635,7 +11301,10 @@ class DailyLearningRuntime:
                     "upload_enabled": upload_enabled,
                     "stuck_enabled": True,
                     "hint": hint,
-                    "continue_label": "继续下一题" if assessment_feedback else "",
+                    "continue_label": (
+                        str(continue_label or "").strip()
+                        or ("继续下一题" if assessment_feedback else "")
+                    ),
                     "requires_explanation": requires_explanation,
                     "interaction_schema": child_interaction_schema,
                     "teaching_sections": teaching_sections or {},
@@ -9660,14 +11329,15 @@ class DailyLearningRuntime:
                 now,
             ),
         )
-        db.record_flow_step_usage_context(
-            self.conn,
-            flow_step_id=step_id,
-            question_id=str(question.get("id") or ""),
-            context=raw_usage_context,
-            item_version=str(question.get("item_version") or ""),
-            commit=False,
-        )
+        if raw_usage_context is not None:
+            db.record_flow_step_usage_context(
+                self.conn,
+                flow_step_id=step_id,
+                question_id=str(question.get("id") or ""),
+                context=raw_usage_context,
+                item_version=str(question.get("item_version") or ""),
+                commit=False,
+            )
         return step_id
 
     def _question_visual_for_question(
@@ -9723,6 +11393,130 @@ class DailyLearningRuntime:
             encoded = base64.b64encode(data).decode("ascii")
             return f"data:{attachment['content_type']};base64,{encoded}"
         return None
+
+    def _answer_photo_attachment_for_attempt(self, attempt_id: str) -> dict[str, Any] | None:
+        matches = [
+            attachment
+            for attachment in db.attachments_for_attempt(self.conn, attempt_id)
+            if attachment.get("kind") == "answer_photo"
+            and attachment.get("content_type") in ALLOWED_ANSWER_PHOTO_TYPES
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def _photo_ocr_projection_from_run(
+        self,
+        recognition_run: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "status": recognition_run.get("recognition_status") or "error",
+            "confidence": float(recognition_run.get("recognition_confidence") or 0.0),
+            "transcript": str(recognition_run.get("recognized_text") or ""),
+            "math_objects": list(recognition_run.get("math_objects") or []),
+            "notes": "已从不可变识别记录恢复。",
+            "recognition_run_id": recognition_run["id"],
+            "output_digest_sha256": recognition_run["output_digest_sha256"],
+            "route_digest_sha256": recognition_run.get("route_digest_sha256") or "",
+            "provider_mode": recognition_run.get("provider_mode") or "not_configured",
+        }
+
+    def _photo_ocr_evidence_for_attempt(
+        self,
+        *,
+        attempt: dict[str, Any],
+        step: dict[str, Any],
+        question: dict[str, Any],
+        photo_data_url: str,
+    ) -> dict[str, Any]:
+        attachment = self._answer_photo_attachment_for_attempt(attempt["id"])
+        if attachment is None:
+            raise ValueError("photo answer must bind exactly one immutable attachment")
+        existing = db.find_media_recognition_run(
+            self.conn,
+            flow_step_id=step["id"],
+            step_revision=int(step.get("step_revision") or 1),
+            input_mode="photo",
+            media_sha256=str(attachment.get("sha256") or ""),
+            media_byte_size=int(attachment.get("byte_size") or 0),
+            media_version=multimodal_evidence.MEDIA_VERSION,
+            recognizer_version=multimodal_evidence.PHOTO_ANSWER_RECOGNIZER_VERSION,
+        )
+        if existing:
+            db.validate_media_recognition_run_integrity(existing)
+            return self._photo_ocr_projection_from_run(existing)
+
+        photo_ocr = auto_review._review_answer_photo(
+            question,
+            attempt["answer_raw"],
+            photo_data_url,
+        )
+        status = str(photo_ocr.get("status") or "error")
+        if status not in multimodal_evidence.RECOGNITION_RUN_STATUSES:
+            status = "error"
+        route_meta = photo_ocr.get("route") if isinstance(photo_ocr.get("route"), dict) else {}
+        provider_mode = (
+            "live_model"
+            if route_meta.get("provider") and route_meta.get("model")
+            else "not_configured" if status == "not_configured" else "recorded_model"
+        )
+        with self.conn:
+            recognition_run = db.record_media_recognition_run(
+                self.conn,
+                flow_step_id=step["id"],
+                step_revision=int(step.get("step_revision") or 1),
+                question_id=question["id"],
+                input_mode="photo",
+                media_sha256=str(attachment.get("sha256") or ""),
+                media_byte_size=int(attachment.get("byte_size") or 0),
+                media_version=multimodal_evidence.MEDIA_VERSION,
+                content_type=str(attachment.get("content_type") or ""),
+                recognizer_version=multimodal_evidence.PHOTO_ANSWER_RECOGNIZER_VERSION,
+                recognition_status=status,
+                provider_mode=provider_mode,
+                recognition_source="answer_photo_ocr",
+                route_digest_sha256=db._digest_json(route_meta),
+                recognized_text=str(photo_ocr.get("transcript") or ""),
+                math_objects=list(photo_ocr.get("math_objects") or []),
+                recognition_confidence=float(photo_ocr.get("confidence") or 0.0),
+                commit=False,
+            )
+        return {
+            **photo_ocr,
+            "recognition_run_id": recognition_run["id"],
+            "output_digest_sha256": recognition_run["output_digest_sha256"],
+            "route_digest_sha256": recognition_run.get("route_digest_sha256") or "",
+            "provider_mode": recognition_run.get("provider_mode") or provider_mode,
+        }
+
+    def _validate_photo_ocr_evidence_for_commit(
+        self,
+        *,
+        attempt: dict[str, Any],
+        step: dict[str, Any],
+        photo_ocr: dict[str, Any] | None,
+    ) -> None:
+        if not photo_ocr:
+            return
+        run_id = str(photo_ocr.get("recognition_run_id") or "")
+        expected_digest = str(photo_ocr.get("output_digest_sha256") or "")
+        if not run_id or not expected_digest:
+            raise ValueError("photo OCR evidence is missing immutable lineage")
+        recognition_run = db.get_media_recognition_run(self.conn, run_id)
+        db.validate_media_recognition_run_integrity(recognition_run)
+        if recognition_run.get("output_digest_sha256") != expected_digest:
+            raise ValueError("photo OCR evidence changed after semantic analysis")
+        attachment = self._answer_photo_attachment_for_attempt(attempt["id"])
+        if attachment is None:
+            raise ValueError("photo OCR evidence lost its immutable attachment")
+        multimodal_evidence.validate_recognition_binding(
+            recognition_run,
+            flow_step_id=step["id"],
+            step_revision=int(step.get("step_revision") or 1),
+            question_id=str(step.get("question_id") or ""),
+            input_mode="photo",
+            media_sha256=str(attachment.get("sha256") or ""),
+            media_byte_size=int(attachment.get("byte_size") or 0),
+            media_version=multimodal_evidence.MEDIA_VERSION,
+        )
 
     def _record_model_agent_run(
         self,
@@ -10227,7 +12021,15 @@ class DailyLearningRuntime:
 
         if attempt.get("blocking_evidence") or attempt.get("result") in {"wrong", "partial"}:
             if attempt.get("blocking_evidence") or attempt.get("result") == "wrong":
-                next_selection = self._next_selection_after_attempt(flow, attempt=attempt)
+                prerequisite_usage_request = {
+                    "purpose": "diagnostic",
+                    "purpose_role": "prerequisite_probe",
+                }
+                next_selection = self._next_selection_after_attempt(
+                    flow,
+                    attempt=attempt,
+                    required_purpose=prerequisite_usage_request["purpose"],
+                )
                 if next_selection and next_selection.get("action") == "prerequisite_probe":
                     decision = self._record_next_step_decision(
                         flow=flow,
@@ -10251,6 +12053,11 @@ class DailyLearningRuntime:
                         selection_reason={
                             **(next_selection.get("selection_reason") or {}),
                             "source_next_step_decision_id": decision["id"],
+                            "requested_usage_context": self._explicit_question_usage_context(
+                                question_id=str(next_selection["question"].get("id") or ""),
+                                requested_usage=prerequisite_usage_request,
+                                block_id=f"DIAG-{uuid.uuid4().hex[:12]}",
+                            ),
                         },
                         candidate_packet=next_selection.get("candidate_packet") or {},
                         support_hint="先回到更前面的关键关系，用一题小检查确认断点。",
@@ -10299,7 +12106,15 @@ class DailyLearningRuntime:
             )
             return decision
 
-        next_selection = self._next_selection_after_attempt(flow, attempt=attempt)
+        next_usage_request = {
+            "purpose": "diagnostic",
+            "purpose_role": "confirmation_transfer",
+        }
+        next_selection = self._next_selection_after_attempt(
+            flow,
+            attempt=attempt,
+            required_purpose=next_usage_request["purpose"],
+        )
         if not next_selection:
             decision = self._record_next_step_decision(
                 flow=flow,
@@ -10356,6 +12171,11 @@ class DailyLearningRuntime:
         selection_reason = {
             **(next_selection.get("selection_reason") or {}),
             "source_next_step_decision_id": decision["id"],
+            "requested_usage_context": self._explicit_question_usage_context(
+                question_id=str(next_selection["question"].get("id") or ""),
+                requested_usage=next_usage_request,
+                block_id=f"DIAG-{uuid.uuid4().hex[:12]}",
+            ),
         }
         new_step_id = self._create_question_step(
             flow_id=flow_id,
@@ -10393,6 +12213,17 @@ class DailyLearningRuntime:
         needs_repair: bool,
     ) -> str:
         feedback = assessment_store.assessment_feedback_projection(assessment)
+        planned_decision = self.conn.execute(
+            "select action from next_step_decisions where id = ?",
+            (source_next_step_decision_id,),
+        ).fetchone()
+        planned_action = str(planned_decision["action"] or "") if planned_decision else ""
+        continue_label = {
+            "summary": "完成今天学习",
+            "teaching_repair": "看完，继续讲解",
+            "worked_example": "看完，继续例题",
+            "ready_for_new_knowledge": "看完，学习新知识",
+        }.get(planned_action, "看完，继续下一题")
         reference = contract.get("reference_solution") if isinstance(contract.get("reference_solution"), dict) else {}
         solution_steps = [
             str(item).strip()
@@ -10463,6 +12294,7 @@ class DailyLearningRuntime:
             answer_input_mode="none",
             teaching_sections=teaching_sections,
             assessment_feedback=feedback,
+            continue_label=continue_label,
         )
 
     def _create_teaching_repair_step(
@@ -10473,7 +12305,10 @@ class DailyLearningRuntime:
         source_step_id: str,
         source_next_step_decision_id: str,
         position: int,
+        initial_status: str = "selected",
     ) -> str:
+        if initial_status not in {"selected", "planned"}:
+            raise ValueError("teaching repair initial status must be selected or planned")
         if source_next_step_decision_id:
             existing = self.conn.execute(
                 """
@@ -10492,14 +12327,35 @@ class DailyLearningRuntime:
         analysis = source_attempt.get("answer_analysis") or {}
         question = db.get_question(self.conn, source_attempt["question_id"])
         node = self.conn.execute("select name from graph_nodes where id = ?", (source_attempt["node_id"],)).fetchone()
-        first_break = (
-            analysis.get("process_gap")
-            or analysis.get("teaching_explanation")
-            or "这一步的关键关系、步骤或检验还不够稳。"
-        )
-        next_prompt = analysis.get("next_child_prompt") or "接下来用一道小检查确认这一步是否修住。"
+        explicit_stuck = source_attempt.get("answer_source") == "v3_stuck"
+        reference_steps = [
+            str(item).strip()
+            for item in (question.get("solution_steps") or [])
+            if str(item).strip()
+        ]
+        if explicit_stuck:
+            first_step = reference_steps[0] if reference_steps else str(question.get("expected_answer") or "").strip()
+            first_break = f"这道题先从这里开始：{first_step}"
+            teaching_explanation = first_step
+            next_prompt = "看懂这一步后，用同一知识点的另一道小题自己试一次。"
+        else:
+            first_break = (
+                analysis.get("process_gap")
+                or analysis.get("teaching_explanation")
+                or "这一步的关键关系、步骤或检验还不够稳。"
+            )
+            teaching_explanation = analysis.get("teaching_explanation") or first_break
+            next_prompt = analysis.get("next_child_prompt") or "接下来用一道小检查确认这一步是否修住。"
         now = db.now_iso()
         step_id = f"FS-{uuid.uuid4().hex[:12]}"
+        usage_context = self._explicit_question_usage_context(
+            question_id=str(question.get("id") or ""),
+            requested_usage={
+                "purpose": "teaching",
+                "purpose_role": "targeted_repair",
+            },
+            block_id=f"TEACH-{step_id}",
+        )
         self.conn.execute(
             """
             insert into flow_steps(
@@ -10508,13 +12364,14 @@ class DailyLearningRuntime:
               review_record_id, expected_evidence_json, prompt_package_json,
               selection_reason_json, source_next_step_decision_id, candidate_packet_id,
               step_revision, created_at, updated_at
-            ) values (?, ?, ?, ?, 'teaching_repair', 'selected', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 1, ?, ?)
+            ) values (?, ?, ?, ?, 'teaching_repair', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 1, ?, ?)
             """,
             (
                 step_id,
                 flow["id"],
                 f"step-{uuid.uuid4().hex[:10]}",
                 int(position),
+                initial_status,
                 flow["graph_version"],
                 source_attempt["node_id"],
                 flow.get("question_bank_version") or question_bank.QUESTION_BANK_VERSION,
@@ -10525,21 +12382,34 @@ class DailyLearningRuntime:
                 db.json_dump({
                     "title": "先修这一处",
                     "topic_label": node["name"] if node else "先修这一处",
-                    "prompt": f"刚才的关键断点：{first_break}\n\n先看这一句：{analysis.get('teaching_explanation') or first_break}\n\n下一步：{next_prompt}",
+                    "prompt": f"刚才的关键断点：{first_break}\n\n先看这一句：{teaching_explanation}\n\n下一步：{next_prompt}",
                     "answer_input_mode": "none",
                     "upload_enabled": False,
                     "stuck_enabled": True,
                     "hint": "看完后点继续，系统会给一题很小的检查；如果还是卡住，也可以直接说卡住。",
                 }),
                 db.json_dump({
-                    "reason": "teaching_repair_after_usable_weak_evidence",
+                    "reason": (
+                        "teaching_repair_after_explicit_stuck"
+                        if explicit_stuck
+                        else "teaching_repair_after_usable_weak_evidence"
+                    ),
                     "source_attempt_id": source_attempt["id"],
                     "source_step_id": source_step_id,
+                    "requested_usage_context": usage_context,
                 }),
                 source_next_step_decision_id,
                 now,
                 now,
             ),
+        )
+        db.record_flow_step_usage_context(
+            self.conn,
+            flow_step_id=step_id,
+            question_id=str(question.get("id") or ""),
+            context=usage_context,
+            item_version=str(question.get("item_version") or ""),
+            commit=False,
         )
         return step_id
 
@@ -10577,7 +12447,13 @@ class DailyLearningRuntime:
             "reason": "这次输入可以用于题后反馈，但不能作为掌握证据；留在原知识点，用可信输入再确认一次。",
         }
 
-    def _next_selection_after_attempt(self, flow: dict[str, Any], *, attempt: dict[str, Any]) -> dict[str, Any] | None:
+    def _next_selection_after_attempt(
+        self,
+        flow: dict[str, Any],
+        *,
+        attempt: dict[str, Any],
+        required_purpose: str = "",
+    ) -> dict[str, Any] | None:
         if not self._attempt_recognition_allows_mastery(str(attempt.get("id") or "")):
             return self._same_node_trusted_reconfirmation_selection(
                 flow,
@@ -10603,6 +12479,7 @@ class DailyLearningRuntime:
                     target_error_tags=target_error_tags,
                     unstable_dimensions=unstable_dimensions,
                     selection_intent="wrong_blocking",
+                    required_purpose=required_purpose,
                 )
                 if selected:
                     return {
@@ -10620,6 +12497,7 @@ class DailyLearningRuntime:
                 target_error_tags=target_error_tags,
                 unstable_dimensions=unstable_dimensions,
                 selection_intent="partial_unstable",
+                required_purpose=required_purpose,
             )
             if selected:
                 return {**selected, "action": "same_structure_retest", "reason": "思路部分成立但不稳定，换一道同结构题确认。"}
@@ -10638,6 +12516,7 @@ class DailyLearningRuntime:
                 preferred_kinds=["stretch_transfer", "transfer_retest", "variant", "reverse_reasoning", "error_spotting"],
                 selection_intent="simple_foundation_extension",
                 next_evidence_goal="transfer_or_stretch_after_brief_validation",
+                required_purpose=required_purpose,
             )
             if selected:
                 action = "stretch" if self._selection_looks_like_stretch(selected) else "near_transfer_retest"
@@ -10659,6 +12538,7 @@ class DailyLearningRuntime:
                 next_evidence_goal="stretch_readiness",
                 learner_status=stable_context["learner_status"],
                 prerequisite_ready=stable_context["prerequisite_ready"],
+                required_purpose=required_purpose,
             )
             if selected:
                 action = "stretch" if self._selection_looks_like_stretch(selected) else "near_transfer_retest"
@@ -10676,6 +12556,7 @@ class DailyLearningRuntime:
             preferred_kinds=["variant", "transfer_retest", "reverse_reasoning", "error_spotting"],
             selection_intent="correct_narrow",
             next_evidence_goal="near_transfer_retest",
+            required_purpose=required_purpose,
         )
         if selected:
             return {**selected, "action": "near_transfer_retest", "reason": "本题过程成立，换近迁移题确认是否真的稳定。"}
@@ -10927,19 +12808,73 @@ class DailyLearningRuntime:
             reason=reason,
             target_node_id=attempt["node_id"],
         )
+        source_step = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (source_step_id,),
+        ).fetchone() if source_step_id else None
+        if source_step:
+            self._invalidate_deferred_mini_group_attempts_on_clarification(
+                step_dict=dict(source_step),
+                source_attempt_id=attempt["id"],
+                clarification_decision_id=decision["id"],
+            )
+        review_meta = dict(attempt.get("review_meta") or {})
+        review_meta.update(
+            {
+                "status": "superseded_by_clarification",
+                "clarification_decision_id": decision["id"],
+            }
+        )
+        self.conn.execute(
+            """
+            update attempts
+            set grading_status = 'blocked',
+                result = 'submitted',
+                evidence_status = 'invalidated',
+                analysis_status = 'invalidated',
+                evidence_note = 'Unclear source evidence was superseded by a clarification request.',
+                parent_note = 'The source answer was not graded; clarification is required before any new judgment.',
+                review_meta_json = ?
+            where id = ?
+              and grading_status = 'pending_review'
+              and evidence_status = 'active'
+            """,
+            (db.json_dump(review_meta), attempt["id"]),
+        )
+        self.conn.execute(
+            """
+            update attempt_assessments
+            set status = 'rejected',
+                rejection_reason = 'superseded_by_clarification',
+                updated_at = ?
+            where attempt_id = ? and status = 'pending'
+            """,
+            (db.now_iso(), attempt["id"]),
+        )
         question = db.get_question(self.conn, attempt["question_id"])
         answer_contract = (
             assessment_store.bound_active_contract_for_flow_step(self.conn, source_step_id)
             if source_step_id
             else None
         ) or self._active_answer_contract_for_question(question)
+        clarification_usage_context = self._explicit_question_usage_context(
+            question_id=str(question.get("id") or ""),
+            requested_usage=self._clarification_usage_request(question["id"]),
+            block_id=f"CLARIFY-{uuid.uuid4().hex[:12]}",
+        )
         step_id = self._create_question_step(
             flow_id=flow_id,
             position=int(self.conn.execute("select count(*) from flow_steps where flow_id = ?", (flow_id,)).fetchone()[0]) + 1,
             graph_version=flow["graph_version"],
             question=question,
             review_record_id=attempt.get("review_record_id") or "",
-            selection_reason={"reason": "clarify_unclear_evidence", "source_next_step_decision_id": decision["id"]},
+            selection_reason={
+                "reason": "clarify_unclear_evidence",
+                "source_attempt_id": attempt["id"],
+                "source_step_id": source_step_id,
+                "source_next_step_decision_id": decision["id"],
+                "requested_usage_context": clarification_usage_context,
+            },
             candidate_packet={},
             support_hint="刚才的答案或照片不够清楚。请用文字把关键步骤和最后答案补清楚，或重新拍一张清楚的纸面过程。",
             step_type="clarify_evidence",
@@ -11622,6 +13557,11 @@ def child_teaching_step_dto(step: dict[str, Any]) -> dict[str, Any]:
     feedback = step.get("assessment_feedback") if isinstance(step.get("assessment_feedback"), dict) else {}
     if feedback:
         dto["assessment_feedback"] = {
+            "scope": (
+                "mini_group"
+                if feedback.get("scope") == "mini_group"
+                else "single_question"
+            ),
             "score_label": _child_safe_text(feedback.get("score_label") or "", "", limit=20),
             "reference_answer": _child_safe_chinese_feedback_text(
                 feedback.get("reference_answer") or "",
@@ -11648,6 +13588,39 @@ def child_teaching_step_dto(step: dict[str, Any]) -> dict[str, Any]:
                 limit=500,
             ),
         }
+        if feedback.get("scope") == "mini_group":
+            dto["assessment_feedback"]["items"] = [
+                {
+                    "index": int(item.get("index") or index),
+                    "score_label": _child_safe_text(item.get("score_label") or "", "", limit=20),
+                    "reference_answer": _child_safe_chinese_feedback_text(
+                        item.get("reference_answer") or "",
+                        "参考答案暂时不能安全展示，请先看本题解析。",
+                        limit=700,
+                    ),
+                    "answer_gap": _child_safe_chinese_feedback_text(
+                        item.get("answer_gap") or "",
+                        "核心思路先看是否成立；如果只差规范表达，补一句即可。",
+                        limit=500,
+                    ),
+                    "improvement_direction": _dedupe_child_safe_texts([
+                        _child_safe_chinese_feedback_text(
+                            suggestion,
+                            "如果核心思路已经对了，只补一句必要的数学说明。",
+                            limit=220,
+                        )
+                        for suggestion in (item.get("improvement_direction") or [])
+                        if str(suggestion or "").strip()
+                    ])[:3],
+                    "expression_judgment": _child_safe_chinese_feedback_text(
+                        item.get("expression_judgment") or "",
+                        "表达按数学意图判断；意思清楚且数学成立即可。",
+                        limit=300,
+                    ),
+                }
+                for index, item in enumerate(feedback.get("items") or [], start=1)
+                if isinstance(item, dict)
+            ][:5]
     _assert_child_safe_projection(dto)
     return dto
 
@@ -11868,7 +13841,32 @@ def _route_for_v5_job_type(job_type: str) -> model_router.ModelRoute:
     return model_router.answer_analysis_route()
 
 
-def _question_structure_repetition_fingerprint(question: dict[str, Any]) -> str:
+def _finalize_candidate_packet(
+    packet: dict[str, Any],
+    candidates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    finalized = {
+        **packet,
+        "candidates": list(candidates),
+        "candidate_count": len(candidates),
+    }
+    finalized.pop("packet_hash", None)
+    finalized["packet_hash"] = hashlib.sha256(
+        json.dumps(
+            finalized,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return finalized
+
+
+def _question_structure_repetition_fingerprint(
+    question: dict[str, Any],
+    *,
+    prefer_problem_instance: bool = True,
+) -> str:
     metadata = question.get("metadata") if isinstance(question.get("metadata"), dict) else {}
     source = metadata.get("source") if isinstance(metadata.get("source"), dict) else {}
     node_alignment = (
@@ -11877,6 +13875,15 @@ def _question_structure_repetition_fingerprint(question: dict[str, Any]) -> str:
         else {}
     )
     quality = metadata.get("quality") if isinstance(metadata.get("quality"), dict) else {}
+    problem_instance_id = str(
+        question.get("problem_instance_id")
+        or source.get("problem_instance_id")
+        or node_alignment.get("problem_instance_id")
+        or quality.get("problem_instance_id")
+        or ""
+    ).strip()
+    if prefer_problem_instance and problem_instance_id:
+        return f"problem_instance:{problem_instance_id}"
     core_stem_id = str(
         question.get("core_stem_id")
         or source.get("core_stem_id")

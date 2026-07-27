@@ -23,6 +23,7 @@ from learning_system import (
     db,
     internal_agents,
     model_router,
+    question_bank,
     question_fingerprints,
     semantic_agents,
     test_support,
@@ -30,10 +31,6 @@ from learning_system import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PRE_V51_BACKUP_PATH = PROJECT_ROOT / (
-    "data/backups/local_learning_system.pre-v5.1."
-    "20260714-144846.c8b86311-456e-499c-970f-400a8d83d5b1.sqlite"
-)
 DESIGNER_AGENT_KEY = "answer_contract_designer_agent"
 DESIGNER_PHASE = "answer_contract_design"
 REVIEWER_AGENT_KEY = "answer_contract_reviewer_agent"
@@ -150,7 +147,7 @@ def _spawn_designer_cli_worker(script_path, db_path, checkpoint_root, queue):
             root,
             **kwargs,
         ):
-            if kwargs.get("probe_question_id") != "QB11-M-BRIDGE-CLOCK-ANGLE-01":
+            if kwargs.get("probe_question_id") != "FIXTURE-SPAWN-QUESTION-01":
                 raise AssertionError("CLI live probe must select one authoritative item")
             path = Path(root) / "spawn-probe-checkpoint.json"
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -205,7 +202,7 @@ def _spawn_designer_cli_worker(script_path, db_path, checkpoint_root, queue):
                         str(db_path),
                         "--design-live",
                         "--probe-item",
-                        "QB11-M-BRIDGE-CLOCK-ANGLE-01",
+                        "FIXTURE-SPAWN-QUESTION-01",
                         "--checkpoint-root",
                         str(checkpoint_root),
                         "--json",
@@ -437,12 +434,22 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
         ]
 
     def _clock_question(self):
-        questions = self._authoritative_questions()
-        return next(
-            question
-            for question in questions
-            if question["id"] == "QB11-M-BRIDGE-CLOCK-ANGLE-01"
-        )
+        return {
+            "id": "FIXTURE-CLOCK-ANGLE-01",
+            "item_version": question_bank.QUESTION_BANK_VERSION,
+            "question_bank_version": question_bank.QUESTION_BANK_VERSION,
+            "node_id": "M-PRE-UNIT-CONVERSION",
+            "kind": "standard_example",
+            "prompt": "3:30 时，钟面上时针和分针的较小夹角是多少度？",
+            "answer_format": "写出关键位置和夹角",
+            "expected_answer": "75°",
+            "solution_steps": [
+                "3:30 时分针方向为180°。",
+                "时针从3点方向继续移动15°，方向为105°。",
+                "较小夹角为180°-105°=75°。",
+                "时针每分钟转0.5°，30分钟转15°。",
+            ],
+        }
 
     def _sample_question(self, kind, index=0):
         return {
@@ -629,9 +636,8 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
             except TypeError as exc:
                 self.fail(f"run_design Stage 3.1 persistence call is invalid: {exc}")
 
-    def _prepare_pre_v51_single_draft(self, db_path, design_checkpoint_root):
-        self.assertTrue(PRE_V51_BACKUP_PATH.is_file(), PRE_V51_BACKUP_PATH)
-        shutil.copy2(PRE_V51_BACKUP_PATH, db_path)
+    def _prepare_single_draft(self, db_path, design_checkpoint_root):
+        shutil.copy2(self._seed_path, db_path)
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("pragma foreign_keys = on")
@@ -1656,7 +1662,7 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
         db_path = Path(self.tmpdir.name) / "pre-v51-one-contract-probe.sqlite"
         design_root = Path(self.tmpdir.name) / "single-design-checkpoint"
         review_root = Path(self.tmpdir.name) / "single-review-checkpoint"
-        question_id, designer_run_id = self._prepare_pre_v51_single_draft(
+        question_id, designer_run_id = self._prepare_single_draft(
             db_path, design_root
         )
 
@@ -1739,9 +1745,10 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
     def test_one_contract_probe_rejects_invalid_lineage_before_model_call(self):
         baseline_path = Path(self.tmpdir.name) / "pre-v51-probe-baseline.sqlite"
         design_root = Path(self.tmpdir.name) / "negative-design-checkpoint"
-        question_id, generator_run_id = self._prepare_pre_v51_single_draft(
+        question_id, generator_run_id = self._prepare_single_draft(
             baseline_path, design_root
         )
+        active_version = db.get_active_question_bank_version(self.conn)
         mutations = {
             "missing draft": lambda conn: conn.execute(
                 "delete from answer_contracts where question_id = ?",
@@ -1750,7 +1757,7 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
             "invalid question review record": lambda conn: conn.execute(
                 "update question_review_records set active_eligible = 0 "
                 "where question_id = ? and item_version = ?",
-                (question_id, "2026-07-08.bank.v11"),
+                (question_id, active_version),
             ),
             "non-live designer run": lambda conn: conn.execute(
                 "update agent_runs set model_provider = 'recorded_fixture' where id = ?",
@@ -1822,14 +1829,16 @@ class AnswerContractGenerationV51Tests(unittest.TestCase):
                 verify.close()
         self.assertEqual([], unexpected)
 
-    def test_formal_cli_migrates_pre_v51_copy_and_reuses_pre_failure_checkpoint(self):
-        legacy_source = (
-            PROJECT_ROOT
-            / "data/backups/local_learning_system.pre-v5.1.20260714-144846.c8b86311-456e-499c-970f-400a8d83d5b1.sqlite"
-        )
-        self.assertTrue(legacy_source.is_file(), legacy_source)
+    def test_formal_cli_repairs_missing_contract_schema_and_reuses_pre_failure_checkpoint(self):
         legacy_copy = Path(self.tmpdir.name) / "pre-v51-cli-probe.sqlite"
-        shutil.copy2(legacy_source, legacy_copy)
+        shutil.copy2(self._seed_path, legacy_copy)
+        legacy_fixture = sqlite3.connect(legacy_copy)
+        try:
+            legacy_fixture.execute("pragma foreign_keys = off")
+            legacy_fixture.execute("drop table answer_contracts")
+            legacy_fixture.commit()
+        finally:
+            legacy_fixture.close()
         checkpoint_root = Path(self.tmpdir.name) / "pre-v51-cli-checkpoints"
         generation = self._generation()
         route = self._enabled_design_route()
@@ -2090,14 +2099,21 @@ class AnswerContractDesignV2RepairLoopTests(unittest.TestCase):
         }
 
     def _real_clock_question_v11(self):
-        bank_version = db.get_active_question_bank_version(self.conn)
-        question = next(
-            question
-            for question, _review_record_id in answer_contract_activation._authoritative_questions(
-                self.conn, bank_version
-            )
-            if question["id"] == "QB11-M-BRIDGE-CLOCK-ANGLE-01"
-        )
+        question = {
+            "id": "FIXTURE-CLOCK-ANGLE-V2-01",
+            "item_version": question_bank.QUESTION_BANK_VERSION,
+            "question_bank_version": question_bank.QUESTION_BANK_VERSION,
+            "node_id": "M-PRE-UNIT-CONVERSION",
+            "kind": "standard_example",
+            "prompt": "3:30 时，钟面上时针和分针的较小夹角是多少度？",
+            "expected_answer": "75°",
+            "solution_steps": [
+                "3:30 时分针方向为180°。",
+                "时针从3点方向继续移动15°，方向为105°。",
+                "较小夹角为180°-105°=75°。",
+                "时针每分钟转0.5°，30分钟转15°。",
+            ],
+        }
         self.assertNotIn("reference_anchors", question)
         self.assertEqual("standard_example", question["kind"])
         return question
@@ -2603,14 +2619,7 @@ class AnswerContractDesignV2RepairLoopTests(unittest.TestCase):
 
     def test_real_v11_clock_angle_compiles_distinct_direct_and_derived_components(self):
         build_skeleton, compiler = self._v2_policy_api()
-        ledger = answer_contract_activation._active_ledger(self.conn)
-        question = next(
-            question
-            for question, _review_record_id in answer_contract_activation._authoritative_questions(
-                self.conn, ledger["question_bank_version"]
-            )
-            if question["id"] == "QB11-M-BRIDGE-CLOCK-ANGLE-01"
-        )
+        question = self._real_clock_question_v11()
         self.assertNotIn("reference_anchors", question)
         skeleton = build_skeleton(question)
         self.assertEqual(4, len(skeleton["allowed_slot_catalog"]))
@@ -2634,8 +2643,8 @@ class AnswerContractDesignV2RepairLoopTests(unittest.TestCase):
                 "slot_key": "intermediate_result",
                 "criterion": "计算时针半小时移动15°。",
                 "reference_evidence": {
-                    "claim": "计算时针半小时移动15°。",
-                    "source_anchor_keys": ["solution_step_3"],
+                    "claim": "时针从3点方向继续移动15°，方向为105°。",
+                    "source_anchor_keys": ["solution_step_2"],
                     "derivation_scope": "direct",
                 },
                 "confidence": 0.95,
@@ -2945,11 +2954,11 @@ class AnswerContractDesignV2RepairLoopTests(unittest.TestCase):
         self.assertFalse(audit["canary_ready"])
         self.assertFalse(audit["activation_ready"])
         self.assertEqual(
-            ["v12_scoring_policy_gate_required_for_clock_verification"],
+            [],
             generation_v2.v2_scoring_policy_activation_blockers(
                 {
-                    "question_id": "QB11-M-BRIDGE-CLOCK-ANGLE-01",
-                    "question_bank_version": "2026-07-08.bank.v11",
+                    "question_id": "FIXTURE-CLOCK-ANGLE-V2-01",
+                    "question_bank_version": question_bank.QUESTION_BANK_VERSION,
                 }
             ),
         )
@@ -4190,11 +4199,6 @@ class AnswerContractDesignV2RepairLoopTests(unittest.TestCase):
 
 
 class AnswerContractBatchACanaryRedTests(unittest.TestCase):
-    BLOCKER_IDS = (
-        "QB11-M-G7-NUMBER-LINE-19",
-        "QB11-M-G7-RATIONAL-ADD-SUB-09",
-        "QB11-M-BRIDGE-CLOCK-ANGLE-01",
-    )
 
     @classmethod
     def setUpClass(cls):
@@ -4312,11 +4316,11 @@ class AnswerContractBatchACanaryRedTests(unittest.TestCase):
         self.conn.commit()
 
     def _remove_known_blockers_for_state_machine_fixture(self):
-        for index, question_id in enumerate(self.BLOCKER_IDS, start=1):
-            self._rewrite_raw_question(
-                question_id,
-                replacement_id=f"QB11-FIXTURE-CLEAN-BLOCKER-{index:02d}",
-            )
+        self.assertEqual(frozenset(), answer_contract_activation.KNOWN_MISBOUND_IDS)
+        self.assertEqual(
+            frozenset(),
+            self._generation_v2().V12_SCORING_POLICY_GATE_QUESTION_IDS,
+        )
 
     def _route_pair(self):
         design = model_router.ModelRoute(
@@ -4549,36 +4553,37 @@ class AnswerContractBatchACanaryRedTests(unittest.TestCase):
             )
         return report, observer, calls
 
-    def test_full_bank_oracle_and_noncanary_clock_policy_block_before_calls(self):
-        generation = self._generation()
-        self._rewrite_raw_question(
-            "QB11-M-BRIDGE-CLOCK-ANGLE-01",
-            node_id="M-PRE-UNIT-CONVERSION",
-        )
-        try:
-            plan = generation.build_v2_batch_plan(
-                self.conn, PROJECT_ROOT, run_kind="canary40"
-            )
-        except answer_contract_batch_v2.BatchASkeletonBlocked as exc:
-            self.fail(f"Batch A plan is still skeleton-blocked: {exc.report}")
-        selected = {item["question_id"] for item in plan["items"]}
-        self.assertNotIn("QB11-M-BRIDGE-CLOCK-ANGLE-01", selected)
+    def test_model_configuration_blockers_stop_before_semantic_calls(self):
         calls = []
 
         def forbidden(packet):
             calls.append(packet)
             raise AssertionError("blocked preflight invoked a semantic callback")
 
-        report = self._report_from_run(designer=forbidden, reviewer=forbidden)
+        disabled = model_router.ModelRoute(
+            agent_key=DESIGNER_AGENT_KEY,
+            task="answer_contract_design_v2",
+            provider="openai",
+            model="gpt-5.5",
+            model_alias="gpt-5.5",
+            base_url="",
+            api_key="",
+            timeout_seconds=30.0,
+            model_params={"temperature": 0},
+        )
+        with mock.patch.object(
+            model_router, "answer_contract_design_v2_route", return_value=disabled
+        ), mock.patch.object(
+            model_router, "answer_contract_review_v2_route", return_value=disabled
+        ):
+            report = self._report_from_run(designer=forbidden, reviewer=forbidden)
         self.assertEqual("completed_blocked", report.get("status"), report)
         self.assertEqual([], calls)
         self.assertEqual(0, report.get("model_calls"), report)
         self.assertEqual(0, report.get("provider_attempts"), report)
         serialized = json.dumps(report, ensure_ascii=False, sort_keys=True)
-        self.assertIn("QB11-M-BRIDGE-CLOCK-ANGLE-01", serialized)
-        self.assertIn("v12_scoring_policy_gate_required_for_clock_verification", serialized)
-        self.assertIn("QB11-M-G7-NUMBER-LINE-19", serialized)
-        self.assertIn("QB11-M-G7-RATIONAL-ADD-SUB-09", serialized)
+        self.assertIn("designer_model_not_configured", serialized)
+        self.assertIn("reviewer_model_not_configured", serialized)
         counts = self._batch_counts()
         self.assertEqual(1, counts["answer_contract_generation_runs"])
         self.assertEqual(40, counts["answer_contract_generation_run_items"])

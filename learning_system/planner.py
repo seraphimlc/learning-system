@@ -541,6 +541,19 @@ def _question_core_stem_id(question: dict[str, Any]) -> str:
     ).strip()
 
 
+def _question_problem_instance_id(question: dict[str, Any]) -> str:
+    source = question.get("source") if isinstance(question.get("source"), dict) else {}
+    node_alignment = question.get("node_alignment") if isinstance(question.get("node_alignment"), dict) else {}
+    quality = question.get("quality") if isinstance(question.get("quality"), dict) else {}
+    return str(
+        question.get("problem_instance_id")
+        or source.get("problem_instance_id")
+        or node_alignment.get("problem_instance_id")
+        or quality.get("problem_instance_id")
+        or ""
+    ).strip()
+
+
 def _task_core_signature(task: dict[str, Any]) -> str:
     question = task.get("question") if isinstance(task.get("question"), dict) else {}
     if not question:
@@ -560,6 +573,9 @@ def _task_round_identity_signatures(task: dict[str, Any]) -> set[str]:
     core_stem_id = _question_core_stem_id(question)
     if core_stem_id:
         signatures.add(f"stem:{core_stem_id}")
+    problem_instance_id = _question_problem_instance_id(question)
+    if problem_instance_id:
+        signatures.add(f"problem_instance:{problem_instance_id}")
     return signatures
 
 
@@ -657,6 +673,7 @@ def quality_gates(conn: sqlite3.Connection, tasks: list[dict[str, Any]]) -> dict
             core_signatures.append(core_signature)
     problem_family_ids: list[str] = []
     core_stem_ids: list[str] = []
+    problem_instance_ids: list[str] = []
     current_active = True
     graph_bound = True
     no_low_age_mechanical_padding = True
@@ -676,10 +693,13 @@ def quality_gates(conn: sqlite3.Connection, tasks: list[dict[str, Any]]) -> dict
         review_check = question.get("review_agent_check") if isinstance(question.get("review_agent_check"), dict) else {}
         problem_family_id = _question_problem_family_id(question)
         core_stem_id = _question_core_stem_id(question)
+        problem_instance_id = _question_problem_instance_id(question)
         if problem_family_id:
             problem_family_ids.append(problem_family_id)
         if core_stem_id:
             core_stem_ids.append(core_stem_id)
+        if problem_instance_id:
+            problem_instance_ids.append(problem_instance_id)
         if (
             raw_quality.get("no_mechanical_drill") is not True
             and review_check.get("no_mechanical_drill") is not True
@@ -688,8 +708,10 @@ def quality_gates(conn: sqlite3.Connection, tasks: list[dict[str, Any]]) -> dict
     semantic_unique = (
         len(tasks) == LEARNING_ROUND_TASK_COUNT
         and len(set(core_signatures)) == len(core_signatures)
+        and len(problem_instance_ids) == len(tasks)
         and len(set(problem_family_ids)) == len(problem_family_ids)
         and len(set(core_stem_ids)) == len(core_stem_ids)
+        and len(set(problem_instance_ids)) == len(problem_instance_ids)
     )
     return {
         "current_active_question_bank": current_active and len(tasks) == LEARNING_ROUND_TASK_COUNT,
@@ -820,14 +842,7 @@ def _append_task(
             task = candidate
             break
     if task is None:
-        task = _task_for_node(
-            conn,
-            node_id,
-            task_type,
-            reason,
-            planning_signal=planning_signal,
-            slot_index=slot_index,
-        )
+        return False
     task["source_node_ids"] = [source_node_id]
     for existing in tasks:
         if existing["question_id"] == task["question_id"]:

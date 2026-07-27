@@ -306,7 +306,7 @@ try {
   const microCheckView = await teachingPage.evaluate(() => ({
     formVisible: Boolean(document.querySelector("#childAttemptForm")?.offsetParent),
     photoHidden: document.querySelector(".photo-field")?.hidden,
-    label: document.querySelector(".question-block span")?.textContent || "",
+    label: document.querySelector(".question-block-label")?.textContent || "",
   }));
   assert(microCheckView.formVisible === true, "Micro-check after teaching should show answer form");
   assert(microCheckView.photoHidden === true, "Text-only micro-check should hide photo upload");
@@ -315,6 +315,7 @@ try {
 
   const clarifyPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   let clarifyCannotProvideRequest = null;
+  let clarifyCannotProvideRequestCount = 0;
   await clarifyPage.route("**/api/child-bootstrap", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -339,6 +340,7 @@ try {
     }),
   }));
   await clarifyPage.route("**/api/current-step/submit", async (route) => {
+    clarifyCannotProvideRequestCount += 1;
     clarifyCannotProvideRequest = JSON.parse(route.request().postData() || "{}");
     await route.fulfill({
       status: 200,
@@ -362,7 +364,7 @@ try {
   await clarifyPage.goto(baseUrl);
   await clarifyPage.waitForFunction(() => window.ChildLearningShell?.currentState() === "clarify_evidence");
   const clarifyView = await clarifyPage.evaluate(() => ({
-    label: document.querySelector(".question-block span")?.textContent || "",
+    label: document.querySelector(".question-block-label")?.textContent || "",
     submit: document.querySelector("#childSubmitBtn")?.textContent || "",
     formVisible: Boolean(document.querySelector("#childAttemptForm")?.offsetParent),
     photoHidden: document.querySelector(".photo-field")?.hidden,
@@ -387,8 +389,13 @@ try {
       .find((candidate) => /无法补充|不能补充|还是不清楚|仍然不清楚/.test(candidate.textContent || ""));
     button?.click();
   });
-  await clarifyPage.click("#childSubmitBtn");
   await clarifyPage.waitForFunction(() => window.ChildLearningShell?.currentState() === "summary");
+  assert(clarifyCannotProvideRequestCount === 1, "Cannot-provide clarification should submit exactly one request");
+  assert(
+    typeof clarifyCannotProvideRequest?.client_idempotency_key === "string"
+      && clarifyCannotProvideRequest.client_idempotency_key.length > 0,
+    "Cannot-provide clarification should carry one client idempotency key",
+  );
   assert(clarifyCannotProvideRequest?.stuck === true, "Cannot-provide clarification should submit an explicit stuck/cannot-provide signal");
   assert(
     /无法补充|不能补充|还是不清楚|仍然不清楚/.test(clarifyCannotProvideRequest?.answer_text || ""),
@@ -879,8 +886,7 @@ try {
   assertChildSafe(JSON.stringify(currentStepPayload), "current-step payload");
   assertChildSafe(currentStepView.content, "current-step content");
 
-  await page.click('[data-v3-stuck-prompt*="不知道第一步"]');
-  await page.waitForFunction(() => document.querySelector("#childAnswerRaw")?.value.includes("不知道第一步"));
+  await page.fill("#childAnswerRaw", "我不知道第一步，但先写下目前能确定的关系。");
 
   fs.writeFileSync(invalidUploadPath, "not an image");
   await page.setInputFiles("#childAnswerPhoto", invalidUploadPath);
@@ -907,8 +913,6 @@ try {
   await page.waitForSelector("#childPhotoPreview:not([hidden])");
   await page.waitForFunction(() => document.querySelector("#childPhotoThumb")?.naturalWidth > 0);
 
-  const cancelStuckButton = page.locator("[data-v3-cancel-stuck]");
-  if (await cancelStuckButton.isVisible()) await cancelStuckButton.click();
   await page.fill("#childAnswerRaw", "我先写能确定的关系：先找基准量，再写出比较和检验。");
   let failNextSubmission = true;
   const submissionRoute = async (route) => {

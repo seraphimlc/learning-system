@@ -34,7 +34,6 @@ ACTIVE_QUESTION_KINDS = (
     "misconception_probe",
     "missing_condition",
     "model_selection",
-    "necessary_condition",
     "prerequisite_probe",
     "representation",
     "reverse_reasoning",
@@ -263,6 +262,10 @@ def _validate_scoring_targets(targets: Any) -> list[dict[str, Any]]:
             raise ValueError(f"invalid mastery dimension for target {key}")
         if not isinstance(target.get("required_for_pass"), bool):
             raise TypeError(f"required_for_pass for target {key} must be boolean")
+        if "points" in target:
+            points = target.get("points")
+            if isinstance(points, bool) or not isinstance(points, int) or points <= 0:
+                raise ValueError(f"points for target {key} must be a positive integer")
         keys.append(key)
         validated.append(deepcopy(target))
 
@@ -925,14 +928,24 @@ def build_answer_contract(question: dict[str, Any]) -> dict[str, Any]:
     selected_targets = ordered_targets[:4]
     if len(selected_targets) < 2:
         raise ValueError("a contract needs two to four independent scoring targets")
-    weights = _POINTS_BY_TARGET_COUNT[len(selected_targets)]
-
     selected_keys = [target["key"] for target in selected_targets]
     omitted_keys = [
         target["key"]
         for target in scoring_targets
         if target["key"] not in selected_keys
     ]
+    explicit_points = [target.get("points") for target in selected_targets]
+    if any(points is not None for points in explicit_points):
+        if not all(points is not None for points in explicit_points):
+            raise ValueError("explicit scoring points must be provided for every selected target")
+        if omitted_keys:
+            raise ValueError("explicitly weighted scoring targets cannot be omitted")
+        if sum(explicit_points) != 10:
+            raise ValueError("explicit scoring target points must total 10")
+        weights = tuple(int(points) for points in explicit_points)
+    else:
+        weights = _POINTS_BY_TARGET_COUNT[len(selected_targets)]
+
     score_points = []
     for target, points in zip(selected_targets, weights):
         score_point = {
@@ -1089,7 +1102,16 @@ def calculate_assessment(
     validate_criterion_judgments(contract, judgments)
     by_key = {judgment["criterion_key"]: judgment for judgment in judgments}
 
-    if any(judgment["status"] == "unclear" for judgment in judgments):
+    required_keys = {
+        point["key"]
+        for point in contract["score_points"]
+        if point["required_for_pass"]
+    }
+    if any(
+        judgment["status"] == "unclear"
+        and judgment["criterion_key"] in required_keys
+        for judgment in judgments
+    ):
         return {
             "finalized": False,
             "score_out_of_10": None,
@@ -1097,15 +1119,15 @@ def calculate_assessment(
             "question_passed": False,
         }
 
-    score = sum(
-        point["points"]
-        for point in contract["score_points"]
-        if by_key[point["key"]]["status"] == "met"
-    )
     passed = all(
         by_key[point["key"]]["status"] == "met"
         for point in contract["score_points"]
         if point["required_for_pass"]
+    )
+    score = 10 if passed else sum(
+        point["points"]
+        for point in contract["score_points"]
+        if by_key[point["key"]]["status"] == "met"
     )
     return {
         "finalized": True,

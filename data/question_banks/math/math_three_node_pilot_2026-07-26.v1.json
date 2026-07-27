@@ -1,0 +1,1100 @@
+{
+  "schema_version": "2026-07-26.math-three-node-pilot.v1",
+  "question_bank_version": "2026-07-26.math-three-node-pilot.v1",
+  "manifest_id": "math_three_node_pilot_2026_07_26_v1",
+  "status": "expert_reviewed_pilot_not_active",
+  "source_policy": "Original questions designed from project knowledge-graph nodes; no external question text copied.",
+  "activation_policy": "Small-scale acceptance asset only. Runtime activation requires engineering import validation and QA approval.",
+  "node_ids": [
+    "M-PRE-INTEGER-OPS",
+    "M-G7-NUMBER-LINE",
+    "M-G7-EQ-SOLVE"
+  ],
+  "item_count": 18,
+  "activation_plan": {
+    "M-PRE-INTEGER-OPS": ["MATH-PILOT-V1-IO-03", "MATH-PILOT-V1-IO-02", "MATH-PILOT-V1-IO-04", "MATH-PILOT-V1-IO-05", "MATH-PILOT-V1-IO-06", "MATH-PILOT-V1-IO-01"],
+    "M-G7-NUMBER-LINE": ["MATH-PILOT-V1-NL-02", "MATH-PILOT-V1-NL-04", "MATH-PILOT-V1-NL-03", "MATH-PILOT-V1-NL-05", "MATH-PILOT-V1-NL-06"],
+    "M-G7-EQ-SOLVE": ["MATH-PILOT-V1-EQ-02", "MATH-PILOT-V1-EQ-03", "MATH-PILOT-V1-EQ-04", "MATH-PILOT-V1-EQ-05", "MATH-PILOT-V1-EQ-06", "MATH-PILOT-V1-EQ-01"]
+  },
+  "held_item_ids": ["MATH-PILOT-V1-NL-01"],
+  "scoring_policy": {
+    "score_scale": 10,
+    "pass_score": 8,
+    "core_answer_floor_for_simple_items": 8,
+    "required_target_policy": "A score is passing only when the numeric threshold and every required_for_pass target are both satisfied.",
+    "non_penalty_policy": "Missing non-critical wording, named rules, full sentences, or a prescribed method must not reduce demonstrated core mathematics below the points explicitly assigned to it."
+  },
+  "items": [
+    {
+      "id": "MATH-PILOT-V1-IO-01",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "prompt": "计算 48,306-7,958。可以口算、竖式或拆分。",
+      "expected_answer": "40,348",
+      "solution_steps": [
+        "按相同数位相减，或把7,958拆分后连续相减。",
+        "得到48,306-7,958=40,348。"
+      ],
+      "interaction_schema": {
+        "type": "numeric_with_optional_work",
+        "required_fields": ["answer"],
+        "optional_fields": ["work"],
+        "accepted_equivalent_forms": ["40348", "40,348"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_result",
+          "criterion": "结果等于40,348。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "place_value_process",
+          "criterion": "可见过程能确认数位对齐或退位关系正确。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不写竖式",
+        "不写完整答句",
+        "使用与参考答案不同但正确的算法"
+      ],
+      "difficulty": "L1",
+      "pedagogical_role": "basic_confirmation",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed", "due"],
+        "requires_prior_item_ids": [],
+        "do_not_select_after_equivalent_instance": true
+      },
+      "failure_route": {
+        "score_8_10": "继续IO-02，检查余数结构理解。",
+        "score_5_7": "换一组数字做一道退位计算澄清题，不重复本实例。",
+        "score_0_4": "进入数位对齐与退位流程教学；若估值也明显异常，回查M-PRE-NUMBER-SENSE。",
+        "rollback_node_ids": ["M-PRE-NUMBER-SENSE"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接观察多位整数减法和退位流程，属于节点核心计算能力。",
+        "structural_role": "建立不带语言干扰的基础正确性基线。",
+        "difference_from_siblings": "本题只测多位减法；其他五题分别测余数、凑整、乘法数位、混合顺序和商余解释。",
+        "age_fit": "六年级毕业应能独立完成，但退位链仍能暴露流程漏洞。"
+      },
+      "problem_instance_key": "pilot-v1.integer-ops.subtraction.48306-minus-7958"
+    },
+    {
+      "id": "MATH-PILOT-V1-IO-02",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "prompt": "小明写863÷7=123余2。判断是否正确，并说明需要检查什么。",
+      "expected_answer": "正确。7×123+2=863，并且0≤2<7。",
+      "solution_steps": [
+        "检查除数×商+余数是否等于被除数。",
+        "检查余数是否非负且小于除数。",
+        "两项都成立，所以结果正确。"
+      ],
+      "interaction_schema": {
+        "type": "judgment_with_evidence",
+        "required_fields": ["evidence"],
+        "optional_fields": ["judgment"],
+        "accepted_equivalent_forms": ["正确", "成立", "商余结果合法"]
+      },
+      "scoring_targets": [
+        {
+          "key": "division_identity_check",
+          "criterion": "明确验证7×123+2=863。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "remainder_range_check",
+          "criterion": "明确验证0≤2<7或等价表述。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "correct_judgment",
+          "criterion": "明确判断该商余结果正确；若两项必要检验都已正确写出，也可由证据直接推知结论。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不背诵被除数=除数×商+余数的完整原句",
+        "用文字表达余数小于除数",
+        "先写结论后写检验"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "core_understanding",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed", "due"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["integer_calculation_baseline_available"]
+      },
+      "failure_route": {
+        "score_8_10": "继续IO-03，观察是否能主动重组计算。",
+        "score_5_7": "针对缺失的乘加关系或余数范围各补一个微检查。",
+        "score_0_4": "进入有余数除法结构教学，不继续刷同一数字。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接对应图谱中的有余数除法验算与余数合法性。",
+        "structural_role": "诊断孩子是否理解商余结果的两个必要条件。",
+        "difference_from_siblings": "不是计算商，而是验证一个现成结果的结构合法性。",
+        "age_fit": "数字计算轻，认知焦点集中，适合作为六升七核心理解题。"
+      },
+      "problem_instance_key": "pilot-v1.integer-ops.remainder-validation.863-div-7"
+    },
+    {
+      "id": "MATH-PILOT-V1-IO-03",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "prompt": "计算125×48×25，写出至少一步使计算变简单的变形。",
+      "expected_answer": "150000。例如48=8×6，所以(125×8)×(6×25)=1000×150=150000。",
+      "solution_steps": [
+        "把48拆成8×6。",
+        "重组为125×8和6×25。",
+        "计算1000×150=150000。"
+      ],
+      "interaction_schema": {
+        "type": "numeric_with_required_transformation",
+        "required_fields": ["answer", "transformation"],
+        "optional_fields": ["explanation"],
+        "accepted_equivalent_forms": ["任何保持全部因数且能简化计算的正确变形"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_result",
+          "criterion": "结果等于150000。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "valid_regrouping",
+          "criterion": "给出至少一步不丢因数、不改变乘法关系的有效凑整变形。",
+          "points": 2,
+          "required_for_pass": true
+        }
+      ],
+      "non_penalized_writing": [
+        "不写交换律或结合律名称",
+        "采用不同的正确简便算法",
+        "结果正确但过程较短"
+      ],
+      "difficulty": "L3",
+      "pedagogical_role": "near_transfer",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "due"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["basic_integer_accuracy_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "继续IO-04，检查乘法错因识别。",
+        "score_5_7": "给一道不同因数组合的短实践，确认是否只是算错。",
+        "score_0_4": "若变形丢因数则教学乘法结构；若只算错则做一次计算复核。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "对应整数简便运算，观察交换、结合和因数分拆能否保持等值。",
+        "structural_role": "在基础准确性之后检测主动选择高效策略的近迁移。",
+        "difference_from_siblings": "数学对象是连乘重组，不重复竖式、余数或混合运算。",
+        "age_fit": "有一定策略要求，但不依赖竞赛技巧。"
+      },
+      "problem_instance_key": "pilot-v1.integer-ops.regrouping.125-times-48-times-25"
+    },
+    {
+      "id": "MATH-PILOT-V1-IO-04",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "prompt": "某同学计算304×26时写成304×6+304×2=2432。错在哪里？写出正确计算。",
+      "expected_answer": "第二个2表示20，不是2。应为304×6+304×20=1824+6080=7904。",
+      "solution_steps": [
+        "识别26中的2在十位，表示20。",
+        "改写为304×6+304×20。",
+        "得到7904。"
+      ],
+      "interaction_schema": {
+        "type": "error_diagnosis_with_correction",
+        "required_fields": ["error_location", "corrected_work", "answer"],
+        "optional_fields": ["named_rule"],
+        "accepted_equivalent_forms": ["指出第二部分少乘10", "指出十位部分错位"]
+      },
+      "scoring_targets": [
+        {
+          "key": "place_value_error",
+          "criterion": "指出26中的2表示20，原过程把十位当成个位。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "corrected_relation",
+          "criterion": "写出304×6+304×20或等价正确过程。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "correct_result",
+          "criterion": "结果等于7904。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不使用数位或分配律术语",
+        "直接用竖式展示正确错位",
+        "解释简短但数学意图明确"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "error_diagnosis",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed"],
+        "requires_prior_item_ids": [],
+        "prefer_when_error_tags_include": ["multiplication_place_value", "process_habit"]
+      },
+      "failure_route": {
+        "score_8_10": "继续IO-05，确认混合运算顺序。",
+        "score_5_7": "用一个两位数乘法局部步骤做澄清，不完整重做本题。",
+        "score_0_4": "进入乘法竖式数位意义教学。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接命中图谱常见错误中的乘法竖式漏位与数位错位。",
+        "structural_role": "要求定位错误机制，而不是再做一道正常乘法。",
+        "difference_from_siblings": "唯一的错解分析题，核心证据是十位意义。",
+        "age_fit": "错误真实常见，不低幼，也不靠复杂数字制造难度。"
+      },
+      "problem_instance_key": "pilot-v1.integer-ops.error-analysis.304-times-26-tens-place"
+    },
+    {
+      "id": "MATH-PILOT-V1-IO-05",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "prompt": "计算720÷(18-6)+35×4。",
+      "expected_answer": "200。720÷12+140=60+140=200。",
+      "solution_steps": [
+        "先算括号18-6=12。",
+        "再算720÷12=60和35×4=140。",
+        "最后相加得到200。"
+      ],
+      "interaction_schema": {
+        "type": "numeric_with_optional_work",
+        "required_fields": ["answer"],
+        "optional_fields": ["work"],
+        "accepted_equivalent_forms": ["200"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_result",
+          "criterion": "结果等于200。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "operation_order",
+          "criterion": "可见过程遵守先括号、再乘除、后加法。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "结果正确时不强制逐步展开",
+        "不写运算顺序的文字规则",
+        "使用心算合并中间步骤"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "fluency_practice",
+      "usage": "practice",
+      "selection_preconditions": {
+        "node_state_in": ["weak", "due", "mastered"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["basic_integer_accuracy_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "该练习原子停止，不追加机械同类题。",
+        "score_5_7": "给一道只有两层顺序的澄清题。",
+        "score_0_4": "进入运算顺序微讲解，再用不同结构复测。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "观察整数四则混合计算的顺序组织与准确性。",
+        "structural_role": "作为短练习维护，不承担单独激活掌握的责任。",
+        "difference_from_siblings": "唯一的混合运算顺序题，不复用其他题的数字或结构。",
+        "age_fit": "计算量适中，重点清晰，不靠长算式消耗耐心。"
+      },
+      "problem_instance_key": "pilot-v1.integer-ops.mixed-order.720-div-12-plus-35-times-4"
+    },
+    {
+      "id": "MATH-PILOT-V1-IO-06",
+      "node_id": "M-PRE-INTEGER-OPS",
+      "prompt": "有2025本练习册，按装满一箱再装下一箱的顺序，每箱最多装48本。至少需要多少箱？最后一箱装多少本？",
+      "expected_answer": "2025=48×42+9，所以至少需要43箱，最后一箱装9本。",
+      "solution_steps": [
+        "计算2025÷48=42余9。",
+        "42个整箱后仍有9本，因此需要第43箱。",
+        "最后一箱装9本。"
+      ],
+      "interaction_schema": {
+        "type": "two_part_numeric_answer",
+        "required_fields": ["minimum_box_count", "last_box_count"],
+        "optional_fields": ["division_work"],
+        "accepted_equivalent_forms": ["43箱，9本", "至少43箱；最后一箱9本"]
+      },
+      "scoring_targets": [
+        {
+          "key": "minimum_box_count",
+          "criterion": "判断至少需要43箱。",
+          "points": 5,
+          "required_for_pass": true
+        },
+        {
+          "key": "last_box_count",
+          "criterion": "判断最后一箱装9本。",
+          "points": 3,
+          "required_for_pass": true
+        },
+        {
+          "key": "quotient_remainder_relation",
+          "criterion": "给出2025=48×42+9或等价商余证据。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不写长除法",
+        "不写完整应用题答句",
+        "先写43箱再解释余数"
+      ],
+      "difficulty": "L3",
+      "pedagogical_role": "controlled_extension",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "due", "mastered"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["remainder_structure_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "节点可进入综合判定或间隔复测。",
+        "score_5_7": "只补余数在实际情境中的含义，不追加竞赛题。",
+        "score_0_4": "若商余计算错回IO-02类结构；若只少加一箱则教学向上取整含义。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "将整数除法和余数用于实际装箱决策，仍以商余运算为核心。",
+        "structural_role": "受控拔高，检验孩子能否解释商和余数，而非提高纯计算长度。",
+        "difference_from_siblings": "唯一的情境解释题，数学实例与IO-02的合法性验证不同。",
+        "age_fit": "适合六升七，具有实际判断但不进入复杂应用题建模。"
+      },
+      "problem_instance_key": "pilot-v1.integer-ops.quotient-meaning.2025-books-48-per-box"
+    },
+    {
+      "id": "MATH-PILOT-V1-NL-01",
+      "node_id": "M-G7-NUMBER-LINE",
+      "prompt": "在空白直线上画一条数轴，标出原点、正方向、单位长度，并标出-2和3。",
+      "expected_answer": "原点标0，正方向明确，刻度等距；-2在0左侧2个单位，3在0右侧3个单位。",
+      "solution_steps": [
+        "确定原点和正方向。",
+        "按统一单位长度画等距刻度。",
+        "在对应位置标出-2和3。"
+      ],
+      "interaction_schema": {
+        "type": "number_line_drawing",
+        "required_fields": ["drawing"],
+        "optional_fields": ["text_description"],
+        "fallback_input_modes": ["photo", "structured_text"]
+      },
+      "scoring_targets": [
+        {
+          "key": "origin_and_positive_direction",
+          "criterion": "原点和正方向均明确且不冲突。",
+          "points": 3,
+          "required_for_pass": true
+        },
+        {
+          "key": "uniform_unit_length",
+          "criterion": "刻度体现统一单位长度。",
+          "points": 3,
+          "required_for_pass": true
+        },
+        {
+          "key": "point_locations",
+          "criterion": "-2和3位于与原点、正方向一致的位置。",
+          "points": 4,
+          "required_for_pass": true
+        }
+      ],
+      "non_penalized_writing": [
+        "手绘线条不完全笔直",
+        "等距刻度存在轻微视觉误差但意图明确",
+        "箭头和数字标注样式不同"
+      ],
+      "difficulty": "L1",
+      "pedagogical_role": "basic_confirmation",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed", "due"],
+        "requires_prior_item_ids": [],
+        "prerequisite_node_ids": ["M-G7-POS-NEG"]
+      },
+      "failure_route": {
+        "score_8_10": "继续NL-02，单独检查单位长度。",
+        "score_5_7": "只对缺失的数轴要素做一次交互澄清。",
+        "score_0_4": "进入数轴三要素教学；若正负位置颠倒，回查M-G7-POS-NEG。",
+        "rollback_node_ids": ["M-G7-POS-NEG"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接覆盖图谱掌握标准中的原点、正方向、单位长度和点的位置。",
+        "structural_role": "完整构造数轴的基础确认。",
+        "difference_from_siblings": "唯一需要从空白直线建立完整数轴的题。",
+        "age_fit": "要求基础但不低幼，能快速暴露三要素缺失。"
+      },
+      "problem_instance_key": "pilot-v1.number-line.construct.origin-direction-unit-minus2-plus3"
+    },
+    {
+      "id": "MATH-PILOT-V1-NL-02",
+      "node_id": "M-G7-NUMBER-LINE",
+      "prompt": "数轴上A表示-1，B表示1.5，A、B之间有5个相等的小区间。每个小区间表示多少？从A向右跨过3个小区间后到达的刻度表示什么数？",
+      "expected_answer": "每个小区间表示0.5；从A向右跨过3个小区间后到达的刻度表示0.5。",
+      "solution_steps": [
+        "A、B的数值差是1.5-(-1)=2.5。",
+        "2.5÷5=0.5，所以单位长度是0.5。",
+        "从-1向右3格得到-1+3×0.5=0.5。"
+      ],
+      "interaction_schema": {
+        "type": "two_part_numeric_answer",
+        "required_fields": ["unit_length", "target_coordinate"],
+        "optional_fields": ["work"],
+        "accepted_equivalent_forms": ["1/2", "0.5"]
+      },
+      "scoring_targets": [
+        {
+          "key": "unit_length",
+          "criterion": "确定每个小区间表示0.5。",
+          "points": 5,
+          "required_for_pass": true
+        },
+        {
+          "key": "target_coordinate",
+          "criterion": "确定A右边第3个刻度表示0.5。",
+          "points": 5,
+          "required_for_pass": true
+        }
+      ],
+      "non_penalized_writing": [
+        "不重复说明原点或正方向",
+        "用1/2代替0.5",
+        "不画完整数轴"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "core_understanding",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed", "due"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["number_line_elements_available"]
+      },
+      "failure_route": {
+        "score_8_10": "继续NL-03，检查带方向的连续移动。",
+        "score_5_7": "单位长度对则只补定位；单位长度错则只补局部刻度构造。",
+        "score_0_4": "进入单位长度教学，不要求同时重画原点和正方向。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接观察数轴单位长度和由刻度推坐标。",
+        "structural_role": "隔离检测单位长度，避免因未重复原点或方向而误判。",
+        "difference_from_siblings": "使用两个已知坐标反推局部尺度，不是画图或方向移动。",
+        "age_fit": "含小数但运算轻，认知焦点单一。"
+      },
+      "problem_instance_key": "pilot-v1.number-line.unit-scale.minus1-to-1point5-five-intervals"
+    },
+    {
+      "id": "MATH-PILOT-V1-NL-03",
+      "node_id": "M-G7-NUMBER-LINE",
+      "prompt": "数轴上A表示-1.5。从A向右移动2.25个单位到B，再从B向左移动0.75个单位到C。求B、C，并排列A、B、C。",
+      "expected_answer": "B=0.75，C=0；从小到大为A<C<B。",
+      "solution_steps": [
+        "向右移动对应增加：B=-1.5+2.25=0.75。",
+        "向左移动对应减少：C=0.75-0.75=0。",
+        "按数轴位置得到A<C<B。"
+      ],
+      "interaction_schema": {
+        "type": "multi_part_numeric_and_order",
+        "required_fields": ["coordinate_b", "coordinate_c", "order"],
+        "optional_fields": ["work", "drawing"],
+        "accepted_equivalent_forms": ["3/4", "0.75"]
+      },
+      "scoring_targets": [
+        {
+          "key": "coordinates",
+          "criterion": "B=0.75且C=0。",
+          "points": 6,
+          "required_for_pass": true
+        },
+        {
+          "key": "correct_order",
+          "criterion": "从小到大为A<C<B。",
+          "points": 2,
+          "required_for_pass": true
+        },
+        {
+          "key": "direction_model",
+          "criterion": "过程体现向右增加、向左减少。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不画数轴",
+        "小数与分数等价表达",
+        "不写向右为正或向左为负的固定术语"
+      ],
+      "difficulty": "L3",
+      "pedagogical_role": "near_transfer",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "due"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["positive_direction_passed", "unit_length_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "继续NL-04，检查能否识别方向冲突。",
+        "score_5_7": "方向正确但小数错则回查小数运算；坐标对但排序错则补位置比较。",
+        "score_0_4": "若方向整体颠倒，回查M-G7-POS-NEG并进行方向交互教学。",
+        "rollback_node_ids": ["M-G7-POS-NEG"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "观察数轴方向、距离和位置排序的联合应用。",
+        "structural_role": "从单一定位迁移到两次方向变化。",
+        "difference_from_siblings": "唯一的连续移动实例，数字和证据目标均不复用旧母题。",
+        "age_fit": "小数运算可控，主要难点仍是数轴方向。"
+      },
+      "problem_instance_key": "pilot-v1.number-line.motion.minus1point5-right2point25-left0point75"
+    },
+    {
+      "id": "MATH-PILOT-V1-NL-04",
+      "node_id": "M-G7-NUMBER-LINE",
+      "prompt": "一条数轴的箭头指向右，刻度从左到右依次标为2、1、0、-1。它正确吗？请修正。",
+      "expected_answer": "不正确。箭头向右表示数值应向右增大。可保留箭头，把标签从左到右改为-1、0、1、2。",
+      "solution_steps": [
+        "比较箭头方向与数值变化方向。",
+        "发现向右时标签反而减小。",
+        "保留箭头并重排标签，或给出其他不冲突的有效修正。"
+      ],
+      "interaction_schema": {
+        "type": "error_diagnosis_with_correction",
+        "required_fields": ["judgment", "error_location", "correction"],
+        "optional_fields": ["drawing"],
+        "accepted_equivalent_forms": ["保持标签并把正方向改向左", "保持箭头并把标签改为递增"]
+      },
+      "scoring_targets": [
+        {
+          "key": "direction_conflict",
+          "criterion": "指出正方向与标签数值变化冲突。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "valid_correction",
+          "criterion": "给出使正方向与数值增大方向一致的修正。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "direction_reason",
+          "criterion": "说明沿正方向数值应增大。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "用画图代替文字",
+        "选择修改箭头而不是修改标签",
+        "不使用正方向这一术语但意思明确"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "error_diagnosis",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed"],
+        "requires_prior_item_ids": [],
+        "prefer_when_error_tags_include": ["positive_direction_reversed", "positive_direction_missing"]
+      },
+      "failure_route": {
+        "score_8_10": "继续NL-05，观察位置比较是否稳定。",
+        "score_5_7": "用可拖动箭头和标签做一次方向澄清。",
+        "score_0_4": "进入正方向教学；若仍把正负含义颠倒，回查M-G7-POS-NEG。",
+        "rollback_node_ids": ["M-G7-POS-NEG"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接命中图谱常见错误正负方向反。",
+        "structural_role": "要求识别并修复错误数轴，而不是重复正常定位。",
+        "difference_from_siblings": "唯一以方向冲突为核心的错因辨析题。",
+        "age_fit": "题面短，但必须理解定义才能完整修正，非机械记忆。"
+      },
+      "problem_instance_key": "pilot-v1.number-line.error-direction.labels-2-1-0-minus1"
+    },
+    {
+      "id": "MATH-PILOT-V1-NL-05",
+      "node_id": "M-G7-NUMBER-LINE",
+      "prompt": "按数轴上的先后位置，从小到大排列：-3/4、0.6、-1.2、0、5/4。",
+      "expected_answer": "-1.2<-3/4<0<0.6<5/4。",
+      "solution_steps": [
+        "先确定负数在0左侧、正数在0右侧。",
+        "比较两个负数的位置以及两个正数的位置。",
+        "按从左到右写出顺序。"
+      ],
+      "interaction_schema": {
+        "type": "ordered_list",
+        "required_fields": ["ordered_values"],
+        "optional_fields": ["reason", "drawing"],
+        "accepted_equivalent_forms": ["分数或小数等价形式"]
+      },
+      "scoring_targets": [
+        {
+          "key": "complete_order",
+          "criterion": "完整顺序为-1.2<-3/4<0<0.6<5/4。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "position_rationale",
+          "criterion": "理由能体现数轴上越往右越大或等价位置判断。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不把所有数统一化为小数",
+        "不画数轴",
+        "省略非关键比较过程"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "fluency_practice",
+      "usage": "practice",
+      "selection_preconditions": {
+        "node_state_in": ["weak", "due", "mastered"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["point_location_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "该位置比较练习停止，不追加同组排序题。",
+        "score_5_7": "根据错位对象，只补一道分数或负数定位题。",
+        "score_0_4": "回到数轴位置教学；若正负整体颠倒，回查M-G7-POS-NEG。",
+        "rollback_node_ids": ["M-G7-POS-NEG"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "以数轴位置为依据比较正数、负数、分数和小数。",
+        "structural_role": "短练习验证多种表示是否能放入同一位置体系。",
+        "difference_from_siblings": "唯一的多对象整体排序题，不涉及移动或反推刻度。",
+        "age_fit": "数字熟悉但表示混合，适合六升七衔接。"
+      },
+      "problem_instance_key": "pilot-v1.number-line.order.mixed-minus3quarters-0point6-minus1point2-zero-5quarters"
+    },
+    {
+      "id": "MATH-PILOT-V1-NL-06",
+      "node_id": "M-G7-NUMBER-LINE",
+      "prompt": "数轴上B在A右边，A、B相距6个单位，它们的中点表示-1。求A、B表示的数。",
+      "expected_answer": "中点两侧各3个单位，所以A=-4，B=2。",
+      "solution_steps": [
+        "总距离6的一半是3。",
+        "A在中点左侧3个单位：-1-3=-4。",
+        "B在中点右侧3个单位：-1+3=2。"
+      ],
+      "interaction_schema": {
+        "type": "two_part_numeric_answer",
+        "required_fields": ["coordinate_a", "coordinate_b"],
+        "optional_fields": ["work", "drawing"],
+        "accepted_equivalent_forms": ["A=-4，B=2"]
+      },
+      "scoring_targets": [
+        {
+          "key": "endpoint_coordinates",
+          "criterion": "A=-4且B=2。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "midpoint_distance_check",
+          "criterion": "能用每侧3个单位或中点、距离关系进行检验。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不列方程",
+        "不使用中点公式",
+        "用图示代替文字过程"
+      ],
+      "difficulty": "L4",
+      "pedagogical_role": "controlled_extension",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["weak", "due", "mastered"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["origin_direction_unit_passed", "point_location_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "节点可进入综合判定或间隔复测。",
+        "score_5_7": "只补中点两侧等距的图示澄清。",
+        "score_0_4": "不撤销基础数轴掌握；停止拔高，回到单点定位。",
+        "rollback_node_ids": []
+      },
+      "expert_review_rationale": {
+        "node_binding": "使用数轴上的方向、距离和坐标反向重建两个点。",
+        "structural_role": "受控拔高，观察位置关系迁移，不引入竞赛技巧。",
+        "difference_from_siblings": "唯一从中点与距离反推坐标的逆向任务。",
+        "age_fit": "需要两步推理，但全部基于数轴核心模型。"
+      },
+      "problem_instance_key": "pilot-v1.number-line.inverse.midpoint-minus1-distance6"
+    },
+    {
+      "id": "MATH-PILOT-V1-EQ-01",
+      "node_id": "M-G7-EQ-SOLVE",
+      "prompt": "解方程x-7=12，并代回检查。",
+      "expected_answer": "x=19；代回得19-7=12。",
+      "solution_steps": [
+        "使x单独，得到x=12+7。",
+        "计算x=19。",
+        "代回原方程检查。"
+      ],
+      "interaction_schema": {
+        "type": "equation_solution_with_optional_check",
+        "required_fields": ["solution"],
+        "optional_fields": ["work", "check"],
+        "accepted_equivalent_forms": ["19", "x=19"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_solution",
+          "criterion": "解为x=19。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "substitution_check",
+          "criterion": "代回得到19-7=12。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "不写等式两边同时加7",
+        "不写完整答句",
+        "省略显然的中间步骤"
+      ],
+      "difficulty": "L1",
+      "pedagogical_role": "basic_confirmation",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed", "due"],
+        "requires_prior_item_ids": [],
+        "prerequisite_node_ids": ["M-G7-EQUALITY-PROP", "M-G7-RATIONAL-MIXED"]
+      },
+      "failure_route": {
+        "score_8_10": "继续EQ-02，检查负系数两步方程。",
+        "score_5_7": "补一道不同常数的一步方程澄清。",
+        "score_0_4": "回查M-G7-EQUALITY-PROP；若加减计算错，回查M-G7-RATIONAL-MIXED。",
+        "rollback_node_ids": ["M-G7-EQUALITY-PROP", "M-G7-RATIONAL-MIXED"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接观察使未知数单独和一步方程求解。",
+        "structural_role": "建立最小求解基线。",
+        "difference_from_siblings": "唯一的正系数一步方程，不含负号、两边未知项或分数系数。",
+        "age_fit": "基础但必要，可快速区分未学与计算失误。"
+      },
+      "problem_instance_key": "pilot-v1.equation.one-step.x-minus7-equals12"
+    },
+    {
+      "id": "MATH-PILOT-V1-EQ-02",
+      "node_id": "M-G7-EQ-SOLVE",
+      "prompt": "解方程7-3x=19。",
+      "expected_answer": "-3x=12，所以x=-4。",
+      "solution_steps": [
+        "两边同时减7，得到-3x=12。",
+        "两边同时除以-3，得到x=-4。"
+      ],
+      "interaction_schema": {
+        "type": "equation_solution_with_optional_work",
+        "required_fields": ["solution"],
+        "optional_fields": ["work", "check"],
+        "accepted_equivalent_forms": ["-4", "x=-4"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_solution",
+          "criterion": "解为x=-4。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "equivalent_intermediate",
+          "criterion": "出现-3x=12或其他正确等价中间关系。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "使用移项法或两边同操作法",
+        "不写移项变号术语",
+        "不代回检验"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "core_understanding",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed", "due"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["one_step_equation_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "继续EQ-03，检查未知数在两边的方程。",
+        "score_5_7": "中间式对则只补负数除法；首步错则补等式同操作。",
+        "score_0_4": "按证据回退M-G7-EQUALITY-PROP或M-G7-RATIONAL-MIXED。",
+        "rollback_node_ids": ["M-G7-EQUALITY-PROP", "M-G7-RATIONAL-MIXED"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接覆盖两步方程、负系数处理和系数化为1。",
+        "structural_role": "核心理解题，可区分等式变形错误与有理数运算错误。",
+        "difference_from_siblings": "未知数只在一边，但系数为负，与EQ-01和EQ-03结构不同。",
+        "age_fit": "是七上基础方程的关键断点，不增加无关语境。"
+      },
+      "problem_instance_key": "pilot-v1.equation.two-step.7-minus3x-equals19"
+    },
+    {
+      "id": "MATH-PILOT-V1-EQ-03",
+      "node_id": "M-G7-EQ-SOLVE",
+      "prompt": "解方程5x-7=2x+8，保留一个能看出等价变化的中间步骤。",
+      "expected_answer": "3x=15，所以x=5。",
+      "solution_steps": [
+        "把未知项集中到一边、常数项集中到另一边。",
+        "得到3x=15。",
+        "得到x=5。"
+      ],
+      "interaction_schema": {
+        "type": "equation_solution_with_required_intermediate",
+        "required_fields": ["solution", "intermediate_equation"],
+        "optional_fields": ["check"],
+        "accepted_equivalent_forms": ["任何与原方程等价且能继续求解的中间方程"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_solution",
+          "criterion": "解为x=5。",
+          "points": 6,
+          "required_for_pass": true
+        },
+        {
+          "key": "equivalent_reduction",
+          "criterion": "给出3x=15或其他正确等价中间方程。",
+          "points": 4,
+          "required_for_pass": true
+        }
+      ],
+      "non_penalized_writing": [
+        "不强制使用移项变号写法",
+        "中间步骤顺序不同但等价",
+        "不写每步依据名称"
+      ],
+      "difficulty": "L3",
+      "pedagogical_role": "near_transfer",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "due"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["two_step_equation_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "继续EQ-04，检查负系数错误识别。",
+        "score_5_7": "结果错但中间式对则补计算；中间式错则补同类项与等式变形。",
+        "score_0_4": "回查M-G7-EQUALITY-PROP，不用购物应用题替代求解诊断。",
+        "rollback_node_ids": ["M-G7-EQUALITY-PROP"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "对应移项合并和未知数在等式两边的基础求解。",
+        "structural_role": "从未知数单侧近迁移到双侧。",
+        "difference_from_siblings": "唯一需要集中两边未知项的方程，不使用情境建模。",
+        "age_fit": "是七上一元一次方程的标准进阶结构。"
+      },
+      "problem_instance_key": "pilot-v1.equation.variables-both-sides.5x-minus7-equals2x-plus8"
+    },
+    {
+      "id": "MATH-PILOT-V1-EQ-04",
+      "node_id": "M-G7-EQ-SOLVE",
+      "prompt": "解-2x+5=11。某同学得到-2x=6后写x=3。指出错误并改正。",
+      "expected_answer": "应把6除以-2，而不是2，所以x=-3。代回：-2×(-3)+5=11。",
+      "solution_steps": [
+        "确认-2x=6这一步正确。",
+        "系数化为1时两边除以-2。",
+        "得到x=-3并可代回检查。"
+      ],
+      "interaction_schema": {
+        "type": "error_diagnosis_with_correction",
+        "required_fields": ["error_location", "corrected_work", "solution"],
+        "optional_fields": ["check"],
+        "accepted_equivalent_forms": ["漏看负号", "除数应为负2"]
+      },
+      "scoring_targets": [
+        {
+          "key": "negative_coefficient_error",
+          "criterion": "指出由-2x=6到x=3时漏掉了负号。",
+          "points": 4,
+          "required_for_pass": true
+        },
+        {
+          "key": "correct_division",
+          "criterion": "明确执行6÷(-2)。",
+          "points": 3,
+          "required_for_pass": true
+        },
+        {
+          "key": "correct_solution",
+          "criterion": "解为x=-3。",
+          "points": 3,
+          "required_for_pass": true
+        }
+      ],
+      "non_penalized_writing": [
+        "不使用系数化为1术语",
+        "不写完整错因句",
+        "不代回检验"
+      ],
+      "difficulty": "L2",
+      "pedagogical_role": "error_diagnosis",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["untested", "weak", "failed"],
+        "requires_prior_item_ids": [],
+        "prefer_when_error_tags_include": ["negative_coefficient", "calculation_or_symbol"]
+      },
+      "failure_route": {
+        "score_8_10": "继续EQ-05，检查分数系数。",
+        "score_5_7": "只做一次负数除法澄清，不重复整道方程。",
+        "score_0_4": "若EQ-02也失败则回退M-G7-RATIONAL-MIXED；否则教学系数化1。",
+        "rollback_node_ids": ["M-G7-RATIONAL-MIXED"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "直接命中图谱常见错误负系数处理错。",
+        "structural_role": "将错误定位到最后一步系数化1，避免笼统判为不会解方程。",
+        "difference_from_siblings": "唯一提供部分正确过程并要求定位符号错误的题。",
+        "age_fit": "错误典型且诊断价值高，不靠冗长运算制造难度。"
+      },
+      "problem_instance_key": "pilot-v1.equation.error-negative-coefficient.minus2x-plus5-equals11"
+    },
+    {
+      "id": "MATH-PILOT-V1-EQ-05",
+      "node_id": "M-G7-EQ-SOLVE",
+      "prompt": "解方程(3/4)x=-9。",
+      "expected_answer": "x=-12。可在两边同乘4/3，或用-9÷(3/4)得到。",
+      "solution_steps": [
+        "把x的系数3/4化为1。",
+        "计算-9×4/3=-12。"
+      ],
+      "interaction_schema": {
+        "type": "equation_solution_with_optional_work",
+        "required_fields": ["solution"],
+        "optional_fields": ["work", "check"],
+        "accepted_equivalent_forms": ["-12", "x=-12"]
+      },
+      "scoring_targets": [
+        {
+          "key": "correct_solution",
+          "criterion": "解为x=-12。",
+          "points": 8,
+          "required_for_pass": true
+        },
+        {
+          "key": "fraction_coefficient_operation",
+          "criterion": "正确执行乘4/3、除以3/4或等价系数化1过程。",
+          "points": 2,
+          "required_for_pass": false
+        }
+      ],
+      "non_penalized_writing": [
+        "约分顺序不同",
+        "不写倒数术语",
+        "不代回检验"
+      ],
+      "difficulty": "L3",
+      "pedagogical_role": "fluency_practice",
+      "usage": "practice",
+      "selection_preconditions": {
+        "node_state_in": ["weak", "due", "mastered"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["basic_equation_solve_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "该基础方程练习停止，不追加同系数题。",
+        "score_5_7": "补一道单独的分数乘除澄清。",
+        "score_0_4": "回查M-G7-RATIONAL-MIXED，不用更多方程掩盖前置运算问题。",
+        "rollback_node_ids": ["M-G7-RATIONAL-MIXED"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "覆盖图谱要求中的分数系数和系数化为1。",
+        "structural_role": "短练习检验前置有理数运算能否稳定用于解方程。",
+        "difference_from_siblings": "唯一含分数系数的实例，不与负整数系数重复。",
+        "age_fit": "计算量很小，能清楚区分方程方法与分数运算漏洞。"
+      },
+      "problem_instance_key": "pilot-v1.equation.fraction-coefficient.threequarters-x-equals-minus9"
+    },
+    {
+      "id": "MATH-PILOT-V1-EQ-06",
+      "node_id": "M-G7-EQ-SOLVE",
+      "prompt": "方程2x-3=9与6x-9=27是否有相同的解？说明理由，并求这个解。",
+      "expected_answer": "有相同的解。第二个方程是第一个方程两边同时乘3得到的；解为x=6。",
+      "solution_steps": [
+        "识别6x-9=27是2x-3=9两边同乘3。",
+        "因此两个方程等价并有相同的解。",
+        "解任一方程得到x=6。"
+      ],
+      "interaction_schema": {
+        "type": "equivalence_judgment_with_solution",
+        "required_fields": ["same_solution_judgment", "equivalence_reason", "solution"],
+        "optional_fields": ["separate_checks"],
+        "accepted_equivalent_forms": ["分别解出两个方程并验证都为x=6"]
+      },
+      "scoring_targets": [
+        {
+          "key": "same_solution_judgment",
+          "criterion": "判断两个方程有相同的解。",
+          "points": 3,
+          "required_for_pass": true
+        },
+        {
+          "key": "equivalence_relation",
+          "criterion": "识别第二个方程由第一个方程两边同乘3得到，或分别求解验证等价。",
+          "points": 3,
+          "required_for_pass": true
+        },
+        {
+          "key": "correct_solution",
+          "criterion": "求得x=6。",
+          "points": 4,
+          "required_for_pass": true
+        }
+      ],
+      "non_penalized_writing": [
+        "不使用同解方程或等价方程术语",
+        "选择分别求解验证",
+        "理由表达简短但关系明确"
+      ],
+      "difficulty": "L4",
+      "pedagogical_role": "controlled_extension",
+      "usage": "diagnostic",
+      "selection_preconditions": {
+        "node_state_in": ["weak", "due", "mastered"],
+        "requires_prior_item_ids": [],
+        "prefer_after_evidence_keys": ["one_step_equation_passed", "two_step_equation_passed"]
+      },
+      "failure_route": {
+        "score_8_10": "节点可进入综合判定或间隔复测。",
+        "score_5_7": "若都会解但关系不清，只补等式性质解释。",
+        "score_0_4": "不撤销已通过的基础求解；停止拔高并按缺失证据回到EQ-01或M-G7-EQUALITY-PROP。",
+        "rollback_node_ids": ["M-G7-EQUALITY-PROP"]
+      },
+      "expert_review_rationale": {
+        "node_binding": "把解方程结果与等价变形连接起来，仍直接要求求解。",
+        "structural_role": "受控拔高，检验是否理解每一步为什么保持解不变。",
+        "difference_from_siblings": "唯一比较两个方程关系的逆向任务，不引入应用题建模。",
+        "age_fit": "推理深度高于常规求解，但完全建立在七上核心概念上。"
+      },
+      "problem_instance_key": "pilot-v1.equation.equivalence.2x-minus3-and-6x-minus9"
+    }
+  ]
+}

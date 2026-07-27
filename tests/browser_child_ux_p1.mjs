@@ -233,22 +233,53 @@ try {
   assert(!overflow390, "390px layout must not horizontally overflow");
 
   await currentPage.click("[data-v3-stuck-prompt]");
-  const selectedStuck = await currentPage.evaluate(() => ({
-    pressed: document.querySelector("[data-v3-stuck-prompt]")?.getAttribute("aria-pressed"),
-    cancelVisible: Boolean(document.querySelector("[data-v3-cancel-stuck]")?.offsetParent),
-    cancelHeight: document.querySelector("[data-v3-cancel-stuck]")?.getBoundingClientRect().height || 0,
-  }));
-  assert(selectedStuck.pressed === "true", "Selected stuck/cannot-provide option must expose aria-pressed");
-  assert(selectedStuck.cancelVisible === true, "Selected stuck/cannot-provide option must expose a cancel/switch path");
-  assert(selectedStuck.cancelHeight >= 44, "Stuck cancel action must keep a 44px touch target");
-  await currentPage.click("[data-v3-cancel-stuck]");
-  await currentPage.fill("#childAnswerRaw", "两边同乘 6，得到 2(x-1)+12=x+5。");
-  await currentPage.click("#childSubmitBtn");
   await currentPage.waitForFunction(() => window.ChildLearningShell?.currentState() === "analyzing_pending");
-  assert(serverState.submitBodies.at(-1)?.stuck === false, "Normal answer after deselect must not submit stale stuck state");
+  assert(serverState.submitCalls === 1, "A stuck reason must submit immediately without requiring a second save action");
+  assert(serverState.submitBodies.at(-1)?.stuck === true, "Direct stuck action must preserve explicit stuck evidence");
   assert(serverState.submitBodies.at(-1)?.step_handle === "transport-step-secret-123", "Submit must preserve opaque step_handle transport token");
   assert(serverState.submitBodies.at(-1)?.position === 7, "Submit must preserve opaque position transport token");
   await currentPage.close();
+
+  const voicePermissionPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await voicePermissionPage.addInitScript(() => {
+    class PendingRecognition {
+      start() {}
+      stop() {}
+    }
+    window.webkitSpeechRecognition = window.webkitSpeechRecognition || PendingRecognition;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: () => new Promise(() => {}),
+      },
+    });
+  });
+  resetServerState(currentStepPayload);
+  await voicePermissionPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await voicePermissionPage.click('[data-answer-input-mode="voice"]');
+  await voicePermissionPage.click("#voiceRecordBtn");
+  const voicePermissionState = await voicePermissionPage.evaluate(() => ({
+    status: document.querySelector("#voiceStatus")?.textContent || "",
+    disabled: Boolean(document.querySelector("#voiceRecordBtn")?.disabled),
+  }));
+  assert(voicePermissionState.status.includes("正在请求麦克风权限"), "Voice capture must show permission progress before the browser resolves getUserMedia");
+  assert(voicePermissionState.disabled === true, "Voice record action must not be repeatedly clickable while permission is pending");
+  await voicePermissionPage.close();
+
+  const stuckRetryPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  resetServerState(currentStepPayload);
+  serverState.failFirstSubmit = true;
+  await stuckRetryPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await stuckRetryPage.click("[data-v3-stuck-prompt]");
+  await stuckRetryPage.waitForSelector("#childErrorPanel[data-error-kind='save_error']:not([hidden])");
+  const retryableStuckButton = stuckRetryPage.locator("[data-v3-stuck-prompt]").first();
+  assert(await retryableStuckButton.isEnabled(), "A failed direct stuck submission must restore the stuck action for retry");
+  await retryableStuckButton.click();
+  await stuckRetryPage.waitForFunction(() => window.ChildLearningShell?.currentState() === "analyzing_pending");
+  assert(serverState.submitCalls === 2, "Retrying the same stuck action must make exactly one additional request");
+  assert(serverState.submitBodies.every((body) => body.stuck === true), "A direct stuck retry must preserve stuck semantics");
+  serverState.failFirstSubmit = false;
+  await stuckRetryPage.close();
 
   const saveRetryPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
   resetServerState(currentStepPayload);

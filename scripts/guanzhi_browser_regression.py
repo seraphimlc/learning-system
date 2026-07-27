@@ -115,6 +115,13 @@ def _active_question_assets(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             and db.question_review_record_allows_active_use(conn, question, review_record_id)
         ):
             continue
+        usage_policy = db.active_question_usage_policy(
+            conn,
+            str(question.get("id") or ""),
+            item_version=str(question.get("item_version") or ""),
+        )
+        if not usage_policy:
+            continue
         assets.append({
             "question": question,
             "node_id": str(question.get("node_id") or ""),
@@ -129,6 +136,7 @@ def _active_question_assets(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             },
             "graph_version": str(raw.get("contract_graph_version") or question.get("graph_version") or ""),
             "question_bank_version": bank_version,
+            "usage_policy": usage_policy,
         })
     return assets
 
@@ -154,6 +162,33 @@ def _clear_learning_state(conn: sqlite3.Connection) -> None:
             except sqlite3.OperationalError:
                 pass
         conn.execute("pragma foreign_keys = on")
+
+
+def _requested_usage_for_target_action(
+    asset: dict[str, Any],
+    *,
+    target_action: str,
+) -> dict[str, Any]:
+    usage_policy = asset["usage_policy"]
+    if target_action == "diagnostic":
+        roles = list(usage_policy["diagnostic_roles"])
+        if not roles:
+            raise ValueError("diagnostic audit requires an eligible diagnostic role")
+        return {
+            "purpose": "diagnostic",
+            "purpose_role": "entry_probe" if "entry_probe" in roles else roles[0],
+        }
+    if target_action == "review":
+        roles = list(usage_policy["allowed_practice_roles"])
+        if not roles:
+            raise ValueError("practice audit requires an eligible practice role")
+        return {
+            "purpose": "practice",
+            "purpose_role": "consolidation",
+            "practice_family": usage_policy["default_practice_family"],
+            "practice_role": "stabilize_fluency" if "stabilize_fluency" in roles else roles[0],
+        }
+    raise ValueError(f"unsupported browser audit target action: {target_action}")
 
 
 def _materialize_question_as_current_step(
@@ -195,10 +230,27 @@ def _materialize_question_as_current_step(
                 now,
             ),
         )
+        allowed_purposes = set(asset["usage_policy"]["allowed_purposes"])
+        if mini_group and "practice" not in allowed_purposes:
+            raise ValueError("mini-group audit requires a practice-eligible question")
+        target_action = "review" if mini_group or "diagnostic" not in allowed_purposes else "diagnostic"
+        if target_action == "review" and "practice" not in allowed_purposes:
+            raise ValueError("question is not eligible for an answerable audit step")
         selection_reason = {
             "reason": "guanzhi_browser_regression_every_active_question",
             "question_id": asset["question_id"],
+            "target_action": target_action,
         }
+        usage_block_id = f"QA-BROWSER-{flow_id}"
+        requested_usage_context = runtime._explicit_question_usage_context(
+            question_id=str(asset["question_id"] or ""),
+            requested_usage=_requested_usage_for_target_action(
+                asset,
+                target_action=target_action,
+            ),
+            block_id=usage_block_id,
+        )
+        selection_reason["requested_usage_context"] = requested_usage_context
         if mini_group:
             flow = conn.execute("select * from daily_flows where id = ?", (flow_id,)).fetchone()
             selection_reason = runtime._mini_group_selection_reason(
@@ -206,8 +258,11 @@ def _materialize_question_as_current_step(
                 flow=flow,
                 step_type="question",
                 group_role="review_short_set",
+                group_id=usage_block_id,
                 group_size=mini_group_size,
                 target_node_id=str(asset["node_id"] or ""),
+                question_id=str(asset["question_id"] or ""),
+                requested_usage=requested_usage_context,
             )
         step_id = runtime._create_question_step(
             flow_id=flow_id,
@@ -351,11 +406,10 @@ def _knowledge_home_browser_audit(page, *, output_dir: Path) -> dict[str, Any]:
         issues.append("knowledge home exposes internal process module")
     page.screenshot(path=str(output_dir / "knowledge-home-initial.png"), full_page=False)
 
-    explorer_button = page.locator("[data-map-explorer-toggle]:visible")
-    explorer_body = page.locator("[data-map-explorer-body]")
-    body_hidden = explorer_body.count() == 0 or explorer_body.first.evaluate("el => el.hidden")
-    if explorer_button.count() >= 1 and body_hidden:
-        explorer_button.first.click()
+    page.wait_for_selector("[data-map-explorer-toggle]:visible", timeout=15000)
+    explorer_button = page.locator("[data-map-explorer-toggle]:visible").first
+    if explorer_button.get_attribute("aria-expanded") != "true":
+        explorer_button.click()
     page.wait_for_selector("[data-map-explorer-body]:not([hidden])", timeout=15000)
     page.wait_for_selector('[aria-label="我的数学知识目录"]:visible', timeout=15000)
     rendered_buttons = page.locator(".knowledge-node-button")
@@ -496,53 +550,35 @@ def _submit_scenarios_browser_audit(
     output_dir: Path,
 ) -> dict[str, Any]:
     issues: list[str] = []
-    scenarios = [
-        ("stuck_text", "我不会", {
-            "expected_states": {"feedback_teaching", "teaching", "assessment_feedback", "blocked"},
-            "expected_review_status": "support_requested",
-            "mini_group": False,
-            "max_elapsed": 5,
-        }),
-        ("mini_group_answer", "3.456", {
-            "expected_states": {"current_step"},
-            "expected_review_status": "deferred_until_group_end",
-            "mini_group": True,
-            "max_elapsed": 5,
-        }),
-    ]
     observed: list[dict[str, Any]] = []
-    for index, (name, answer, spec) in enumerate(scenarios, 1):
-        if not assets:
-            issues.append(f"{name}: no active question available for submit scenario")
-            continue
+    for index in range(1, 11):
+        name = f"explicit_stuck_{index:02d}"
         materialized = _materialize_question_as_current_step(
             conn,
             assets[(index - 1) % len(assets)],
             position=index,
-            mini_group=bool(spec.get("mini_group")),
+            mini_group=False,
         )
-        before_attempt_count = int(conn.execute("select count(*) from attempts").fetchone()[0])
-        before_job_count = int(conn.execute("select count(*) from background_jobs").fetchone()[0])
         page.reload(wait_until="domcontentloaded")
         reached_current_step = _wait_for_current_step_answer_surface(page, timeout_ms=15000)
         if not reached_current_step:
             page.screenshot(path=str(output_dir / f"submit-scenario-{index}-{name}-start-failed.png"), full_page=False)
             issues.append(f"{name}: cannot start from current_step; diagnostics={_current_browser_diagnostics(page)}")
             continue
-        before_bootstrap = _request_json(page, "/api/child-bootstrap")
-        before_step = before_bootstrap.get("payload", {}).get("current_step") if isinstance(before_bootstrap.get("payload"), dict) else {}
-        before_step_handle = str((before_step or {}).get("step_handle") or "")
-        page.locator("#childAnswerRaw").fill(answer)
+        stuck_button = page.locator("[data-v3-stuck-prompt]").first
+        if not stuck_button.is_visible():
+            issues.append(f"{name}: explicit stuck button is not visible")
+            continue
         before = time.perf_counter()
-        page.locator("#childSubmitBtn").click()
+        stuck_button.click()
         try:
             page.wait_for_function(
                 """(allowed) => allowed.includes(window.ChildLearningShell?.currentState?.())""",
-                arg=list(spec["expected_states"]),
-                timeout=20000,
+                arg=["feedback_teaching", "teaching"],
+                timeout=5000,
             )
         except PlaywrightTimeoutError:
-            issues.append(f"{name}: submit did not reach an expected state")
+            issues.append(f"{name}: explicit stuck did not reach teaching feedback within 5s")
         elapsed = round(time.perf_counter() - before, 3)
         state = page.evaluate(
             """() => ({
@@ -551,8 +587,8 @@ def _submit_scenarios_browser_audit(
             })"""
         )
         _child_safe_text(state.get("text", ""), context=f"submit:{name}", issues=issues)
-        if elapsed > float(spec.get("max_elapsed") or 20):
-            issues.append(f"{name}: expected fast path within {spec.get('max_elapsed')}s, observed {elapsed}s")
+        if elapsed > 5:
+            issues.append(f"{name}: expected explicit stuck within 5s, observed {elapsed}s")
         attempts = conn.execute(
             """
             select *
@@ -563,39 +599,115 @@ def _submit_scenarios_browser_audit(
             """,
             (materialized["step_id"],),
         ).fetchall()
-        after_attempt_count = int(conn.execute("select count(*) from attempts").fetchone()[0])
-        after_job_count = int(conn.execute("select count(*) from background_jobs").fetchone()[0])
-        if after_attempt_count != before_attempt_count + 1:
-            issues.append(f"{name}: expected exactly one new attempt, before={before_attempt_count}, after={after_attempt_count}")
         if len(attempts) != 1:
             issues.append(f"{name}: expected one attempt for submitted step, found={len(attempts)}")
-            review_status = ""
+            attempt_id = ""
+            review_status = "missing"
+            job_rows = []
         else:
+            attempt_id = str(attempts[0]["id"])
             review_meta = db.json_load(attempts[0]["review_meta_json"], {})
             review_status = str(review_meta.get("status") or "")
-            if review_status != spec.get("expected_review_status"):
-                issues.append(
-                    f"{name}: review_meta.status expected {spec.get('expected_review_status')}, got {review_status}"
-                )
-        if spec.get("mini_group"):
-            after_bootstrap = _request_json(page, "/api/child-bootstrap")
-            after_step = after_bootstrap.get("payload", {}).get("current_step") if isinstance(after_bootstrap.get("payload"), dict) else {}
-            after_step_handle = str((after_step or {}).get("step_handle") or "")
-            if state.get("state") == "current_step" and after_step_handle == before_step_handle:
-                issues.append(f"{name}: stayed on the same current_step after submit")
-            if after_job_count != before_job_count:
-                issues.append(
-                    f"{name}: expected no model job before group end, before_jobs={before_job_count}, after_jobs={after_job_count}"
-                )
+            if (
+                attempts[0]["answer_source"] != "v3_stuck"
+                or attempts[0]["grading_status"] != "graded"
+                or review_meta.get("route") != "stuck_interruption"
+                or review_meta.get("needs_ai_review") is not False
+            ):
+                issues.append(f"{name}: explicit stuck attempt did not keep deterministic lineage")
+            job_rows = conn.execute(
+                "select job_type, status from background_jobs where attempt_id = ? order by created_at, id",
+                (attempt_id,),
+            ).fetchall()
+            if [(row["job_type"], row["status"]) for row in job_rows] != [("stuck_interruption", "succeeded")]:
+                issues.append(f"{name}: explicit stuck job lineage is not one succeeded deterministic job")
+            if conn.execute("select count(*) from attempt_assessments where attempt_id = ?", (attempt_id,)).fetchone()[0]:
+                issues.append(f"{name}: explicit stuck created an assessment")
+            if conn.execute("select count(*) from evidence_validations where attempt_id = ?", (attempt_id,)).fetchone()[0]:
+                issues.append(f"{name}: explicit stuck created evidence validation")
+            if conn.execute(
+                "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+                (f"%{attempt_id}%",),
+            ).fetchone()[0]:
+                issues.append(f"{name}: explicit stuck updated mastery")
+        before_reload_counts = (
+            len(attempts),
+            len(job_rows),
+        )
+        page.reload(wait_until="domcontentloaded")
+        after_reload_counts = (
+            conn.execute("select count(*) from attempts where flow_step_id = ?", (materialized["step_id"],)).fetchone()[0],
+            conn.execute("select count(*) from background_jobs where attempt_id = ?", (attempt_id,)).fetchone()[0]
+            if attempt_id else 0,
+        )
+        if after_reload_counts != before_reload_counts:
+            issues.append(f"{name}: refresh duplicated attempt or job")
         observed.append({
             "scenario": name,
             "elapsed_seconds": elapsed,
             "state": state.get("state"),
-            "attempt_delta": after_attempt_count - before_attempt_count,
-            "job_delta": after_job_count - before_job_count,
+            "attempt_count": len(attempts),
+            "job_types": [row["job_type"] for row in job_rows],
             "review_status": review_status,
         })
-        page.screenshot(path=str(output_dir / f"submit-scenario-{index}-{name}.png"), full_page=False)
+        if index in {1, 10}:
+            page.screenshot(path=str(output_dir / f"submit-scenario-{index}-{name}.png"), full_page=False)
+
+    practice_assets = [
+        asset
+        for asset in assets
+        if "practice" in set(asset["usage_policy"]["allowed_purposes"])
+    ]
+    if not practice_assets:
+        issues.append("mini_group_answer: no practice-eligible question available")
+    else:
+        materialized = _materialize_question_as_current_step(
+            conn,
+            practice_assets[0],
+            position=11,
+            mini_group=True,
+        )
+        page.reload(wait_until="domcontentloaded")
+        if not _wait_for_current_step_answer_surface(page, timeout_ms=15000):
+            issues.append(f"mini_group_answer: cannot start; diagnostics={_current_browser_diagnostics(page)}")
+        else:
+            before_job_count = conn.execute("select count(*) from background_jobs").fetchone()[0]
+            before_bootstrap = _request_json(page, "/api/child-bootstrap")
+            before_step = before_bootstrap.get("payload", {}).get("current_step") or {}
+            page.locator("#childAnswerRaw").fill("3.456")
+            before = time.perf_counter()
+            page.locator("#childSubmitBtn").click()
+            try:
+                page.wait_for_function(
+                    """() => window.ChildLearningShell?.currentState?.() === 'current_step'""",
+                    timeout=5000,
+                )
+            except PlaywrightTimeoutError:
+                issues.append("mini_group_answer: did not advance to the next current step within 5s")
+            elapsed = round(time.perf_counter() - before, 3)
+            attempt = conn.execute(
+                "select * from attempts where flow_step_id = ? order by created_at desc limit 1",
+                (materialized["step_id"],),
+            ).fetchone()
+            after_bootstrap = _request_json(page, "/api/child-bootstrap")
+            after_step = after_bootstrap.get("payload", {}).get("current_step") or {}
+            review_status = str(db.json_load(attempt["review_meta_json"], {}).get("status") or "") if attempt else "missing"
+            if not attempt or review_status != "deferred_until_group_end":
+                issues.append(f"mini_group_answer: expected deferred attempt, got {review_status}")
+            if str(after_step.get("step_handle") or "") == str(before_step.get("step_handle") or ""):
+                issues.append("mini_group_answer: stayed on the same current step")
+            after_job_count = conn.execute("select count(*) from background_jobs").fetchone()[0]
+            if after_job_count != before_job_count:
+                issues.append("mini_group_answer: created a model job before group end")
+            observed.append({
+                "scenario": "mini_group_answer",
+                "elapsed_seconds": elapsed,
+                "state": page.evaluate("() => window.ChildLearningShell?.currentState?.()"),
+                "attempt_count": 1 if attempt else 0,
+                "job_delta": after_job_count - before_job_count,
+                "review_status": review_status,
+            })
+            page.screenshot(path=str(output_dir / "submit-scenario-mini-group.png"), full_page=False)
     return {
         "status": "PASS" if not issues else "NEEDS_FIX",
         "observed": observed,

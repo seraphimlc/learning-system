@@ -25,12 +25,14 @@ const indexHtml = fs.readFileSync(indexPath, "utf8")
   .replace(/<link[^>]*rel="stylesheet"[^>]*>/g, "")
   .replace("<head>", '<head><base href="http://child.test/">');
 const browser = await chromium.launch({ headless: true });
-const report = { cases: {}, required_recovery: {}, unavailable: {}, no_network: true, unexpected_network: [] };
+const report = { cases: {}, group_progress: {}, required_recovery: {}, unavailable: {}, no_network: true, unexpected_network: [] };
 
 async function mountCase(payload, viewport, { zoom = 1, unavailable = false } = {}) {
   const page = await browser.newPage({ viewport });
   let submitPosts = 0;
   const unexpectedRequests = [];
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname === "/api/knowledge-map") {
@@ -59,10 +61,19 @@ async function mountCase(payload, viewport, { zoom = 1, unavailable = false } = 
   await page.addScriptTag({ path: rendererPath });
   await page.addScriptTag({ path: appPath });
   if (zoom !== 1) await page.evaluate((value) => { document.documentElement.style.zoom = String(value); }, zoom);
-  await page.waitForFunction((isUnavailable) => {
-    if (isUnavailable) return !document.getElementById("childErrorPanel").hidden;
-    return document.getElementById("dbStatus")?.textContent === "准备好了";
-  }, unavailable);
+  try {
+    await page.waitForFunction((isUnavailable) => {
+      if (isUnavailable) return !document.getElementById("childErrorPanel").hidden;
+      return document.getElementById("dbStatus")?.textContent === "准备好了";
+    }, unavailable);
+  } catch (error) {
+    const state = await page.evaluate(() => ({
+      dbStatus: document.getElementById("dbStatus")?.textContent || "",
+      heading: document.getElementById("childHeading")?.textContent || "",
+      errorBody: document.getElementById("childErrorBody")?.textContent || "",
+    }));
+    throw new Error(`${error.message}\npageErrors=${JSON.stringify(pageErrors)}\nstate=${JSON.stringify(state)}`);
+  }
   return { page, submitPosts: () => submitPosts, unexpectedRequests };
 }
 
@@ -132,6 +143,8 @@ try {
             label: element.getAttribute("aria-label"),
             source: element.getAttribute("data-linear-source"),
             text: element.textContent,
+            display: getComputedStyle(element).display,
+            base_display: getComputedStyle(element.querySelector(":scope > span")).display,
           })),
           power_copies: powerCopies,
           prompt_copy: promptCopy,
@@ -157,6 +170,7 @@ try {
       assert(result.raw_duplicates.length === 0, `${testCase.name}/${target.key}: duplicated option source`);
       assert(testCase.expect.required_lines.every((line) => result.prompt_lines.includes(line)), `${testCase.name}/${target.key}: line grouping`);
       assert(result.powers.every((power) => power.label && power.source), `${testCase.name}/${target.key}: exponent semantics`);
+      assert(result.powers.every((power) => power.display === "inline" && power.base_display === "inline"), `${testCase.name}/${target.key}: exponent must remain inline inside question copy`);
       assert(result.power_copies.every((copy) => copy.fired && copy.prevented && copy.commandResult && copy.text === copy.source), `${testCase.name}/${target.key}: exponent clipboard caret source`);
       if (result.prompt_power_count) {
         assert(result.prompt_copy.fired && result.prompt_copy.prevented && result.prompt_copy.commandResult && result.prompt_copy.text === result.source_prompt, `${testCase.name}/${target.key}: prompt clipboard serialization`);
@@ -176,6 +190,17 @@ try {
   }
 
   const required = fixture.valid_cases.find((item) => item.name === fixture.required_explanation_case);
+  const oneQuestionGroup = structuredClone(required.bootstrap);
+  oneQuestionGroup.current_step.group_progress = { current: 1, maximum: 1 };
+  const mountedOneQuestionGroup = await mountCase(oneQuestionGroup, { width: 390, height: 844 });
+  report.group_progress = await mountedOneQuestionGroup.page.evaluate(() => ({
+    progress: document.getElementById("childProgressText").textContent,
+    pending: document.getElementById("childPendingText").textContent,
+  }));
+  assert(report.group_progress.progress === "第 1 题 · 最多 1 题", "one-question group progress copy is wrong");
+  assert(report.group_progress.pending === "这题做完就看解析", "one-question group pending copy is contradictory");
+  await mountedOneQuestionGroup.page.close();
+
   const mountedRequired = await mountCase(required.bootstrap, { width: 390, height: 844 });
   await mountedRequired.page.locator("[data-interaction-choice]").first().check();
   await mountedRequired.page.locator("#childSubmitBtn").click();

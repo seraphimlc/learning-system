@@ -9,9 +9,11 @@ import sqlite3
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -731,6 +733,65 @@ class AssessmentPolicyTests(unittest.TestCase):
             len({point["source_target_key"] for point in contract["score_points"]}),
         )
 
+    def test_required_number_line_correction_gets_full_credit_without_optional_reason(self):
+        question = self._question(
+            "error_spotting",
+            scoring_targets=[
+                {
+                    "key": "direction_conflict",
+                    "criterion": "指出正方向与标签数值变化冲突。",
+                    "dimension": "concept",
+                    "required_for_pass": True,
+                    "reference_component": "solution_steps[0]",
+                    "points": 4,
+                },
+                {
+                    "key": "valid_correction",
+                    "criterion": "给出使正方向与数值增大方向一致的修正。",
+                    "dimension": "procedure",
+                    "required_for_pass": True,
+                    "reference_component": "expected_answer",
+                    "points": 4,
+                },
+                {
+                    "key": "direction_reason",
+                    "criterion": "说明沿正方向数值应增大。",
+                    "dimension": "expression_notation",
+                    "required_for_pass": False,
+                    "reference_component": "solution_steps[1]",
+                    "points": 2,
+                },
+            ],
+        )
+
+        contract = self.policy.build_answer_contract(question)
+        self.assertEqual([4, 4, 2], [point["points"] for point in contract["score_points"]])
+        assessment = self.policy.calculate_assessment(
+            contract,
+            [
+                {
+                    "criterion_key": "direction_conflict",
+                    "status": "met",
+                    "child_evidence": "不正确，标签方向反了。",
+                    "reason": "正确识别了箭头方向与标签变化冲突。",
+                },
+                {
+                    "criterion_key": "valid_correction",
+                    "status": "met",
+                    "child_evidence": "从左到右改成-1、0、1、2。",
+                    "reason": "修正后的标签沿箭头方向递增。",
+                },
+                {
+                    "criterion_key": "direction_reason",
+                    "status": "not_met",
+                    "child_evidence": "",
+                    "reason": "题目未要求另写原因，答案没有重复说明正方向规则。",
+                },
+            ],
+        )
+        self.assertEqual(10, assessment["score_out_of_10"])
+        self.assertTrue(assessment["question_passed"])
+
     def test_validate_contract_rejects_structural_and_scoring_invalidity(self):
         valid = self._number_line_contract()
         invalid_contracts = []
@@ -823,6 +884,46 @@ class AssessmentPolicyTests(unittest.TestCase):
         self.assertFalse(result["finalized"])
         self.assertIsNone(result["score_out_of_10"])
         self.assertFalse(result["question_passed"])
+
+    def test_unclear_optional_judgment_does_not_erase_demonstrated_mastery(self):
+        contract = self._number_line_contract()
+        contract["score_points"][0]["points"] = 4
+        contract["score_points"][1]["points"] = 4
+        contract["score_points"][2]["points"] = 2
+        contract["score_points"][2]["required_for_pass"] = False
+        judgments = self._met_judgments(contract)
+        judgments[2].update(
+            status="unclear",
+            child_evidence="The correction is clear, but the optional wording is omitted.",
+            reason="Only the nonessential explanation is not explicit.",
+        )
+
+        result = self.policy.calculate_assessment(contract, judgments)
+
+        self.assertTrue(result["finalized"])
+        self.assertEqual(10, result["score_out_of_10"])
+        self.assertTrue(result["question_passed"])
+        self.assertEqual(2, result["compatibility_score_points"])
+
+    def test_optional_evidence_cannot_mask_a_missing_required_math_criterion(self):
+        contract = self._number_line_contract()
+        contract["score_points"][0]["points"] = 4
+        contract["score_points"][1]["points"] = 4
+        contract["score_points"][2]["points"] = 2
+        contract["score_points"][2]["required_for_pass"] = False
+        judgments = self._met_judgments(contract)
+        judgments[0].update(
+            status="not_met",
+            child_evidence="The response gives a label order without identifying the direction conflict.",
+            reason="A required mathematical relation is missing.",
+        )
+
+        result = self.policy.calculate_assessment(contract, judgments)
+
+        self.assertTrue(result["finalized"])
+        self.assertEqual(6, result["score_out_of_10"])
+        self.assertFalse(result["question_passed"])
+        self.assertAlmostEqual(1.2, result["compatibility_score_points"])
 
     def test_calculate_assessment_is_deterministic_and_required_point_aware(self):
         contract = self._number_line_contract()
@@ -958,7 +1059,7 @@ class AssessmentPolicyTests(unittest.TestCase):
         self.assertNotEqual(0, result["score_out_of_10"])
         self.assertTrue(result["question_passed"])
 
-    def test_integer_remainder_prerequisite_is_rejected_as_low_value_mainline(self):
+    def test_integer_remainder_quality_is_not_decided_by_prompt_string_matching(self):
         from learning_system import question_bank
 
         item = {
@@ -988,7 +1089,8 @@ class AssessmentPolicyTests(unittest.TestCase):
         review = question_bank.review_item_quality(item)
 
         self.assertEqual("rejected", review["review_status"])
-        self.assertIn(
+        self.assertIn("missing_structured_reviewer_evidence", review["rejection_reasons"])
+        self.assertNotIn(
             "incoming_grade_7_low_value_integer_remainder_prerequisite",
             review["rejection_reasons"],
         )
@@ -1585,6 +1687,44 @@ class AssessmentStoreTests(unittest.TestCase):
             (self.attempt_id,),
         ).fetchone()
         self.assertEqual((2, 2, "correct"), tuple(attempt))
+
+    def test_accept_keeps_passing_optional_gap_as_correct_for_planning(self):
+        draft = self._contract()
+        draft["score_points"][0]["points"] = 4
+        draft["score_points"][1]["points"] = 4
+        draft["score_points"][2]["points"] = 2
+        draft["score_points"][2]["required_for_pass"] = False
+        contract = self._activate(draft)
+        self.store.bind_contract_to_flow_step(self.conn, self.flow_step_id, contract)
+        pending = self._record_pending(contract)
+        judgments = self._judgments()
+        judgments[2].update(
+            status="unclear",
+            child_evidence="The core answer is complete; optional wording is omitted.",
+            reason="Only a nonessential explanation is unclear.",
+        )
+
+        accepted = self.store.accept_assessment(
+            self.conn,
+            assessment_id=pending["id"],
+            criterion_judgments=judgments,
+            score_out_of_10=10,
+            question_passed=True,
+            feedback=self._feedback(),
+            assessment_digest_sha256="o" * 64,
+            answer_analysis_agent_run_id=None,
+            provider_mode="recorded_model",
+        )
+        self.assertEqual(10, accepted["score_out_of_10"])
+        self.assertTrue(accepted["question_passed"])
+
+        attempt = self.conn.execute(
+            "select score_points, max_points, result from attempts where id = ?",
+            (self.attempt_id,),
+        ).fetchone()
+        self.assertEqual(2, attempt["score_points"])
+        self.assertEqual(2, attempt["max_points"])
+        self.assertEqual("correct", attempt["result"])
 
     def test_accept_derives_partial_and_zero_compatibility_from_authority(self):
         contract = self._activate()
@@ -5567,6 +5707,35 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.conn.close()
         self.tmpdir.cleanup()
 
+    def test_optional_unclear_criterion_does_not_trigger_clarification(self):
+        contract = {
+            "score_points": [
+                {"key": "core_answer", "required_for_pass": True},
+                {"key": "optional_wording", "required_for_pass": False},
+            ]
+        }
+        output = {
+            "confidence": 0.96,
+            "criteria": [
+                {"criterion_key": "core_answer", "status": "met"},
+                {"criterion_key": "optional_wording", "status": "unclear"},
+            ],
+        }
+
+        self.assertFalse(
+            self.runtime._v51_answer_review_requires_clarification(
+                output,
+                contract=contract,
+            )
+        )
+        output["criteria"][0]["status"] = "unclear"
+        self.assertTrue(
+            self.runtime._v51_answer_review_requires_clarification(
+                output,
+                contract=contract,
+            )
+        )
+
     def _pin_v51_contract(self):
         from learning_system import assessment_policy, assessment_store, question_fingerprints
 
@@ -5883,6 +6052,530 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             model_params={"temperature": 0},
         )
 
+    def _run_overlapping_answer_workers(self, *, job_id, provider_output):
+        from learning_system import daily_runtime, model_router
+
+        first_provider_started = threading.Event()
+        release_first_provider = threading.Event()
+        provider_result_ready = threading.Event()
+        provider_lock = threading.Lock()
+        provider_results = {}
+        provider_keys = []
+        semantic_operations = {"count": 0}
+        worker_results = {}
+        worker_connection_ids = {}
+
+        def provider_stub(_route, _payload, *, provider_idempotency_key=None):
+            key = str(provider_idempotency_key or "")
+            with provider_lock:
+                provider_keys.append(key)
+                first_for_key = bool(key) and key not in provider_results
+                if first_for_key:
+                    provider_results[key] = None
+                    semantic_operations["count"] += 1
+            if not key:
+                first_provider_started.set()
+                raise AssertionError("semantic provider call is missing Idempotency-Key")
+            if first_for_key:
+                first_provider_started.set()
+                if not release_first_provider.wait(8):
+                    raise TimeoutError("test did not release the first provider operation")
+                raw = {
+                    "output_text": json.dumps(provider_output, ensure_ascii=False)
+                }
+                with provider_lock:
+                    provider_results[key] = raw
+                provider_result_ready.set()
+                return raw
+            if not provider_result_ready.wait(8):
+                raise TimeoutError("deduplicated provider result did not become available")
+            with provider_lock:
+                return copy.deepcopy(provider_results[key])
+
+        def run_worker(label, now=None):
+            conn = db.connect(self.db_path)
+            try:
+                worker_connection_ids[label] = id(conn)
+                runtime = daily_runtime.DailyLearningRuntime(
+                    conn,
+                    project_root=PROJECT_ROOT,
+                )
+                worker_results[label] = runtime.process_next_background_job(
+                    worker_id=f"overlap-{label}",
+                    now=now,
+                    flow_id=self.flow_id,
+                    job_id=job_id,
+                )
+            except Exception as exc:
+                worker_results[label] = exc
+            finally:
+                conn.close()
+
+        takeover_now = (
+            datetime.now(timezone.utc) + timedelta(seconds=181)
+        ).isoformat(timespec="microseconds")
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_responses",
+            side_effect=provider_stub,
+        ), mock.patch.object(
+            model_router,
+            "call_chat_completions",
+            side_effect=AssertionError("responses endpoint should remain compatible"),
+        ):
+            first = threading.Thread(target=run_worker, args=("first",))
+            first.start()
+            self.assertTrue(first_provider_started.wait(8))
+            probe = db.connect(self.db_path)
+            try:
+                first_job = probe.execute(
+                    "select lease_owner, claim_generation, lease_expires_at from background_jobs where id = ?",
+                    (job_id,),
+                ).fetchone()
+                self.assertEqual("overlap-first", first_job["lease_owner"])
+                self.assertLessEqual(
+                    datetime.fromisoformat(first_job["lease_expires_at"]),
+                    datetime.fromisoformat(takeover_now),
+                )
+                self.assertEqual(0, probe.execute(
+                    "select count(*) from model_response_checkpoints where source_job_id = ?",
+                    (job_id,),
+                ).fetchone()[0])
+                first_inflight = probe.execute(
+                    "select owner_token from model_response_inflight",
+                ).fetchone()
+                self.assertIsNotNone(first_inflight)
+            finally:
+                probe.close()
+            second = threading.Thread(
+                target=run_worker,
+                args=("second", takeover_now),
+            )
+            second.start()
+            takeover_observed = False
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                probe = db.connect(self.db_path)
+                try:
+                    current_job = probe.execute(
+                        "select lease_owner, claim_generation, status from background_jobs where id = ?",
+                        (job_id,),
+                    ).fetchone()
+                    checkpoint_count = probe.execute(
+                        "select count(*) from model_response_checkpoints where source_job_id = ?",
+                        (job_id,),
+                    ).fetchone()[0]
+                    current_inflight = probe.execute(
+                        "select owner_token from model_response_inflight",
+                    ).fetchone()
+                finally:
+                    probe.close()
+                if (
+                    current_job["lease_owner"] == "overlap-second"
+                    and int(current_job["claim_generation"] or 0) >= 2
+                    and current_job["status"] == "running"
+                ):
+                    self.assertEqual(0, checkpoint_count)
+                    self.assertIsNotNone(current_inflight)
+                    self.assertEqual(
+                        first_inflight["owner_token"],
+                        current_inflight["owner_token"],
+                    )
+                    takeover_observed = True
+                    break
+                time.sleep(0.02)
+            self.assertTrue(
+                takeover_observed,
+                "second worker must reclaim the expired job while the first provider call is still in flight",
+            )
+            self.assertEqual(
+                1,
+                len(provider_keys),
+                "the second worker must wait behind the local in-flight lock instead of calling the provider",
+            )
+            release_first_provider.set()
+            first.join(12)
+            second.join(12)
+            self.assertFalse(first.is_alive())
+            self.assertFalse(second.is_alive())
+
+        return {
+            "worker_results": worker_results,
+            "provider_keys": provider_keys,
+            "semantic_operation_count": semantic_operations["count"],
+            "worker_connection_ids": worker_connection_ids,
+            "takeover_observed_before_checkpoint": takeover_observed,
+        }
+
+    def test_model_router_sends_digest_only_idempotency_header(self):
+        from learning_system import model_router
+
+        captured = []
+
+        class FakePipe:
+            def poll(self, _timeout):
+                return True
+
+            def recv(self):
+                return {"ok": True, "raw": json.dumps({"output_text": "{}"})}
+
+            def close(self):
+                return None
+
+        class FakeProcess:
+            def join(self, _timeout):
+                return None
+
+            def is_alive(self):
+                return False
+
+        def spawn(request_spec):
+            captured.append(request_spec)
+            return FakeProcess(), FakePipe()
+
+        operation_digest = "a" * 64
+        with mock.patch.object(model_router, "_spawn_http_json_process", side_effect=spawn):
+            model_router.call_responses(
+                self._live_route(model_router),
+                {"input": "child content must stay in the body"},
+                provider_idempotency_key=operation_digest,
+            )
+
+        self.assertEqual(1, len(captured))
+        self.assertEqual(
+            operation_digest,
+            captured[0]["headers"]["Idempotency-Key"],
+        )
+        self.assertNotIn("child content", captured[0]["headers"]["Idempotency-Key"])
+
+    def test_model_router_reuses_candidate_idempotency_key_for_transport_retry(self):
+        from learning_system import model_router
+
+        provider_keys = []
+
+        def responses_stub(_route, _payload, *, provider_idempotency_key=None):
+            provider_keys.append(provider_idempotency_key)
+            if len(provider_keys) == 1:
+                raise model_router.ModelCallError(
+                    "temporary provider failure",
+                    status_code=503,
+                )
+            return {"output_text": json.dumps({"ok": True})}
+
+        schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"ok": {"type": "boolean"}},
+            "required": ["ok"],
+        }
+        with mock.patch.object(
+            model_router,
+            "call_responses",
+            side_effect=responses_stub,
+        ), mock.patch.object(
+            model_router,
+            "call_chat_completions",
+            side_effect=AssertionError("retry must stay on the same candidate"),
+        ), mock.patch.object(
+            model_router,
+            "_transport_retry_delay_seconds",
+            return_value=0,
+        ):
+            result = model_router.call_structured_json(
+                self._live_route(model_router),
+                {"input": "semantic operation body"},
+                schema=schema,
+                provider_idempotency_key="b" * 64,
+            )
+
+        self.assertEqual(2, len(provider_keys))
+        self.assertTrue(all(provider_keys))
+        self.assertEqual(1, len(set(provider_keys)))
+        self.assertTrue(result.provider_idempotency_enabled)
+        self.assertEqual(
+            hashlib.sha256(provider_keys[0].encode("ascii")).hexdigest(),
+            result.provider_idempotency_key_digest_sha256,
+        )
+
+    def test_model_router_uses_stable_independent_keys_for_fallback_candidates(self):
+        from learning_system import model_router
+
+        provider_keys = []
+
+        def responses_stub(_route, _payload, *, provider_idempotency_key=None):
+            provider_keys.append(provider_idempotency_key)
+            if len(provider_keys) in {1, 3}:
+                raise model_router.ModelCallError(
+                    "The parameter response_format.type json_schema is not supported",
+                    status_code=400,
+                )
+            return {"output_text": json.dumps({"ok": True})}
+
+        schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"ok": {"type": "boolean"}},
+            "required": ["ok"],
+        }
+        results = []
+        with mock.patch.object(
+            model_router,
+            "_structured_transport_candidates",
+            return_value=[
+                ("responses", "json_schema"),
+                ("responses", "json_object"),
+            ],
+        ), mock.patch.object(
+            model_router,
+            "call_responses",
+            side_effect=responses_stub,
+        ):
+            for _ in range(2):
+                results.append(model_router.call_structured_json(
+                    self._live_route(model_router),
+                    {"input": "stable fallback operation"},
+                    schema=schema,
+                    provider_idempotency_key="c" * 64,
+                ))
+
+        self.assertEqual(4, len(provider_keys))
+        self.assertTrue(all(provider_keys))
+        self.assertEqual(provider_keys[0], provider_keys[2])
+        self.assertEqual(provider_keys[1], provider_keys[3])
+        self.assertNotEqual(provider_keys[0], provider_keys[1])
+        self.assertEqual("json_object", results[0].mode)
+        self.assertEqual("json_object", results[1].mode)
+
+    def test_model_response_inflight_wait_is_bounded_and_expired_owner_can_be_replaced(self):
+        from learning_system import assessment_store
+
+        owner_conn = db.connect(self.db_path)
+        waiter_conn = db.connect(self.db_path)
+        try:
+            first = assessment_store.acquire_model_response_operation(
+                owner_conn,
+                checkpoint_kind="answer_analysis",
+                immutable_input_digest_sha256="d" * 64,
+                owner_token="owner-first",
+                lease_seconds=60,
+            )
+            self.assertTrue(first["acquired"])
+
+            started = time.monotonic()
+            with self.assertRaisesRegex(TimeoutError, "timed out waiting"):
+                assessment_store.wait_for_model_response_operation(
+                    waiter_conn,
+                    checkpoint_kind="answer_analysis",
+                    immutable_input_digest_sha256="d" * 64,
+                    owner_token="owner-second",
+                    lease_seconds=60,
+                    wait_timeout_seconds=1,
+                    poll_interval_seconds=0.02,
+                )
+            elapsed = time.monotonic() - started
+            self.assertGreaterEqual(elapsed, 0.8)
+            self.assertLess(elapsed, 3.0)
+            self.assertEqual("owner-first", owner_conn.execute(
+                "select owner_token from model_response_inflight where immutable_input_digest_sha256 = ?",
+                ("d" * 64,),
+            ).fetchone()["owner_token"])
+
+            owner_conn.execute(
+                "update model_response_inflight set lease_expires_at = '2000-01-01T00:00:00+00:00' where immutable_input_digest_sha256 = ?",
+                ("d" * 64,),
+            )
+            owner_conn.commit()
+            takeover = assessment_store.wait_for_model_response_operation(
+                waiter_conn,
+                checkpoint_kind="answer_analysis",
+                immutable_input_digest_sha256="d" * 64,
+                owner_token="owner-second",
+                lease_seconds=60,
+                wait_timeout_seconds=1,
+                poll_interval_seconds=0.02,
+            )
+            self.assertTrue(takeover["acquired"])
+            self.assertIsNone(takeover["checkpoint"])
+            self.assertEqual("owner-second", waiter_conn.execute(
+                "select owner_token from model_response_inflight where immutable_input_digest_sha256 = ?",
+                ("d" * 64,),
+            ).fetchone()["owner_token"])
+            self.assertTrue(assessment_store.release_model_response_operation(
+                waiter_conn,
+                checkpoint_kind="answer_analysis",
+                immutable_input_digest_sha256="d" * 64,
+                owner_token="owner-second",
+            ))
+        finally:
+            owner_conn.close()
+            waiter_conn.close()
+
+    def test_overlapping_single_workers_share_provider_operation_and_checkpoint(self):
+        from learning_system import assessment_store
+
+        attempt = self._submit_text(
+            "I state the relation, calculate, and verify the result.",
+            "submit-runtime-v51-provider-idempotency-single",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+
+        evidence = self._run_overlapping_answer_workers(
+            job_id=job["id"],
+            provider_output=self._v3_output(attempt),
+        )
+
+        self.assertEqual(1, evidence["semantic_operation_count"])
+        self.assertEqual(1, len(evidence["provider_keys"]))
+        self.assertTrue(all(evidence["provider_keys"]))
+        self.assertEqual(1, len(set(evidence["provider_keys"])))
+        self.assertEqual(2, len(set(evidence["worker_connection_ids"].values())))
+        self.assertTrue(evidence["takeover_observed_before_checkpoint"])
+        self.assertTrue(any(
+            isinstance(result, dict) and result.get("job_status") == "succeeded"
+            for result in evidence["worker_results"].values()
+        ), evidence["worker_results"])
+        self.assertEqual("succeeded", self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()["status"])
+        self.assertIsNotNone(assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            attempt["id"],
+            int(attempt["attempt_version"]),
+        ))
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from model_response_checkpoints where checkpoint_kind = 'answer_analysis'",
+        ).fetchone()[0])
+        checkpoint_envelope = db.json_load(self.conn.execute(
+            "select envelope_json from model_response_checkpoints where checkpoint_kind = 'answer_analysis'",
+        ).fetchone()[0], {})
+        route_meta = checkpoint_envelope["route_meta"]
+        self.assertTrue(route_meta["provider_idempotency_enabled"])
+        self.assertEqual(
+            64,
+            len(route_meta["provider_idempotency_key_digest_sha256"]),
+        )
+        self.assertNotIn("provider_idempotency_key", route_meta)
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where id = ? and status = 'dead_letter'",
+            (job["id"],),
+        ).fetchone()[0])
+
+    def test_overlapping_group_workers_share_provider_operation_and_checkpoint(self):
+        from learning_system import assessment_store, daily_runtime
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "先写关键关系，再计算并检验。",
+                "submit-runtime-v51-provider-idempotency-group-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "换一个条件也用同一条关系，再检查结果。",
+            "submit-runtime-v51-provider-idempotency-group-second",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        output_items = []
+        for group_item in payload["group_items"]:
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": [
+                    {
+                        "criterion_key": point["key"],
+                        "status": "met",
+                        "child_evidence": "孩子写出了关键关系、计算和检查。",
+                        "reason": "提交内容满足这个得分点。",
+                    }
+                    for point in contract["score_points"]
+                ],
+                "answer_gap": "没有影响得分的数学差距。",
+                "improvement_direction": ["保持当前做法。"],
+                "expression_judgment": "表达能看出数学意图。",
+                "teaching_explanation": "先确认关系，再检查结果。",
+                "confidence": 0.96,
+            })
+        group_output = {
+            "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+            "items": output_items,
+            "confidence": 0.96,
+        }
+
+        evidence = self._run_overlapping_answer_workers(
+            job_id=job["id"],
+            provider_output=group_output,
+        )
+
+        self.assertEqual(1, evidence["semantic_operation_count"])
+        self.assertEqual(1, len(evidence["provider_keys"]))
+        self.assertTrue(all(evidence["provider_keys"]))
+        self.assertEqual(1, len(set(evidence["provider_keys"])))
+        self.assertEqual(2, len(set(evidence["worker_connection_ids"].values())))
+        self.assertTrue(evidence["takeover_observed_before_checkpoint"])
+        self.assertTrue(any(
+            isinstance(result, dict) and result.get("job_status") == "succeeded"
+            for result in evidence["worker_results"].values()
+        ), evidence["worker_results"])
+        self.assertEqual("succeeded", self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()["status"])
+        self.assertEqual(2, self.conn.execute(
+            """
+            select count(*)
+            from attempt_assessments
+            where attempt_id in (?, ?) and status = 'accepted'
+            """,
+            tuple(item["attempt_id"] for item in payload["group_items"]),
+        ).fetchone()[0])
+        self.assertEqual(1, self.conn.execute(
+            """
+            select count(*)
+            from model_response_checkpoints
+            where checkpoint_kind = 'group_answer_analysis'
+              and immutable_input_digest_sha256 = ?
+            """,
+            (payload["group_digest_sha256"],),
+        ).fetchone()[0])
+        checkpoint_envelope = db.json_load(self.conn.execute(
+            """
+            select envelope_json
+            from model_response_checkpoints
+            where checkpoint_kind = 'group_answer_analysis'
+              and immutable_input_digest_sha256 = ?
+            """,
+            (payload["group_digest_sha256"],),
+        ).fetchone()[0], {})
+        route_meta = checkpoint_envelope["route_meta"]
+        self.assertTrue(route_meta["provider_idempotency_enabled"])
+        self.assertEqual(64, len(route_meta["provider_idempotency_key_digest_sha256"]))
+        self.assertNotIn("provider_idempotency_key", route_meta)
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where id = ? and status = 'dead_letter'",
+            (job["id"],),
+        ).fetchone()[0])
+
     def test_review_short_group_advances_without_analysis_until_group_end(self):
         self._set_step_group_size(self.step["step_handle"], 2)
 
@@ -5914,6 +6607,264 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ).fetchone()
         self.assertEqual("completed", first_step["status"])
 
+        group_questions = self.conn.execute(
+            """
+            select question_id
+            from flow_steps
+            where flow_id = ? and question_id is not null
+            order by position, created_at, id
+            """,
+            (self.flow_id,),
+        ).fetchall()
+        self.assertEqual(2, len(group_questions))
+        questions = [db.get_question(self.conn, row["question_id"]) for row in group_questions]
+        self.assertNotEqual(questions[0]["id"], questions[1]["id"])
+        self.assertNotEqual(
+            questions[0].get("problem_instance_id"),
+            questions[1].get("problem_instance_id"),
+            "A real mini-group must not create two steps for the same mathematical instance.",
+        )
+
+    def test_create_question_step_rejects_duplicate_problem_instance_in_same_group(self):
+        self._set_step_group_size(self.step["step_handle"], 2)
+        step_row = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (self.step["step_handle"],),
+        ).fetchone()
+        reason = json.loads(step_row["selection_reason_json"] or "{}")
+
+        with self.assertRaisesRegex(ValueError, "duplicate problem instance"):
+            self.runtime._create_question_step(
+                flow_id=self.flow_id,
+                position=int(step_row["position"]) + 1,
+                graph_version=step_row["graph_version"],
+                question=self.question,
+                review_record_id=step_row["review_record_id"],
+                selection_reason=reason,
+                candidate_packet={},
+                step_type=step_row["step_type"],
+                initial_status="planned",
+                answer_contract=self.contract,
+            )
+
+    def test_create_answerable_step_rejects_problem_instance_seen_in_prior_group(self):
+        self._set_step_group_size(self.step["step_handle"], 2)
+        step_row = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (self.step["step_handle"],),
+        ).fetchone()
+        reason = json.loads(step_row["selection_reason_json"] or "{}")
+        reason["mini_group"]["id"] = "MG-different-follow-up-group"
+
+        with self.assertRaisesRegex(ValueError, "already seen in flow"):
+            self.runtime._create_question_step(
+                flow_id=self.flow_id,
+                position=int(step_row["position"]) + 1,
+                graph_version=step_row["graph_version"],
+                question=self.question,
+                review_record_id=step_row["review_record_id"],
+                selection_reason=reason,
+                candidate_packet={},
+                step_type=step_row["step_type"],
+                initial_status="planned",
+                answer_contract=self.contract,
+            )
+
+    def test_worked_example_rejects_problem_instance_already_seen_in_flow(self):
+        from learning_system import question_usage
+
+        step_row = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (self.step["step_handle"],),
+        ).fetchone()
+        policy = db.active_question_usage_policy(
+            self.conn,
+            self.question["id"],
+            item_version=self.question["item_version"],
+        )
+        teaching_context = question_usage.context_for_step(
+            policy,
+            purpose="teaching",
+            purpose_role="worked_example",
+            block_id="TEACH-dedup-regression",
+            block_index=1,
+        )
+
+        with self.assertRaisesRegex(ValueError, "already seen in flow"):
+            self.runtime._create_question_step(
+                flow_id=self.flow_id,
+                position=int(step_row["position"]) + 1,
+                graph_version=step_row["graph_version"],
+                question=self.question,
+                review_record_id=step_row["review_record_id"],
+                selection_reason={
+                    "reason": "worked_example_problem_instance_regression",
+                    "requested_usage_context": teaching_context,
+                },
+                candidate_packet={},
+                step_type="worked_example",
+                answer_input_mode="none",
+                initial_status="planned",
+                answer_contract=self.contract,
+            )
+
+    def test_answerable_step_rejects_problem_instance_shown_as_worked_example(self):
+        from learning_system import question_usage
+
+        source_step = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (self.step["step_handle"],),
+        ).fetchone()
+        flow = self.runtime._create_daily_flow(
+            "2099-07-15-worked-example-dedup",
+            source_step["graph_version"],
+        )
+        policy = db.active_question_usage_policy(
+            self.conn,
+            self.question["id"],
+            item_version=self.question["item_version"],
+        )
+        teaching_context = question_usage.context_for_step(
+            policy,
+            purpose="teaching",
+            purpose_role="worked_example",
+            block_id="TEACH-shown-instance",
+            block_index=1,
+        )
+        self.runtime._create_question_step(
+            flow_id=flow["id"],
+            position=1,
+            graph_version=source_step["graph_version"],
+            question=self.question,
+            review_record_id=source_step["review_record_id"],
+            selection_reason={
+                "reason": "worked_example_shown_before_micro_check",
+                "requested_usage_context": teaching_context,
+            },
+            candidate_packet={},
+            step_type="worked_example",
+            answer_input_mode="none",
+            answer_contract=self.contract,
+        )
+        practice_context = question_usage.context_for_step(
+            policy,
+            purpose="practice",
+            purpose_role="consolidation",
+            block_id="PRACTICE-after-worked-example",
+            block_index=1,
+            practice_family=policy["default_practice_family"],
+            practice_role=policy["allowed_practice_roles"][0],
+        )
+
+        with self.assertRaisesRegex(ValueError, "already seen in flow"):
+            self.runtime._create_question_step(
+                flow_id=flow["id"],
+                position=2,
+                graph_version=source_step["graph_version"],
+                question=self.question,
+                review_record_id=source_step["review_record_id"],
+                selection_reason={
+                    "reason": "answerable_after_worked_example_regression",
+                    "requested_usage_context": practice_context,
+                },
+                candidate_packet={},
+                step_type="micro_check",
+                answer_input_mode="text",
+                initial_status="planned",
+                answer_contract=self.contract,
+            )
+
+    def test_assessment_feedback_can_reference_non_teaching_source_question(self):
+        attempt = self._submit_text(
+            "I state the relation, calculate, and verify the result.",
+            "submit-runtime-v51-feedback-reference-only",
+        )
+        self.conn.execute(
+            """
+            update question_usage_policies
+            set allowed_purposes_json = '["diagnostic"]', updated_at = ?
+            where question_id = ? and item_version = ? and status = 'active'
+            """,
+            (db.now_iso(), self.question["id"], self.question["item_version"]),
+        )
+        self.conn.execute(
+            "update flow_steps set status = 'completed', updated_at = ? where id = ?",
+            (db.now_iso(), attempt["flow_step_id"]),
+        )
+        self.conn.commit()
+        flow = dict(self.runtime._flow_by_id(self.flow_id))
+        source_step_id = str(attempt["flow_step_id"])
+
+        feedback_step_id = self.runtime._create_v51_assessment_feedback_step(
+            flow=flow,
+            source_attempt=db.get_attempt(self.conn, attempt["id"]),
+            source_step_id=source_step_id,
+            source_next_step_decision_id="",
+            position=2,
+            assessment={
+                "score_out_of_10": 10,
+                "reference_answer": self.question["expected_answer"],
+                "answer_gap": "没有影响得分的数学差距。",
+                "improvement_direction": ["保持当前做法。"],
+                "expression_judgment": "表达能够体现数学意图。",
+                "teaching_explanation": "按原题关系完成即可。",
+            },
+            contract=self.contract,
+            needs_repair=False,
+        )
+
+        feedback_step = self.conn.execute(
+            "select step_type, question_id from flow_steps where id = ?",
+            (feedback_step_id,),
+        ).fetchone()
+        self.assertEqual("assessment_feedback", feedback_step["step_type"])
+        self.assertEqual(self.question["id"], feedback_step["question_id"])
+        self.assertEqual(
+            0,
+            self.conn.execute(
+                "select count(*) from flow_step_usage_contexts where flow_step_id = ?",
+                (feedback_step_id,),
+            ).fetchone()[0],
+        )
+
+    def test_teaching_repair_records_usage_and_schema_backfill_is_idempotent(self):
+        attempt = self._submit_text(
+            "I am missing the first mathematical relation.",
+            "submit-runtime-v51-teaching-context-backfill",
+        )
+        flow = dict(self.runtime._flow_by_id(self.flow_id))
+        repair_step_id = self.runtime._create_teaching_repair_step(
+            flow=flow,
+            source_attempt=db.get_attempt(self.conn, attempt["id"]),
+            source_step_id=str(attempt["flow_step_id"]),
+            source_next_step_decision_id="",
+            position=2,
+            initial_status="planned",
+        )
+        usage = db.flow_step_usage_context(self.conn, repair_step_id)
+        self.assertEqual("teaching", usage["purpose"])
+        self.assertEqual("targeted_repair", usage["purpose_role"])
+        self.assertFalse(usage["mastery_update_eligible"])
+
+        self.conn.execute(
+            "delete from flow_step_usage_contexts where flow_step_id = ?",
+            (repair_step_id,),
+        )
+        self.conn.commit()
+        db.init_schema(self.conn)
+        db.init_schema(self.conn)
+
+        self.assertEqual(
+            1,
+            self.conn.execute(
+                "select count(*) from flow_step_usage_contexts where flow_step_id = ?",
+                (repair_step_id,),
+            ).fetchone()[0],
+        )
+        backfilled = db.flow_step_usage_context(self.conn, repair_step_id)
+        self.assertEqual("teaching", backfilled["purpose"])
+        self.assertEqual("targeted_repair", backfilled["purpose_role"])
+
     def test_simple_foundation_node_uses_short_validation_profile(self):
         flow = dict(self.conn.execute(
             "select * from daily_flows where id = ?",
@@ -5927,6 +6878,10 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             group_role="review_short_set",
             target_node_id="M-G7-NUMBER-LINE",
             question_id=self.question["id"],
+            requested_usage={
+                "purpose": "diagnostic",
+                "purpose_role": "entry_probe",
+            },
         )
         review_group = review_reason["mini_group"]
         self.assertEqual(2, review_group["size"])
@@ -5940,6 +6895,11 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             group_role="repair_micro_set",
             target_node_id="M-G7-NUMBER-LINE",
             question_id=self.question["id"],
+            requested_usage={
+                "purpose": "practice",
+                "purpose_role": "consolidation",
+                "practice_role": "repair_specific_gap",
+            },
         )
         repair_group = repair_reason["mini_group"]
         self.assertEqual(1, repair_group["size"])
@@ -6260,6 +7220,287 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ).fetchall()
         self.assertEqual(1, len(feedback_steps))
 
+    def _assert_group_branch_purpose(self, *, criterion_status, expected_purpose):
+        from learning_system import assessment_store, daily_runtime, model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "先写关键关系，再计算并检验。",
+                f"submit-runtime-v51-{expected_purpose}-purpose-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "换一个条件也用同一条关系，再检查结果。",
+            f"submit-runtime-v51-{expected_purpose}-purpose-second",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        output_items = []
+        for group_item in payload["group_items"]:
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": [
+                    {
+                        "criterion_key": point["key"],
+                        "status": criterion_status,
+                        "child_evidence": "结构化测试证据。",
+                        "reason": "用于验证题组分支用途。",
+                    }
+                    for point in contract["score_points"]
+                ],
+                "answer_gap": (
+                    "没有影响得分的数学差距。"
+                    if criterion_status == "met"
+                    else "关键关系还没有稳定建立。"
+                ),
+                "improvement_direction": ["继续检查关系与符号。"],
+                "expression_judgment": "按数学意图判断。",
+                "teaching_explanation": "先确认关系，再检查符号。",
+                "confidence": 0.95,
+            })
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": output_items,
+                "confidence": 0.95,
+            },
+            mode="json_schema",
+            raw_response={"fixture": f"group-{expected_purpose}-purpose"},
+            endpoint="unit://structured-json",
+        )
+        candidate_step = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (payload["group_items"][-1]["step_id"],),
+        ).fetchone()
+        candidate = {
+            "question": db.get_question(self.conn, candidate_step["question_id"]),
+            "review_record_id": candidate_step["review_record_id"],
+            "candidate_packet": {},
+            "selection_reason": {"reason": f"qa_{expected_purpose}_purpose_candidate"},
+            "action": "same_structure_retest",
+            "reason": "QA purpose isolation candidate.",
+        }
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ), mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            return_value=candidate,
+        ) as next_selection, mock.patch.object(
+            daily_runtime,
+            "UNIQUE_PROBLEM_INSTANCE_STEP_TYPES",
+            frozenset(),
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id=f"group-{expected_purpose}-purpose-worker",
+                flow_id=self.flow_id,
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual(expected_purpose, next_selection.call_args.kwargs["required_purpose"])
+        planned_step_id = str(result.get("planned_step_id") or "")
+        self.assertTrue(planned_step_id, result)
+        planned_step = self.conn.execute(
+            "select step_type from flow_steps where id = ?",
+            (planned_step_id,),
+        ).fetchone()
+        self.assertEqual(
+            "question" if expected_purpose == "diagnostic" else "micro_check",
+            planned_step["step_type"],
+        )
+        usage = db.flow_step_usage_context(self.conn, planned_step_id)
+        self.assertEqual(expected_purpose, usage["purpose"])
+        stored_job = self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()
+        self.assertEqual("succeeded", stored_job["status"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and status = 'dead_letter'",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_strong_group_branch_is_diagnostic_from_selection_to_sqlite(self):
+        self._assert_group_branch_purpose(
+            criterion_status="met",
+            expected_purpose="diagnostic",
+        )
+
+    def test_weak_group_branch_is_practice_from_selection_to_sqlite(self):
+        self._assert_group_branch_purpose(
+            criterion_status="not_met",
+            expected_purpose="practice",
+        )
+
+    def test_model_response_checkpoint_duplicate_is_idempotent_and_conflict_fails_closed(self):
+        from learning_system import assessment_store
+
+        output = {"schema_version": "qa.checkpoint.v1", "value": "first"}
+        envelope = {
+            "agent_key": "answer_analysis_agent",
+            "phase": "answer_analysis",
+            "status": "accepted",
+            "provider_mode": "live_model",
+        }
+        first = assessment_store.checkpoint_model_response(
+            self.conn,
+            checkpoint_kind="answer_analysis",
+            immutable_input_digest_sha256="f" * 64,
+            source_job_id="JOB-qa-checkpoint",
+            output=output,
+            envelope=envelope,
+        )
+        replay = assessment_store.checkpoint_model_response(
+            self.conn,
+            checkpoint_kind="answer_analysis",
+            immutable_input_digest_sha256="f" * 64,
+            source_job_id="JOB-qa-checkpoint-replay",
+            output=output,
+            envelope=envelope,
+        )
+
+        self.assertEqual(first["id"], replay["id"])
+        self.assertEqual(1, self.conn.execute(
+            """
+            select count(*) from model_response_checkpoints
+            where checkpoint_kind = 'answer_analysis'
+              and immutable_input_digest_sha256 = ?
+            """,
+            ("f" * 64,),
+        ).fetchone()[0])
+        with self.assertRaisesRegex(ValueError, "conflicting content"):
+            assessment_store.checkpoint_model_response(
+                self.conn,
+                checkpoint_kind="answer_analysis",
+                immutable_input_digest_sha256="f" * 64,
+                source_job_id="JOB-qa-checkpoint-conflict",
+                output={**output, "value": "conflict"},
+                envelope=envelope,
+            )
+
+    def test_group_model_response_checkpoint_survives_reducer_crash(self):
+        from learning_system import assessment_store, daily_runtime, model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "先写关键关系，再计算并检验。",
+                "submit-runtime-v51-group-checkpoint-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "换一个条件也用同一条关系，再检查结果。",
+            "submit-runtime-v51-group-checkpoint-second",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        output_items = []
+        for group_item in payload["group_items"]:
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": [
+                    {
+                        "criterion_key": point["key"],
+                        "status": "met",
+                        "child_evidence": "孩子写出了关键关系、计算和检查。",
+                        "reason": "提交内容满足这个得分点。",
+                    }
+                    for point in contract["score_points"]
+                ],
+                "answer_gap": "没有影响得分的数学差距。",
+                "improvement_direction": ["保持把关键关系、计算和检查连起来写。"],
+                "expression_judgment": "表达能看出数学意图，判定有效。",
+                "teaching_explanation": "先看清关系，再计算并检验结论。",
+                "confidence": 0.96,
+            })
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": output_items,
+                "confidence": 0.96,
+            },
+            mode="json_schema",
+            raw_response={"fixture": "group-answer-checkpoint"},
+            endpoint="unit://structured-json",
+        )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ) as model_call, mock.patch.object(
+            self.runtime,
+            "_record_model_agent_run_from_envelope",
+            side_effect=RuntimeError("crash after group response checkpoint"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "crash after group response checkpoint"):
+                self.runtime._handle_group_answer_analysis_job(job)
+
+        self.assertEqual(1, model_call.call_count)
+        checkpoint = self.conn.execute(
+            """
+            select output_json
+            from model_response_checkpoints
+            where checkpoint_kind = 'group_answer_analysis'
+              and immutable_input_digest_sha256 = ?
+            """,
+            (payload["group_digest_sha256"],),
+        ).fetchone()
+        self.assertIsNotNone(checkpoint)
+        self.assertEqual(structured.value, json.loads(checkpoint["output_json"]))
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=AssertionError("retry must reuse the durable group response"),
+        ) as retry_model_call:
+            result = self.runtime._handle_group_answer_analysis_job(job)
+
+        self.assertEqual(0, retry_model_call.call_count)
+        self.assertEqual("succeeded", result["job_status"], result)
+
     def test_text_answer_uses_one_call_and_accepted_assessment_is_score_authority(self):
         from learning_system import assessment_store, model_router, semantic_agents
 
@@ -6376,6 +7617,23 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             (f"%{attempt['id']}%",),
         ).fetchone()[0])
         feedback_step = child_state["current_step"]
+        planned_action = self.conn.execute(
+            """
+            select action from next_step_decisions
+            where source_attempt_ids_json like ?
+            order by created_at desc limit 1
+            """,
+            (f"%{attempt['id']}%",),
+        ).fetchone()["action"]
+        expected_continue_label = (
+            "完成今天学习"
+            if planned_action == "summary"
+            else "看完，继续下一题"
+        )
+        self.assertEqual(
+            expected_continue_label,
+            feedback_step["support"]["continue_label"],
+        )
         continued = self.runtime.continue_current_step(
             step_handle=feedback_step["step_handle"],
             position=feedback_step["position"],
@@ -6461,7 +7719,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         )
         self.assertIn("数学意图", feedback["expression_judgment"])
 
-    def test_semantic_checkpoint_rolls_back_with_failed_assessment_and_retry_calls_model_again(self):
+    def test_model_response_checkpoint_survives_failed_assessment_and_retry_reuses_it(self):
         from learning_system import assessment_store, model_router, semantic_agents
 
         attempt = self._submit_text(
@@ -6505,13 +7763,14 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
 
         checkpoint = self.conn.execute(
             """
-            select semantic_output_digest_sha256, semantic_output_json
-            from attempt_assessments
-            where attempt_id = ?
+            select output_digest_sha256, output_json
+            from model_response_checkpoints
+            where checkpoint_kind = 'answer_analysis'
             """,
-            (attempt["id"],),
         ).fetchone()
-        self.assertIsNone(checkpoint)
+        self.assertIsNotNone(checkpoint)
+        self.assertEqual(output, json.loads(checkpoint["output_json"]))
+        self.assertTrue(checkpoint["output_digest_sha256"])
         self.assertEqual(1, semantic_call.call_count)
 
         with mock.patch.object(
@@ -6521,7 +7780,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ), mock.patch.object(
             semantic_agents,
             "call_answer_analysis_agent",
-            return_value=envelope,
+            side_effect=AssertionError("retry must reuse the durable model response"),
         ) as retry_semantic_call, mock.patch.object(
             assessment_store,
             "accept_assessment",
@@ -6529,7 +7788,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ):
             result = self.runtime._handle_answer_analysis_job(job)
 
-        self.assertEqual(1, retry_semantic_call.call_count)
+        self.assertEqual(0, retry_semantic_call.call_count)
         self.assertEqual("succeeded", result["job_status"])
         accepted = assessment_store.accepted_assessment_for_attempt(
             self.conn,
@@ -6753,13 +8012,13 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         )
         pending = self.conn.execute(
             """
-            select status, score_out_of_10, semantic_output_digest_sha256
+            select status, rejection_reason, score_out_of_10, semantic_output_digest_sha256
             from attempt_assessments
             where attempt_id = ?
             """,
             (attempt["id"],),
         ).fetchone()
-        self.assertEqual("pending", pending["status"])
+        self.assertEqual("rejected", pending["status"])
         self.assertIsNone(pending["score_out_of_10"])
         self.assertTrue(pending["semantic_output_digest_sha256"])
         self.assertEqual(0, self.conn.execute(
@@ -6784,6 +8043,22 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         )
         self.assertEqual("clarify_evidence", child_state["child_state"])
         self.assertEqual("clarification", child_state["current_step"]["answer_input_mode"])
+        original_after_clarify = db.get_attempt(self.conn, attempt["id"])
+        self.assertEqual(
+            "invalidated",
+            original_after_clarify["evidence_status"],
+            "the unclear source must stop appearing as an active pending attempt once clarification is requested",
+        )
+        clarify_row = self.conn.execute(
+            "select id from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
+            (self.flow_id,),
+        ).fetchone()
+        clarify_usage = db.flow_step_usage_context(self.conn, clarify_row["id"])["raw"]
+        self.assertFalse(
+            clarify_usage["mastery_update_eligible"],
+            "a hinted clarification answer can never create mastery",
+        )
+        self.assertNotEqual("diagnostic", clarify_usage["purpose"])
         clarify_steps_before = self.conn.execute(
             "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
             (self.flow_id,),
@@ -6878,13 +8153,14 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ).fetchone()[0])
         pending = self.conn.execute(
             """
-            select status, score_out_of_10, semantic_output_digest_sha256
+            select status, rejection_reason, score_out_of_10, semantic_output_digest_sha256
             from attempt_assessments
             where attempt_id = ?
             """,
             (attempt["id"],),
         ).fetchone()
-        self.assertEqual("pending", pending["status"])
+        self.assertEqual("rejected", pending["status"])
+        self.assertEqual("superseded_by_clarification", pending["rejection_reason"])
         self.assertIsNone(pending["score_out_of_10"])
         self.assertTrue(pending["semantic_output_digest_sha256"])
 

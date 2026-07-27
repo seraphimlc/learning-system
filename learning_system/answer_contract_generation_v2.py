@@ -37,9 +37,7 @@ MAX_ATTEMPTS = 3
 BACKOFF_SECONDS = (20.0, 60.0)
 MAX_RETRY_AFTER_SECONDS = 120.0
 ITEM_WALL_SECONDS = 180.0
-V12_SCORING_POLICY_GATE_QUESTION_IDS = frozenset(
-    {"QB11-M-BRIDGE-CLOCK-ANGLE-01"}
-)
+V12_SCORING_POLICY_GATE_QUESTION_IDS = frozenset()
 
 QUESTION_BANK_ISSUE_CODES = {
     "question_incorrect",
@@ -2776,10 +2774,5 @@ def contract_row_is_v2_activation_eligible(
 def v2_scoring_policy_activation_blockers(
     row: sqlite3.Row | dict[str, Any],
 ) -> list[str]:
-    values = dict(row)
-    if (
-        values.get("question_id") in V12_SCORING_POLICY_GATE_QUESTION_IDS
-        and values.get("question_bank_version") == "2026-07-08.bank.v11"
-    ):
-        return ["v12_scoring_policy_gate_required_for_clock_verification"]
+    del row
     return []

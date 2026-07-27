@@ -771,6 +771,7 @@
         .map((module) => module.handle)
     );
     const learnerFacing = (node) => node && !learningProcessModules.has(node.module_handle);
+    const canStart = (node) => node && actionDescriptorsForNode(node).some((descriptor) => descriptor.enabled);
     const fromServer = Array.isArray(state.projection?.recommended_handles)
       ? state.projection.recommended_handles
           .map((handle) => byHandle.get(handle))
@@ -789,7 +790,7 @@
     ];
     const seen = new Set();
     return ranked.filter((node) => {
-      if (!node || seen.has(node.handle)) return false;
+      if (!node || seen.has(node.handle) || !canStart(node)) return false;
       seen.add(node.handle);
       return true;
     }).slice(0, 3);
@@ -1773,7 +1774,10 @@
       ? node.action_readiness
       : null;
     const readinessVisible = readiness?.code && readiness.code !== "ready";
-    const disabledReason = descriptors.find((item) => !item.enabled)?.disabled_reason || "";
+    const hasEnabledAction = descriptors.some((item) => item.enabled);
+    const disabledReason = hasEnabledAction
+      ? ""
+      : (descriptors.find((item) => !item.enabled)?.disabled_reason || "");
     detail.innerHTML = `
       <div class="knowledge-detail-head">
         <div>

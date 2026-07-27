@@ -81,7 +81,7 @@ _INTERNAL_RESIDUE = (
     "<untrusted",
 )
 _EXPONENT_TOKEN = re.compile(
-    r"(?P<base>\([^()\n]+\)|[A-Za-z0-9])\^(?P<exponent>[A-Za-z]|[0-9]+)"
+    r"(?P<base>\([^()\n]+\)|[0-9]+(?:\.[0-9]+)?|[A-Za-z])\^(?P<exponent>[A-Za-z]|[0-9]+)"
 )
 _ANY_CARET = re.compile(r"\^")
 _MARKDOWN_TABLE_DELIMITER = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")

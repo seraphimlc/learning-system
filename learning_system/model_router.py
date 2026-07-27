@@ -94,6 +94,8 @@ class StructuredJSONResult:
     mode: str
     raw_response: dict[str, Any]
     endpoint: str = ""
+    provider_idempotency_enabled: bool = False
+    provider_idempotency_key_digest_sha256: str = ""
 
 
 @dataclass(frozen=True)
@@ -527,7 +529,23 @@ def resolve_route(
     )
 
 
-def call_responses(route: ModelRoute, payload: dict[str, Any]) -> dict[str, Any]:
+def _sha256_digest_text(value: str, field: str) -> str:
+    normalized = str(value or "").strip().lower()
+    if len(normalized) != 64:
+        raise ValueError(f"{field} must be a SHA-256 digest")
+    try:
+        int(normalized, 16)
+    except ValueError as exc:
+        raise ValueError(f"{field} must be a SHA-256 digest") from exc
+    return normalized
+
+
+def call_responses(
+    route: ModelRoute,
+    payload: dict[str, Any],
+    *,
+    provider_idempotency_key: str | None = None,
+) -> dict[str, Any]:
     if not route.enabled:
         raise ModelCallError(f"{route.agent_key}:{route.task} model route is not configured.")
     outbound = {**payload, "model": route.model}
@@ -535,10 +553,16 @@ def call_responses(route: ModelRoute, payload: dict[str, Any]) -> dict[str, Any]
         route=route,
         url=route.responses_url,
         outbound=outbound,
+        provider_idempotency_key=provider_idempotency_key,
     )
 
 
-def call_chat_completions(route: ModelRoute, payload: dict[str, Any]) -> dict[str, Any]:
+def call_chat_completions(
+    route: ModelRoute,
+    payload: dict[str, Any],
+    *,
+    provider_idempotency_key: str | None = None,
+) -> dict[str, Any]:
     if not route.enabled:
         raise ModelCallError(f"{route.agent_key}:{route.task} model route is not configured.")
     outbound = {**payload, "model": route.model}
@@ -546,6 +570,7 @@ def call_chat_completions(route: ModelRoute, payload: dict[str, Any]) -> dict[st
         route=route,
         url=route.chat_completions_url,
         outbound=outbound,
+        provider_idempotency_key=provider_idempotency_key,
     )
 
 
@@ -554,6 +579,7 @@ def _call_http_json_with_wall_deadline(
     route: ModelRoute,
     url: str,
     outbound: dict[str, Any],
+    provider_idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     wall_timeout_seconds = max(0.01, float(route.timeout_seconds))
     wall_deadline_monotonic = time.monotonic() + wall_timeout_seconds
@@ -566,13 +592,19 @@ def _call_http_json_with_wall_deadline(
                 f"wall-clock deadline exhausted for {route.agent_key}:{route.task}",
                 transport_error_kind="deadline",
             )
+        headers = {
+            "Authorization": f"Bearer {route.api_key}",
+            "Content-Type": "application/json",
+        }
+        if provider_idempotency_key:
+            headers["Idempotency-Key"] = _sha256_digest_text(
+                provider_idempotency_key,
+                "provider_idempotency_key",
+            )
         request_spec = {
             "url": url,
             "data": json.dumps(outbound, ensure_ascii=False).encode("utf-8"),
-            "headers": {
-                "Authorization": f"Bearer {route.api_key}",
-                "Content-Type": "application/json",
-            },
+            "headers": headers,
             "method": "POST",
             "socket_timeout_seconds": remaining,
         }
@@ -841,6 +873,7 @@ def call_structured_json(
     plain_json_instruction: str = "Return only one valid JSON object; no markdown.",
     retryable_errors_fallback: bool = True,
     include_fallback_schema: bool = True,
+    provider_idempotency_key: str | None = None,
 ) -> StructuredJSONResult:
     if not isinstance(schema, dict) or not schema:
         raise ModelJSONParseError("local JSON schema is required before transport")
@@ -878,7 +911,36 @@ def call_structured_json(
         route.model,
     )
     candidates = _structured_transport_candidates(route, transport_key)
+    idempotency_source = (
+        _sha256_digest_text(
+            provider_idempotency_key,
+            "provider_idempotency_key",
+        )
+        if provider_idempotency_key
+        else ""
+    )
     for candidate_ordinal, (endpoint, mode) in enumerate(candidates):
+        candidate_idempotency_key = ""
+        candidate_idempotency_key_digest = ""
+        if idempotency_source:
+            candidate_idempotency_key = hashlib.sha256(
+                json.dumps(
+                    {
+                        "semantic_operation_digest_sha256": idempotency_source,
+                        "provider": route.provider,
+                        "model": route.model,
+                        "base_url": route.base_url.rstrip("/"),
+                        "endpoint": endpoint,
+                        "structured_json_mode": mode,
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            candidate_idempotency_key_digest = hashlib.sha256(
+                candidate_idempotency_key.encode("ascii")
+            ).hexdigest()
         adapted = _adapt_structured_json_payload(
             payload,
             schema=schema,
@@ -932,11 +994,29 @@ def call_structured_json(
             provider_outcome_recorded = False
             try:
                 if endpoint == "responses":
-                    raw = call_responses(candidate_route, adapted)
+                    response_kwargs = (
+                        {"provider_idempotency_key": candidate_idempotency_key}
+                        if candidate_idempotency_key
+                        else {}
+                    )
+                    raw = call_responses(
+                        candidate_route,
+                        adapted,
+                        **response_kwargs,
+                    )
                     text = extract_response_text(raw)
                 elif endpoint == "chat_completions":
                     chat_payload = _adapt_responses_payload_to_chat_completions(adapted)
-                    raw = call_chat_completions(candidate_route, chat_payload)
+                    chat_kwargs = (
+                        {"provider_idempotency_key": candidate_idempotency_key}
+                        if candidate_idempotency_key
+                        else {}
+                    )
+                    raw = call_chat_completions(
+                        candidate_route,
+                        chat_payload,
+                        **chat_kwargs,
+                    )
                     text = extract_response_text(raw)
                 else:
                     raise ValueError(f"Unknown model endpoint: {endpoint}")
@@ -973,6 +1053,12 @@ def call_structured_json(
                     mode=mode,
                     raw_response=raw,
                     endpoint=endpoint,
+                    provider_idempotency_enabled=bool(
+                        candidate_idempotency_key
+                    ),
+                    provider_idempotency_key_digest_sha256=(
+                        candidate_idempotency_key_digest
+                    ),
                 )
             except ModelCallError as exc:
                 exc.endpoint = endpoint

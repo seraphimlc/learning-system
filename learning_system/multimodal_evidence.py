@@ -14,6 +14,7 @@ RECOGNITION_STATUSES = frozenset(
 CONFIRMATION_REQUIRED_MODES = frozenset({"handwriting", "voice"})
 HANDWRITING_RECOGNIZER_VERSION = "2026-07-25.handwriting-recognition.v1"
 VOICE_RECOGNIZER_VERSION = "2026-07-25.browser-speech-recognition.v1"
+PHOTO_ANSWER_RECOGNIZER_VERSION = "2026-07-26.photo-answer-ocr.v1"
 MEDIA_VERSION = 1
 RECOGNITION_TRUST_CLASSIFICATIONS = frozenset(
     {"server_verified", "client_unverified", "unknown"}

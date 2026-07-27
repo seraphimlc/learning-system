@@ -17,6 +17,12 @@ async function settleFrames(page, count = 4) {
   }, count);
 }
 
+async function openKnowledgeMap(page) {
+  const learningVisible = await page.locator("#view-child").isVisible().catch(() => false);
+  if (learningVisible) await page.locator("#knowledgeHomeBtn").click();
+  await page.getByRole("region", { name: "我的数学知识目录" }).waitFor();
+}
+
 const baseUrl = arg("--base-url");
 if (!baseUrl) throw new Error("--base-url is required");
 const stableNodeName = arg("--stable-node-name");
@@ -40,13 +46,15 @@ async function screenshot(page, name) {
   screenshots[name] = target;
 }
 
-async function freshPage(viewport) {
+async function freshPage(viewport, { openMap = true } = {}) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("region", { name: "我的数学知识目录" }).waitFor();
+  if (openMap) {
+    await openKnowledgeMap(page);
+  }
   return { context, page };
 }
 
@@ -113,7 +121,7 @@ async function graphPreferenceIsIgnoredOracle() {
       localStorage.setItem(`${scopedPrefix}:graph:viewport`, JSON.stringify({ scale: 1.2, x: 999, y: 777 }));
     }, prefix);
     await page.reload({ waitUntil: "networkidle" });
-    await page.getByRole("region", { name: "我的数学知识目录" }).waitFor();
+    await openKnowledgeMap(page);
     const state = await page.evaluate(() => ({
       hasGraphText: /图谱/.test(document.body.textContent || ""),
       graphRegionCount: document.querySelectorAll('[data-knowledge-view="graph"]').length,
@@ -207,14 +215,29 @@ async function stateAppropriateActionDescriptorsOracle(payload) {
 }
 
 async function resumeRequiresFreshBootstrapOracle() {
-  const { context, page } = await freshPage({ width: 1280, height: 800 });
+  const { context, page } = await freshPage(
+    { width: 1280, height: 800 },
+    { openMap: false },
+  );
   try {
-    const current = await page.locator("[data-current-learning]").textContent().catch(() => "");
-    const resumeVisible = await page.locator("[data-resume-learning]").isVisible().catch(() => false);
+    const mapWasDefault = await page.locator("#view-knowledge-home:not([hidden])").isVisible();
+    let mapRequestCount = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/knowledge-map") mapRequestCount += 1;
+    });
+    await page.evaluate(() => {
+      sessionStorage.setItem("son-ai-learning:primary-surface:v5.1", "learning_step");
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.locator("#view-child:not([hidden])").waitFor();
+    const heading = await page.locator("#childHeading").textContent().catch(() => "");
+    await page.locator("#knowledgeHomeBtn").click();
+    await page.getByRole("region", { name: "我的数学知识目录" }).waitFor();
     return {
-      pass: resumeVisible && current.includes(currentNodeName),
-      current,
-      resumeVisible,
+      pass: mapWasDefault && heading.includes(currentNodeName) && mapRequestCount >= 1,
+      mapWasDefault,
+      heading,
+      mapRequestCount,
     };
   } finally {
     await context.close();

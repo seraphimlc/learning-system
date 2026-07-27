@@ -7,10 +7,10 @@ import unittest
 import urllib.error
 import urllib.request
 from contextlib import closing
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
-from learning_system import db, server
+from learning_system import daily_runtime, db, server
 from tests.test_knowledge_views_v51 import (
     PROJECT_ROOT,
     QUESTION_VISUAL_ACTIVATION_SCRIPT,
@@ -62,7 +62,44 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
         self._install_resumable_question_step(conn, assets[2])
         return [self.nodes[asset["node_id"]]["name"] for asset in assets]
 
-    def _install_enabled_descriptor_post_fixture(self, conn, config: dict) -> list[str]:
+    def test_current_learning_uses_today_flow_instead_of_latest_cross_day_write(self):
+        config = self._load_view_config_json()
+        node_ids = sorted(self.child_visible_node_ids)[:2]
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1", assessment_policy="v5.1"
+        ):
+            with closing(db.connect(path)) as conn:
+                assets = self._install_view_activation(
+                    conn,
+                    config_payload=config,
+                    assessment_node_ids=node_ids,
+                )
+                stale = self._install_authoritative_mastery(conn, assets[0])
+                conn.execute(
+                    """
+                    update daily_flows
+                    set local_date = ?, updated_at = '2099-12-31T23:59:59+00:00'
+                    where id = ?
+                    """,
+                    ((date.today() - timedelta(days=1)).isoformat(), stale["flow_id"]),
+                )
+                self._install_resumable_question_step(conn, assets[1])
+                conn.commit()
+                payload = self._service(conn).child_projection(child_key="single-child")
+
+        self.assertEqual(
+            self.nodes[assets[1]["node_id"]]["name"],
+            payload["current_learning"]["topic_label"],
+        )
+        self.assertEqual("current_step", payload["current_learning"]["state"])
+
+    def _install_enabled_descriptor_post_fixture(
+        self,
+        conn,
+        config: dict,
+        *,
+        include_alternate_teaching_asset: bool = True,
+    ) -> list[str]:
         target_node_ids = [
             "M-PRE-NUMBER-SENSE",
             "M-BRIDGE-MOTION-BASIC",
@@ -72,13 +109,18 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
             "M-PRE-QUANTITY-RELATION",
             "M-PRE-UNIT-CONVERSION",
         ]
-        selected_node_ids = [*target_node_ids, *prerequisite_node_ids]
+        selected_node_ids = [*target_node_ids]
+        if include_alternate_teaching_asset:
+            selected_node_ids.append(target_node_ids[2])
+        selected_node_ids.extend(prerequisite_node_ids)
         assets = self._install_view_activation(
             conn,
             config_payload=config,
             assessment_node_ids=selected_node_ids,
         )
-        assets_by_node = {asset["node_id"]: asset for asset in assets}
+        assets_by_node = {}
+        for asset in assets:
+            assets_by_node.setdefault(asset["node_id"], asset)
         for index, node_id in enumerate(prerequisite_node_ids, start=1):
             lineage = self._install_authoritative_mastery(
                 conn,
@@ -115,6 +157,139 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
             assets_by_node[target_node_ids[2]],
         )
         return [self.nodes[node_id]["name"] for node_id in target_node_ids]
+
+    def test_learn_descriptor_is_disabled_without_unused_teaching_instance(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1",
+            assessment_policy="v5.1",
+        ):
+            with closing(db.connect(path)) as conn:
+                node_names = self._install_enabled_descriptor_post_fixture(
+                    conn,
+                    config,
+                    include_alternate_teaching_asset=False,
+                )
+            httpd, base_url = server.start_test_server(path)
+            try:
+                get_status, projection = self._request_json(
+                    base_url,
+                    "/api/knowledge-map",
+                )
+                self.assertEqual(200, get_status, projection)
+                node = next(
+                    item for item in projection["nodes"] if item["name"] == node_names[2]
+                )
+                descriptor = next(
+                    item
+                    for item in node["action_descriptors"]
+                    if item["action"] == "learn"
+                )
+                post_status, post_result = self._post_json(
+                    base_url,
+                    "/api/knowledge-map/select",
+                    {
+                        "handle": node["handle"],
+                        "projection_version": projection["projection_version"],
+                        "action": "learn",
+                        "client_idempotency_key": "qa-no-unused-teaching-instance",
+                    },
+                )
+            finally:
+                httpd.shutdown()
+                httpd.server_close()
+            with closing(db.connect(path)) as conn:
+                intent_count = conn.execute(
+                    "select count(*) from learning_target_intents where client_idempotency_key = ?",
+                    ("qa-no-unused-teaching-instance",),
+                ).fetchone()[0]
+        self.assertFalse(descriptor["enabled"], descriptor)
+        self.assertEqual("wait_for_safe_boundary", descriptor["result_behavior"])
+        self.assertIn("没有新的例题", descriptor["disabled_reason"])
+        self.assertEqual(409, post_status, post_result)
+        self.assertEqual("conflict", post_result.get("state"), post_result)
+        self.assertNotIn(post_result.get("status"), {"applied", "waiting_for_safe_boundary"})
+        self.assertEqual(0, intent_count)
+
+    def test_displayed_question_learn_waits_then_uses_a_different_teaching_instance(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1",
+            assessment_policy="v5.1",
+        ), closing(db.connect(path)) as conn:
+            node_names = self._install_enabled_descriptor_post_fixture(conn, config)
+            conn.execute(
+                "update flow_steps set status = 'displayed' where id = 'FS-kv51-resume-oracle'"
+            )
+            conn.commit()
+            service = self._service(conn)
+            projection = service.child_projection(child_key="single-child")
+            node = next(
+                item for item in projection["nodes"] if item["name"] == node_names[2]
+            )
+            descriptor = next(
+                item
+                for item in node["action_descriptors"]
+                if item["action"] == "learn"
+            )
+            source_step = conn.execute(
+                "select * from flow_steps where id = 'FS-kv51-resume-oracle'"
+            ).fetchone()
+            source_question = db.get_question(conn, source_step["question_id"])
+
+            self.assertTrue(descriptor["enabled"], descriptor)
+            self.assertEqual("wait_for_safe_boundary", descriptor["result_behavior"])
+            waiting = service.select_target(
+                child_key="single-child",
+                request={
+                    "handle": node["handle"],
+                    "projection_version": projection["projection_version"],
+                    "action": "learn",
+                    "client_idempotency_key": "qa-learn-after-displayed-question",
+                },
+            )
+            self.assertEqual("waiting_for_safe_boundary", waiting["status"])
+            self.assertEqual("wait_for_safe_boundary", waiting["result_behavior"])
+            self.assertEqual(
+                0,
+                conn.execute(
+                    "select count(*) from flow_steps where flow_id = ? and step_type = 'worked_example'",
+                    (source_step["flow_id"],),
+                ).fetchone()[0],
+            )
+
+            conn.execute(
+                "update flow_steps set status = 'completed' where id = ?",
+                (source_step["id"],),
+            )
+            conn.commit()
+            recovered = daily_runtime.DailyLearningRuntime(
+                conn,
+                project_root=PROJECT_ROOT,
+            ).recover_target_intents()
+
+            self.assertEqual("applied", recovered["status"], recovered)
+            teaching_step = conn.execute(
+                "select * from flow_steps where id = ?",
+                (recovered["step_id"],),
+            ).fetchone()
+            teaching_question = db.get_question(conn, teaching_step["question_id"])
+            self.assertEqual(source_step["flow_id"], teaching_step["flow_id"])
+            self.assertEqual("worked_example", teaching_step["step_type"])
+            self.assertEqual("selected", teaching_step["status"])
+            self.assertEqual(source_step["node_id"], teaching_step["node_id"])
+            self.assertNotEqual(source_step["question_id"], teaching_step["question_id"])
+            self.assertNotEqual(
+                source_question["problem_instance_id"],
+                teaching_question["problem_instance_id"],
+            )
+            self.assertEqual(
+                1,
+                conn.execute(
+                    "select count(*) from flow_steps where flow_id = ? and step_type = 'worked_example'",
+                    (source_step["flow_id"],),
+                ).fetchone()[0],
+            )
 
     def _install_resumable_question_step(self, conn, asset: dict) -> None:
         now = f"{date.today().isoformat()}T08:00:00+08:00"
@@ -318,6 +493,12 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
                             descriptor["result_behavior"],
                             expected_status_by_behavior,
                         )
+                        if node_index == 2 and action == "learn":
+                            self.assertEqual(
+                                "wait_for_safe_boundary",
+                                descriptor["result_behavior"],
+                                descriptor,
+                            )
                         post_status, result = self._post_json(
                             base_url,
                             "/api/knowledge-map/select",
@@ -345,6 +526,12 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
                     })
                     self.assertEqual(200, post_status, result)
                     self.assertEqual(expected_result, result.get("status"), observed)
+                    if node_index == 2 and action == "learn":
+                        self.assertEqual("waiting_for_safe_boundary", result.get("status"))
+                        self.assertEqual(
+                            "wait_for_safe_boundary",
+                            result.get("result_behavior"),
+                        )
 
     def test_action_target_continuity_from_clicked_label_to_learning_heading(self):
         self._require_file(

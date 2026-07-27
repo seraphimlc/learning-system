@@ -224,6 +224,71 @@ class JobQueue:
         self.conn.commit()
         return claimed
 
+    def claim_job(
+        self,
+        job_id: str,
+        worker_id: str,
+        now: str,
+        *,
+        lease_seconds: int = 60,
+    ) -> dict[str, Any] | None:
+        """Claim one known job without allowing another queued stage to jump ahead."""
+        row = self.conn.execute(
+            """
+            select id
+            from background_jobs
+            where id = ?
+              and (
+                (status = 'queued' and (available_at is null or available_at <= ?))
+                or (status = 'retry' and (retry_after is null or retry_after <= ?))
+              )
+              and (
+                depends_on_job_id is null
+                or exists (
+                  select 1
+                  from background_jobs dep
+                  where dep.id = background_jobs.depends_on_job_id
+                    and dep.status = 'succeeded'
+                )
+              )
+            """,
+            (job_id, now, now),
+        ).fetchone()
+        if not row:
+            return None
+        lease_expires_at = _add_seconds(now, lease_seconds)
+        claim_token = uuid.uuid4().hex
+        updated = self.conn.execute(
+            """
+            update background_jobs
+            set status = 'claimed',
+                lease_owner = ?,
+                claim_generation = claim_generation + 1,
+                claim_token = ?,
+                locked_at = ?,
+                lease_expires_at = ?,
+                updated_at = ?
+            where id = ?
+              and (status = 'queued' or status = 'retry')
+            """,
+            (
+                worker_id,
+                claim_token,
+                now,
+                lease_expires_at,
+                now,
+                job_id,
+            ),
+        ).rowcount
+        self.conn.commit()
+        if not updated:
+            return None
+        claimed = self.conn.execute(
+            "select * from background_jobs where id = ?",
+            (job_id,),
+        ).fetchone()
+        return dict(claimed) if claimed else None
+
     def start(
         self,
         job_id: str,

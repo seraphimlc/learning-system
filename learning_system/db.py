@@ -986,6 +986,29 @@ def init_schema(conn: sqlite3.Connection) -> None:
           updated_at text not null
         );
 
+        create table if not exists model_response_checkpoints (
+          id text primary key,
+          checkpoint_kind text not null,
+          immutable_input_digest_sha256 text not null,
+          source_job_id text not null default '',
+          output_json text not null,
+          output_digest_sha256 text not null,
+          envelope_json text not null,
+          envelope_digest_sha256 text not null,
+          created_at text not null,
+          unique(checkpoint_kind, immutable_input_digest_sha256)
+        );
+
+        create table if not exists model_response_inflight (
+          checkpoint_kind text not null,
+          immutable_input_digest_sha256 text not null,
+          owner_token text not null,
+          lease_expires_at text not null,
+          created_at text not null,
+          updated_at text not null,
+          primary key(checkpoint_kind, immutable_input_digest_sha256)
+        );
+
         create table if not exists daily_flows (
           id text primary key,
           child_key text not null default 'single-child',
@@ -1481,6 +1504,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
           );
         create index if not exists idx_attempt_assessments_attempt_status
           on attempt_assessments(attempt_id, attempt_version, status, assessment_version);
+        create index if not exists idx_model_response_checkpoints_source_job
+          on model_response_checkpoints(source_job_id, checkpoint_kind);
+        create index if not exists idx_model_response_inflight_lease
+          on model_response_inflight(lease_expires_at);
         create unique index if not exists idx_learning_target_intents_idempotency
           on learning_target_intents(child_key, graph_version, client_idempotency_key);
         create unique index if not exists idx_learning_target_intents_one_nonterminal
@@ -1488,12 +1515,14 @@ def init_schema(conn: sqlite3.Connection) -> None:
           where status in ('pending','waiting_for_safe_boundary');
         create index if not exists idx_learning_target_intents_status_created
           on learning_target_intents(child_key, graph_version, status, created_at);
-        create unique index if not exists idx_learning_target_intents_applied_step
+        drop index if exists idx_learning_target_intents_applied_step;
+        create index idx_learning_target_intents_applied_step
           on learning_target_intents(applied_step_id)
           where status = 'applied' and applied_step_id is not null;
         """
     )
     _backfill_question_usage_policies(conn)
+    _backfill_teaching_flow_step_usage_contexts(conn)
     _backfill_attempt_evidence_revisions(conn)
     conn.commit()
 
@@ -2085,6 +2114,7 @@ def record_question_review_record(
         "requires_process_evidence": quality.get("requires_process_evidence", []),
         "problem_family_id": quality.get("problem_family_id", ""),
         "core_stem_id": quality.get("core_stem_id", ""),
+        "problem_instance_id": quality.get("problem_instance_id", ""),
         "node_alignment": quality.get("node_alignment", {}),
         "identity_basis": quality.get("identity_basis", {}),
     })
@@ -2907,9 +2937,6 @@ def authoritative_learner_node_status_rows(
                     evidence["answer_run_agent_key"] != "answer_analysis_agent",
                     evidence["answer_run_phase"] != "answer_analysis",
                     evidence["answer_run_status"] != "accepted",
-                    evidence["answer_run_provider"] != "openai",
-                    evidence["answer_run_model"] != "gpt-5.5",
-                    evidence["answer_run_alias"] != "gpt-5.5",
                 )
             ):
                 evidence_valid = False
@@ -3181,6 +3208,27 @@ def get_active_question_bank_version(conn: sqlite3.Connection) -> str:
     if len(rows) != 1:
         raise ValueError("exactly one active question-bank ledger row is required")
     return str(rows[0]["question_bank_version"])
+
+
+def is_ledger_managed_question_bank_version(
+    conn: sqlite3.Connection,
+    question_bank_version: str,
+) -> bool:
+    """Return whether a bank version has ever entered the formal ledger."""
+    version = str(question_bank_version or "").strip()
+    if not version:
+        return False
+    return bool(
+        conn.execute(
+            """
+            select 1
+            from question_bank_version_ledger
+            where question_bank_version = ?
+            limit 1
+            """,
+            (version,),
+        ).fetchone()
+    )
 
 
 def stage_question_bank_version(
@@ -5458,6 +5506,73 @@ def _backfill_question_usage_policies(conn: sqlite3.Connection) -> None:
         upsert_question_usage_policy(conn, merged, commit=False)
 
 
+def _backfill_teaching_flow_step_usage_contexts(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        select s.id, s.step_type, s.question_id, s.question_item_version,
+               s.selection_reason_json
+        from flow_steps s
+        left join flow_step_usage_contexts context
+          on context.flow_step_id = s.id
+        where s.step_type in ('worked_example', 'teaching_repair')
+          and s.question_id is not null
+          and context.id is null
+        order by s.created_at, s.id
+        """
+    ).fetchall()
+    for row in rows:
+        policy = active_question_usage_policy(
+            conn,
+            row["question_id"],
+            item_version=str(row["question_item_version"] or ""),
+        )
+        if not policy or "teaching" not in set(policy["allowed_purposes"]):
+            continue
+        role = (
+            "worked_example"
+            if row["step_type"] == "worked_example"
+            else "targeted_repair"
+        )
+        if role not in set(policy["teaching_roles"]):
+            continue
+        selection_reason = json_load(row["selection_reason_json"], {})
+        stored_context = (
+            selection_reason.get("requested_usage_context")
+            if isinstance(selection_reason, dict)
+            and isinstance(selection_reason.get("requested_usage_context"), dict)
+            else None
+        )
+        context = None
+        if stored_context:
+            try:
+                question_usage.validate_context(stored_context)
+                if (
+                    stored_context.get("purpose") == "teaching"
+                    and stored_context.get("purpose_role") == role
+                    and stored_context.get("question_usage_policy_digest_sha256")
+                    == policy["policy_digest_sha256"]
+                ):
+                    context = dict(stored_context)
+            except ValueError:
+                context = None
+        if context is None:
+            context = question_usage.context_for_step(
+                policy,
+                purpose="teaching",
+                purpose_role=role,
+                block_id=f"LEGACY-TEACH-{row['id']}",
+                block_index=1,
+            )
+        record_flow_step_usage_context(
+            conn,
+            flow_step_id=row["id"],
+            question_id=row["question_id"],
+            item_version=str(row["question_item_version"] or ""),
+            context=context,
+            commit=False,
+        )
+
+
 def _backfill_attempt_evidence_revisions(conn: sqlite3.Connection) -> None:
     legacy_table = conn.execute(
         "select 1 from sqlite_master where type = 'table' and name = 'attempt_input_evidence'"
@@ -5574,6 +5689,7 @@ def row_to_question(row: sqlite3.Row) -> dict[str, Any]:
     if isinstance(data["raw"], dict):
         for key in (
             "age_floor",
+            "selection_priority",
             "design_intent",
             "quality",
             "cognitive_level",
@@ -5583,6 +5699,7 @@ def row_to_question(row: sqlite3.Row) -> dict[str, Any]:
             "challenge_profile",
             "problem_family_id",
             "core_stem_id",
+            "problem_instance_id",
             "node_alignment",
             "evidence_goal",
             "elicitation_mode",
@@ -5634,6 +5751,12 @@ def question_snapshot_payload(question: dict[str, Any]) -> dict[str, Any]:
             question.get("core_stem_id")
             or source.get("core_stem_id")
             or node_alignment.get("core_stem_id")
+            or ""
+        ),
+        "problem_instance_id": (
+            question.get("problem_instance_id")
+            or source.get("problem_instance_id")
+            or node_alignment.get("problem_instance_id")
             or ""
         ),
     }
@@ -6735,8 +6858,8 @@ def record_media_recognition_run(
     recognition_confidence: float | None = None,
     commit: bool = True,
 ) -> dict[str, Any]:
-    if input_mode not in {"handwriting", "voice"}:
-        raise ValueError("media recognition input mode must be handwriting or voice")
+    if input_mode not in {"handwriting", "voice", "photo", "mixed"}:
+        raise ValueError("media recognition input mode must be handwriting, voice, photo, or mixed")
     if recognition_status not in multimodal_evidence.RECOGNITION_RUN_STATUSES:
         raise ValueError("unknown media recognition status")
     if not media_sha256 or int(media_byte_size) <= 0 or int(media_version) <= 0:
@@ -6831,6 +6954,35 @@ def get_media_recognition_run(conn: sqlite3.Connection, recognition_handle: str)
     if not row:
         raise KeyError(f"Unknown media recognition handle: {recognition_handle}")
     return media_recognition_run_row_to_dict(row)
+
+
+def validate_media_recognition_run_integrity(recognition_run: dict[str, Any]) -> None:
+    payload = {
+        "flow_step_id": recognition_run.get("flow_step_id"),
+        "step_revision": int(recognition_run.get("step_revision") or 0),
+        "question_id": recognition_run.get("question_id"),
+        "input_mode": recognition_run.get("input_mode"),
+        "media_sha256": recognition_run.get("media_sha256"),
+        "media_byte_size": int(recognition_run.get("media_byte_size") or 0),
+        "media_version": int(recognition_run.get("media_version") or 0),
+        "content_type": recognition_run.get("content_type"),
+        "recognizer_version": recognition_run.get("recognizer_version"),
+        "recognition_status": recognition_run.get("recognition_status"),
+        "provider_mode": recognition_run.get("provider_mode"),
+        "recognition_source": recognition_run.get("recognition_source"),
+        "trust_classification": recognition_run.get("trust_classification"),
+        "route_digest_sha256": recognition_run.get("route_digest_sha256"),
+        "recognized_text": str(recognition_run.get("recognized_text") or "")[:4000],
+        "math_objects": list(recognition_run.get("math_objects") or []),
+        "critical_token_uncertainties": list(
+            recognition_run.get("critical_token_uncertainties") or []
+        ),
+        "recognition_confidence": recognition_run.get("recognition_confidence"),
+    }
+    if _canonical_digest_json(payload) != str(
+        recognition_run.get("output_digest_sha256") or ""
+    ):
+        raise ValueError("media recognition output digest mismatch")
 
 
 def evidence_confirmation_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:

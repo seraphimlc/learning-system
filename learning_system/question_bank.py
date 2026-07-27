@@ -116,6 +116,29 @@ CORE_STEM_KEYS_BY_TEMPLATE_SLOT: dict[int, tuple[str, ...]] = {
     20: ("problem", "rule", "incomplete_answer"),
 }
 
+PROBLEM_INSTANCE_FIELD_BY_TEMPLATE_SLOT: dict[int, str] = {
+    1: "problem",
+    2: "wrong_solution",
+    3: "problem",
+    4: "variant_problem",
+    5: "problem",
+    6: "problem",
+    7: "problem",
+    8: "problem",
+    9: "problem",
+    10: "problem",
+    11: "incomplete_answer",
+    12: "problem",
+    13: "problem",
+    14: "problem",
+    15: "problem",
+    16: "problem",
+    17: "variant_problem",
+    18: "problem",
+    19: "problem_with_irrelevant",
+    20: "problem",
+}
+
 PROCESS_EVIDENCE_REQUIREMENTS = [
     "写出关键规则/关系/模型",
     "呈现必要步骤或结构化推理",
@@ -4333,6 +4356,7 @@ class QuestionBankService:
         next_evidence_goal: str = "",
         learner_status: str = "",
         prerequisite_ready: bool = False,
+        required_purpose: str = "",
     ) -> dict[str, Any]:
         limit = max(0, min(int(limit or 0), 8))
         filter_summary = {
@@ -4340,13 +4364,17 @@ class QuestionBankService:
             "excluded_stale": 0,
             "excluded_inactive": 0,
             "excluded_duplicate": 0,
+            "excluded_problem_instance_duplicate": 0,
             "excluded_cooldown": 0,
+            "excluded_problem_instance_cooldown": 0,
             "excluded_mastered_extra": 0,
             "excluded_missing_lineage": 0,
             "excluded_intent_role_mismatch": 0,
+            "excluded_purpose_mismatch": 0,
         }
         exclusions = exclusions or {}
         recent_question_ids = set(exclusions.get("recent_question_ids") or [])
+        recent_problem_instance_ids = set(exclusions.get("recent_problem_instance_ids") or [])
         mastered_node_ids = set(exclusions.get("mastered_node_ids") or [])
         rows = conn.execute(
             """
@@ -4365,7 +4393,6 @@ class QuestionBankService:
             (node_id,),
         ).fetchall()
         prefiltered: list[dict[str, Any]] = []
-        seen_signatures: set[str] = set()
         from . import db as db_module
 
         for row in rows:
@@ -4392,15 +4419,33 @@ class QuestionBankService:
             if item["id"] in recent_question_ids:
                 filter_summary["excluded_cooldown"] += 1
                 continue
+            problem_instance_id = str(item.get("problem_instance_id") or "")
+            if problem_instance_id and problem_instance_id in recent_problem_instance_ids:
+                filter_summary["excluded_problem_instance_cooldown"] += 1
+                continue
             if item.get("node_id") in mastered_node_ids:
                 filter_summary["excluded_mastered_extra"] += 1
                 continue
-            signature = str(item.get("variant_signature") or item.get("core_stem_id") or item["id"])
-            if signature in seen_signatures:
-                filter_summary["excluded_duplicate"] += 1
+            usage_policy = db_module.active_question_usage_policy(
+                conn,
+                item["id"],
+                item_version=item["item_version"],
+            )
+            allowed_purposes = list((usage_policy or {}).get("allowed_purposes") or [])
+            if required_purpose and required_purpose not in allowed_purposes:
+                filter_summary["excluded_purpose_mismatch"] += 1
                 continue
-            seen_signatures.add(signature)
-            prefiltered.append(_candidate_metadata_row(item, row, graph_version, question_bank_version))
+            candidate = _candidate_metadata_row(
+                item,
+                row,
+                graph_version,
+                question_bank_version,
+            )
+            candidate["allowed_purposes"] = allowed_purposes
+            candidate["usage_policy_digest_sha256"] = str(
+                (usage_policy or {}).get("policy_digest_sha256") or ""
+            )
+            prefiltered.append(candidate)
         ranked_candidates: list[tuple[tuple[int, int, str], dict[str, Any]]] = []
         for index, candidate in enumerate(prefiltered):
             if not _candidate_allowed_for_intent(
@@ -4424,7 +4469,29 @@ class QuestionBankService:
                 candidate,
             ))
         ranked_candidates.sort(key=lambda item: item[0])
-        candidates = [candidate for _rank, candidate in ranked_candidates[:limit]]
+        candidates: list[dict[str, Any]] = []
+        seen_signatures: set[str] = set()
+        seen_problem_instance_ids: set[str] = set()
+        for _rank, candidate in ranked_candidates:
+            problem_instance_id = str(candidate.get("problem_instance_id") or "")
+            if problem_instance_id and problem_instance_id in seen_problem_instance_ids:
+                filter_summary["excluded_problem_instance_duplicate"] += 1
+                continue
+            signature = str(
+                candidate.get("variant_signature")
+                or candidate.get("question_id")
+                or ""
+            )
+            if signature and signature in seen_signatures:
+                filter_summary["excluded_duplicate"] += 1
+                continue
+            if problem_instance_id:
+                seen_problem_instance_ids.add(problem_instance_id)
+            if signature:
+                seen_signatures.add(signature)
+            candidates.append(candidate)
+            if len(candidates) >= limit:
+                break
         identity_material = {
             "flow_id": flow_id,
             "flow_revision": int(flow_revision or 0),
@@ -4436,6 +4503,7 @@ class QuestionBankService:
             "next_evidence_goal": next_evidence_goal,
             "learner_status": learner_status,
             "prerequisite_ready": bool(prerequisite_ready),
+            "required_purpose": str(required_purpose or ""),
         }
         packet = {
             "packet_id": "CP-" + hashlib.sha256(
@@ -4521,7 +4589,9 @@ def _candidate_metadata_row(item: dict[str, Any], row, graph_version: str, quest
         "evidence_role": evidence_role,
         "kind": str(item.get("kind") or slot_role or "legacy_question"),
         "variant_level": str(item.get("variant_level") or ""),
+        "selection_priority": int(item.get("selection_priority") or 0),
         "question_family": str(item.get("problem_family_id") or source.get("problem_family_id") or item.get("kind") or ""),
+        "problem_instance_id": str(item.get("problem_instance_id") or source.get("problem_instance_id") or ""),
         "variant_signature": str(item.get("variant_signature") or item.get("core_stem_id") or item["id"]),
         "difficulty_vector": item.get("difficulty_vector") or {
             "variant_level": item.get("variant_level"),
@@ -4675,7 +4745,34 @@ def _legacy_candidate_slot_role(item: dict[str, Any]) -> str:
 
 def _candidate_evidence_role(item: dict[str, Any], slot_role: str) -> str:
     source = item.get("source") if isinstance(item.get("source"), dict) else {}
-    role = str(source.get("evidence_role") or item.get("evidence_role") or "")
+    quality = item.get("quality") if isinstance(item.get("quality"), dict) else {}
+    node_alignment = (
+        item.get("node_alignment")
+        if isinstance(item.get("node_alignment"), dict)
+        else source.get("node_alignment")
+        if isinstance(source.get("node_alignment"), dict)
+        else quality.get("node_alignment")
+        if isinstance(quality.get("node_alignment"), dict)
+        else {}
+    )
+    problem_family_basis = (
+        source.get("problem_family_basis")
+        if isinstance(source.get("problem_family_basis"), dict)
+        else {}
+    )
+    reviewer_evidence = (
+        quality.get("reviewer_evidence")
+        if isinstance(quality.get("reviewer_evidence"), dict)
+        else {}
+    )
+    role = str(
+        source.get("evidence_role")
+        or item.get("evidence_role")
+        or node_alignment.get("alignment_mode")
+        or problem_family_basis.get("evidence_role")
+        or reviewer_evidence.get("evidence_role")
+        or ""
+    )
     if role:
         return role
     if slot_role in STRETCH_SLOT_ROLES or bool(item.get("controlled_stretch")):
@@ -4694,11 +4791,18 @@ def _candidate_evidence_role(item: dict[str, Any], slot_role: str) -> str:
 def _candidate_is_stretch(candidate: dict[str, Any]) -> bool:
     role = str(candidate.get("slot_role") or "")
     evidence_role = str(candidate.get("evidence_role") or "")
-    return bool(candidate.get("controlled_stretch")) or role in STRETCH_SLOT_ROLES or "stretch" in evidence_role
+    return (
+        bool(candidate.get("controlled_stretch"))
+        or role in STRETCH_SLOT_ROLES
+        or "stretch" in evidence_role
+        or evidence_role == "picture_level_extension"
+    )
 
 
 def _candidate_is_controlled_extension(candidate: dict[str, Any]) -> bool:
-    return bool(candidate.get("controlled_stretch"))
+    return bool(candidate.get("controlled_stretch")) or str(
+        candidate.get("evidence_role") or ""
+    ) == "picture_level_extension"
 
 
 def _candidate_allowed_for_intent(
@@ -4712,6 +4816,12 @@ def _candidate_allowed_for_intent(
     intent = str(selection_intent or "general")
     role = str(candidate.get("slot_role") or "")
     legacy = role == "legacy_mainline"
+    try:
+        expert_priority = int(candidate.get("selection_priority") or 0)
+    except (TypeError, ValueError):
+        expert_priority = 0
+    if intent == "initial_review" and expert_priority > 0:
+        return True
     if _candidate_is_stretch(candidate):
         stable_extension_ready = (
             intent == "stable_ready"
@@ -5281,32 +5391,6 @@ def _looks_like_mechanical_drill(item: dict[str, Any]) -> bool:
     return True
 
 
-def _is_low_value_integer_remainder_prerequisite(item: dict[str, Any]) -> bool:
-    node_id = str(item.get("node_id") or "")
-    if node_id != "M-PRE-INTEGER-OPS":
-        return False
-    text_parts = [
-        str(item.get("prompt") or ""),
-        str(item.get("expected_answer") or ""),
-        " ".join(str(step) for step in (item.get("solution_steps") or [])),
-    ]
-    raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
-    if raw:
-        text_parts.extend(
-            [
-                str(raw.get("prompt") or ""),
-                str(raw.get("expected_answer") or ""),
-                " ".join(str(step) for step in (raw.get("solution_steps") or [])),
-            ]
-        )
-    compact = "".join(text_parts)
-    remainder_terms = ("有余数", "余数小于除数", "余数必须小于除数", "余数<除数")
-    basic_remainder_surface = any(term in compact for term in remainder_terms)
-    structural_upgrade_terms = ("平方差", "(a+1)(a-1)", "2026×2024", "2025²")
-    has_upgrade_structure = any(term in compact for term in structural_upgrade_terms)
-    return basic_remainder_surface and not has_upgrade_structure
-
-
 def _has_unresolved_child_context_reference(prompt: str) -> bool:
     return False
 
@@ -5353,6 +5437,7 @@ def _identity_basis_for_review(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "problem_family_basis": source.get("problem_family_basis", {}),
         "core_stem_basis": source.get("core_stem_basis", {}),
+        "problem_instance_basis": source.get("problem_instance_basis", {}),
         "node_local_anchor": source.get("node_local_anchor", ""),
     }
 
@@ -5441,9 +5526,32 @@ def _question_identity_from_context(
         "evidence_role": evidence_role,
         "challenge_label": challenge_label,
     }
+    instance_field = PROBLEM_INSTANCE_FIELD_BY_TEMPLATE_SLOT.get(template_slot, "problem")
+    instance_problem = str(
+        context.get(instance_field)
+        or context.get("problem")
+        or context.get("variant_problem")
+        or ""
+    )
+    explicit_instance_key = str(context.get("problem_instance_key") or "").strip()
+    base_problem = str(context.get("problem") or instance_problem).strip()
+    base_instance_key = explicit_instance_key or (
+        "context:problem:" + _short_digest({"problem": base_problem}, 12)
+    )
+    variant_changes_mathematical_data = instance_field == "variant_problem"
+    problem_instance_basis = {
+        "instance_field": instance_field,
+        "instance_key": (
+            base_instance_key
+            if not variant_changes_mathematical_data
+            else f"{base_instance_key}:variant:{_short_digest({'problem': instance_problem}, 12)}"
+        ),
+        "problem": instance_problem,
+    }
     return {
         "problem_family_basis": problem_family_basis,
         "core_stem_basis": core_stem_basis,
+        "problem_instance_basis": problem_instance_basis,
         "node_local_anchor": str(context.get("rule") or context.get("condition") or context.get("problem") or ""),
         "context_offset": offset,
     }
@@ -5457,9 +5565,11 @@ def _fallback_question_identity(
     prompt: str,
     answer: str,
     offset: int,
+    problem_instance_problem: str = "",
 ) -> dict[str, Any]:
     topic_family = _topic_family(node, question_type)
     probe_family = _problem_family_group(kind)
+    canonical_problem = str(problem_instance_problem or "").strip()
     core_fields = {
         "prompt_core": _compact_identity_text(prompt)[:260],
         "answer_core": _compact_identity_text(answer)[:220],
@@ -5481,6 +5591,15 @@ def _fallback_question_identity(
             "semantic_stem_signature": f"CC-{_short_digest({'semantic_stem': core_fields['prompt_core']}, 14)}",
             "evidence_role": "node_local_mainline",
             "challenge_label": "",
+            "fallback": True,
+        },
+        "problem_instance_basis": {
+            "instance_key": (
+                "context:problem:" + _short_digest({"problem": canonical_problem}, 12)
+                if canonical_problem
+                else f"fallback:{_short_digest({'prompt': prompt, 'answer': answer}, 16)}"
+            ),
+            "problem": canonical_problem or prompt,
             "fallback": True,
         },
         "node_local_anchor": str(node.get("teaching_contract", {}).get("one_sentence_essence") or node.get("name") or question_type),
@@ -5514,6 +5633,26 @@ def _core_stem_id(node: dict[str, Any], question_type: str, item: dict[str, Any]
         "canonical_core_signature": canonical_core_signature(item),
     }
     return f"CS-{_safe_id(str(node.get('id', 'NODE')))}-{_short_digest(payload, 12)}"
+
+
+def _problem_instance_id(item: dict[str, Any]) -> str:
+    basis = _identity_basis_value(item, "problem_instance_basis", {})
+    if isinstance(basis, dict):
+        instance_key = str(basis.get("instance_key") or "").strip()
+        problem = str(basis.get("problem") or "").strip()
+    else:
+        instance_key = ""
+        problem = ""
+    payload = {
+        "instance_key": instance_key,
+        "problem": "" if instance_key else problem,
+    }
+    if not any(payload.values()):
+        payload = {
+            "fallback_prompt": str(item.get("prompt") or ""),
+            "fallback_answer": str(item.get("expected_answer") or ""),
+        }
+    return f"PI-{_short_digest(payload, 16)}"
 
 
 def _node_alignment_for(node: dict[str, Any], question_type: str, item: dict[str, Any]) -> dict[str, Any]:
@@ -5561,6 +5700,7 @@ def _node_alignment_for(node: dict[str, Any], question_type: str, item: dict[str
         "question_type": question_type,
         "problem_family_id": item.get("problem_family_id", ""),
         "core_stem_id": item.get("core_stem_id", ""),
+        "problem_instance_id": item.get("problem_instance_id", ""),
         "reason": reason,
         "matched_terms": list(dict.fromkeys(matched_terms))[:10],
         "measured_capability": measured_capability,
@@ -5569,6 +5709,7 @@ def _node_alignment_for(node: dict[str, Any], question_type: str, item: dict[str
         "node_local_anchor": node_local_anchor,
         "problem_family_basis": problem_family_basis,
         "core_stem_basis": core_stem_basis,
+        "problem_instance_basis": source.get("problem_instance_basis", {}),
         "off_node_risk": (
             "picture_level_extension_must_not_replace_node_local_evidence"
             if challenge_labels else "low"
@@ -5586,7 +5727,11 @@ def _node_alignment_for(node: dict[str, Any], question_type: str, item: dict[str
 def _attach_question_identity_contract(item: dict[str, Any], node: dict[str, Any], question_type: str) -> None:
     item.setdefault("source", {})
     source = item["source"]
-    if not isinstance(source.get("problem_family_basis"), dict) or not isinstance(source.get("core_stem_basis"), dict):
+    if (
+        not isinstance(source.get("problem_family_basis"), dict)
+        or not isinstance(source.get("core_stem_basis"), dict)
+        or not isinstance(source.get("problem_instance_basis"), dict)
+    ):
         source.update(
             _fallback_question_identity(
                 node,
@@ -5599,9 +5744,11 @@ def _attach_question_identity_contract(item: dict[str, Any], node: dict[str, Any
         )
     item["problem_family_id"] = _problem_family_id(node, question_type, item)
     item["core_stem_id"] = _core_stem_id(node, question_type, item)
+    item["problem_instance_id"] = _problem_instance_id(item)
     item["node_alignment"] = _node_alignment_for(node, question_type, item)
     item["source"]["problem_family_id"] = item["problem_family_id"]
     item["source"]["core_stem_id"] = item["core_stem_id"]
+    item["source"]["problem_instance_id"] = item["problem_instance_id"]
     item["source"]["node_alignment"] = item["node_alignment"]
 
 
@@ -5614,6 +5761,8 @@ def _identity_contract_rejection_reasons(item: dict[str, Any]) -> list[str]:
         reasons.append("missing_problem_family_id")
     if not str(item.get("core_stem_id") or "").startswith("CS-"):
         reasons.append("missing_core_stem_id")
+    if not str(item.get("problem_instance_id") or "").startswith("PI-"):
+        reasons.append("missing_problem_instance_id")
     alignment = item.get("node_alignment")
     if not isinstance(alignment, dict):
         reasons.append("missing_node_alignment")
@@ -5628,13 +5777,21 @@ def _identity_contract_rejection_reasons(item: dict[str, Any]) -> list[str]:
         reasons.append("node_alignment_problem_family_mismatch")
     if alignment.get("core_stem_id") != item.get("core_stem_id"):
         reasons.append("node_alignment_core_stem_mismatch")
+    if alignment.get("problem_instance_id") != item.get("problem_instance_id"):
+        reasons.append("node_alignment_problem_instance_mismatch")
     basis = _identity_basis_for_review(item)
     problem_family_basis = basis["problem_family_basis"]
     core_stem_basis = basis["core_stem_basis"]
+    problem_instance_basis = basis["problem_instance_basis"]
     if not isinstance(problem_family_basis, dict) or not str(problem_family_basis.get("probe_family") or "").strip():
         reasons.append("missing_problem_family_basis")
     if not isinstance(core_stem_basis, dict) or not core_stem_basis.get("core_fields"):
         reasons.append("missing_core_stem_basis")
+    if not isinstance(problem_instance_basis, dict) or not (
+        str(problem_instance_basis.get("instance_key") or "").strip()
+        or str(problem_instance_basis.get("problem") or "").strip()
+    ):
+        reasons.append("missing_problem_instance_basis")
     if not str(basis.get("node_local_anchor") or "").strip():
         reasons.append("missing_node_local_anchor")
     if not str(alignment.get("measured_capability") or "").strip():
@@ -5643,7 +5800,11 @@ def _identity_contract_rejection_reasons(item: dict[str, Any]) -> list[str]:
         reasons.append("missing_graph_seed_question_type")
     if not str(alignment.get("node_local_anchor") or "").strip():
         reasons.append("node_alignment_missing_node_local_anchor")
-    if not isinstance(alignment.get("problem_family_basis"), dict) or not isinstance(alignment.get("core_stem_basis"), dict):
+    if (
+        not isinstance(alignment.get("problem_family_basis"), dict)
+        or not isinstance(alignment.get("core_stem_basis"), dict)
+        or not isinstance(alignment.get("problem_instance_basis"), dict)
+    ):
         reasons.append("node_alignment_missing_identity_basis")
     return reasons
 
@@ -5668,6 +5829,7 @@ def curated_seed_reviewer_evidence(item: dict[str, Any]) -> dict[str, Any]:
         "specific_expected_answer": True,
         "problem_family_id": item.get("problem_family_id", ""),
         "core_stem_id": item.get("core_stem_id", ""),
+        "problem_instance_id": item.get("problem_instance_id", ""),
         "evidence_role": question_evidence_role(item),
         "review_rationale": "Curated graph seed item with graph binding, non-mechanical process evidence, concrete answer, and child-contained prompt.",
     }
@@ -5689,6 +5851,7 @@ def deterministic_evolution_reviewer_evidence(item: dict[str, Any]) -> dict[str,
         "specific_expected_answer": True,
         "problem_family_id": item.get("problem_family_id", ""),
         "core_stem_id": item.get("core_stem_id", ""),
+        "problem_instance_id": item.get("problem_instance_id", ""),
         "evidence_role": question_evidence_role(item),
         "source_attempt_id": source.get("attempt_id", ""),
         "evolution_strategy": source.get("evolution_strategy", ""),
@@ -5765,8 +5928,6 @@ def review_item_quality(item: dict[str, Any]) -> dict[str, Any]:
         rejection_reasons.append("generic_or_rubric_only_expected_answer")
     if _looks_like_mechanical_drill(item):
         rejection_reasons.append("mechanical_arithmetic_without_reasoning")
-    if _is_low_value_integer_remainder_prerequisite(item):
-        rejection_reasons.append("incoming_grade_7_low_value_integer_remainder_prerequisite")
     rejection_reasons.extend(_semantic_node_mismatch_reasons(item))
     rejection_reasons.extend(_identity_contract_rejection_reasons(item))
 
@@ -5786,6 +5947,7 @@ def review_item_quality(item: dict[str, Any]) -> dict[str, Any]:
         "picture_level_challenge_labels": picture_level_challenge_labels(item),
         "problem_family_id": item.get("problem_family_id", ""),
         "core_stem_id": item.get("core_stem_id", ""),
+        "problem_instance_id": item.get("problem_instance_id", ""),
         "node_alignment": item.get("node_alignment", {}),
         "identity_basis": _identity_basis_for_review(item),
         "requires_process_evidence": PROCESS_EVIDENCE_REQUIREMENTS,
@@ -5797,7 +5959,7 @@ def review_item_quality(item: dict[str, Any]) -> dict[str, Any]:
             "diagnostic_not_drill",
             "process_evidence_required",
             "specific_expected_answer_not_rubric_only",
-            "problem_family_and_core_stem_traceable",
+            "problem_family_core_stem_and_problem_instance_traceable",
             "node_alignment_reason_required",
         ],
         "rejection_reasons": rejection_reasons,
@@ -5829,6 +5991,7 @@ def _apply_question_production_contract(
         "question_type": question_type,
         "problem_family_id": item["problem_family_id"],
         "core_stem_id": item["core_stem_id"],
+        "problem_instance_id": item["problem_instance_id"],
         "node_alignment": item["node_alignment"],
         "identity_basis": _identity_basis_for_review(item),
         "target_breakpoint": _item_purpose(str(item.get("kind", ""))),
@@ -5838,6 +6001,7 @@ def _apply_question_production_contract(
             "question_type": question_type,
             "problem_family_id": item["problem_family_id"],
             "core_stem_id": item["core_stem_id"],
+            "problem_instance_id": item["problem_instance_id"],
             "node_alignment_reason": item["node_alignment"]["reason"],
             "graph_version": item.get("graph_version", ""),
             "question_bank_version": item.get("question_bank_version", question_bank_version),
@@ -5959,8 +6123,6 @@ def _v12_active_quality_rejection_reasons(item: dict[str, Any]) -> list[str]:
     for flag in REVIEWER_EVIDENCE_FLAGS:
         if evidence.get(flag) is not True:
             reasons.append(f"v12_reviewer_evidence_failed:{flag}")
-    if _is_low_value_integer_remainder_prerequisite(item):
-        reasons.append("v12_incoming_grade_7_low_value_integer_remainder_prerequisite")
     reasons.extend(
         f"v12_{detail}"
         for detail in v12_semantic_evidence_errors(
@@ -6661,6 +6823,7 @@ def _concrete_question_context(node: dict[str, Any], question_type: str, offset:
         ],
         "integer_ops": [
             {
+                "problem_instance_key": "integer_ops.remainder.verify.987_div_8",
                 "problem": "某同学做有余数除法，只写了“987 ÷ 8 = 123 余 3”。请写出验算关系，判断是否正确，并说明余数为什么必须小于除数。",
                 "answer": "验算应为 除数×商+余数=被除数。8×123+3=987，且3<8，所以这道有余数除法成立。",
                 "short_answer": "987÷8=123余3，验算成立",
@@ -6686,6 +6849,7 @@ def _concrete_question_context(node: dict[str, Any], question_type: str, offset:
                 "problem_with_irrelevant": "987是三位数：判断 987÷8=123余3 是否正确并验算。",
             },
             {
+                "problem_instance_key": "integer_ops.simplify.square_difference.2025",
                 "problem": "不直接展开计算，比较 2026×2024 和 2025² 的大小，并求两者相差多少。有人说“2026 比 2025 大，所以前者更大”，请判断错因。",
                 "answer": "2026×2024=(2025+1)(2025-1)=2025²-1，所以 2026×2024 比 2025² 小 1。错在只比较一个因数，忽略另一个因数也变了。",
                 "short_answer": "2026×2024=2025²-1，小1",
@@ -6709,6 +6873,162 @@ def _concrete_question_context(node: dict[str, Any], question_type: str, offset:
                 "claim_b": "两个因数在2025两边对称，乘积是2025²减1",
                 "irrelevant": "2026是偶数",
                 "problem_with_irrelevant": "2026是偶数。请比较 2026×2024 和 2025² 的大小，并说明结构。",
+            },
+            {
+                "problem_instance_key": "integer_ops.compensation.998_times_37_plus_74",
+                "problem": "不用竖式计算 998×37+74。请先把 998 看成 1000-2，再说明为什么结果能直接凑成整千。",
+                "answer": "998×37+74=(1000-2)×37+2×37=1000×37=37000。",
+                "short_answer": "37000",
+                "wrong_solution": "998×37+74=1000×37+74=37074。",
+                "wrong_reason": "把998补到1000后，没有扣回多算的2×37；题中的74正好用于抵消这部分。",
+                "rule": "把接近整百、整千的因数拆开时，要同时补偿多算或少算的部分。",
+                "check": "74=2×37，所以(998+2)×37=1000×37",
+                "method_a": "把74写成2×37后提取公因数37",
+                "method_b": "把998直接改成1000却不补偿",
+                "variant_problem": "不用竖式计算 997×46+138，并说明凑整结构。",
+                "variant_answer": "997×46+138=(1000-3)×46+3×46=46000",
+                "representation": "补偿关系：少3个46，再补3个46",
+                "condition": "74恰好等于2×37",
+                "implausible_answer": "37074",
+                "bad_rule": "接近整千就可以直接替换成整千",
+                "incomplete_answer": "37000",
+                "rule_options": "补偿法或提取公因数，还是直接改数不补偿",
+                "common_mistake": "凑整后忘记补偿",
+                "changed_condition": "把74改成37",
+                "claim_a": "998可以直接当成1000",
+                "claim_b": "只有把差的2×37补回来，才能等价变形",
+                "irrelevant": "37是两位数",
+                "problem_with_irrelevant": "37是两位数。请不用竖式计算998×37+74，并解释凑整依据。",
+            },
+            {
+                "problem_instance_key": "integer_ops.remainder.verify.754_div_6",
+                "problem": "有人写 754÷6=125余4。请判断这个结果是否成立，并用一条等式和一个大小关系完成验算。",
+                "answer": "6×125+4=754，且4<6，所以754÷6=125余4成立。",
+                "short_answer": "成立；6×125+4=754，4<6",
+                "wrong_solution": "6×125+4=754，所以一定正确。",
+                "wrong_reason": "只验证了乘加关系，还没有检查余数4是否小于除数6。",
+                "rule": "有余数除法同时满足被除数=除数×商+余数、余数小于除数。",
+                "check": "6×125+4=754，4<6",
+                "method_a": "乘回去加余数，再比较余数和除数",
+                "method_b": "只做乘加验算",
+                "variant_problem": "判断 936÷7=133余5 是否成立，并完整验算。",
+                "variant_answer": "7×133+5=936，5<7，成立",
+                "representation": "被除数=除数×商+余数的关系式",
+                "condition": "乘加关系和余数范围必须同时成立",
+                "implausible_answer": "754÷6=124余10",
+                "bad_rule": "乘加关系对了就不用看余数大小",
+                "incomplete_answer": "正确",
+                "rule_options": "完整验算，还是只检查乘加关系",
+                "common_mistake": "漏查余数必须小于除数",
+                "changed_condition": "把余数4改成余数10",
+                "claim_a": "乘加等式成立就足够",
+                "claim_b": "还必须检查余数小于除数",
+                "irrelevant": "754是偶数",
+                "problem_with_irrelevant": "754是偶数。请判断754÷6=125余4是否成立并完整验算。",
+            },
+            {
+                "problem_instance_key": "integer_ops.simplify.regroup.125_times_32_times_25",
+                "problem": "计算 125×32×25，不要逐步硬乘。请把32拆成合适的两个因数，凑出两个整千或整百结构。",
+                "answer": "32=8×4，所以125×32×25=(125×8)×(4×25)=1000×100=100000。",
+                "short_answer": "100000",
+                "wrong_solution": "先算125×32=4000，再算4000×25。",
+                "wrong_reason": "顺算可以得到正确结果，但不符合本题要求的凑整策略；真正的错误是拆分后漏因数或把乘法关系改掉。",
+                "rule": "连乘可以利用交换律、结合律和因数分拆，优先组成整十、整百、整千。",
+                "check": "125×8=1000，25×4=100",
+                "method_a": "把32拆成8×4并重新结合",
+                "method_b": "按原顺序逐项硬乘",
+                "variant_problem": "计算 25×48×125，并写出最省步数的分拆。",
+                "variant_answer": "48=6×8，25×6×(8×125)=150×1000=150000",
+                "representation": "因数配对图：125↔8，25↔4",
+                "condition": "拆分后必须保留全部因数和连乘关系",
+                "implausible_answer": "10000",
+                "bad_rule": "连乘只能按从左到右的顺序",
+                "incomplete_answer": "100000",
+                "rule_options": "交换结合并拆因数，还是固定从左到右",
+                "common_mistake": "拆因数后漏乘或配对不完整",
+                "changed_condition": "把32改成24",
+                "claim_a": "改变乘法顺序会改变结果",
+                "claim_b": "整数连乘可以交换、结合，因数一个也不能少",
+                "irrelevant": "三个因数位数不同",
+                "problem_with_irrelevant": "三个因数位数不同。请用凑整方法计算125×32×25。",
+            },
+            {
+                "problem_instance_key": "integer_ops.division.scale.864000_div_125",
+                "problem": "不用长除法计算 864000÷125。请说明为什么把被除数和除数同时乘8后，商保持不变。",
+                "answer": "864000÷125=(864000×8)÷(125×8)=6912000÷1000=6912。被除数和除数同时乘同一个非零数，商不变。",
+                "short_answer": "6912",
+                "wrong_solution": "只把125乘8变成1000，得到864000÷1000=864。",
+                "wrong_reason": "只改变除数，没有同步改变被除数，原来的商被改变了。",
+                "rule": "商不变性质要求被除数和除数同时乘或除以同一个非零数。",
+                "check": "125×6912=864000",
+                "method_a": "被除数和除数同时乘8，把除数化成1000",
+                "method_b": "只把除数变成1000",
+                "variant_problem": "不用长除法计算 372000÷125，并说明变形依据。",
+                "variant_answer": "(372000×8)÷1000=2976",
+                "representation": "等值除法：(a÷b)=(8a)÷(8b)",
+                "condition": "同时乘8且8不为0",
+                "implausible_answer": "864",
+                "bad_rule": "只改变除数也能保持商不变",
+                "incomplete_answer": "6912",
+                "rule_options": "商不变性质，还是只改一个数",
+                "common_mistake": "只放大除数，忘记同步放大被除数",
+                "changed_condition": "把125改成250",
+                "claim_a": "为了凑整，只改除数也可以",
+                "claim_b": "被除数和除数必须同步变化",
+                "irrelevant": "864000末尾有三个0",
+                "problem_with_irrelevant": "864000末尾有三个0。请用商不变性质计算864000÷125。",
+            },
+            {
+                "problem_instance_key": "integer_ops.remainder.constraint.lcm_12_18",
+                "problem": "一个三位自然数除以12余5，除以18也余5。这样的数最小是多少？请说明为什么要先处理“减去5”后的数。",
+                "answer": "这个数减去5后同时是12和18的倍数。12和18的最小公倍数是36，最小三位数形如36k+5；k=3时得到113，所以最小是113。",
+                "short_answer": "113",
+                "wrong_solution": "12×18+5=221，所以最小是221。",
+                "wrong_reason": "直接用两个数的乘积，忽略了它们有公因数6；应使用最小公倍数36。",
+                "rule": "多个除法条件余数相同时，先减去共同余数，再转化为公倍数问题。",
+                "check": "113=12×9+5=18×6+5",
+                "method_a": "先减5，再找12和18的最小公倍数",
+                "method_b": "直接把12和18相乘",
+                "variant_problem": "一个三位自然数除以8和14都余3，求最小可能值。",
+                "variant_answer": "减3后是8和14的公倍数；最小公倍数56，最小三位数是56×2+3=115",
+                "representation": "n-5是12与18公倍数的关系图",
+                "condition": "要求三位自然数且两个条件的余数相同",
+                "implausible_answer": "41",
+                "bad_rule": "共同倍数一定等于两个数的乘积",
+                "incomplete_answer": "113",
+                "rule_options": "共同余数转公倍数，还是直接相乘",
+                "common_mistake": "找到36+5=41后忘记三位数条件",
+                "changed_condition": "把三位自然数改成两位自然数",
+                "claim_a": "12×18+5一定最小",
+                "claim_b": "先求最小公倍数，再满足三位数范围",
+                "irrelevant": "这个数的个位是3",
+                "problem_with_irrelevant": "有人猜这个数的个位是3。请根据除以12和18都余5的条件求最小三位数。",
+            },
+            {
+                "problem_instance_key": "integer_ops.remainder.constraint.under_200_divisible_7",
+                "problem": "一个小于200的自然数，除以8和12都余5，同时它能被7整除。求这个数，并写出缩小范围的过程。",
+                "answer": "减去5后是8和12的公倍数，所以这个数形如24k+5。小于200时依次检查29、53、77、101、125、149、173、197，其中77能被7整除，因此这个数是77。",
+                "short_answer": "77",
+                "wrong_solution": "8×12+5=101，所以答案是101。",
+                "wrong_reason": "8和12的共同倍数应按最小公倍数24生成，并且还要检查能否被7整除。",
+                "rule": "先把共同余数条件转成最小公倍数序列，再用额外整除条件筛选。",
+                "check": "77=8×9+5=12×6+5，且77÷7=11",
+                "method_a": "列出24k+5并用7的倍数筛选",
+                "method_b": "直接把8和12相乘后加5",
+                "variant_problem": "一个小于250的自然数，除以6和15都余4，同时能被8整除，求最小正整数解。",
+                "variant_answer": "数形如30k+4；检查可得64能被8整除，所以最小是64",
+                "representation": "24k+5的候选数列与7的倍数交点",
+                "condition": "小于200、两个共同余数条件、还能被7整除",
+                "implausible_answer": "101",
+                "bad_rule": "只满足共同余数条件就可以停止",
+                "incomplete_answer": "77",
+                "rule_options": "公倍数序列加筛选，还是只算8×12+5",
+                "common_mistake": "漏掉最后的7整除条件",
+                "changed_condition": "把小于200改成大于200且小于300",
+                "claim_a": "101满足前两个条件，所以就是答案",
+                "claim_b": "还必须同时满足被7整除",
+                "irrelevant": "200是整百数",
+                "problem_with_irrelevant": "200是整百数。请找出小于200、除以8和12都余5且能被7整除的自然数。",
             },
         ],
         "number_sense": [
@@ -7952,10 +8272,16 @@ def _concrete_question_context(node: dict[str, Any], question_type: str, offset:
             return decimal_choices[0]
     if family == "integer_ops":
         integer_choices = contexts["integer_ops"]
+        sequence_index = max(0, (offset - 1) // 3)
         if "简便" in question_type:
-            return integer_choices[1]
-        if "有余数" in question_type or "多位数" in question_type:
-            return integer_choices[1]
+            pool = [integer_choices[1], integer_choices[4]]
+            return pool[sequence_index % len(pool)]
+        if "有余数" in question_type:
+            pool = [integer_choices[3], integer_choices[6], integer_choices[7]]
+            return pool[sequence_index % len(pool)]
+        if "多位数" in question_type:
+            pool = [integer_choices[2], integer_choices[5]]
+            return pool[sequence_index % len(pool)]
     if family == "order_ops":
         order_choices = contexts["order_ops"]
         if "小数/分数" in question_type:
@@ -7991,6 +8317,7 @@ def _example_for(
                 prompt=prompt,
                 answer=specific["answer"],
                 offset=offset,
+                problem_instance_problem=specific["prompt"],
             ),
         }
     if _topic_family(node, question_type) in {
@@ -8070,6 +8397,7 @@ def _example_for(
                     prompt=leveled_prompt,
                     answer=answer,
                     offset=offset,
+                    problem_instance_problem=prompt,
                 ),
             }
     if offset != 1:
@@ -8167,7 +8495,7 @@ def _specific_example_for(node: dict[str, Any], question_type: str) -> dict[str,
     node_id = node.get("id", "")
     if node_id == "M-BRIDGE-CLOCK-ANGLE":
         return {
-            "prompt": "3点30分时，有人仍按3点整算成90°。请判断错因，说明时针为什么也会移动，并求时针和分针的较小夹角。",
+            "prompt": "3点30分时，有人按3点整算成90°。请判断错因，并求时针和分针的较小夹角。还要说明时针为什么也会移动。",
             "answer": "错在忽略时针30分钟内也移动。3点30分分针在6，时针在3和4之间，较小夹角是75°。",
             "steps": ["确定分针位置。", "计算时针半小时移动15°。", "取较小夹角。"],
         }
@@ -8510,9 +8838,11 @@ def build_practice_bank(graph: dict[str, Any], *, graph_version: str = "") -> li
             item["source"]["reviewer_evidence"] = curated_seed_reviewer_evidence(item)
             item["design_intent"]["problem_family_id"] = item["problem_family_id"]
             item["design_intent"]["core_stem_id"] = item["core_stem_id"]
+            item["design_intent"]["problem_instance_id"] = item["problem_instance_id"]
             item["design_intent"]["node_alignment"] = item["node_alignment"]
             item["design_intent"]["evidence_claims"]["problem_family_id"] = item["problem_family_id"]
             item["design_intent"]["evidence_claims"]["core_stem_id"] = item["core_stem_id"]
+            item["design_intent"]["evidence_claims"]["problem_instance_id"] = item["problem_instance_id"]
             item["design_intent"]["evidence_claims"]["node_alignment_reason"] = item["node_alignment"]["reason"]
             item["design_intent"]["graph_version"] = item.get("graph_version", "")
             item["design_intent"]["question_bank_version"] = item.get("question_bank_version", QUESTION_BANK_VERSION)

@@ -360,6 +360,57 @@ class KnowledgeMapService:
                 state="assessment_unavailable",
             )
 
+    def _cancel_replaced_unconsumed_targets(
+        self,
+        *,
+        child_key: str,
+        graph_version: str,
+        keep_intent_id: str = "",
+    ) -> None:
+        params: list[Any] = [child_key, graph_version]
+        keep_filter = ""
+        if keep_intent_id:
+            keep_filter = "and i.id <> ?"
+            params.append(keep_intent_id)
+        rows = self.conn.execute(
+            f"""
+            select i.id as intent_id, i.applied_step_id,
+                   s.status as step_status, f.current_step_id
+            from learning_target_intents i
+            join flow_steps s on s.id = i.applied_step_id
+            join daily_flows f on f.id = i.applied_flow_id and f.id = s.flow_id
+            where i.child_key = ?
+              and i.graph_version = ?
+              and i.status = 'applied'
+              {keep_filter}
+              and s.status in ('planned','superseded')
+              and (f.current_step_id is null or f.current_step_id <> s.id)
+            order by i.created_at, i.id
+            """,
+            tuple(params),
+        ).fetchall()
+        if not rows:
+            return
+        now = db.now_iso()
+        for row in rows:
+            if row["step_status"] == "planned":
+                self.conn.execute(
+                    """
+                    update flow_steps
+                    set status = 'superseded', updated_at = ?
+                    where id = ? and status = 'planned'
+                    """,
+                    (now, row["applied_step_id"]),
+                )
+            self.conn.execute(
+                """
+                update learning_target_intents
+                set status = 'cancelled', reason = 'replaced_by_newer_target',
+                    updated_at = ?
+                where id = ? and status = 'applied'
+                """,
+                (now, row["intent_id"]),
+            )
     def _assessment_authority(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         ledger_rows = self.conn.execute(
             "select * from question_bank_version_ledger where status = 'active' order by id"
@@ -551,10 +602,18 @@ class KnowledgeMapService:
                 (item["question_id"], item["item_version"]),
             ).fetchone()
             question = db.row_to_question(question_row)
+            usage_policy = db.active_question_usage_policy(
+                self.conn,
+                item["question_id"],
+                item_version=item["item_version"],
+            )
             assets.append(
                 {
                     **commitment,
                     "question": question,
+                    "allowed_purposes": list(
+                        (usage_policy or {}).get("allowed_purposes") or []
+                    ),
                     "child_active_use_eligible": (
                         db.is_child_schedulable_question(
                             self.conn,
@@ -586,6 +645,13 @@ class KnowledgeMapService:
                     },
                 }
             )
+        commitments.sort(
+            key=lambda item: (
+                str(item["question_id"]),
+                str(item["item_version"]),
+                str(item["contract_id"]),
+            )
+        )
         commitment_digest = _canonical_sha256(commitments)
         if (
             int(receipt.get("active_contract_count") or 0) != len(commitments)
@@ -695,10 +761,18 @@ class KnowledgeMapService:
                 "contract_digest_sha256": item["contract_digest_sha256"],
             }
             commitments.append(commitment)
+            usage_policy = db.active_question_usage_policy(
+                self.conn,
+                item["question_id"],
+                item_version=item["item_version"],
+            )
             assets.append(
                 {
                     **commitment,
                     "question": question,
+                    "allowed_purposes": list(
+                        (usage_policy or {}).get("allowed_purposes") or []
+                    ),
                     "child_active_use_eligible": (
                         db.is_child_schedulable_question(
                             self.conn,
@@ -730,6 +804,13 @@ class KnowledgeMapService:
                     },
                 }
             )
+        commitments.sort(
+            key=lambda item: (
+                str(item["question_id"]),
+                str(item["item_version"]),
+                str(item["contract_id"]),
+            )
+        )
         commitment_digest = _canonical_sha256(commitments)
         if (
             int(receipt.get("active_contract_count") or 0) != len(commitments)
@@ -877,30 +958,25 @@ class KnowledgeMapService:
         }
 
     def _current_learning(self, child_key: str) -> dict[str, Any]:
-        row = self.conn.execute(
-            """
-            select f.status, f.mode, f.current_step_id,
-                   s.status as step_status, s.step_type, s.prompt_package_json
-            from daily_flows f
-            left join flow_steps s on s.id = f.current_step_id
-            where f.child_key = ?
-            order by f.updated_at desc, f.created_at desc, f.id desc
-            limit 1
-            """,
-            (child_key,),
-        ).fetchone()
-        if not row:
+        runtime = daily_runtime.DailyLearningRuntime(
+            self.conn,
+            project_root=self.project_root,
+            child_key=child_key,
+        )
+        flow = runtime.current_target_flow()
+        if not flow:
             return self._current_learning_copy("not_started", "")
-        prompt_package = db.json_load(row["prompt_package_json"], {})
+        step = runtime._current_visible_step(flow["id"])
+        prompt_package = db.json_load(step["prompt_package_json"], {}) if step else {}
         topic_label = str(
             prompt_package.get("topic_label")
             if isinstance(prompt_package, dict)
             else ""
         ).strip()
-        status = str(row["status"] or "")
-        step_status = str(row["step_status"] or "")
-        step_type = str(row["step_type"] or "")
-        if row["current_step_id"]:
+        status = str(flow["status"] or "")
+        step_status = str(step["status"] or "") if step else ""
+        step_type = str(step["step_type"] or "") if step else ""
+        if step:
             if step_status == "analyzing":
                 state = "analyzing_pending"
             elif step_type in {"teaching_repair", "worked_example"}:
@@ -998,6 +1074,13 @@ class KnowledgeMapService:
         return {
             "source_flow": source_flow,
             "source_step": source_step,
+            "reserved_problem_instance_ids": (
+                runtime._reserved_problem_instance_ids_for_flow(
+                    str(source_flow["id"] or "")
+                )
+                if source_flow
+                else set()
+            ),
             "status_by_node": {
                 node_id: str(row.get("status_code") or "")
                 for node_id, row in states.items()
@@ -1045,14 +1128,14 @@ class KnowledgeMapService:
         elif not content_ready:
             readiness = {
                 "code": "content_unavailable",
-                "label": "学习内容准备中",
-                "reason": "这个知识点的学习内容还在准备，暂时不能开始。",
+                "label": "这次试学暂未开放",
+                "reason": "这次试学暂未开放这个知识点。",
             }
         elif not assessment_ready:
             readiness = {
                 "code": "assessment_unavailable",
-                "label": "小检测准备中",
-                "reason": "这个知识点的小检测还在准备。",
+                "label": "这次试学暂未开放",
+                "reason": "这次试学暂未开放这个知识点。",
             }
         else:
             readiness = {"code": "ready", "label": "可以开始", "reason": ""}
@@ -1077,6 +1160,9 @@ class KnowledgeMapService:
                 action=action,
                 status_by_node=target_context["status_by_node"],
                 source_step=target_context.get("source_step"),
+                excluded_problem_instance_ids=set(
+                    target_context.get("reserved_problem_instance_ids") or set()
+                ),
             )
             effective_enabled = enabled and bool(qualification["enabled"])
             effective_reason = "" if effective_enabled else str(
@@ -1429,6 +1515,10 @@ class KnowledgeMapService:
             if existing:
                 intent = dict(existing)
             else:
+                self._cancel_replaced_unconsumed_targets(
+                    child_key=child_key,
+                    graph_version=graph_version,
+                )
                 self.conn.execute(
                     """
                     update learning_target_intents
@@ -1462,6 +1552,12 @@ class KnowledgeMapService:
                 str(intent["id"]),
                 authority,
             )
+            if str(result.get("status") or "") == "applied":
+                self._cancel_replaced_unconsumed_targets(
+                    child_key=child_key,
+                    graph_version=graph_version,
+                    keep_intent_id=str(intent["id"]),
+                )
             status = str(result.get("status") or "blocked")
             expected_status = (
                 "applied"

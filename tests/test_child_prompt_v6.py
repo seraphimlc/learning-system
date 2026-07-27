@@ -189,7 +189,7 @@ def _browser_fixture() -> dict:
 class ChildPromptV6Tests(unittest.TestCase):
     def test_projection_preserves_multiline_exponents_and_schema_labels(self):
         surface = child_prompt.project_child_surface(
-            prompt="第一组：x^2\r\n第二组：(−3xy)^2\r\n\r\n请说明你的判断。",
+            prompt="第一组：x^2\r\n第二组：(−3xy)^2\r\n第三组：2025^2\r\n\r\n请说明你的判断。",
             prompt_format=child_prompt.CHILD_PROMPT_FORMAT,
             interaction_schema=_schema(
                 "formula_input",
@@ -199,14 +199,15 @@ class ChildPromptV6Tests(unittest.TestCase):
             allow_legacy=False,
         )
         self.assertEqual(
-            "第一组：x^2\n第二组：(−3xy)^2\n\n请说明你的判断。",
+            "第一组：x^2\n第二组：(−3xy)^2\n第三组：2025^2\n\n请说明你的判断。",
             surface["prompt"],
         )
         exponent_segments = [
             segment for segment in surface["prompt_segments"] if segment["type"] == "exponent"
         ]
-        self.assertEqual(["x^2", "(−3xy)^2"], [segment["source"] for segment in exponent_segments])
+        self.assertEqual(["x^2", "(−3xy)^2", "2025^2"], [segment["source"] for segment in exponent_segments])
         self.assertEqual("(−3xy) 的 2 次方", exponent_segments[1]["accessible_label"])
+        self.assertEqual("2025 的 2 次方", exponent_segments[2]["accessible_label"])
         self.assertEqual("填写 x^2", surface["interaction_rendering"]["title"]["text"])
         self.assertEqual("算式 y^k", surface["interaction_rendering"]["formula_label"]["text"])
 

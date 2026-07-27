@@ -132,10 +132,27 @@ const LOAD_RECOVERY_MAX_DELAY_MS = 8000;
 const CHILD_SAFE_UNAVAILABLE_MESSAGE = "当前步骤还没有准备好，请稍后再试。";
 const INPUT_EVIDENCE_SCHEMA_VERSION = "2026-07-25.answer-input-evidence.v1";
 const INPUT_MEDIA_VERSION = 1;
+const PRIMARY_SURFACE_STORAGE_KEY = "son-ai-learning:primary-surface:v5.1";
 
 const $ = (id) => document.getElementById(id);
 const sessionStorageKey = (planId) => `son-ai-learning-session:${planId || "latest"}`;
 const completionDismissedKey = (planId) => `son-ai-learning-completion-dismissed:${planId || "latest"}`;
+
+function readSessionPreference(key) {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionPreference(key, value) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // Storage can be unavailable in restricted browser contexts; the page still works without it.
+  }
+}
 
 function fixtureForChildState(uiState) {
   const tasks = Array.from({ length: 10 }, (_, index) => ({
@@ -376,6 +393,45 @@ function renderKnowledgeCardComponents(step) {
 
 function renderV51AssessmentFeedback(feedback) {
   if (!feedback || typeof feedback !== "object") return "";
+  const groupItems = feedback.scope === "mini_group" && Array.isArray(feedback.items)
+    ? feedback.items.filter((item) => item && typeof item === "object")
+    : [];
+  if (groupItems.length) {
+    return `
+      <section class="assessment-feedback is-group" aria-label="本组解析">
+        <div class="assessment-score-row">
+          <span>本组平均得分</span>
+          <strong>${escapeHtml(feedback.score_label || "--/10")}</strong>
+        </div>
+        <div class="assessment-group-items">
+          ${groupItems.map((item, index) => {
+            const improvements = Array.isArray(item.improvement_direction)
+              ? item.improvement_direction.filter(Boolean)
+              : [];
+            return `
+              <section class="assessment-group-item" aria-label="第 ${index + 1} 题解析">
+                <div class="assessment-group-item-title">
+                  <strong>第 ${escapeHtml(String(item.index || index + 1))} 题</strong>
+                  <span>${escapeHtml(item.score_label || "--/10")}</span>
+                </div>
+                <dl class="assessment-feedback-list">
+                  <div><dt>标准答案</dt><dd>${escapeHtml(item.reference_answer || "暂时没有可展示的标准答案")}</dd></div>
+                  <div><dt>答案差距</dt><dd>${escapeHtml(item.answer_gap || "核心数学已经成立")}</dd></div>
+                  <div>
+                    <dt>改进方向</dt>
+                    <dd>${improvements.length
+                      ? `<ul>${improvements.map((suggestion) => `<li>${escapeHtml(suggestion)}</li>`).join("")}</ul>`
+                      : "这一步已经完成得很稳"}</dd>
+                  </div>
+                  <div><dt>表达判定</dt><dd>${escapeHtml(item.expression_judgment || "按数学意图判断表达")}</dd></div>
+                </dl>
+              </section>
+            `;
+          }).join("")}
+        </div>
+      </section>
+    `;
+  }
   const improvements = Array.isArray(feedback.improvement_direction)
     ? feedback.improvement_direction.filter(Boolean)
     : [];
@@ -728,7 +784,7 @@ async function api(path, options = {}) {
   return payload;
 }
 
-function setPrimarySurface(surface) {
+function setPrimarySurface(surface, { remember = true } = {}) {
   const showMap = surface === "map_home" && state.knowledgeReady;
   const mapSurface = $("view-knowledge-home");
   const learningSurface = $("view-child");
@@ -744,6 +800,12 @@ function setPrimarySurface(surface) {
   else learningSurface.removeAttribute("inert");
   if (window.KnowledgeViews && showMap) window.KnowledgeViews.show();
   $("pageTitle").textContent = showMap ? "我的数学知识" : "今天的数学学习";
+  if (remember) {
+    writeSessionPreference(
+      PRIMARY_SURFACE_STORAGE_KEY,
+      showMap ? "map_home" : "learning_step",
+    );
+  }
 }
 
 function focusLearningStepEntry() {
@@ -873,7 +935,7 @@ function knowledgeSurfaceStateForError(error) {
   return "unavailable";
 }
 
-function initializeKnowledgeSurface(initialState = "skeleton") {
+function initializeKnowledgeSurface(initialState = "skeleton", { rememberSurface = false } = {}) {
   state.knowledgeReady = true;
   window.KnowledgeViews.initialize({
     root: $("knowledgeHomeMount"),
@@ -883,7 +945,7 @@ function initializeKnowledgeSurface(initialState = "skeleton") {
     onRetry: retryKnowledgeHome,
   });
   $("knowledgeHomeBtn").hidden = false;
-  setPrimarySurface("map_home");
+  setPrimarySurface("map_home", { remember: rememberSurface });
 }
 
 function disableKnowledgeSurface() {
@@ -895,8 +957,8 @@ function disableKnowledgeSurface() {
   setPrimarySurface("learning_step");
 }
 
-async function loadKnowledgeHome() {
-  initializeKnowledgeSurface("skeleton");
+async function loadKnowledgeHome({ rememberSurface = false } = {}) {
+  initializeKnowledgeSurface("skeleton", { rememberSurface });
   try {
     const projection = await api("/api/knowledge-map");
     state.knowledgeProjection = projection;
@@ -909,7 +971,10 @@ async function loadKnowledgeHome() {
       disableKnowledgeSurface();
       throw error;
     }
-    initializeKnowledgeSurface(knowledgeSurfaceStateForError(error));
+    initializeKnowledgeSurface(
+      knowledgeSurfaceStateForError(error),
+      { rememberSurface },
+    );
     throw error;
   }
 }
@@ -1411,7 +1476,6 @@ function selectV3StuckPrompt(text) {
   const textarea = $("childAnswerRaw");
   textarea.value = textarea.value.trim() ? `${textarea.value.trim()}\n${text}` : text;
   updateV3StuckSelection();
-  textarea.focus();
 }
 
 function cancelV3StuckPrompt() {
@@ -1441,7 +1505,7 @@ function renderV3StuckChoicePanel({ show, prompts }) {
   }
   panel.hidden = false;
   panel.innerHTML = `
-    <p class="stuck-choice-title">如果真的卡住，也可以这样保存</p>
+    <p class="stuck-choice-title">卡在哪里？点一个就会提交</p>
     <div class="stuck-actions v3-stuck-actions" aria-label="卡住了也可以提交">
       ${prompts.map(([label, text]) => `
         <button type="button" data-v3-stuck-prompt="${escapeAttr(text)}" aria-pressed="false">${escapeHtml(label)}</button>
@@ -1576,7 +1640,9 @@ function renderV3CurrentStep() {
   const groupMaximum = Number(step.group_progress?.maximum || 0);
   if (groupCurrent > 0 && groupMaximum >= groupCurrent) {
     $("childProgressText").textContent = `第 ${groupCurrent} 题 · 最多 ${groupMaximum} 题`;
-    $("childPendingText").textContent = groupCurrent <= 2 ? "前两题做完一起看" : "做完再统一看";
+    $("childPendingText").textContent = groupMaximum === 1
+      ? "这题做完就看解析"
+      : (groupCurrent < groupMaximum ? `做完第 ${groupMaximum} 题一起看` : "做完这题一起看");
     $("childProgressBar").style.width = `${Math.round(((groupCurrent - 1) / groupMaximum) * 100)}%`;
   } else {
     $("childProgressText").textContent = "当前步骤";
@@ -1590,7 +1656,7 @@ function renderV3CurrentStep() {
       <div class="support-card try-card">
         <p class="support-title">${escapeHtml(step.topic_label || "当前步骤")}</p>
         <div class="question-block">
-          <span>${escapeHtml(promptLabel)}</span>
+          <span class="question-block-label">${escapeHtml(promptLabel)}</span>
           <div class="child-prompt" data-child-prompt data-projection-sha256="${escapeAttr(step.child_surface_projection_sha256 || "")}">${promptHtml}</div>
         </div>
         ${step.question_visual ? `
@@ -1651,9 +1717,9 @@ function renderV3ChildState() {
   }
   if (childState === V5_CANONICAL_CHILD_STATES.ANALYZING_PENDING) {
     renderV3ShellMessage({
-      title: message.title || "正在统一看这一组答案",
+      title: message.title || "正在处理刚才的答案",
       typeLabel: "分析中",
-      body: message.body || "这一组答案已经保存，正在统一批阅并安排下一步。页面会自动刷新，可以先休息。",
+      body: message.body || "答案已经保存，正在判断当前步骤并安排下一步。页面会自动刷新。",
       actionLabel: message.action_label || "刷新看看",
     });
     scheduleV3StatePoll();
@@ -1708,9 +1774,20 @@ function renderV3ChildState() {
 
 function bindV3CurrentStepControls() {
   document.querySelectorAll("[data-v3-stuck-prompt]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const text = button.dataset.v3StuckPrompt || "";
       selectV3StuckPrompt(text);
+      const stuckButtons = [...document.querySelectorAll("[data-v3-stuck-prompt]")];
+      stuckButtons.forEach((item) => {
+        item.disabled = true;
+      });
+      try {
+        await submitV3CurrentStep();
+      } finally {
+        stuckButtons.forEach((item) => {
+          if (item.isConnected) item.disabled = false;
+        });
+      }
     });
   });
   const cancelStuck = document.querySelector("[data-v3-cancel-stuck]");
@@ -1799,7 +1876,7 @@ function renderTrySupport(task) {
       <p class="support-title">${escapeHtml(task.display_topic || "当前任务")}</p>
       <p class="thinking-line"><strong>先想：</strong>${escapeHtml(support.essence_or_hint || "先说清规则，再做题。")}</p>
       <div class="question-block">
-        <span>题目</span>
+        <span class="question-block-label">题目</span>
         <p>${escapeHtml(question.prompt || "暂无题目")}</p>
       </div>
       <p class="row-meta">这题写：${escapeHtml(answerFormat)}。</p>
@@ -2428,6 +2505,11 @@ async function startVoiceCapture() {
   input.voiceInterimText = "";
   input.voiceConfidenceValues = [];
   const stepKey = currentStepInputKey(step);
+  const recordButton = $("voiceRecordBtn");
+  const voicePanel = $("voiceInputPanel");
+  recordButton.disabled = true;
+  voicePanel.setAttribute("aria-busy", "true");
+  $("voiceStatus").textContent = "正在请求麦克风权限。";
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     if (input.stepKey !== stepKey || input.mode !== "voice") {
@@ -2444,6 +2526,8 @@ async function startVoiceCapture() {
     input.voiceRecorder = recorder;
     input.voiceRecognition = recognition;
     input.voiceStopping = false;
+    recordButton.disabled = false;
+    voicePanel.setAttribute("aria-busy", "false");
     recorder.ondataavailable = (event) => {
       if (event.data?.size) input.voiceChunks.push(event.data);
     };
@@ -2483,9 +2567,10 @@ async function startVoiceCapture() {
     $("voiceStatus").textContent = "正在听，讲完点停止。";
   } catch (_error) {
     stopVoiceDevices();
-    $("voiceRecordBtn").disabled = false;
-    $("voiceRecordBtn").textContent = "开始说答案";
-    $("voiceRecordBtn").setAttribute("aria-pressed", "false");
+    recordButton.disabled = false;
+    voicePanel.setAttribute("aria-busy", "false");
+    recordButton.textContent = "开始说答案";
+    recordButton.setAttribute("aria-pressed", "false");
     $("voiceStatus").textContent = "没有打开麦克风，继续打字也可以。";
   }
 }
@@ -3094,8 +3179,13 @@ async function handleV3PrimaryAction() {
 
 $("startNextRoundBtn").onclick = handleStartNextRoundClick;
 
-$("knowledgeHomeBtn").addEventListener("click", () => {
-  if (state.knowledgeReady) setPrimarySurface("map_home");
+$("knowledgeHomeBtn").addEventListener("click", async () => {
+  if (!state.knowledgeReady) return;
+  try {
+    await loadKnowledgeHome({ rememberSurface: true });
+  } catch {
+    setPrimarySurface("map_home");
+  }
 });
 
 $("v3SecondaryActionBtn").addEventListener("click", async () => {
@@ -3158,8 +3248,22 @@ function applyFixtureForChildState(uiState) {
 }
 
 async function initializeApplication() {
+  const preferredSurface = readSessionPreference(PRIMARY_SURFACE_STORAGE_KEY);
   try {
-    await loadKnowledgeHome();
+    const projection = await loadKnowledgeHome();
+    const activeLearningStates = new Set([
+      "current_step",
+      "analyzing_pending",
+      "feedback_teaching",
+      "clarify_evidence",
+      "blocked",
+    ]);
+    if (
+      preferredSurface === "learning_step"
+      && activeLearningStates.has(projection?.current_learning?.state)
+    ) {
+      await materializeLearningSurface();
+    }
   } catch {
     try {
       await load();

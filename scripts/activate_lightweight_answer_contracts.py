@@ -142,7 +142,8 @@ def receipt_for(
     ledger: dict[str, Any],
     contracts: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    commitments = [
+    commitments = sorted(
+        [
         {
             "question_id": contract["question_id"],
             "item_version": contract["item_version"],
@@ -155,7 +156,13 @@ def receipt_for(
             "contract_digest_sha256": contract["contract_digest_sha256"],
         }
         for contract in contracts
-    ]
+        ],
+        key=lambda item: (
+            str(item["question_id"]),
+            str(item["item_version"]),
+            str(item["contract_id"]),
+        ),
+    )
     return {
         "schema_version": knowledge_map.ASSESSMENT_RECEIPT_SCHEMA,
         "status": "active",

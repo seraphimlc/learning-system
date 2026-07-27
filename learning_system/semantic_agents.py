@@ -49,6 +49,7 @@ class SemanticAgentRequest:
     source_refs: dict[str, Any] = field(default_factory=dict)
     transport_timeout_seconds: float | None = None
     contract_version_suffix: str | None = None
+    operation_idempotency_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -480,13 +481,16 @@ def _call_agent(request: SemanticAgentRequest) -> SemanticAgentEnvelope:
             route,
             payload,
             schema=schema,
-        retryable_errors_fallback=request.phase
-            not in {
-                "answer_contract_review",
-                "answer_contract_design",
-                "answer_contract_review_v2",
-                "answer_contract_design_v2",
-            },
+            retryable_errors_fallback=request.phase
+                not in {
+                    "answer_contract_review",
+                    "answer_contract_design",
+                    "answer_contract_review_v2",
+                    "answer_contract_design_v2",
+                },
+            provider_idempotency_key=(
+                request.operation_idempotency_source or None
+            ),
         )
     except model_router.ModelJSONParseError as exc:
         raise exc
@@ -507,6 +511,12 @@ def _call_agent(request: SemanticAgentRequest) -> SemanticAgentEnvelope:
                 structured_json_mode=result.mode,
             ),
             "structured_json_endpoint": result.endpoint,
+            "provider_idempotency_enabled": (
+                result.provider_idempotency_enabled
+            ),
+            "provider_idempotency_key_digest_sha256": (
+                result.provider_idempotency_key_digest_sha256
+            ),
         },
         contract_version_suffix=request.contract_version_suffix,
     )

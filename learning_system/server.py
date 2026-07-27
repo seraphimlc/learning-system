@@ -845,11 +845,14 @@ class LearningHandler(BaseHTTPRequestHandler):
 
     def _send_json(self, payload: object, status: int = 200) -> None:
         body = _json_bytes(payload)
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def _send_error(self, status: int, message: str) -> None:
         self._send_json({"error": message}, status=status)
@@ -1168,6 +1171,33 @@ class LearningHandler(BaseHTTPRequestHandler):
                             (command.step_handle,),
                         ).fetchone()
                         flow_to_process = row["flow_id"] if row else ""
+                        if command.stuck and flow_to_process:
+                            stuck_job = conn.execute(
+                                """
+                                select j.id
+                                from background_jobs j
+                                join attempts a on a.id = j.attempt_id
+                                join flow_steps fs on fs.id = a.flow_step_id
+                                where fs.step_handle = ?
+                                  and j.flow_id = ?
+                                  and j.job_type = 'stuck_interruption'
+                                  and j.status in ('queued','retry')
+                                order by j.created_at desc, j.id desc
+                                limit 1
+                                """,
+                                (command.step_handle, flow_to_process),
+                            ).fetchone()
+                            if stuck_job:
+                                inline = self._v3_runtime(conn).process_next_background_job(
+                                    worker_id=f"v5-inline-stuck-{uuid.uuid4().hex[:8]}",
+                                    flow_id=flow_to_process,
+                                    job_id=stuck_job["id"],
+                                )
+                                if inline.get("job_status") == "succeeded":
+                                    result = self._v3_runtime(conn).project_child_state(
+                                        self._v3_runtime(conn)._flow_by_id(flow_to_process)
+                                    )
+                                    flow_to_process = ""
                     except daily_runtime.ChildSafeRuntimeError as exc:
                         self._send_json(exc.child_payload(), status=exc.status)
                         return

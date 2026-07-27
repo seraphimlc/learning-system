@@ -527,7 +527,7 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         self.conn.commit()
         return result
 
-    def _enqueue_photo_group_job(self, *, key):
+    def _enqueue_photo_single_answer_job(self, *, key):
         self.runtime.project_root = Path(self.tmpdir.name)
         step_row = self._step_row()
         self._set_practice_context(step_row, size=2)
@@ -558,13 +558,18 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         job = self.conn.execute(
             """
             select * from background_jobs
-            where flow_id = ? and job_type = 'group_answer_analysis'
+            where flow_id = ? and job_type = 'answer_analysis'
             order by created_at desc, id desc limit 1
             """,
             (step_row["flow_id"],),
         ).fetchone()
         self.assertIsNotNone(job)
-        return step_row, attempt, dict(job)
+        group_job_count = self.conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (step_row["flow_id"],),
+        ).fetchone()[0]
+        self.assertEqual(0, group_job_count)
+        return step_row, attempt, self._bind_active_contract(step_row), dict(job)
 
     def _assert_group_rejected_before_model(self, job, *, expected_reason):
         route = self._configured_answer_route()
@@ -840,7 +845,7 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         ).fetchone()[0]
         self.assertEqual(0, unanswered, "第三题必须等两题组分析后再决定是否追加")
 
-    def test_mixed_two_item_group_adds_exactly_one_question(self):
+    def test_mixed_two_item_group_adds_at_most_one_unique_question(self):
         first_row = self._step_row()
         self._set_practice_context(first_row, size=2)
         second_state = self._submit_payload(
@@ -915,12 +920,38 @@ class PracticeMultimodalContractTests(unittest.TestCase):
 
         self.assertEqual("succeeded", result["job_status"], result)
         state = self.runtime.project_child_state(self.runtime._flow_by_id(first_row["flow_id"]))
-        self.assertEqual("current_step", state["child_state"])
-        third_row = self._step_row(state)
-        third_meta = self.runtime._mini_group_meta(third_row)
-        self.assertEqual("PB-FOCUSED", third_meta["id"])
-        self.assertEqual(3, third_meta["index"])
-        self.assertEqual(1, self.conn.execute(
+        if state["child_state"] == "current_step":
+            third_row = self._step_row(state)
+            third_meta = self.runtime._mini_group_meta(third_row)
+            self.assertEqual("PB-FOCUSED", third_meta["id"])
+            self.assertEqual(3, third_meta["index"])
+        else:
+            self.assertEqual(
+                "assessment_feedback",
+                state["child_state"],
+                "when no unused mathematical instance remains, the group must stop instead of repeating a question",
+            )
+        question_rows = self.conn.execute(
+            """
+            select question_id
+            from flow_steps
+            where flow_id = ? and step_type = 'question'
+            order by position
+            """,
+            (first_row["flow_id"],),
+        ).fetchall()
+        problem_instance_ids = [
+            str(db.get_question(self.conn, row["question_id"]).get("problem_instance_id") or "")
+            for row in question_rows
+        ]
+        self.assertIn(len(problem_instance_ids), {2, 3})
+        self.assertTrue(all(problem_instance_ids))
+        self.assertEqual(
+            len(problem_instance_ids),
+            len(set(problem_instance_ids)),
+            "adaptive evidence must use three distinct mathematical problem instances",
+        )
+        self.assertEqual(1 if len(problem_instance_ids) == 3 else 0, self.conn.execute(
             """
             select count(*) from flow_steps
             where flow_id = ? and step_type = 'question'
@@ -928,6 +959,118 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             """,
             (first_row["flow_id"],),
         ).fetchone()[0])
+
+    def test_mixed_group_with_no_unused_problem_instance_finishes_without_duplicate_or_orphan(self):
+        first_row = self._step_row()
+        self._set_practice_context(first_row, size=2)
+        second_state = self._submit_payload(
+            self._typed_payload(self.started, key="saturated-first", answer="第一题答案")
+        )
+        self._submit_payload(
+            self._typed_payload(second_state, key="saturated-second", answer="第二题答案")
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (first_row["flow_id"],),
+        ).fetchone())
+        payload = db.json_load(job["payload_json"], {})
+        output_items = []
+        for item_index, group_item in enumerate(payload["group_items"]):
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            output_items.append(
+                {
+                    "attempt_id": group_item["attempt_id"],
+                    "criteria": [
+                        {
+                            "criterion_key": point["key"],
+                            "status": "met" if item_index == 0 else "not_met",
+                            "child_evidence": "结构化测试证据。",
+                            "reason": "第一题通过，第二题需要确认。",
+                        }
+                        for point in contract["score_points"]
+                    ],
+                    "answer_gap": "第二题存在待确认差距。" if item_index else "没有关键差距。",
+                    "improvement_direction": ["再用一道近迁移题确认。"],
+                    "expression_judgment": "按数学意图判断。",
+                    "teaching_explanation": "先确认关系，再检查符号。",
+                    "confidence": 0.95,
+                }
+            )
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": output_items,
+                "confidence": 0.95,
+            },
+            mode="json_schema",
+            raw_response={"fixture": "practice-saturated-two-item"},
+            endpoint="unit://structured-json",
+        )
+        route = model_router.ModelRoute(
+            agent_key="answer_analysis_agent",
+            task="answer_review",
+            provider="openai",
+            model="gpt-5.5",
+            model_alias="gpt-5.5",
+            base_url="https://unit.invalid/v1",
+            api_key="test-only",
+            timeout_seconds=30,
+            model_params={"temperature": 0},
+        )
+
+        with mock.patch.object(model_router, "answer_analysis_route", return_value=route), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ), mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=None,
+        ), mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            return_value=None,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="saturated-group-worker",
+                flow_id=first_row["flow_id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        question_rows = self.conn.execute(
+            """
+            select question_id
+            from flow_steps
+            where flow_id = ? and step_type = 'question'
+            order by position
+            """,
+            (first_row["flow_id"],),
+        ).fetchall()
+        problem_instance_ids = [
+            str(db.get_question(self.conn, row["question_id"]).get("problem_instance_id") or "")
+            for row in question_rows
+        ]
+        self.assertEqual(2, len(problem_instance_ids))
+        self.assertEqual(2, len(set(problem_instance_ids)))
+        current_step = self.conn.execute(
+            """
+            select s.step_type, s.status
+            from daily_flows f
+            join flow_steps s on s.id = f.current_step_id
+            where f.id = ?
+            """,
+            (first_row["flow_id"],),
+        ).fetchone()
+        self.assertEqual("assessment_feedback", current_step["step_type"])
+        self.assertNotEqual("analyzing", current_step["status"])
+        stored_job = self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()
+        self.assertEqual("succeeded", stored_job["status"])
 
     def test_group_with_unverified_voice_only_requests_same_node_diagnostic_confirmation(self):
         first_row = self._step_row()
@@ -1031,6 +1174,95 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             "select count(*) from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
             (first_row["flow_id"],),
         ).fetchone()[0])
+
+    def test_explicit_stuck_teaching_uses_the_current_question_first_step(self):
+        first_row = self._step_row()
+        question = db.get_question(self.conn, first_row["question_id"])
+        payload = self._typed_payload(self.started, key="stuck-concrete-teaching", answer="")
+        payload["stuck"] = True
+        self._submit_payload(payload)
+
+        with mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("explicit stuck must stay on the deterministic zero-model path"),
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="stuck-concrete-worker",
+                flow_id=first_row["flow_id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        state = self.runtime.project_child_state(self.runtime._flow_by_id(first_row["flow_id"]))
+        self.assertEqual("teaching", state["child_state"])
+        prompt = state["current_step"]["prompt"]
+        first_step = str((question.get("solution_steps") or [""])[0]).strip()
+        self.assertTrue(first_step)
+        self.assertIn(first_step, prompt)
+        self.assertNotIn("这一步的关键关系、步骤或检验还不够稳", prompt)
+
+    def test_first_check_after_explicit_stuck_stays_on_the_same_node(self):
+        first_row = self._step_row()
+        payload = self._typed_payload(self.started, key="stuck-same-node-check", answer="")
+        payload["stuck"] = True
+        self._submit_payload(payload)
+        self.runtime.process_next_background_job(
+            worker_id="stuck-same-node-worker",
+            flow_id=first_row["flow_id"],
+        )
+        teaching_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(first_row["flow_id"])
+        )
+        teaching_step = teaching_state["current_step"]
+        source_question = db.get_question(self.conn, first_row["question_id"])
+        replacement = None
+        for row in self.conn.execute(
+            """
+            select q.id as question_id, r.id as review_record_id
+            from question_items q
+            join question_review_records r on r.question_id = q.id
+             and r.item_version = q.item_version and r.active_eligible = 1
+            where q.node_id = ?
+              and q.id <> ?
+            order by q.id
+            """,
+            (
+                first_row["node_id"],
+                first_row["question_id"],
+            ),
+        ).fetchall():
+            candidate = db.get_question(self.conn, row["question_id"])
+            if candidate["problem_instance_id"] != source_question["problem_instance_id"]:
+                replacement = row
+                break
+        self.assertIsNotNone(replacement)
+        selected = {
+            "action": "same_structure_retest",
+            "reason": "教学后在同一知识点做一次不同结构的小检查。",
+            "question": db.get_question(self.conn, replacement["question_id"]),
+            "review_record_id": replacement["review_record_id"],
+            "selection_reason": {"reason": "same_node_after_explicit_stuck"},
+            "candidate_packet": {},
+        }
+
+        with mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            side_effect=AssertionError("explicit stuck has no semantic evidence for a prerequisite jump"),
+        ), mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=selected,
+        ) as select_same_node:
+            next_state = self.runtime.continue_current_step(
+                step_handle=teaching_step["step_handle"],
+                position=teaching_step["position"],
+            )
+
+        self.assertEqual(first_row["node_id"], select_same_node.call_args.args[0])
+        self.assertEqual("current_step", next_state["child_state"])
+        next_row = self._step_row(next_state)
+        self.assertEqual(first_row["node_id"], next_row["node_id"])
 
     def test_stuck_on_second_practice_question_closes_prior_deferred_attempt(self):
         first_row = self._step_row()
@@ -1327,13 +1559,304 @@ class PracticeMultimodalContractTests(unittest.TestCase):
                     f"A must reject {label}",
                 )
 
-    def test_photo_placeholder_text_cannot_be_graded(self):
-        _, attempt, job = self._enqueue_photo_group_job(key="photo-placeholder")
+    def test_raw_photo_in_deferred_group_uses_single_ocr_analysis_before_next_question(self):
+        _, attempt, _, job = self._enqueue_photo_single_answer_job(key="photo-placeholder")
         self.assertEqual("已上传纸面答案。", attempt["answer_raw"])
-        self._assert_group_rejected_before_model(
-            job,
-            expected_reason="group_photo_only_requires_ocr_path",
+        self.assertEqual("answer_analysis", job["job_type"])
+        self.assertEqual("queued", attempt["review_meta"]["status"])
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ?",
+            (job["flow_id"],),
+        ).fetchone()[0])
+
+    def test_usable_photo_assessment_creates_next_group_question_after_analysis(self):
+        step_row, attempt, contract, job = self._enqueue_photo_single_answer_job(
+            key="photo-usable-next"
         )
+        route = self._configured_answer_route()
+        photo_ocr = {
+            "status": "usable",
+            "confidence": 0.96,
+            "transcript": "孩子写出了正确关系和答案。",
+            "math_objects": ["正确关系"],
+            "notes": "字迹清楚。",
+            "route": {"provider": "doubao", "model": "vision-test", "model_alias": "vision-test"},
+        }
+        with mock.patch.object(model_router, "answer_analysis_route", return_value=route), mock.patch(
+            "learning_system.daily_runtime.auto_review._review_answer_photo",
+            return_value=photo_ocr,
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=self._accepted_single_answer_envelope(contract),
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("mini_group_accumulating", result["next_action"], result)
+        state = self.runtime.project_child_state(self.runtime._flow_by_id(step_row["flow_id"]))
+        self.assertEqual("current_step", state["child_state"], state)
+        next_step = self._step_row(state)
+        next_meta = self.runtime._mini_group_meta(next_step)
+        self.assertEqual(2, next_meta["index"])
+        self.assertNotEqual(step_row["question_id"], next_step["question_id"])
+        self.assertEqual("graded", db.get_attempt(self.conn, attempt["id"])["grading_status"])
+        recognition = self.conn.execute(
+            "select * from media_recognition_runs where flow_step_id = ?",
+            (step_row["id"],),
+        ).fetchone()
+        self.assertIsNotNone(recognition)
+        self.assertEqual("photo", recognition["input_mode"])
+        self.assertEqual("usable", recognition["recognition_status"])
+        answer_run = self.conn.execute(
+            "select input_refs_json from agent_runs where id = ?",
+            (result["answer_analysis_agent_run_id"],),
+        ).fetchone()
+        input_refs = db.json_load(answer_run["input_refs_json"], {})
+        self.assertEqual(recognition["id"], input_refs["photo_recognition_run_id"])
+        self.assertEqual(
+            recognition["output_digest_sha256"],
+            input_refs["photo_recognition_output_digest_sha256"],
+        )
+
+    def test_photo_ocr_artifact_tamper_is_rejected_before_assessment_commit(self):
+        _, attempt, contract, job = self._enqueue_photo_single_answer_job(
+            key="photo-ocr-artifact-tamper"
+        )
+        route = self._configured_answer_route()
+
+        def tamper_after_ocr(_request):
+            row = self.conn.execute(
+                "select id from media_recognition_runs where flow_step_id = ?",
+                (attempt["flow_step_id"],),
+            ).fetchone()
+            self.assertIsNotNone(row)
+            self.conn.execute(
+                "update media_recognition_runs set recognized_text = '被篡改的识别结果' where id = ?",
+                (row["id"],),
+            )
+            self.conn.commit()
+            return self._accepted_single_answer_envelope(contract)
+
+        with mock.patch.object(model_router, "answer_analysis_route", return_value=route), mock.patch(
+            "learning_system.daily_runtime.auto_review._review_answer_photo",
+            return_value={
+                "status": "usable",
+                "confidence": 0.96,
+                "transcript": "原始清楚的识别结果。",
+                "math_objects": ["正确关系"],
+                "notes": "清楚",
+                "route": {"provider": "doubao", "model": "vision-test", "model_alias": "vision-test"},
+            },
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=tamper_after_ocr,
+        ):
+            with self.assertRaisesRegex(ValueError, "recognition output digest mismatch"):
+                self.runtime._handle_answer_analysis_job(job)
+
+        latest = db.get_attempt(self.conn, attempt["id"])
+        self.assertEqual("pending_review", latest["grading_status"])
+        self.assertIsNone(
+            assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt.get("attempt_version") or 1),
+            )
+        )
+
+    def test_typed_then_photo_group_finishes_as_sequential_single_assessments(self):
+        first_step = self._step_row()
+        self._set_practice_context(first_step, size=2)
+        second_state = self._submit_payload(
+            self._typed_payload(self.started, key="typed-before-photo", answer="第一题文字答案")
+        )
+        self.assertEqual("current_step", second_state["child_state"])
+        second_step = self._step_row(second_state)
+        package = db.json_load(second_step.get("prompt_package_json"), {})
+        package.update(
+            {
+                "answer_input_mode": "photo",
+                "allowed_response_modes": ["photo", "stuck"],
+                "upload_enabled": True,
+            }
+        )
+        self.conn.execute(
+            "update flow_steps set prompt_package_json = ? where id = ?",
+            (db.json_dump(package), second_step["id"]),
+        )
+        self.conn.commit()
+        photo_payload = self._typed_payload(second_state, key="photo-after-typed", answer="")
+        photo_payload.update(
+            {
+                "answer_photo_data_url": self._data_url(
+                    "image/png", b"\x89PNG\r\n\x1a\nphoto-after-typed"
+                ),
+                "answer_photo_name": "paper.png",
+            }
+        )
+        submitted = self._submit_payload(photo_payload)
+        self.assertEqual("analyzing", submitted["child_state"])
+        photo_attempt = self._attempt_for_key("photo-after-typed")
+        photo_job = dict(
+            self.conn.execute(
+                "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+                (photo_attempt["id"],),
+            ).fetchone()
+        )
+        photo_contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn, second_step["id"]
+        )
+        route = self._configured_answer_route()
+        with mock.patch.object(model_router, "answer_analysis_route", return_value=route), mock.patch(
+            "learning_system.daily_runtime.auto_review._review_answer_photo",
+            return_value={
+                "status": "usable",
+                "confidence": 0.96,
+                "transcript": "第二题照片答案正确。",
+                "math_objects": ["正确答案"],
+                "notes": "清楚",
+                "route": {"provider": "doubao", "model": "vision-test", "model_alias": "vision-test"},
+            },
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=self._accepted_single_answer_envelope(photo_contract),
+        ):
+            photo_result = self.runtime._handle_answer_analysis_job(photo_job)
+        self.assertEqual("mini_group_sequential_analysis", photo_result["next_action"], photo_result)
+
+        typed_attempt = self._attempt_for_key("typed-before-photo")
+        typed_job = dict(
+            self.conn.execute(
+                "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+                (typed_attempt["id"],),
+            ).fetchone()
+        )
+        self.assertEqual(photo_job["id"], typed_job["depends_on_job_id"])
+        typed_contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn, first_step["id"]
+        )
+        with mock.patch.object(model_router, "answer_analysis_route", return_value=route), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=self._accepted_single_answer_envelope(typed_contract),
+        ):
+            typed_result = self.runtime._handle_answer_analysis_job(typed_job)
+        self.assertEqual("mini_group_assessment_feedback", typed_result["next_action"], typed_result)
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (first_step["flow_id"],),
+        ).fetchone()[0])
+
+    def test_unclear_photo_invalidates_prior_deferred_group_evidence(self):
+        first_step = self._step_row()
+        self._set_practice_context(first_step, size=2)
+        second_state = self._submit_payload(
+            self._typed_payload(self.started, key="typed-before-unclear-photo", answer="第一题文字答案")
+        )
+        second_step = self._step_row(second_state)
+        package = db.json_load(second_step.get("prompt_package_json"), {})
+        package.update(
+            {
+                "answer_input_mode": "photo",
+                "allowed_response_modes": ["photo", "stuck"],
+                "upload_enabled": True,
+            }
+        )
+        self.conn.execute(
+            "update flow_steps set prompt_package_json = ? where id = ?",
+            (db.json_dump(package), second_step["id"]),
+        )
+        self.conn.commit()
+        payload = self._typed_payload(second_state, key="unclear-photo-after-typed", answer="")
+        payload.update(
+            {
+                "answer_photo_data_url": self._data_url(
+                    "image/png", b"\x89PNG\r\n\x1a\nunclear-photo-after-typed"
+                ),
+                "answer_photo_name": "unclear.png",
+            }
+        )
+        self._submit_payload(payload)
+        photo_attempt = self._attempt_for_key("unclear-photo-after-typed")
+        photo_job = dict(
+            self.conn.execute(
+                "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+                (photo_attempt["id"],),
+            ).fetchone()
+        )
+        contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn, second_step["id"]
+        )
+        expected = internal_agents.load_v5_contract_for_agent("answer_analysis_agent")
+        criteria = []
+        for index, point in enumerate(contract["score_points"]):
+            criteria.append(
+                {
+                    "criterion_key": point["key"],
+                    "status": "unclear" if index == 0 else "met",
+                    "child_evidence": "照片中的关键符号看不清。" if index == 0 else "其余部分可见。",
+                    "reason": "关键证据不足。" if index == 0 else "可见部分成立。",
+                }
+            )
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.2,
+            output={
+                "schema_version": expected["response_schema_version"],
+                "criteria": criteria,
+                "answer_gap": "照片中的关键符号看不清，暂时不能判断。",
+                "improvement_direction": ["请补拍清楚关键算式。"],
+                "expression_judgment": "当前证据不足，不评价表达。",
+                "teaching_explanation": "先把关键算式拍清楚。",
+                "confidence": 0.2,
+            },
+            route_meta={"fixture": "unclear-photo-group-interruption"},
+            prompt_version_id=expected["prompt_version_id"],
+            response_schema_version=expected["response_schema_version"],
+        )
+        route = self._configured_answer_route()
+        with mock.patch.object(model_router, "answer_analysis_route", return_value=route), mock.patch(
+            "learning_system.daily_runtime.auto_review._review_answer_photo",
+            return_value={
+                "status": "unclear",
+                "confidence": 0.2,
+                "transcript": "",
+                "math_objects": [],
+                "notes": "关键符号模糊",
+                "route": {"provider": "doubao", "model": "vision-test", "model_alias": "vision-test"},
+            },
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ):
+            result = self.runtime._handle_answer_analysis_job(photo_job)
+
+        self.assertEqual("clarify_evidence", result["next_action"], result)
+        typed_attempt = db.get_attempt(
+            self.conn, self._attempt_for_key("typed-before-unclear-photo")["id"]
+        )
+        self.assertEqual("blocked", typed_attempt["grading_status"])
+        self.assertEqual("invalidated", typed_attempt["evidence_status"])
+        self.assertEqual(
+            "group_interrupted_by_clarification",
+            typed_attempt["review_meta"]["status"],
+        )
+        self.assertEqual(0, self.conn.execute(
+            """
+            select count(*) from attempts
+            where flow_step_id in (select id from flow_steps where flow_id = ?)
+              and grading_status = 'pending_review' and evidence_status = 'active'
+            """,
+            (first_step["flow_id"],),
+        ).fetchone()[0])
 
     def test_group_handler_rejects_stale_evidence_revision_digest(self):
         _, attempt, job = self._enqueue_single_item_group_job(key="stale-group-evidence")
@@ -1370,15 +1893,22 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             expected_reason="group_usage_context_digest_mismatch",
         )
 
-    def test_group_handler_rejects_stale_media_digest(self):
-        _, attempt, job = self._enqueue_photo_group_job(key="stale-group-media")
+    def test_single_photo_handler_rejects_stale_media_digest_before_ocr(self):
+        _, attempt, _, job = self._enqueue_photo_single_answer_job(key="stale-group-media")
         attachment = db.attachments_for_attempt(self.conn, attempt["id"])[0]
         media_path = (self.runtime.project_root / attachment["relative_path"]).resolve()
         media_path.write_bytes(b"\x89PNG\r\n\x1a\nmutated-after-enqueue")
-        self._assert_group_rejected_before_model(
-            job,
-            expected_reason="group_media_digest_mismatch",
-        )
+        with mock.patch(
+            "learning_system.daily_runtime.auto_review._review_answer_photo"
+        ) as photo_ocr, mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+        ) as answer_model:
+            result = self.runtime._handle_answer_analysis_job(job)
+        photo_ocr.assert_not_called()
+        answer_model.assert_not_called()
+        self.assertEqual("blocked", result["job_status"], result)
+        self.assertIn("media", result["reason"], result)
 
     def test_group_handler_revalidates_complete_snapshot_after_model_call(self):
         _, attempt, job = self._enqueue_single_item_group_job(key="post-model-stale-group")
@@ -1438,6 +1968,87 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             result = self.runtime._handle_group_answer_analysis_job(job)
 
         self.assertEqual("succeeded", result["job_status"], result)
+
+    def test_group_feedback_exposes_each_questions_actual_reference_answer(self):
+        step_row, _, job = self._enqueue_single_item_group_job(
+            key="group-feedback-reference-answers"
+        )
+        payload = db.json_load(job["payload_json"], {})
+        expected_answers = []
+        for group_item in payload["group_items"]:
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            expected_answers.append(self.runtime._assessment_reference_answer(contract))
+        structured = self._structured_group_result(job)
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._configured_answer_route(),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ):
+            result = self.runtime._handle_group_answer_analysis_job(job)
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        state = self.runtime.project_child_state(self.runtime._flow_by_id(step_row["flow_id"]))
+        self.assertEqual("assessment_feedback", state["child_state"])
+        feedback = state["current_step"]["assessment_feedback"]
+        self.assertEqual("mini_group", feedback["scope"])
+        self.assertEqual(2, len(feedback["items"]))
+        self.assertEqual(
+            expected_answers,
+            [item["reference_answer"] for item in feedback["items"]],
+        )
+
+    def test_low_confidence_group_review_never_turns_uncertainty_into_zero_scores(self):
+        step_row, _, job = self._enqueue_single_item_group_job(
+            key="group-low-confidence"
+        )
+        structured = self._structured_group_result(job)
+        for item in structured.value["items"]:
+            item["confidence"] = 0.1
+            item["answer_gap"] = "这份答案暂时看不清，不能安全判断。"
+            for criterion in item["criteria"]:
+                criterion["status"] = "not_met"
+                criterion["child_evidence"] = ""
+                criterion["reason"] = "低置信时不能把看不清当成做错。"
+        structured.value["confidence"] = 0.1
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._configured_answer_route(),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ):
+            result = self.runtime._handle_group_answer_analysis_job(job)
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("clarify_evidence", result["next_action"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from attempt_assessments where status = 'accepted'",
+        ).fetchone()[0])
+        group_attempts = self.conn.execute(
+            """
+            select a.*
+            from attempts a
+            join flow_steps s on s.id = a.flow_step_id
+            where s.flow_id = ?
+            """,
+            (step_row["flow_id"],),
+        ).fetchall()
+        self.assertTrue(group_attempts)
+        self.assertTrue(all(row["evidence_status"] == "invalidated" for row in group_attempts))
+        self.assertTrue(all(row["grading_status"] != "pending_review" for row in group_attempts))
+        state = self.runtime.project_child_state(self.runtime._flow_by_id(step_row["flow_id"]))
+        self.assertEqual("clarify_evidence", state["child_state"])
 
     def test_single_model_call_does_not_hold_sqlite_write_lock(self):
         _, _, contract, job = self._enqueue_single_answer_job(
@@ -1811,6 +2422,63 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         self.assertEqual(initial_flow["flow_revision"], current_flow["flow_revision"])
         self.assertEqual(initial_step["status"], current_step["status"])
 
+    def test_expired_lease_second_worker_reuses_checkpoint_with_one_provider_call(self):
+        step_row, attempt, contract, job = self._enqueue_single_answer_job(
+            key="single-expired-lease-checkpoint-reuse"
+        )
+        envelope = self._accepted_single_answer_envelope(contract)
+
+        def expire_lease_after_provider_returns(_request):
+            self.conn.execute(
+                """
+                update background_jobs
+                set lease_expires_at = '2000-01-01T00:00:00.000000'
+                where id = ?
+                """,
+                (job["id"],),
+            )
+            self.conn.commit()
+            return envelope
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._configured_answer_route(),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=expire_lease_after_provider_returns,
+        ) as provider_call:
+            first = self.runtime.process_next_background_job(
+                worker_id="expired-provider-worker",
+                flow_id=step_row["flow_id"],
+            )
+            second = self.runtime.process_next_background_job(
+                worker_id="replacement-provider-worker",
+                flow_id=step_row["flow_id"],
+            )
+
+        self.assertEqual("claim_lost", first["status"], first)
+        self.assertEqual("succeeded", second["job_status"], second)
+        self.assertEqual(1, provider_call.call_count)
+        self.assertEqual(1, self.conn.execute(
+            """
+            select count(*) from model_response_checkpoints
+            where checkpoint_kind = 'answer_analysis' and source_job_id = ?
+            """,
+            (job["id"],),
+        ).fetchone()[0])
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ? and status = 'accepted'",
+            (attempt["id"],),
+        ).fetchone()[0])
+        stored_job = self.conn.execute(
+            "select status, claim_generation from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()
+        self.assertEqual("succeeded", stored_job["status"])
+        self.assertGreaterEqual(int(stored_job["claim_generation"]), 2)
+
     def test_reclaimed_pending_answer_job_leaves_no_pending_business_state(self):
         step_row, attempt, _, job = self._enqueue_single_answer_job(
             key="single-pending-reclaim"
@@ -1988,6 +2656,61 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         self.assertEqual(1, self.conn.execute(
             "select count(*) from attempts where flow_step_id = ? and evidence_status = 'active'",
             (existing["flow_step_id"],),
+        ).fetchone()[0])
+
+    def test_deferred_group_integrity_recovery_never_enqueues_single_answer_job(self):
+        first_row = self._step_row()
+        self._set_practice_context(first_row, size=2)
+        original_payload = self._typed_payload(
+            self.started,
+            key="deferred-group-race",
+            answer="第一题答案",
+        )
+        self._submit_payload(original_payload)
+        existing = self._attempt_for_key("deferred-group-race")
+        self.conn.execute(
+            """
+            update flow_steps set status = 'planned'
+            where flow_id = ? and id <> ? and status in ('selected','displayed')
+            """,
+            (first_row["flow_id"], first_row["id"]),
+        )
+        self.conn.execute(
+            "update flow_steps set status = 'displayed' where id = ?",
+            (first_row["id"],),
+        )
+        self.conn.execute(
+            "update daily_flows set current_step_id = ? where id = ?",
+            (first_row["id"], first_row["flow_id"]),
+        )
+        self.conn.commit()
+        real_active_attempt = self.runtime._active_attempt_for_step
+        calls = 0
+
+        def hide_existing_until_integrity_recovery(flow_step_id, *, client_idempotency_key=None):
+            nonlocal calls
+            calls += 1
+            if calls <= 2:
+                return None
+            return real_active_attempt(
+                flow_step_id,
+                client_idempotency_key=client_idempotency_key,
+            )
+
+        with mock.patch.object(
+            self.runtime,
+            "_active_attempt_for_step",
+            side_effect=hide_existing_until_integrity_recovery,
+        ):
+            self._submit_payload(copy.deepcopy(original_payload))
+
+        self.assertEqual(existing["id"], self._attempt_for_key("deferred-group-race")["id"])
+        self.assertEqual(0, self.conn.execute(
+            """
+            select count(*) from background_jobs
+            where attempt_id = ? and job_type = 'answer_analysis'
+            """,
+            (existing["id"],),
         ).fetchone()[0])
 
     def test_child_api_bootstrap_and_stale_submit_are_child_safe(self):

@@ -1588,10 +1588,6 @@ def preflight_v2_canary(
                 "question_ids": sorted(
                     answer_contract_generation_v2.V12_SCORING_POLICY_GATE_QUESTION_IDS
                 ),
-                "bank_version": "2026-07-08.bank.v11",
-                "reason_code": (
-                    "v12_scoring_policy_gate_required_for_clock_verification"
-                ),
             }
         ),
         "policy_blockers": policy_blockers,

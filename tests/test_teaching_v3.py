@@ -1,4 +1,3 @@
-import hashlib
 import json
 import sqlite3
 import unittest
@@ -12,9 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _sha256_json(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    return internal_agents.canonical_json_sha256(value)
 
 
 def _worked_example_output(**extra):
@@ -187,9 +184,18 @@ class TeachingV3Test(unittest.TestCase):
         output = _worked_example_output()
         seen = {}
 
-        def fake_call(route, payload, *, schema, plain_json_instruction="", retryable_errors_fallback=True):
+        def fake_call(
+            route,
+            payload,
+            *,
+            schema,
+            plain_json_instruction="",
+            retryable_errors_fallback=True,
+            provider_idempotency_key=None,
+        ):
             seen["payload"] = payload
             seen["schema"] = schema
+            seen["provider_idempotency_key"] = provider_idempotency_key
             return model_router.StructuredJSONResult(
                 value=output,
                 mode="json_schema",
