@@ -62,10 +62,12 @@ def extract_calculation(prompt: str) -> str | None:
 
 
 def verify_expected_answer(prompt: str, expected_answer: str) -> dict:
-    """Verify a calculation item's expected answer. Never raises.
+    """Verify a calculation item's expected answer. Never raises for str inputs.
 
     verdict: verified | mismatch | unverifiable
     """
+    if not expected_answer or not str(expected_answer).strip():
+        return {"verdict": "unverifiable", "reason": "empty expected answer"}
     expression = extract_calculation(prompt)
     if expression is None:
         return {"verdict": "unverifiable", "reason": "no machine-checkable expression in prompt"}

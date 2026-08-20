@@ -79,6 +79,12 @@ class TestVerifyExpectedAnswer(unittest.TestCase):
         self.assertEqual(result["verdict"], "unverifiable")
         self.assertIn("reason", result)
 
+    def test_empty_expected_answer_is_unverifiable(self):
+        # 空 expected 属"无法校验"而非 mismatch（与批量审计脚本语义一致）
+        result = verify_expected_answer("计算：1/2 + 1/3", "")
+        self.assertEqual(result, {"verdict": "unverifiable", "reason": "empty expected answer"})
+        self.assertEqual(verify_expected_answer("计算：1/2 + 1/3", "   ")["verdict"], "unverifiable")
+
     def test_division_operator_in_expected_answer_verified(self):
         # 含 ÷ 的答案卡排版也能验证（sympify 前归一化）
         result = verify_expected_answer("计算：1/2 + 1/3", "5 ÷ 6")
