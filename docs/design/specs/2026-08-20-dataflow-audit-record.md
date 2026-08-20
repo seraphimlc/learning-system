@@ -45,7 +45,7 @@
 | # | 核对项 | 来源 | 必答项标记 | 状态 |
 |---|---|---|---|---|
 | 1 | `attempts` / `learner_node_status` / `mastery_decisions` 表与消费方 | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 2） |
-| 2 | `generated_plans` / `daily_flows`（短期计划现状） | spec §8.1 第 0 步逐表对照 | — | 待核对（Task 4） |
+| 2 | `generated_plans` / `daily_flows`（短期计划现状） | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 4） |
 | 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 已完成（Task 3） |
 | 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 待核对（Task 5） |
 | 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | 待核对（Task 6） |
@@ -136,21 +136,43 @@
 
 #### 现状（证据：文件:行）
 
-- `generated_plans`：见 `learning_system/db.py:572` 起（列、与节点/阶段的关系）。
-- `daily_flows`：见 `learning_system/db.py:1013` 起。
-- `learning_path` 现状：`data/knowledge_graphs/math/math_knowledge_graph_v2.json` 的 `learning_path`（规划配置 dict，非档案）。
+**`generated_plans`（`learning_system/db.py:572-579`）**
 
-（骨架占位：Task 4 填充）
+- 列（6 列）：`id` text PK、`title`、`tasks_json`（计划任务数组，JSON）、`planner_policy_version`（迁移补列 `db.py:1457`）、`plan_meta_json`（迁移补列 `db.py:1458`）、`created_at`。**无节点/阶段外键**——与节点的关系在 `tasks_json` 内容内部（每条 task 含 `node_id`/`question_id`/`task_type`/`planning_signal` 等，计划 dict 组装于 `planner.py:1461-1494`，每轮固定 10 个任务 `LEARNING_ROUND_TASK_COUNT=10`，`planner.py:15`）；**阶段概念不落表**（`planner.py` 全文无 `phase` 引用；表无 phase 列）。
+- 写入：唯一写点 `planner.generate_next_plan` 的 `insert into`（`planner.py:1475-1497`）；`grep -rn "update generated_plans\|delete from generated_plans" learning_system/ scripts/` **0 命中** → **append-only 计划日志**，"推翻重来" = 生成新计划行。
+- 读取：取"最新计划"用 `order by created_at desc, rowid desc limit 1`（`planner.py:1504`、`agents.py:14-37`，后者拼 `_latest_generated_plan_report` 供 agent 上下文）；`server.py:594-617`（按 id / 最新，面板展示）；`scripts/live_child_ui_10x.py:78`。`planner_policy_version` 不一致或题库版本过期 → 判为不可用（`agents.py:33-36`、`server.py:587-590`）。
+- 与 `daily_flows` 的关系：`daily_flows.source_plan_id`（`db.py:1030`）声明关联，但 v3 创建路径**硬编码 null**（`daily_runtime.py:779`）；`grep -rn "source_plan_id" learning_system/ --include="*.py"` 仅 2 处（列定义 + insert null），无 join 读取 → **计划→日流程在 v3 运行时不经表关联**（经 planner 信号 → `next_step_decisions` → `flow_steps` 决策链）。
+
+**`daily_flows`（`learning_system/db.py:1013-1035`）**
+
+- 每日一行：`id` PK、`child_key`（默认 `'single-child'`）、`local_date`、`mode`（默认 `'not_selected'`）、`status`（默认 `'new'`；终态 `("completed", "superseded")`，`daily_runtime.py:42`）、`budget_min/max`、`current_step_id`、`graph_version`、`planned_graph_node_ids_json`（v3 插入恒 `'[]'`，`daily_runtime.py:779`，生产仅定义+写入、无读取）、题库版本三列（`question_bank_version`/`question_bank_ledger_id`/`question_bank_manifest_sha256`，后两列迁移补列 `db.py:1313-1314`）、`legacy_session_id` FK → `learning_sessions(id)`、`flow_revision`（行修订，状态迁移时 +1，`daily_runtime.py:725`）、`created_by_runtime_version`、`source_plan_id`（见上）、`blocked_reason`、`summary_id`、`created_at/updated_at`；迁移补列 `assessment_policy_version`（`db.py:1312`）。**无 phase 列**（阶段不落表）。
+- 约束/索引：唯一 `idx_v3_daily_flows_one_active_per_child_day` on `(child_key, local_date)`（`db.py:1461-1462`，每孩子每日一行）；`idx_v3_daily_flows_local_date_status`（`db.py:1464-1465`）。
+- 写入/读取：创建 `_create_daily_flow`（`daily_runtime.py:755-799`）+ 状态机 in-place `update`（`daily_runtime.py:719/1115/2152/2242/2277/2355/2416/2482/2649/3402` 等，`flow_revision` 递增防并发覆盖）；读取 `daily_runtime.py:4680/4854/4888/4899`、`reports._latest_daily_flows`（`reports.py:107-111`）、`knowledge_map.py:315/381`、`assessment_store.py:394`、`server.py`。
+- 日内步骤序列 = `flow_steps`（`db.py:1037-1062`）：`flow_id` FK（on delete cascade）、`position` 整数（`db.py:1041`）、`step_handle`/`step_type`/`status`、`node_id`/`question_id`、`step_revision`、`superseded_by_step_id`（`db.py:1059`，步骤可被取代）；`insert into flow_steps` 仅 `daily_runtime.py:13055/14283` 两处（运行时按 next_step_decisions/教学修复选步落库），**不从 `generated_plans.tasks_json` 物化** → 日内顺序由 `position` 承载、可演进替换（`superseded_by_step_id` + `flow_revision`）。
+
+**`learning_path` 现状（`data/knowledge_graphs/math/math_knowledge_graph_v2.json` 顶层 key，规划配置 dict 非档案）**
+
+- 结构（实测 json 解析）：dict，含 `daily_time_minutes`（60）、`math_priority`（文本）、`phase_strategy`（**5 元素数组**：第1-3天建档 / 第4-12天快补 / 第13-35天主线 / 第36-44天混合 / 第45-50天收口，每元素 `name`/`goal`/`phase`，其中 `phase` 是"第X-Y天"日期段标签）、`session_template`（每日 5 活动模板：旧错题复测 5min / 讲知识点本质模型 15min / 3-5 道变式 25min / 错因归类回退 10min / 记明天复测点 5min）。
+- **零代码消费**：`grep -rn "phase_strategy\|learning_path\|session_template" learning_system/ scripts/ --include="*.py"` **0 命中**；图谱唯一装载方 `seed_from_assets`（`db.py:3307-3309`）只读 `metadata`/`nodes`/`edges` 等，不读 `learning_path`（测试中 `learning_path_order` 指 view config 的 `module_order`，`knowledge_map.py:100`，与 JSON `learning_path` 无关）→ **纯规划配置文档，改结构零运行时耦合**。
 
 #### 裁定点
 
-- 短期计划现状是否与设计稿 §3.3 兼容（`learning_path` 改阶段数组，先落 2 阶段）？（预期结论：结构兼容，改造留到阶段数组计划）
-
-（骨架占位：Task 4 填充）
+- 短期计划现状是否满足"阶段数组可重排"（设计稿 §3.3 第 4 条"计划可重排"，`child-learning-companion-design.md:74/161`）？`learning_path` 现状与阶段数组改造（先落 2 阶段：暑假衔接收口 + 开学首月）的关系？（对应实现计划 Task 4 Step 3；预期结论：结构兼容，改造留到阶段数组计划）
 
 #### 结论（或挂起原因）
 
-（骨架占位：Task 4 填充；若存在未决点，标注"挂起待 X"）
+**选择：结构兼容——阶段是配置层概念、不落执行表；`learning_path` 零代码消费，阶段数组改造只动 JSON 配置，留到阶段数组计划执行；`generated_plans`/`daily_flows`/`flow_steps` 三表无需改动。**
+
+- "计划可重排"已由现有结构承载：`generated_plans` 是 append-only 计划日志，最新计划按 `created_at desc, rowid desc limit 1` 重取（`planner.py:1504`），"推翻重来" = 生成新计划行（`planner.py:1475`），无对既有计划的 in-place 重排更新路径（生产 grep 0 命中）；日内步骤顺序由 `flow_steps.position`（`db.py:1041`）+ `superseded_by_step_id`/`flow_revision`（`db.py:1059`）承载，可演进替换。
+- 阶段不落表：`generated_plans`/`daily_flows`/`flow_steps` 均无 phase 列（db.py 中 `phase` 仅出现在 `agent_runs`/`agent_handoffs`/`session_steps`，`db.py:587/620/636`，是 LLM agent 执行阶段，非学习阶段）；`learning_path.phase_strategy` 已是数组（5 元素，元素顺序即阶段顺序），重排 = 改配置数组顺序 → 与设计稿 §3.3「`learning_path` 改阶段数组、先落 2 阶段」（`child-learning-companion-design.md:161`）**结构兼容**。
+- 零耦合依据：`learning_path` 无任何 Python 消费方（grep 0 命中，见现状）→ 阶段数组改造（替换/裁剪元素、`phase` 字段从"第X-Y天"日期段标签改为阶段标识）无运行时联动，与实现计划「阶段数组改造 → 后续计划，避免 digest 联动 churn」的前提一致（`2026-08-20-semester-data-link-prereqs.md:12-13`）。
+
+**影响：**
+
+1. 阶段数组计划（后续计划）只改 `math_knowledge_graph_v2.json` 的 `learning_path`，不动 `db.py` 三表 schema；旧 5 阶段去留（建档/快补与新窗口冲突）属核对项 5（Task 6）裁定，本项不重复裁定。
+2. 注意偏差：`daily_flows.source_plan_id` 是**声明未用的死链接**（生产恒 null、无 join 读取）；阶段数组计划若需"计划→日流程"表关联，须另行设计——v3 现经 planner 信号 → `next_step_decisions` → `flow_steps` 决策链，不经 `generated_plans`。
+3. 阶段数组若要驱动执行（如"阶段 → daily_runtime mode"映射），须在阶段数组计划中显式定义——现 `learning_path` 不被 `daily_runtime` 消费，阶段不驱动任何运行时行为。
+4. 挂起项：无——本核对项只录现状与兼容性裁定；实际改造执行 = 后续「阶段数组计划」（`2026-08-20-semester-data-link-prereqs.md:12-13`）。
 
 ---
 
