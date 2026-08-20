@@ -18,5 +18,22 @@ class TestMathEquivalent(unittest.TestCase):
         self.assertFalse(is_math_equivalent("", "1"))
 
 
+from learning_system.answer_verification import extract_calculation
+
+
+class TestExtractCalculation(unittest.TestCase):
+    def test_extracts_plain_expression(self):
+        self.assertEqual(extract_calculation("计算：3/4 + 5/6 的结果"), "3/4 + 5/6")
+
+    def test_handles_unicode_operators(self):
+        self.assertEqual(extract_calculation("计算：2 × 3 ÷ 4"), "2 * 3 / 4")
+
+    def test_no_calculation_returns_none(self):
+        self.assertIsNone(extract_calculation("下列说法正确的是（ ）"))
+
+    def test_invalid_expression_returns_none(self):
+        self.assertIsNone(extract_calculation("计算：abracadabra"))
+
+
 if __name__ == "__main__":
     unittest.main()
