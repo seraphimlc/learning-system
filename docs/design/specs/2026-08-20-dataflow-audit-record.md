@@ -49,7 +49,7 @@
 | 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 已完成（Task 3） |
 | 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 已核对（Task 5）：推荐方案③ 旁挂侧表再反链 |
 | 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | 已核对（Task 6）：推荐折叠+裁剪，保留主线/混合/收口语义 |
-| 6 | 判定口径逐实现（evolution / flow_nodes / daily_runtime / 蓝图） | spec §8.1 必答项、§3.2 | ✅ 必答 | 待核对（Task 7） |
+| 6 | 判定口径逐实现（evolution / flow_nodes / daily_runtime / 蓝图） | spec §8.1 必答项、§3.2 | ✅ 必答 | 已完成（Task 7） |
 | 7 | `CANONICAL_ERROR_TAGS` 双定义（auto_review.py / question_bank.py） | spec §7 架构取舍、§8.1 | — | 待核对（Task 8） |
 
 **约定**：核对项 1–7 与下文「核对项记录」各节一一对应；每项完成后将"状态"改为「已核对」并回填结论；存在未决裁定点的，必须在"结论（或挂起原因）"中显式标注"挂起待 X"，不允许留空。
@@ -409,22 +409,81 @@
 
 #### 现状（证据：文件:行）
 
-- `evolution.py`：`_status_from_attempts`（0.85/0.60 + can_explain + 最小样本）。
-- `flow_nodes.py`：`_mastery_diagnosis`（6 态：blocked / unstable / emerging / stable / likely_stable / insufficient_evidence + 0.6 边界）。
-- `daily_runtime.py`：v51 `mastery_recommendation` → A/B/C/D `status_code` 映射。
-- 蓝图 §12：`docs/00_PROJECT_BLUEPRINT.md`（A≥85% / B 60-85% / C<60%）。
+四套判定口径逐实现实测（阈值 / 状态枚举 / 证据要求），证据均经读代码核实：
 
-（骨架占位：Task 7 填充）
+**① `evolution.py`：`_status_from_attempts`（`learning_system/evolution.py:662-683`）**
+
+- 输入：单节点作答行集，`ratio = score/max_points`（`:663-665`）。
+- 判定链（按序）：任一 `blocking_evidence` → **D**（`:668-669`）；任一"高分推理缺口"（`_has_high_score_reasoning_gap`，`:686-699`：result=correct 或 ratio≥0.85，且 `reasoning_soundness ∈ {incomplete, unsound, unclear}` 或 `evidence_strength ∈ {weak, insufficient}` 或 `next_evidence_need` 非空）→ **C** 且 can_explain=False（`:670-676`）；`ratio ≥ 0.85 and can_explain and len(rows) >= 2` → **A**（`:677-678`）；`ratio ≥ 0.85 and can_explain` → **B**（单条强证据，`:679-680`）；`ratio ≥ 0.60` → **B**（`:681-682`）；其余 → **C**（`:683`）。
+- 证据要求：**can_explain** = 任一作答 `explanation_score ≥ 2` 且无推理缺口（`:666`）；**最小样本** = A 需 `len(rows) ≥ 2`（`:677`），B/C/D 允许单条；**无题型多样性/迁移证据要求**（函数全文不读 question.kind）。
+- 落位：**proposal-only，不直接落库**——结果写入 evolution 事件 `after.node_status_update_proposals`（`:1140-1147`、`:1305`）；evolution.py 对 `learner_node_status` 只读不写（`:1138/1290`，写入目标为 `evolution_events`，`:1361`）。
+
+**② `flow_nodes.py`：`_mastery_diagnosis`（`learning_system/flow_nodes.py:399-498`）**
+
+- 状态枚举：**6 态** `mastery_state` = `blocked / unstable / emerging / stable / likely_stable / insufficient_evidence`（`:439-450`）——**设计稿 §3.2 现状清单只列 4 态是低估**（`2026-08-20-child-learning-companion-design.md:142` 漏 blocked/unstable；§8.1 已改记 6 态，`:326`），实测以代码为准。
+- 判定链（按序）：`has_blocking` → **blocked**（`:439-440`）；`weak_result`（任一 result∈{wrong,partial}）或 `ratio < 0.6` 或存在 weak_attempts → **unstable**（ratio<0.6 或 weak_result 时）否则 **emerging**（`:441-442`）；`len(strong_attempts) ≥ 2` 且 has_transfer_evidence 且 has_form_diversity → **stable**（`:443-444`）；`len(strong_attempts) ≥ 2` → **likely_stable**（`:445-446`）；有 strong_attempts（≥1）→ **emerging**（`:447-448`）；否则 → **insufficient_evidence**（`:449-450`）。
+- **0.6 边界**：`ratio < 0.6` → unstable（`:441-442`）；无 0.85 硬阈值——"强证据"由 strong 定义替代（见下）。
+- 证据要求：
+  - **strong_attempts** = result=correct 且 `explanation_score ≥ 2` 且 `_has_strong_core_analysis`（`:409-414`；`:352-361`：comparison 五维 final_answer/model_or_relation/steps/symbols_units/check_or_explanation 全部 status ∈ {matched, alternative_valid}，`STRONG_ANALYSIS_STATUSES` `:80`）；
+  - **weak_attempts** = result∈{wrong,partial} 或 explanation_score<2 或 core 分析不完整（`:415-420`）；
+  - **迁移证据** = 任一题型 kind ∈ `TRANSFER_CONFIRMATION_KINDS`（8 种：transfer_retest/stretch_transfer/two_method_compare/representation/model_selection/reverse_reasoning/boundary_case/missing_condition，`:69-78/423`）；
+  - **题型多样性** = `len(question_kinds) ≥ 2`（`:424`，`_question_kinds_for_attempts` `:364-374` 按题 kind 去重）；
+  - 确认类型 `confirmation_type`：no_retest_needed / prerequisite_probe / near_transfer_retest / same_structure_retest（`:457-466`）。
+- 落位：经 v2 orchestrator 落 `learner_node_status`——`_mastery_decision_from_status`（`orchestrator.py:335-360`）映射 decision/closure_result；`_status_update_from_evaluation`（`orchestrator.py:523-555`）映射 A/B/C/D：blocked→**D**；insufficient_evidence 或无 strong 的 unstable/weak→**C**；stable 且 can_advance→**A**；其余→**B**；insert or replace 写入（`orchestrator.py:565-581`）。
+- 另：`build_mastery_evaluation_package` 还产出 4 档 `overall_status`（blocked/stretch_ready/basic/weak，`flow_nodes.py:519-528`）与分维状态 concept/model/calculation/expression/transfer（`_status_from_comparison` `:318-332`）——设计稿"4 态"若指 overall_status，则与 mastery_state 6 态并存，差异表中须区分。
+
+**③ `daily_runtime.py`：v51 `mastery_recommendation` → A/B/C/D 映射（`learning_system/daily_runtime.py:13533-13605`）**
+
+- 推荐枚举（评估 agent 契约）：`["no_update", "blocked", "weak", "emerging", "likely_stable", "stable_for_now"]`（`learning_system/agent_contracts/evaluation_decision.v2.json:39`）；prompt 纪律"单条强证据不足以证明持久掌握 / stable_for_now 仅限多样化证据"（`learning_system/prompts/evaluation_decision.v2.md:12/17-23`）。
+- 映射（按序，`daily_runtime.py:13561-13605`）：
+  - `blocking_evidence` 或 recommendation=blocked → **D**（prerequisite_blocked，`:13561-13564`）；
+  - recommendation=stable_for_now 且 `_evidence_set_supports_stable_mastery(source_validation_ids)` → **A**（`:13565-13568`）；
+  - recommendation=weak → **C**（`:13569-13572`）；
+  - recommendation=emerging：old_status∈{A,C} → 保留旧档（preserve_accumulated_status，`:13574-13577`）；否则 → **B**（basic_understanding，`:13578-13581`）；
+  - old_status∈{A,C} 且 recommendation="" → 保留旧档（`:13582-13585`）；
+  - recommendation=likely_stable → **B**（`:13586-13589`）；
+  - result=correct 且 explanation_score≥2 且 reasoning_soundness=sound → **B**（`:13590-13593`）；
+  - result=partial → **C**（`:13594-13597`）；其余 → **C**（`:13598-13601`）；
+  - 兜底修正：recommendation∈{blocked,weak} 且已判 B → 降 **C**（`:13602-13605`）。
+- 证据要求（A 档门槛 = `_evidence_set_supports_stable_mastery`，`:13746-13840`）：≥2 条 validation id（`:13747-13749`），每条经全链校验（`:13797-13833`：purpose=diagnostic、hint_policy=no_hint、mastery_update_eligible、无 hint 暴露、evidence active/graded/valid、assessment accepted 且 question_passed、review approved、图谱/题库/题版本全当前），且 **≥2 个不同 structure_fingerprint** + diagnostic_roles 同时含 **confirmation_core 与 confirmation_transfer**（`:13834-13840`）。
+- v51 确定性评估（`_v51_deterministic_evaluation_output` `:7776-7836`）：`score_out_of_10 < 8` 或 severe_gap → weak，否则 emerging（`:7813/7820`）；severe_gap = required_for_pass 得分点在 concept/model_relation/procedure/calculation/final_answer/transfer 六维 status∈{contradicted, not_met}（`:7838-7863`）→ **确定性路径只产 weak/emerging 两档**，blocked/likely_stable/stable_for_now 来自 LLM 评估 agent（记录回放 `_default_recorded_evaluation_output` `:9708-9741` 也只产 weak/emerging，`:9724`）。
+- 落位：insert or ignore 写 `mastery_decisions`（`:13637`）+ insert or replace 写 `learner_node_status` 且 status_revision 递增（`:13699-13705`）。版本标识：v51 开关 `answer_assessment_v51_enabled`（`:521`）、assessment_policy_version='v5.1'（`:734/791`）。
+
+**④ 蓝图 §12（`docs/00_PROJECT_BLUEPRINT.md:637-666`）**
+
+- 状态枚举：A 已掌握 / B 不稳定 / C 薄弱 / D 卡死（`:639`）。
+- 阈值（正确率）：A = **≥ 85%**（且"能讲清方法、能做一道小变式"，`:641-646`）；B = **60%-85%**（或需提醒才能做，`:648-652`）；C = **< 60%**（或概念说不清，`:654-658`）；D = 当前节点错 + 前置链条也错（`:660-665`）。
+- 证据要求：**定性描述**（能讲清方法 / 概念说不清），无最小样本数、无 explanation_score、无题型多样性/迁移证据的量化要求。
+- 落位：设计文档非代码——对应 §7.2 诊断 agent"给节点打 A/B/C/D 状态"（`:231`）。
+
+**四套口径差异表（阈值 × 状态枚举 × 证据要求）：**
+
+| 实现 | 阈值 | 状态枚举 | 证据要求 |
+|---|---|---|---|
+| 蓝图 §12（文档，`:637-666`） | 正确率 A≥85% / B 60-85% / C<60%；D=节点错+前置链错 | A/B/C/D（语义档） | 定性（能讲清方法/概念说不清）；无最小样本、无解释分、无迁移/多样性量化 |
+| `evolution.py` `_status_from_attempts`（`:662-683`） | ratio 0.85/0.60；blocking→D、高分推理缺口→C 优先 | A/B/C/D | can_explain（explanation_score≥2 且无推理缺口）；A 需样本≥2；无迁移/多样性要求；**proposal-only 不落库** |
+| `flow_nodes.py` `_mastery_diagnosis`（`:399-498`） | ratio<0.6→unstable（0.6 边界）；无 0.85 硬阈值（strong 定义替代） | **6 态** mastery_state：blocked/unstable/emerging/stable/likely_stable/insufficient_evidence（另有 4 档 overall_status） | strong=correct+解释分≥2+五维 core 全 matched/alternative_valid；stable 需 strong≥2+迁移题型+题型≥2 种；经 orchestrator 落 A/B/C/D（`orchestrator.py:523-555`） |
+| `daily_runtime.py` v51（`:13533-13605`） | 无百分比阈值；确定性路径 score<8/10 或 severe_gap→weak（`:7813/7820`） | recommendation 6 枚举（no_update/blocked/weak/emerging/likely_stable/stable_for_now，`evaluation_decision.v2.json:39`）→ status_code A/B/C/D | A 档需≥2 条全链校验证据+≥2 structure+confirmation_core&transfer 双角色（`:13746-13840`）；B 需 correct+解释分≥2+sound 或 emerging/likely_stable；解释分<2 或 partial→C |
 
 #### 裁定点
 
-- 四套口径差异表（阈值 / 状态枚举 / 证据要求）。结论："裁定交给 M2.5（权衡产出 `mastery_criteria_proposal`），本步只录现状"——即本项结论为**挂起待 M2.5**。
-
-（骨架占位：Task 7 填充）
+- 四套口径差异（阈值 / 状态枚举 / 证据要求）逐实现核实并录表（Step 1-4）；确认 flow_nodes 实际 **6 态** vs 设计稿 §3.2"4 态"记录偏差（Step 2 实测，`2026-08-20-child-learning-companion-design.md:142` 漏 blocked/unstable）。
+- 结论形态：**只录现状，不裁定**——具体判定规则（阈值、最小证据量、时间窗口、升降级、复测间隔算法）归 M2.5 权衡产出 `mastery_criteria_proposal` 后统一为一套（spec §3.2 归属与 §8.4 M2.5，`2026-08-20-child-learning-companion-design.md:144/352`）。
 
 #### 结论（或挂起原因）
 
-（骨架占位：Task 7 填充；预期结论形态：挂起待 `mastery_criteria_proposal`）
+**选择：只录现状（差异表已核实入表），不裁定——四套口径并存事实确认，统一裁定挂起待 `mastery_criteria_proposal`（属 M2.5）。**
+
+- 现状确认（对应 Step 1-4 实测）：四套判定口径**确实并存且互不一致**——阈值（蓝图 85/60 百分比 vs evolution 0.85/0.60 vs flow_nodes 仅 0.6 边界 vs v51 8/10 分制无百分比）、状态枚举（A/B/C/D vs A/B/C/D vs 6 态 mastery_state vs recommendation 6 枚举）、证据要求（定性 vs can_explain+最小样本 vs 迁移+题型多样性 vs 全链校验+双角色）三列均存在实质差异；`mastery_recommendation` → A/B/C/D 的映射只存在于 daily_runtime v51 一处（`daily_runtime.py:13533-13605`），其余实现自建判定。
+- **挂起项：判定口径统一 → 挂起待 `mastery_criteria_proposal`（属 M2.5）**——本核对项只录现状；具体规则（阈值、最小证据量、时间窗口、升降级、复测间隔算法）由权衡产出 `mastery_criteria_proposal`（P0 前置交付物，三方会审+爸爸拍板），落地为 M2.5 统一实现（`2026-08-20-child-learning-companion-design.md:144/327/352`）。
+
+**影响（供 M2.5 裁定输入，本步不执行）：**
+
+1. 差异收口主战场 = 两条**落库路径**：flow_nodes（v2 orchestrator，`orchestrator.py:565-581`）与 daily_runtime v51（v5，`daily_runtime.py:13699-13705`）；evolution.py 口径是 proposal-only（`evolution.py:1305`）不落库，统一时优先对齐两条落库路径。
+2. A 档门槛差异显著（85%+能讲清 → ≥2 样本+can_explain → 2 条 strong+迁移+多样性 → 2 条全链校验+双角色），"最小证据量+复测确认"（§3.2 第 2 条，`2026-08-20-child-learning-companion-design.md:139`）在各实现的落地强度不同——`mastery_criteria_proposal` 需统一最小样本与确认条件。
+3. flow_nodes 6 态 vs 设计稿 §3.2"4 态"记录偏差已如实入表（§8.1 已改记 6 态，`:326`）；M2.5 统一时以实测 6 态为准。
+4. v51 确定性路径只产 weak/emerging，LLM 评估 agent 才产全 6 枚举——LLM 参与边界（§3.2 第 3 条：LLM 只在错因归类与叙述，`:140`）需在 `mastery_criteria_proposal` 中明确评估环节 LLM 的角色与降级路径。
+5. 与核对项 4 挂起项呼应：手动错题（explanation_score 缺失）在 evolution/flow_nodes 口径下无法进 A 档——手动证据入档规则属 `mastery_criteria_proposal` 裁定（§3.1，`:130`；核对项 4 结论挂起项 1）。
 
 ---
 
