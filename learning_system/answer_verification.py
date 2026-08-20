@@ -25,7 +25,8 @@ def is_math_equivalent(a: str, b: str, *, tolerance: float = 1e-9) -> bool:
         return False
 
 
-_CALC_PATTERN = re.compile(r"计算[:：]?\s*([0-9+\-*/×÷^().\s]+)")
+# 字符类中 `^` 居中才是字面量（挪到开头会变成取反）；成员须与 _UNICODE_MAP 键同步（−/－ 在此，映射才可达）
+_CALC_PATTERN = re.compile(r"计算[:：]?\s*([0-9+\-*/×÷−－^().\s]+)")
 _UNICODE_MAP = {"×": "*", "÷": "/", "−": "-", "－": "-"}
 
 
