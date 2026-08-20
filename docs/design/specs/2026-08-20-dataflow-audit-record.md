@@ -47,7 +47,7 @@
 | 1 | `attempts` / `learner_node_status` / `mastery_decisions` 表与消费方 | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 2） |
 | 2 | `generated_plans` / `daily_flows`（短期计划现状） | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 4） |
 | 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 已完成（Task 3） |
-| 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 待核对（Task 5） |
+| 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 已核对（Task 5）：推荐方案③ 旁挂侧表再反链 |
 | 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | 待核对（Task 6） |
 | 6 | 判定口径逐实现（evolution / flow_nodes / daily_runtime / 蓝图） | spec §8.1 必答项、§3.2 | ✅ 必答 | 待核对（Task 7） |
 | 7 | `CANONICAL_ERROR_TAGS` 双定义（auto_review.py / question_bank.py） | spec §7 架构取舍、§8.1 | — | 待核对（Task 8） |
@@ -215,13 +215,13 @@
 
 **选择：三者均为「真新增」，非现有表别名**——逐项裁定：
 
-1. **`error_cause_log` = 真新增**：`attempts.error_tags_json`/`cause_analysis_json` 是单次作答粒度、会被 in-place 回填（`db.py:7535`）、无跨期聚合语义、无信任边界状态（§3.2 低置信不计入分布），不能别名覆盖「三年错因分布」；消费方（§3.2/§6.1/§6.2）已硬依赖（`child-learning-companion-design.md:157`）。**挂起一项**：`attempt_id` 关联方式（可空 FK vs 旁挂侧表反链）依赖核对项 4（Task 5）FK 三方案裁定 → **挂起待 Task 5 FK 裁定**（此项只影响关联列设计，不改变「真新增」裁定）。
+1. **`error_cause_log` = 真新增**：`attempts.error_tags_json`/`cause_analysis_json` 是单次作答粒度、会被 in-place 回填（`db.py:7535`）、无跨期聚合语义、无信任边界状态（§3.2 低置信不计入分布），不能别名覆盖「三年错因分布」；消费方（§3.2/§6.1/§6.2）已硬依赖（`child-learning-companion-design.md:157`）。~~挂起一项~~：`attempt_id` 关联方式已由核对项 4（Task 5）裁定——系统内作答走 `attempt_id` 直接 FK `attempts(id)`；手动错题经新增侧表 `manual_error_entries` 反链（`error_cause_log` 增加可空 `manual_entry_id`），见核对项 4 结论影响清单第 3 条。此项只影响关联列设计，不改变「真新增」裁定。
 2. **`weekly_summary` = 真新增**：`daily_summaries` 是日级 flow 运行时 digest（`db.py:1182`），无周粒度 / 当周快照 / 确认状态，不能别名；§6.1 降级路径 `status='unacknowledged'`（`child-learning-companion-design.md:290`）无现成列承载。
 3. **「作业全对」确认载体 = 真新增**：`evidence_confirmations` 是识别纠正确认（`db.py:496`），语义不符；需轻量证据范围标注载体（不进判定样本）。
 
 **最小 schema 草案（列清单，细节留 M4 计划）：**
 
-- **`error_cause_log`**（错因三年分布，append-only）：`id` text PK；`attempt_id` text（关联方式挂起待 Task 5 FK 裁定，可为空或经旁挂表反链）；`node_id` text REFERENCES `graph_nodes(id)`；`error_tag` text（枚举 `CANONICAL_ERROR_TAGS`，**一行一标签**，利于 group by 分布）；`source` text（`system_auto`/`manual_entry`）；`confidence` real（模型自评）；`trust_status` text（`counted`/`pending_parent`/`rule_hit`，§3.2 信任边界三态，低置信不计入分布）；`parent_confirmed_at` text NULL；`graph_version` text；`created_at` text。约束：只 insert；唯一索引 (source 引用, error_tag) 幂等；分布索引 (error_tag, created_at)。
+- **`error_cause_log`**（错因三年分布，append-only）：`id` text PK；`attempt_id` text（系统内作答 → FK `attempts(id)`，仅系统内源非空）；`manual_entry_id` text NULL（手动错题 → 引用侧表 `manual_error_entries`，经核对项 4 裁定；系统内/手动二选一）；`node_id` text REFERENCES `graph_nodes(id)`；`error_tag` text（枚举 `CANONICAL_ERROR_TAGS`，**一行一标签**，利于 group by 分布）；`source` text（`system_auto`/`manual_entry`）；`confidence` real（模型自评）；`trust_status` text（`counted`/`pending_parent`/`rule_hit`，§3.2 信任边界三态，低置信不计入分布）；`parent_confirmed_at` text NULL；`graph_version` text；`created_at` text。约束：只 insert；唯一索引 (source 引用, error_tag) 幂等；分布索引 (error_tag, created_at)。
 - **`weekly_summary`**（周信存档，append-only）：`id` text PK；`iso_week` text（如 `2026-W34`，周唯一）；`status` text（`acknowledged`/`unacknowledged`，§6.1 降级依赖；行内容 append-only，确认状态变更允许 in-place 更新或另建确认留痕表——细节留 M4）；`node_status_snapshot_json` text（当周 A/B/C/D 时间快照）；`coverage_json` text（本周覆盖节点/素材引用，聚合自 `daily_summaries`/`attempts`）；`error_distribution_json` text（错因模式素材，聚合自 `error_cause_log`）；`evidence_scope` text（`system_only`/`with_manual`/`with_all_correct`，§6.1 三分类）；`narrative_json` text（LLM 叙述或降级模板标记）；`generated_at` text；`acknowledged_at` text NULL。约束：`iso_week` 唯一索引，每周一条。
 - **「作业全对」确认载体**（建议命名 `daily_all_correct_confirmations`，最轻量）：`id` text PK；`confirm_date` text（每日一键，日唯一）；`confirmed_by` text（归属人设计稿未定：孩子或爸爸 → **挂起待爸爸拍板**，时限 M4 启动前，对齐设计稿 §10 #1 时限）；`evidence_scope_mark` text（标记本日证据范围分类）；`source_refs_json` text（当日作业关联引用，可空）；`created_at` text。约束：`confirm_date` 唯一；只 insert；**mastery 判定不得读取本表**（不进判定样本）。
 
@@ -229,7 +229,7 @@
 
 1. M4 数据模型改动清单确定：需新建 3 张表（设计稿 §8.2 第 3 条「已裁定新增表」落地，`child-learning-companion-design.md:334`），与 §7「做（数据模型）④」一致（`child-learning-companion-design.md:309`）。
 2. 别名裁定依据可复核：本结论的「无现成表」均经 grep/读代码实测（见现状证据），防止把既有表误判为新增；`daily_summaries`/`evidence_confirmations` 已显式排除为别名并记录理由。
-3. 两个挂起项显式化且不阻塞裁定：`error_cause_log.attempt_id` 关联方式 → 挂起待 Task 5 FK 裁定；全对确认归属人 → 挂起待爸爸拍板（M4 启动前）。
+3. 两个挂起项显式化且不阻塞裁定：`error_cause_log.attempt_id` 关联方式 → 已由 Task 5 裁定（见核对项 4）；全对确认归属人 → 挂起待爸爸拍板（M4 启动前）。
 4. 错因标签枚举随 Task 8 收口演进：`error_cause_log.error_tag` 依赖单一 `CANONICAL_ERROR_TAGS` 导入源（Task 8 收口为后续计划项），防三年错因分布漂移。
 5. 查询纪律：周信/简报素材可聚合 `daily_summaries` 等现有表，但「当周快照 / 确认状态 / 证据范围」语义只能读三张新表；全对确认表仅供证据范围标注，不得进入判定口径。
 
@@ -241,22 +241,119 @@
 
 #### 现状（证据：文件:行）
 
-- FK 依赖清单：`grep -rn "join question_items\|join attempts\|references question_items\|references learning_sessions" learning_system/ --include="*.py"`（实测 20+ 处：agents.py:60、daily_runtime.py:7635/12506/14623、planner.py:357/382、question_bank.py:4407 等；含 `idx_v3_attempts_one_active_per_step` db.py:1475）——逐条记录 JOIN 语义（INNER JOIN 对 NULL `question_id` 的行为变化）。
+**FK 定义与唯一写入点**
 
-（骨架占位：Task 5 填充）
+- `attempts.session_id`/`question_id`/`node_id` 均 NOT NULL REFERENCES（`learning_system/db.py:420-422`）；全库唯一插入点 `db.record_attempt`（`db.py:6809`，insert 于 `db.py:6870-6902`）**强制 question/session 语义**：`question = get_question(conn, question_id)` 且校验 `question.node_id == node_id`（`db.py:6844-6846`）、`child_learning_group` 会话校验题归属（`db.py:6851-6855`）、active 证据要求题为"评审通过可调度"（`db.py:6856-6866`）——手动错题（无题库题）走该入口必然被拒。
+
+**FK 依赖清单（grep 实测）**
+
+`grep -rn "join question_items\|join attempts\|references question_items\|references learning_sessions" learning_system/ --include="*.py"` → **48 命中** = **9 处 schema FK 定义**（`db.py:351/420/421/472/701/743/846/959/1027`）+ **39 处运行时 JOIN 行**；另补充 grep（`join learning_sessions`）发现 **1 处** `db.py:1740`；另有 **5 处非 SQL 直接解引用** `get_question(conn, attempt["question_id"])`（`db.py:6459`、`server.py:2366`、`flow_nodes.py:113`、`evolution.py:763/820`）。逐条语义分组如下（**方案① 可空化后 INNER JOIN 遇 NULL `question_id`/`session_id` 时行被静默过滤，或直接解引用崩溃**）：
+
+**A 组：`attempts.question_id` INNER JOIN `question_items`（13 处）——可空化后手动错题行全部被静默过滤**
+
+| 位置 | 语义 | 可空化影响 |
+|---|---|---|
+| `agents.py:60` | `_active_current_attempt_count`：按当前版本过滤统计 active 作答数（`CURRENT_ATTEMPT_VERSION_FILTER`，`agents.py:40-46`） | 手动错题不计入（碰巧符合"不进判定样本"，但属隐式过滤） |
+| `planner.py:357/382` | `_latest_planning_signal`：取 `evidence_attempt_ids_json` 证据作答与按节点兜底作答（版本过滤同上） | 手动错题不进规划信号 |
+| `db.py:2335` | `_valid_status_attempts_for_ids`：learner_node_status 权威证据校验 | 手动错题不会成为状态证据 |
+| `db.py:2461/2499/2712/3164` | 修复扫描：超版本题作答 / 节点不匹配 / 失效源题作答 | 手动错题不被扫描（不被误修，也不被保护） |
+| `db.py:6539` | `current_attempts` 读取 | 手动错题不出现 |
+| `db.py:7658/7685` | `pending_attempts`/`recent_attempts`：join `q.prompt/expected_answer` 取题面 | 手动错题无题面可 join，静默消失（批改队列/最近作答看不到） |
+| `daily_runtime.py:7636/14623` | 强项画像 / core 证据检查：join `q.kind/raw_json` | 手动错题被过滤 |
+
+**B 组：`attempts.session_id` INNER JOIN `learning_sessions`（1 处，补充 grep）**
+
+| 位置 | 语义 | 可空化影响 |
+|---|---|---|
+| `db.py:1740` | `pending_background_session_ids`：查 `pending_review` 且 `mode='child_learning_group'` 未关闭会话 | NULL `session_id` 被过滤 → 手动错题永远不触发会话级待批处理（隐式安全但脆弱） |
+
+**C 组：`attempts.id` 驱动（6 处）——不受可空化直接影响，但依赖"attempt 必有真实题"才能走评估链**
+
+| 位置 | 语义 |
+|---|---|
+| `daily_runtime.py:7635` | `flow_steps → attempts`：取当前 flow 步骤作答（配 A 组 7636 取题面） |
+| `daily_runtime.py:9487/13766`、`db.py:2993` | `evidence_validations → attempts`：评估证据链读取（手动错题无 evidence_validations） |
+| `server.py:1226` | `background_jobs → attempts`：stuck 中断任务回查 flow_step |
+| `question_bank.py:4407` | 定向支持路由收据校验：要求 `attempt.question_id = assessment.question_id`（`question_bank.py:4422`） |
+
+**D 组：LEFT JOIN（3 处）——NULL 安全，是"可空化后其余查询应改成的形态"**
+
+| 位置 | 语义 |
+|---|---|
+| `reports.py:129` | 报告按 flow 取作答 + 题面（`question_prompt` 可空）——全库唯一现成的"attempts 题面 LEFT JOIN"范例 |
+| `db.py:2643` | `question_items LEFT JOIN attempts`（反方向，evolved 题源作答归一化） |
+| `daily_runtime.py:9488` | `evidence_validations LEFT JOIN question_items on ev.question_id` |
+
+**E 组：非 attempts 的 `question_items` join（14 处）——证明"题面-契约-评估"管线全链 NOT NULL，不直接受 attempts 可空化影响**
+
+| 位置 | 语义 |
+|---|---|
+| `daily_runtime.py:12506/12547/12667` | `flow_steps.question_id → question_items`：flow 步骤题面读取 |
+| `daily_runtime.py:13768` | `evidence_validations.question_id`（评估链） |
+| `daily_runtime.py:14379` | `question_usage_policies → question_items`（支持策略题） |
+| `assessment_store.py:164/214`、`knowledge_map.py:491/701` | `answer_contracts → question_items`（答案契约必须绑定真实题，`answer_contracts.question_id NOT NULL` `db.py:743`） |
+| `db.py:2367/2575/3145`、`agents.py:686`、`answer_contract_batch_v2.py:1191` | `question_review_records → question_items`（评审记录） |
+
+**F 组：非 SQL 直接解引用（5 处）——NULL 时抛 KeyError 或判失效**
+
+| 位置 | 语义 |
+|---|---|
+| `db.py:6459` | `is_current_attempt_question`：`get_question` KeyError → False（手动错题恒"非当前题"） |
+| `server.py:2366` | pending_review 批改 job 入队：`get_question` **无 try 保护** → NULL `question_id` 直接崩溃 |
+| `flow_nodes.py:113` | mastery 诊断取题面 |
+| `evolution.py:763/820` | 演化源题判失效 / 取题面（`_attempt_question_source_invalidated`，KeyError → True 判失效） |
+
+**联动索引（`db.py:1475-1480`）**
+
+- `idx_v3_attempts_one_active_per_step` on `attempts(flow_step_id) where flow_step_id is not null and evidence_status = 'active'`（`db.py:1475-1477`）与 `idx_v3_attempts_submit_idempotency` on `(flow_step_id, client_idempotency_key) where flow_step_id is not null`（`db.py:1478-1480`）**均挂在 `flow_step_id` 上、与 `question_id` 无关** → 可空化 `question_id` 不破坏这两个索引本身；但手动错题**无 flow_step_id** → 不进入这两个唯一索引 → "一步一活跃作答 / 提交幂等"的唯一性约束对手动错题全部失效，需另设去重/幂等键（如 `(node_id, error_tag, confirm_date)`），否则重复录入无任何约束。
+- 迁移成本：SQLite `ALTER TABLE` 无法去除 NOT NULL 约束；现有迁移脚手架 `_ensure_column`（`db.py:3302`，用法 `db.py:1278-1330`）只支持加列 → 方案① 需新增**全表重建**迁移（12 步 create-copy-drop-rename），且须与 `create table if not exists` 模式脚本（`db.py:295` 起）保持同步，43 张表里凡引用 `attempts` 的消费侧均受影响。
 
 #### 裁定点
 
-- 方案① 可空化 `question_id`/`session_id`：对照依赖清单列受影响 join/索引；
+- 方案① 可空化 `question_id`/`session_id`：对照依赖清单列受影响 join/索引（含 `idx_v3_attempts_one_active_per_step` `db.py:1475`）；
 - 方案② 合成占位 question/session：评估对 `question_items` 统计与 `learning_sessions` 的污染；
 - 方案③ 旁挂侧表（如 `manual_error_entries`）再反链 `attempts`：评估与现有证据链的一致性；
-- 给出**推荐方案 + 影响清单**（此结论直接决定 M4 错题录入的 schema 改动）。
-
-（骨架占位：Task 5 填充）
+- 给出**推荐方案 + 影响清单**（此结论直接决定 M4 错题录入的 schema 改动，并解除核对项 3 的挂起项 1）。
 
 #### 结论（或挂起原因）
 
-（骨架占位：Task 5 填充；若存在未决点，标注"挂起待 X"）
+**选择：方案③（旁挂侧表再反链 attempts）为推荐方案。** 三方案评估：
+
+**方案①（可空化 `question_id`/`session_id`）——否决。** 理由：
+
+1. **消费链断裂**：判定/评估管线全链 NOT NULL——`attempt_assessments.question_id`（`db.py:959`）、`answer_contracts.question_id`（`db.py:743`）、`evidence_validations` 链均要求真实题。可空化后手动错题行"插得进、消费不了"：A 组 13 处 + B 组 1 处 INNER JOIN 静默过滤（批改队列 `db.py:7658`、最近作答 `db.py:7685`、报告视图 `reports.py:129` 形态之外全部看不到），F 组 5 处直接解引用中 `server.py:2366` **无保护会崩溃**、其余判 KeyError 失效。"复用 attempts"字面成立，但没有任何消费方读得到它。
+2. **改造面 = 全部 A/B/F 组（14 处 INNER JOIN + 5 处直接调用）**：需逐条改为 LEFT JOIN/条件过滤（现仅 D 组 3 处 LEFT，`reports.py:129` 是唯一范例），回归面大、风险高。
+3. **迁移成本高**：SQLite 无法 ALTER 去 NOT NULL，需全表重建迁移（见现状索引段）。
+4. **信任边界错位**：§3.2 要求手动/低置信证据**不计入判定样本**（`child-learning-companion-design.md:146-149`）；可空化把手动错题放进 `attempts`，目前靠 INNER JOIN 偶发过滤，语义脆弱——任何一处改成 LEFT JOIN 或按 `node_id` 聚合（如 `reports.py:129` 形态）都会让手动错题混入统计。
+5. **索引联动**：两个 attempts 唯一索引（`db.py:1475-1480`）挂在 `flow_step_id` 上，手动错题无 `flow_step_id` → 无唯一性/幂等保护（见现状索引段）。
+
+**方案②（合成占位 question/session）——否决。** 理由：
+
+1. **判定污染**（比统计污染更严重）：占位题若 `source_type` 用 `'graph_generated'/'evolved'` 之外的值，虽可绕过 ledger 的 `item_count` 对账（`daily_runtime.py:177-214` 只数 `graph_generated`），但 `CURRENT_ATTEMPT_VERSION_FILTER`（`agents.py:40-46`）对 `source_type not in ('graph_generated','evolved')` **恒真** → 占位题"永不超版本" → 手动 attempts 会被 `_active_current_attempt_count`（`agents.py:49`）、`planner.py:357/382`、`_valid_status_attempts_for_ids`（`db.py:2327-2355`）当成**当前有效证据计入判定样本与规划信号**，直接绕过 §3.2 信任边界。
+2. **`question_items` 统计污染**：占位题混入题面库，任何按 `question_items` 的计数/对账/展示（ledger `item_count` 对账 `daily_runtime.py:177-214`、`knowledge_map.py:491/701` 激活集合校验 `item_count` 一致性）都需要排除逻辑。
+3. **`learning_sessions` 污染**：占位会话混入会话列表（`server.py:686/704/729/747`）与 `pending_background_session_ids`（`db.py:1731-1748`）等按会话查询。
+4. **假数据永久化**：`attempts.question_id` 引用**无 on delete cascade**（`db.py:421`）→ 占位题一旦被引用即无法删除；`question_usage_policies` 等 cascade 链（`db.py:351`）扩大残留面；且占位题仍需 `answer_contracts`（`db.py:743`）等契约表支撑才能走评估——为一条假数据伪造整条生产管线。
+
+**方案③（旁挂侧表再反链 attempts）——推荐。** 理由：
+
+1. **证据链零改动**：`attempts` 表结构（`db.py:418-452`）与判定证据链（`attempts → attempt_assessments → evidence_validations → learner_node_status/mastery_decisions`）**完全不动**——A/B/C/E 组全部 34 处运行时 join 语义不变，无 NULL、无占位、无迁移。
+2. **手动错题权威载体 = 新建侧表 `manual_error_entries`**：`node_id` FK、`error_tag`（枚举对齐 `CANONICAL_ERROR_TAGS`）、孩子自报对错、爸爸确认、`trust_status`（§3.2 三态：`counted`/`pending_parent`/`rule_hit`）、附件引用、`created_at`——字段与核对项 3 已裁定的 `error_cause_log` 草案同构；`attempts`（`db.py:418-452`）无信任状态列可复用，侧表正好补上 §3.2 信任边界。
+3. **"再反链 attempts"**：侧表加可空列 `review_attempt_id text references attempts(id)`（方向：侧表 → 回查题 attempts 行；attempts 侧可选加反向可空列 `manual_error_entry_id`，留 M4 定）。手动错题被选为"回查 2-3 道针对性题"（§3.1）的来源后，回查作答是**正常 attempts 行**（真实 `question_id`/`session_id`，正常进判定管线），反链保证"错题 → 回查 → 判定"证据链完整可追溯。
+4. **设计修正（本项裁定对设计稿 §3.1 字面意图的修正）**：「手动录入复用 `attempts`（`answer_source='parent_manual'`）」改为「手动错题**不写 attempts 行**，`attempts` 语义保持『系统内真实作答』」——理由 = FK 现实（无题库题/无会话）+ §3.2 信任边界（手动/低置信证据不进判定样本）+ 消费链断裂（方案①②均不可行，见上）。`answer_source='parent_manual'` 枚举值保留定义，实际落位（侧表 `source` 或 `error_cause_log.source='manual_entry'`）留 M4。
+5. **解除核对项 3 挂起项 1**：`error_cause_log.attempt_id` 关联方式裁定为——系统内作答 → 直接 FK `attempts(id)`；手动错题 → `error_cause_log` 增加可空 `manual_entry_id` 引用 `manual_error_entries`（错因分布仍一行一标签，`source` 区分 `system_auto`/`manual_entry`）。
+
+**影响清单（M4 错题录入 schema 改动，直接由本项结论决定）：**
+
+1. 新建 `manual_error_entries` 侧表（列清单见方案③评估，细节留 M4）；`attempts` 表结构**不动**（NOT NULL 保留、无迁移、20+ 处 join 零改动）。
+2. 可选反链列：`manual_error_entries.review_attempt_id`（侧表反链回查 attempts）或 `attempts.manual_error_entry_id`（`_ensure_column` 可加）——留 M4 定。
+3. `error_cause_log`（核对项 3 已裁定新增）增加可空 `manual_entry_id` 引用侧表；系统内作答仍走 `attempt_id` FK。
+4. 错题录入 UI 写侧表（**不走 `record_attempt`**，`db.py:6809` 校验链对手动录入不适用）；回查题出题/作答仍走现有 attempts 链路。
+5. 查询纪律：手动错题进 `error_cause_log` 分布与 `weekly_summary` 证据范围标注（含手动补录/全对确认三分类，§6.1），**不得**进 mastery 判定样本；attempts 相关 20+ 处 join 全部维持现状。
+
+**挂起项（不阻塞本裁定）：**
+
+1. 手动证据入档规则（手动错题如何触发 C/D 下探与复测、`explanation_score` 缺失时如何入档、是否计入样本）→ **挂起待 `mastery_criteria_proposal`**（设计稿 §3.1/§8.1 已标注归 M2.5，`child-learning-companion-design.md:130/144/327`）——侧表先行，规则后落。
+2. 错题录入归属人（默认孩子最小表单）→ **挂起待爸爸拍板**（M4 启动前，§3.1/§10 #1，`child-learning-companion-design.md:128/389`）。
 
 ---
 
