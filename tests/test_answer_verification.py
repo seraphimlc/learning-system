@@ -17,6 +17,10 @@ class TestMathEquivalent(unittest.TestCase):
         self.assertFalse(is_math_equivalent("abc", "1"))
         self.assertFalse(is_math_equivalent("", "1"))
 
+    def test_unicode_multiply_normalized_in_equivalence(self):
+        # 答案卡排版常用 ×/÷/−：sympify 前需归一化，否则误报 mismatch
+        self.assertTrue(is_math_equivalent("3 × 2", "6"))
+
 
 from learning_system.answer_verification import extract_calculation
 
@@ -55,6 +59,31 @@ class TestExtractCalculation(unittest.TestCase):
 
     def test_truncated_half_expression_boundary(self):
         self.assertEqual(extract_calculation("计算：1/2 与 1/3 的大小"), "1/2")
+
+
+from learning_system.answer_verification import verify_expected_answer
+
+
+class TestVerifyExpectedAnswer(unittest.TestCase):
+    def test_verified_when_expression_matches(self):
+        result = verify_expected_answer("计算：1/2 + 1/3", "5/6")
+        self.assertEqual(result["verdict"], "verified")
+
+    def test_mismatch_detected(self):
+        result = verify_expected_answer("计算：1/2 + 1/3", "1")
+        self.assertEqual(result["verdict"], "mismatch")
+        self.assertEqual(result["expected"], "1")
+
+    def test_unverifiable_when_no_expression(self):
+        result = verify_expected_answer("判断题：3 是质数", "对")
+        self.assertEqual(result["verdict"], "unverifiable")
+        self.assertIn("reason", result)
+
+    def test_division_operator_in_expected_answer_verified(self):
+        # 含 ÷ 的答案卡排版也能验证（sympify 前归一化）
+        result = verify_expected_answer("计算：1/2 + 1/3", "5 ÷ 6")
+        self.assertEqual(result["verdict"], "verified")
+        self.assertEqual(result["expression"], "1/2 + 1/3")
 
 
 if __name__ == "__main__":
