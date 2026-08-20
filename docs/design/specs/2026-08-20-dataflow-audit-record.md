@@ -46,7 +46,7 @@
 |---|---|---|---|---|
 | 1 | `attempts` / `learner_node_status` / `mastery_decisions` 表与消费方 | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 2） |
 | 2 | `generated_plans` / `daily_flows`（短期计划现状） | spec §8.1 第 0 步逐表对照 | — | 待核对（Task 4） |
-| 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 待核对（Task 3） |
+| 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 已完成（Task 3） |
 | 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 待核对（Task 5） |
 | 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | 待核对（Task 6） |
 | 6 | 判定口径逐实现（evolution / flow_nodes / daily_runtime / 蓝图） | spec §8.1 必答项、§3.2 | ✅ 必答 | 待核对（Task 7） |
@@ -160,21 +160,56 @@
 
 #### 现状（证据：文件:行）
 
-- `error_cause_log`：`grep -rn "error_cause\|wrong_cause" learning_system/db.py`（预期：无现成表；`attempts.error_tags_json` 仅存单次错因标签，无跨期聚合语义）。
-- `weekly_summary`：确认无现成表；记录设计稿要求——长期档案 append-only、存**当周 A/B/C/D 时间快照**、爸爸确认状态枚举 `acknowledged`/`unacknowledged`（spec §3.3）。
-- 「作业全对」确认载体：确认无现成载体；记录设计稿要求——只作证据范围标注、**不进判定样本**（spec §3.1）。
+**`error_cause_log`（错因三年分布）**
 
-（骨架占位：Task 3 填充）
+- 无现成表/列：`grep -rn "error_cause\|wrong_cause" learning_system/db.py` **0 命中**，全 `learning_system/`（`--include="*.py"`，含仓库其余 py）亦 0 命中；db.py 模式脚本（`db.py:295` 起 `conn.executescript`，共 **43 张** `create table if not exists`）无相关表。实测 `data/learning.db` 为空库（0 表），现状以 db.py 模式脚本为准。
+- 现有错因载体均为**单次作答粒度，无跨期聚合语义**：
+  - `attempts.error_tags_json`（`db.py:428`）：单次作答的规范化错因标签数组——批改路径规范化写入（`daily_runtime.py:9251-9276` `_canonical_error_tags_for_answer_output`：限 `CANONICAL_ERROR_TAGS`、≤4 个、正确→空、兜底 `general`）；两处写入：insert（`db.py:6874`）与批改 update（`db.py:7535`）→ **会被 in-place 回填，非不可变归档**。
+  - `attempts.cause_analysis_json`（`db.py:434`，迁移补列 `db.py:1294`）：单次作答的 LLM 错因分析文本，唯一写点 `evolution.py:1279`。
+  - 现有标签聚合仅限**诊断窗口内**：`evolution.py:878/1128` 在单节点诊断上下文中按 node 聚合 `error_tags`；全库无跨期（周/月/三年）错因分布表或物化聚合。
+- 信任边界缺口：批改侧只有**整体** confidence（`auto_review.py:96/115/132`，`MIN_CONFIDENCE_TO_GRADE=0.68`，低置信 → `status="low_confidence"` 保留为待分析证据）；`attempts` 无「标签级置信 / 待爸爸确认 / 规则命中」状态 → 设计稿 §3.2 信任边界（低置信不计入分布、爸爸确认或规则命中才计入，`child-learning-companion-design.md:146-149`）**现有载体无法表达**。
+- 消费方：设计稿 §3.2（信任边界 → 错因分布 → 周信/简报/教学决策）、§6.1 周信错因模式一句话（`child-learning-companion-design.md:283`）、§6.2 学期报告错因分布（`child-learning-companion-design.md:295`）——设计已裁定**硬依赖、非可选**（`child-learning-companion-design.md:157`）；代码消费方（周信/简报生成）属 M4/M5 未实现，无现有表可服务该语义。
+
+**`weekly_summary`（周信存档）**
+
+- 无现成表：`grep -rn "weekly" learning_system/ --include="*.py"` **0 命中**（`weekly_summary` 仅出现在设计稿/实现计划/本记录等文档）；43 张表清单无周粒度表。
+- 最近似现有存档 = `daily_summaries`（`db.py:1182-1201`）：**按 `daily_flows` 行**的运行时内部 digest——`flow_id + flow_revision + summary_version` 唯一索引（`db.py:1495-1496`），`_ensure_daily_summary` 自动生成（`daily_runtime.py:15086`），存 `touched_node_ids_json`/`source_attempt_ids_json` 等源引用集合 + `report_label_json`/`child_summary_json`/`operator_summary_json`（`db.py:1188-1199`）；读方 `reports.py:161`（日报告）、`daily_runtime.py:4689`。**粒度 = 单 flow（日级）、内容 = 源 id 引用集合**：无当周 A/B/C/D 时间快照、无爸爸确认状态枚举、无周粒度 → 不构成周信存档别名。
+- 设计要求（设计稿 §3.3，`child-learning-companion-design.md:158`）：长期档案 **append-only**、存**当周 A/B/C/D 时间快照**、爸爸确认状态枚举 `acknowledged`/`unacknowledged`；§6.1 降级路径依赖 `weekly_summary.status='unacknowledged'`（`child-learning-companion-design.md:290`：未确认 → 存档不丢、可补看）。
+- 消费方：§6.1 周信生成（P1，M4）——素材可聚合自 `daily_summaries`/`attempts`/`mastery_decisions`，但「当周快照 + 确认状态 + 存档」语义无现成表承载。
+
+**「作业全对」确认载体**
+
+- 无现成载体：`grep -rni "全对\|all_correct\|homework\|daily_confirm" learning_system/ --include="*.py"` **0 命中**；43 张表无相关表/列。
+- 最近似候选 = `evidence_confirmations`（`db.py:496-507`）：**媒体识别确认**——`attempt_id` + `recognition_run_id` + `confirmed_text` + `confirmation_digest_sha256`，唯一 `(attempt_id, confirmation_version)`（`db.py:506`）。语义是「手写/拍照识别文本的人工纠正确认」，非「作业全对」每日一按的证据范围标注（后者不绑定 recognition_run、不进判定样本）→ **非别名**。
+- 设计要求（设计稿 §3.1，`child-learning-companion-design.md:131`）：每日一键，**只作证据范围标注、不进判定样本**；周信/双周简报**必须标注证据范围**——仅系统内 / 含手动补录 / 含全对确认，三分类与 §6.1（`child-learning-companion-design.md:283`）一致。
+- 消费方：周信/双周简报的证据范围标注（P1/P2，M4/M5）；**mastery 判定不消费**（不进判定样本）。
 
 #### 裁定点
 
-- 三者各是"新增表 / 新增字段 / 现有表别名"？（预期：均为新增；给出最小 schema 草案——列清单，细节留 M4 计划）
-
-（骨架占位：Task 3 填充）
+- 三者各是「新增表 / 新增字段 / 现有表别名」？（对应实现计划 Task 3 Step 4；spec §8.1 必答项首项）
+- 若为新增：给出最小 schema 草案（列清单，细节留 M4 计划）。
 
 #### 结论（或挂起原因）
 
-（骨架占位：Task 3 填充；若存在未决点，标注"挂起待 X"）
+**选择：三者均为「真新增」，非现有表别名**——逐项裁定：
+
+1. **`error_cause_log` = 真新增**：`attempts.error_tags_json`/`cause_analysis_json` 是单次作答粒度、会被 in-place 回填（`db.py:7535`）、无跨期聚合语义、无信任边界状态（§3.2 低置信不计入分布），不能别名覆盖「三年错因分布」；消费方（§3.2/§6.1/§6.2）已硬依赖（`child-learning-companion-design.md:157`）。**挂起一项**：`attempt_id` 关联方式（可空 FK vs 旁挂侧表反链）依赖核对项 4（Task 5）FK 三方案裁定 → **挂起待 Task 5 FK 裁定**（此项只影响关联列设计，不改变「真新增」裁定）。
+2. **`weekly_summary` = 真新增**：`daily_summaries` 是日级 flow 运行时 digest（`db.py:1182`），无周粒度 / 当周快照 / 确认状态，不能别名；§6.1 降级路径 `status='unacknowledged'`（`child-learning-companion-design.md:290`）无现成列承载。
+3. **「作业全对」确认载体 = 真新增**：`evidence_confirmations` 是识别纠正确认（`db.py:496`），语义不符；需轻量证据范围标注载体（不进判定样本）。
+
+**最小 schema 草案（列清单，细节留 M4 计划）：**
+
+- **`error_cause_log`**（错因三年分布，append-only）：`id` text PK；`attempt_id` text（关联方式挂起待 Task 5 FK 裁定，可为空或经旁挂表反链）；`node_id` text REFERENCES `graph_nodes(id)`；`error_tag` text（枚举 `CANONICAL_ERROR_TAGS`，**一行一标签**，利于 group by 分布）；`source` text（`system_auto`/`manual_entry`）；`confidence` real（模型自评）；`trust_status` text（`counted`/`pending_parent`/`rule_hit`，§3.2 信任边界三态，低置信不计入分布）；`parent_confirmed_at` text NULL；`graph_version` text；`created_at` text。约束：只 insert；唯一索引 (source 引用, error_tag) 幂等；分布索引 (error_tag, created_at)。
+- **`weekly_summary`**（周信存档，append-only）：`id` text PK；`iso_week` text（如 `2026-W34`，周唯一）；`status` text（`acknowledged`/`unacknowledged`，§6.1 降级依赖；行内容 append-only，确认状态变更允许 in-place 更新或另建确认留痕表——细节留 M4）；`node_status_snapshot_json` text（当周 A/B/C/D 时间快照）；`coverage_json` text（本周覆盖节点/素材引用，聚合自 `daily_summaries`/`attempts`）；`error_distribution_json` text（错因模式素材，聚合自 `error_cause_log`）；`evidence_scope` text（`system_only`/`with_manual`/`with_all_correct`，§6.1 三分类）；`narrative_json` text（LLM 叙述或降级模板标记）；`generated_at` text；`acknowledged_at` text NULL。约束：`iso_week` 唯一索引，每周一条。
+- **「作业全对」确认载体**（建议命名 `daily_all_correct_confirmations`，最轻量）：`id` text PK；`confirm_date` text（每日一键，日唯一）；`confirmed_by` text（归属人设计稿未定：孩子或爸爸 → **挂起待爸爸拍板**，时限 M4 启动前，对齐设计稿 §10 #1 时限）；`evidence_scope_mark` text（标记本日证据范围分类）；`source_refs_json` text（当日作业关联引用，可空）；`created_at` text。约束：`confirm_date` 唯一；只 insert；**mastery 判定不得读取本表**（不进判定样本）。
+
+**影响：**
+
+1. M4 数据模型改动清单确定：需新建 3 张表（设计稿 §8.2 第 3 条「已裁定新增表」落地，`child-learning-companion-design.md:334`），与 §7「做（数据模型）④」一致（`child-learning-companion-design.md:309`）。
+2. 别名裁定依据可复核：本结论的「无现成表」均经 grep/读代码实测（见现状证据），防止把既有表误判为新增；`daily_summaries`/`evidence_confirmations` 已显式排除为别名并记录理由。
+3. 两个挂起项显式化且不阻塞裁定：`error_cause_log.attempt_id` 关联方式 → 挂起待 Task 5 FK 裁定；全对确认归属人 → 挂起待爸爸拍板（M4 启动前）。
+4. 错因标签枚举随 Task 8 收口演进：`error_cause_log.error_tag` 依赖单一 `CANONICAL_ERROR_TAGS` 导入源（Task 8 收口为后续计划项），防三年错因分布漂移。
+5. 查询纪律：周信/简报素材可聚合 `daily_summaries` 等现有表，但「当周快照 / 确认状态 / 证据范围」语义只能读三张新表；全对确认表仅供证据范围标注，不得进入判定口径。
 
 ---
 
