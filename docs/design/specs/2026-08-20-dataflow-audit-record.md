@@ -44,7 +44,7 @@
 
 | # | 核对项 | 来源 | 必答项标记 | 状态 |
 |---|---|---|---|---|
-| 1 | `attempts` / `learner_node_status` / `mastery_decisions` 表与消费方 | spec §8.1 第 0 步逐表对照 | — | 待核对（Task 2） |
+| 1 | `attempts` / `learner_node_status` / `mastery_decisions` 表与消费方 | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 2） |
 | 2 | `generated_plans` / `daily_flows`（短期计划现状） | spec §8.1 第 0 步逐表对照 | — | 待核对（Task 4） |
 | 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 待核对（Task 3） |
 | 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 待核对（Task 5） |
@@ -84,22 +84,49 @@
 
 #### 现状（证据：文件:行）
 
-- `attempts`：见 `learning_system/db.py:418` 起（列、FK `session_id`/`question_id` NOT NULL REFERENCES、`answer_source` 枚举默认 `'legacy'`）。
-- `learner_node_status`：见 `learning_system/db.py:534` 起（`status_revision` 语义、`evidence_attempt_ids_json`/`source_attempt_ids_json`）。
-- `mastery_decisions`：见 `learning_system/db.py:643` 起（append-only 确认：是否只 insert；`old_status_id`/`new_status_code` 字段）。
-- 消费方清单：`grep -rn "mastery_decisions\|learner_node_status" learning_system/ --include="*.py"`（待 Task 2 执行并回填主要读写方）。
+**`attempts`（`learning_system/db.py:418-452`）**
 
-（骨架占位：Task 2 填充）
+- 列（34 列）：`id`/`session_id`/`question_id`/`node_id`/`result`/`grading_status`/`evidence_status`/`score_points`/`max_points`/`error_tags_json`/`answer_raw`/`parent_note`/`evidence_note`/`answer_analysis_json`/`review_meta_json`/`cause_analysis_json`/`interaction_response_json`/`explanation_score`/`blocking_evidence`/`processed_evolution_event_id`/`flow_step_id`/`graph_version`/`question_bank_version`/`attempt_version`/`analysis_version`/`analysis_status`/`client_idempotency_key`/`answer_source`/`submission_request_digest_sha256`/`evidence_digest_sha256`/`attachment_ids_json`/`review_record_id`/`created_at`。
+- FK 均 NOT NULL REFERENCES：`session_id` → `learning_sessions(id)`（`db.py:420`）、`question_id` → `question_items(id)`（`db.py:421`）、`node_id` → `graph_nodes(id)`（`db.py:422`）。
+- `answer_source`：`text not null default 'legacy'`（`db.py:446`，迁移补列 `db.py:1305`）。无 DB 级 CHECK 约束，为应用层枚举：v3 流程在 `daily_runtime.py:1663-1670` 赋 `v3_stuck`/`v3_handwriting_confirmed`/`v3_voice_confirmed`/`v3_interaction`/`v3_photo`/`v3_text`；insert 后经 `update attempts set ... answer_source = ?` 补写（`daily_runtime.py:1858-1893`）。旧路径（`db.record_attempt`，`db.py:6809`）不传该列 → 留默认 `'legacy'`。
+- 行生命周期：唯一插入点 `db.record_attempt`（insert 于 `db.py:6872`）；全库无 `delete from attempts`（grep 0 命中）；失效走 `evidence_status` 软状态 `{active, invalidated, stale}`（校验于 `db.py:6842`）。列级存在 in-place 富化：`answer_analysis_json` 回填（`db.py:7645`）、`analysis_version + 1`（`daily_runtime.py:4280`）、`cause_analysis_json`（`evolution.py:1279`）、`review_meta_json`（`server.py:2426`）、`evidence_digest_sha256`（`daily_runtime.py:1910`）——行不删，分析列后补。
+
+**`learner_node_status`（`learning_system/db.py:534-549`）**
+
+- 主键 `node_id`（`db.py:535`）→ 每节点一行**当前状态快照**（非日志表）。
+- `status_revision integer not null default 1`（`db.py:547`，迁移补列 `db.py:1428`）：语义 = 状态快照的迭代修订号。v5 写路径经 `coalesce((select status_revision + 1 from learner_node_status where node_id = ?), 1)` 递增（`daily_runtime.py:13705`）；v2 写路径（`orchestrator.py:567-571`）不递增（insert or replace 不写该列 → 重置为 1）。前一修订号被抄入 `mastery_decisions.old_status_id`（`daily_runtime.py:13667`）。
+- `evidence_attempt_ids_json`（`db.py:539`）= 支撑该状态的作答 id 列表（权威校验仍读它，`db.py:2932` 记为 legacy 语义）；`source_attempt_ids_json`（`db.py:544`）/`source_evidence_validation_ids_json`（`db.py:545`）= v5 写路径的源作答/证据校验 id（`daily_runtime.py:13664-13665`，与 `evidence_attempt_ids_json` 同值写入）。
+- 行生命周期：`insert or replace` 覆盖式 upsert（`daily_runtime.py:13699`、`orchestrator.py:567`）；修复函数 `_repair_learner_node_status_invalid_refs` 可 DELETE 失效行（`db.py:2743-2823`，删除点 `db.py:2771/2792/2809/2817`）→ **非 append-only**。
+
+**`mastery_decisions`（`learning_system/db.py:643-665`）**
+
+- append-only 实测确认：全库 `grep "update mastery_decisions\|delete from mastery_decisions"` **0 命中**；唯一写入 = `db.record_mastery_decision` 的 `insert into`（`db.py:1925`，调用方 `orchestrator.py:695`）与 v5 路径的 `insert or ignore into`（`daily_runtime.py:13637`）。
+- 幂等保障：唯一部分索引 `idx_v3_mastery_decisions_evidence_package` on `(node_id, graph_version, source_evidence_validation_hash, decision_version)`（`db.py:1490-1492`）。
+- 关键字段：`old_status_id text`（`db.py:660`，实存前一 `status_revision` 编号的字符串，`daily_runtime.py:13667`——字段名易误读为外键）；`new_status_code text not null default ''`（`db.py:661`，值为 A/B/C/D，映射逻辑 `daily_runtime.py:13562-13599`）；`decision_version`（`db.py:659`，默认 1）；`applied`（`db.py:651`，插入时定值，v5 路径恒 1）；`source_evidence_validation_hash`（`db.py:663`）。
+- 权威读路径：`authoritative_learner_node_status_rows`（`db.py:2876-2922`）join `learner_node_status` + `mastery_decisions` + `agent_runs`，校验 `md.applied = 1`、`md.new_status_code = s.status_code`、`evaluation_agent_run_id = updated_by_agent_run_id` 等一致性后才视为权威。
+
+**消费方（`grep -rn "mastery_decisions\|learner_node_status" learning_system/ --include="*.py"`，74 处命中）**
+
+- 写入方：`learner_node_status` → `orchestrator.py:567`（v2 insert or replace）、`daily_runtime.py:13699`（v5 insert or replace + 修订递增）、`db.py:2743-2823`（修复删除）；`mastery_decisions` → `db.py:1907/1925`（`record_mastery_decision`，调用 `orchestrator.py:695`）、`daily_runtime.py:13637`（insert or ignore）。
+- 读取方（主要）：`db.py:2826`（`current_learner_node_status_rows`）、`db.py:2876`（`authoritative_learner_node_status_rows`）、`db.py:3067`（`current_learner_node_status_counts`）；`daily_runtime.py:335/891/1254`（authoritative 行）、`9560/11931/14576/14599`（状态读取）、`3827/5564/8835/12019/15113`（`mastery_decisions` 查询）；`planner.py:282/344/991/1042/1192/1309`（规划信号，`planner.py:344` 读 `evidence_attempt_ids_json` 取证据作答）；`evolution.py:1138/1290`（取前序状态）；`reports.py:155`（会话报告按 `session_id` 读 `mastery_decisions`）；`agents.py:348`、`knowledge_map.py:1061`、`server.py:463`（状态计数/图谱/面板）。
 
 #### 裁定点
 
-- 三张表是否满足"长期档案 append-only"需求？（预期结论：满足，无需新建 `node_mastery_log`，待核实）
-
-（骨架占位：Task 2 填充）
+- 三张表是否满足"长期档案 append-only"需求（设计稿 §3.3：档案只增不改，状态变更留痕）？是否需新建 `node_mastery_log`？（对应实现计划 Task 2 Step 5）
 
 #### 结论（或挂起原因）
 
-（骨架占位：Task 2 填充；若存在未决点，标注"挂起待 X"）
+**选择：满足，无需新建 `node_mastery_log`。**
+
+- 长期档案由两张表分工承载：`attempts` 行级 append（只 insert、无 delete、`evidence_status` 软失效，分析列 in-place 回填不破坏痕迹）；`mastery_decisions` **严格 append-only**（只 insert、无 update/delete，唯一索引幂等），每次评估决策一条记录，含 `old_status_id`（前一修订号）/`new_status_code`（A/B/C/D）/`decision_version`/`source_evidence_validation_hash`/`applied` → **状态变更留痕完整**。`learner_node_status` 只是"当前状态"派生快照（insert or replace + 修复删除，非 append），其历史完全可由 `mastery_decisions` 重建。设计与实现一致（设计稿 `2026-08-20-child-learning-companion-design.md:153/368` 已声明同一结构，本次核对逐条证实）。
+- 挂起项：无。
+
+**影响：**
+
+1. 无需新增表：M2.5 及后续周信如需"当周状态快照"，沿 `mastery_decisions.created_at` 过滤即可（已有 `idx_mastery_decisions_session`，`db.py:1243`）。
+2. 查询纪律：任何"历史/某时刻状态"必须走 `mastery_decisions`，不得依赖 `learner_node_status`（其行会被覆盖甚至删除，`db.py:2771/2792/2809/2817`）。
+3. 注意偏差：`mastery_decisions.old_status_id` 存的是前一 `status_revision` 编号（`daily_runtime.py:13667`），非行 id，字段命名与语义不符，后续设计引用需注意。
+4. `attempts` 的 append-only 是"行级"：`answer_analysis_json`/`cause_analysis_json`/`review_meta_json` 等列会被回填更新——与"档案只增不改"（设计稿 §3.3 第 4 条，`child-learning-companion-design.md:74`）兼容，但口径上"不改"指行不删除、作答痕迹保留。
 
 ---
 
