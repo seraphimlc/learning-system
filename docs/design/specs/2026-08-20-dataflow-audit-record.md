@@ -2,14 +2,14 @@
 
 - Date: 2026-08-20
 - Owner: 若命（软件架构）——核对执行与裁定记录
-- Status: skeleton（骨架）；核对项 1–7 由 Task 2–8 逐项填充后定稿
+- Status: 完成（2026-08-20 定稿）；核对项 1–7 全部填写，含裁定结论与显式挂起项
 - Scope: `learning_system/` 数据流现状核对 + 裁定点记录（只读分析）
 - 前置文档：`docs/design/specs/2026-08-20-child-learning-companion-design.md`（§8.1 第 0 步核对）、`docs/00_PROJECT_BLUEPRINT.md`
 - 实现计划：`.agents/superpowers/specs/2026-08-20-semester-data-link-prereqs.md`（Chunk 1）
 
 > **用途声明：本记录仅供设计决策参考，不改任何代码/数据。** 所有核对均为只读分析；任何"结论"都只影响后续设计裁定，不构成对 `learning_system/`、`data/` 或运行库的修改授权。
 
-> **一句话结论（骨架期占位）**：本记录逐项核对现状数据流，对每个裁定点给出「现状 / 冲突 / 选择 / 影响」，或显式"挂起待 X"；7 项核对齐全后，作为数据模型改动（设计稿 §8.2）与后续计划（阶段数组 / M2.5 判定口径统一 / M4 错题录入）的决策依据。
+> **一句话结论**：本记录逐项核对现状数据流，对每个裁定点给出「现状 / 冲突 / 选择 / 影响」，或显式"挂起待 X"；7 项核对齐全后，作为数据模型改动（设计稿 §8.2）与后续计划（阶段数组 / M2.5 判定口径统一 / M4 错题录入）的决策依据。
 
 ---
 
@@ -34,7 +34,7 @@
 
 设计稿 §8.1 将「现状数据流核对」列为切片第 0 步（先于编码）：逐表对照现状与需求，裁定数据模型改动依据。本记录即该步的交付物——**逐项核对记录 + 裁定点结论**，每个裁定点必须给出「现状 / 冲突 / 选择 / 影响」，或明确"挂起待 X"。
 
-本记录是 Chunk 1 的最终交付物，后续 Task 2–8 会逐项向本文件的对应核对项小节追加核对内容；**骨架期只搭结构与模板，不预填核对结论**。
+本记录是 Chunk 1 的最终交付物；核对项 1–7 已由 Task 2–8 逐项填写完成（骨架期只搭结构与模板，不预填核对结论）。
 
 ---
 
@@ -50,7 +50,7 @@
 | 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 已核对（Task 5）：推荐方案③ 旁挂侧表再反链 |
 | 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | 已核对（Task 6）：推荐折叠+裁剪，保留主线/混合/收口语义 |
 | 6 | 判定口径逐实现（evolution / flow_nodes / daily_runtime / 蓝图） | spec §8.1 必答项、§3.2 | ✅ 必答 | 已完成（Task 7） |
-| 7 | `CANONICAL_ERROR_TAGS` 双定义（auto_review.py / question_bank.py） | spec §7 架构取舍、§8.1 | — | 待核对（Task 8） |
+| 7 | `CANONICAL_ERROR_TAGS` 双定义（auto_review.py / question_bank.py） | spec §7 架构取舍、§8.1 | — | 已完成（Task 8） |
 
 **约定**：核对项 1–7 与下文「核对项记录」各节一一对应；每项完成后将"状态"改为「已核对」并回填结论；存在未决裁定点的，必须在"结论（或挂起原因）"中显式标注"挂起待 X"，不允许留空。
 
@@ -89,7 +89,7 @@
 - 列（33 列，CREATE 列定义 `db.py:419-451`；另迁移补列 `clarifies_attempt_id`（`db.py:1310`）/`attempt_role`（`db.py:1311`），实测 live DB 35 列。**枚举不含迁移补列**）：`id`/`session_id`/`question_id`/`node_id`/`result`/`grading_status`/`evidence_status`/`score_points`/`max_points`/`error_tags_json`/`answer_raw`/`parent_note`/`evidence_note`/`answer_analysis_json`/`review_meta_json`/`cause_analysis_json`/`interaction_response_json`/`explanation_score`/`blocking_evidence`/`processed_evolution_event_id`/`flow_step_id`/`graph_version`/`question_bank_version`/`attempt_version`/`analysis_version`/`analysis_status`/`client_idempotency_key`/`answer_source`/`submission_request_digest_sha256`/`evidence_digest_sha256`/`attachment_ids_json`/`review_record_id`/`created_at`。
 - FK 均 NOT NULL REFERENCES：`session_id` → `learning_sessions(id)`（`db.py:420`）、`question_id` → `question_items(id)`（`db.py:421`）、`node_id` → `graph_nodes(id)`（`db.py:422`）。
 - `answer_source`：`text not null default 'legacy'`（`db.py:446`，迁移补列 `db.py:1305`）。无 DB 级 CHECK 约束，为应用层枚举：v3 流程在 `daily_runtime.py:1663-1670` 赋 `v3_stuck`/`v3_handwriting_confirmed`/`v3_voice_confirmed`/`v3_interaction`/`v3_photo`/`v3_text`；insert 后经 `update attempts set ... answer_source = ?` 补写（`daily_runtime.py:1858-1893`）。旧路径（`db.record_attempt`，`db.py:6809`）不传该列 → 留默认 `'legacy'`。
-- 行生命周期：唯一插入点 `db.record_attempt`（insert 于 `db.py:6872`）；全库无 `delete from attempts`（grep 0 命中）；失效走 `evidence_status` 软状态 `{active, invalidated, stale}`（校验于 `db.py:6842`）。列级存在 in-place 富化：`answer_analysis_json` 回填（`db.py:7645`）、`analysis_version + 1`（`daily_runtime.py:4280`）、`cause_analysis_json`（`evolution.py:1279`）、`review_meta_json`（`server.py:2426`）、`evidence_digest_sha256`（`daily_runtime.py:1910`）——行不删，分析列后补。
+- 行生命周期：唯一插入点 `db.record_attempt`（insert 于 `db.py:6872`）；全库无 `delete from attempts`（`grep -rn "delete from attempts" learning_system/ --include="*.py"` 0 命中）；失效走 `evidence_status` 软状态 `{active, invalidated, stale}`（校验于 `db.py:6842`）。列级存在 in-place 富化：`answer_analysis_json` 回填（`db.py:7645`）、`analysis_version + 1`（`daily_runtime.py:4280`）、`cause_analysis_json`（`evolution.py:1279`）、`review_meta_json`（`server.py:2426`）、`evidence_digest_sha256`（`daily_runtime.py:1910`）——行不删，分析列后补。
 
 **`learner_node_status`（`learning_system/db.py:534-549`）**
 
@@ -100,7 +100,7 @@
 
 **`mastery_decisions`（`learning_system/db.py:643-665`）**
 
-- append-only 实测确认：全库 `grep "update mastery_decisions\|delete from mastery_decisions"` **0 命中**；唯一写入 = `db.record_mastery_decision` 的 `insert into`（`db.py:1925`，调用方 `orchestrator.py:695`）与 v5 路径的 `insert or ignore into`（`daily_runtime.py:13637`）。
+- append-only 实测确认：全库 `grep -rn "update mastery_decisions\|delete from mastery_decisions" learning_system/ --include="*.py"` **0 命中**；唯一写入 = `db.record_mastery_decision` 的 `insert into`（`db.py:1925`，调用方 `orchestrator.py:695`）与 v5 路径的 `insert or ignore into`（`daily_runtime.py:13637`）。
 - 幂等保障：唯一部分索引 `idx_v3_mastery_decisions_evidence_package` on `(node_id, graph_version, source_evidence_validation_hash, decision_version)`（`db.py:1490-1492`）。
 - 关键字段：`old_status_id text`（`db.py:660`，实存前一 `status_revision` 编号的字符串，`daily_runtime.py:13667`——字段名易误读为外键）；`new_status_code text not null default ''`（`db.py:661`，值为 A/B/C/D，映射逻辑 `daily_runtime.py:13562-13599`）；`decision_version`（`db.py:659`，默认 1）；`applied`（`db.py:651`，插入时定值，v5 路径恒 1）；`source_evidence_validation_hash`（`db.py:663`）。
 - 权威读路径：`authoritative_learner_node_status_rows`（`db.py:2876-2922`）join `learner_node_status` + `mastery_decisions` + `agent_runs`，校验 `md.applied = 1`、`md.new_status_code = s.status_code`、`evaluation_agent_run_id = updated_by_agent_run_id` 等一致性后才视为权威。
@@ -118,12 +118,12 @@
 
 **选择：满足，无需新建 `node_mastery_log`。**
 
-- 长期档案由两张表分工承载：`attempts` 行级 append（只 insert、无 delete、`evidence_status` 软失效，分析列 in-place 回填不破坏痕迹）；`mastery_decisions` **严格 append-only**（只 insert、无 update/delete，唯一索引幂等），每次评估决策一条记录，含 `old_status_id`（前一修订号）/`new_status_code`（A/B/C/D）/`decision_version`/`source_evidence_validation_hash`/`applied` → **状态变更留痕完整**。`learner_node_status` 只是"当前状态"派生快照（insert or replace + 修复删除，非 append），其历史完全可由 `mastery_decisions` 重建。设计与实现一致（设计稿 `2026-08-20-child-learning-companion-design.md:153/368` 已声明同一结构，本次核对逐条证实）。
+- 长期档案由两张表分工承载：`attempts` 行级 append（只 insert、无 delete、`evidence_status` 软失效，分析列 in-place 回填不破坏痕迹）；`mastery_decisions` **严格 append-only**（只 insert、无 update/delete，唯一索引幂等），每次评估决策一条记录，含 `old_status_id`（前一修订号）/`new_status_code`（A/B/C/D）/`decision_version`/`source_evidence_validation_hash`/`applied` → **状态变更留痕（限定：v5 路径为结构化留痕；v2 路径可经自由文本字段 `decision`/`decision_payload_json` 重建，`db.py:646/653`）**。`learner_node_status` 只是"当前状态"派生快照（insert or replace + 修复删除，非 append），其历史在 v5 路径可由 `mastery_decisions` 结构化重建（`new_status_code`/`old_status_id`/`source_evidence_validation_hash`）、v2 路径可经自由文本字段（`decision`/`decision_payload_json`）重建。设计与实现一致（设计稿 `2026-08-20-child-learning-companion-design.md:153/368` 已声明同一结构，本次核对逐条证实）。
 - 挂起项：无。
 
 **影响：**
 
-1. 无需新增表：M2.5 及后续周信如需"当周状态快照"，沿 `mastery_decisions.created_at` 过滤即可（已有 `idx_mastery_decisions_session`，`db.py:1243`）。
+1. 无需新增表：M2.5 及后续周信如需"当周状态快照"，沿 `mastery_decisions.created_at` 过滤即可（按 session_id 先行定位：`idx_mastery_decisions_session` 仅 session_id 单列索引，`db.py:1243`，created_at 过滤仍需会话内扫描）。
 2. 查询纪律：任何"历史/某时刻状态"必须走 `mastery_decisions`，不得依赖 `learner_node_status`（其行会被覆盖甚至删除，`db.py:2771/2792/2809/2817`）。
 3. 注意偏差：`mastery_decisions.old_status_id` 存的是前一 `status_revision` 编号（`daily_runtime.py:13667`），非行 id，字段命名与语义不符，后续设计引用需注意。
 4. `attempts` 的 append-only 是"行级"：`answer_analysis_json`/`cause_analysis_json`/`review_meta_json` 等列会被回填更新——与"档案只增不改"（设计稿 §3.3 第 4 条，`child-learning-companion-design.md:74`）兼容，但口径上"不改"指行不删除、作答痕迹保留。
@@ -139,21 +139,21 @@
 **`generated_plans`（`learning_system/db.py:572-579`）**
 
 - 列（6 列）：`id` text PK、`title`、`tasks_json`（计划任务数组，JSON）、`planner_policy_version`（迁移补列 `db.py:1457`）、`plan_meta_json`（迁移补列 `db.py:1458`）、`created_at`。**无节点/阶段外键**——与节点的关系在 `tasks_json` 内容内部（每条 task 含 `node_id`/`question_id`/`task_type`/`planning_signal` 等，计划 dict 组装于 `planner.py:1461-1494`，每轮固定 10 个任务 `LEARNING_ROUND_TASK_COUNT=10`，`planner.py:15`）；**阶段概念不落表**（`planner.py` 全文无 `phase` 引用；表无 phase 列）。
-- 写入：唯一写点 `planner.generate_next_plan` 的 `insert into`（`planner.py:1475-1497`）；`grep -rn "update generated_plans\|delete from generated_plans" learning_system/ scripts/` **0 命中** → **append-only 计划日志**，"推翻重来" = 生成新计划行。
+- 写入：唯一写点 `planner.generate_next_plan` 的 `insert into`（`planner.py:1477-1497`，SQL 语句自 1477 行起）；`grep -rn "update generated_plans\|delete from generated_plans" learning_system/ scripts/` **0 命中** → **append-only 计划日志**，"推翻重来" = 生成新计划行。
 - 读取：取"最新计划"用 `order by created_at desc, rowid desc limit 1`（`planner.py:1504`、`agents.py:14-37`，后者拼 `_latest_generated_plan_report` 供 agent 上下文）；`server.py:594-617`（按 id / 最新，面板展示）；`scripts/live_child_ui_10x.py:78`。`planner_policy_version` 不一致或题库版本过期 → 判为不可用（`agents.py:33-36`、`server.py:587-590`）。
 - 与 `daily_flows` 的关系：`daily_flows.source_plan_id`（`db.py:1030`）声明关联，但 v3 创建路径**硬编码 null**（`daily_runtime.py:779`）；`grep -rn "source_plan_id" learning_system/ --include="*.py"` 仅 2 处（列定义 + insert null），无 join 读取 → **计划→日流程在 v3 运行时不经表关联**（经 planner 信号 → `next_step_decisions` → `flow_steps` 决策链）。
 
 **`daily_flows`（`learning_system/db.py:1013-1035`）**
 
 - 每日一行：`id` PK、`child_key`（默认 `'single-child'`）、`local_date`、`mode`（默认 `'not_selected'`）、`status`（默认 `'new'`；终态 `("completed", "superseded")`，`daily_runtime.py:42`）、`budget_min/max`、`current_step_id`、`graph_version`、`planned_graph_node_ids_json`（v3 插入恒 `'[]'`，`daily_runtime.py:779`，生产仅定义+写入、无读取）、题库版本三列（`question_bank_version`/`question_bank_ledger_id`/`question_bank_manifest_sha256`，后两列迁移补列 `db.py:1313-1314`）、`legacy_session_id` FK → `learning_sessions(id)`、`flow_revision`（行修订，状态迁移时 +1，`daily_runtime.py:725`）、`created_by_runtime_version`、`source_plan_id`（见上）、`blocked_reason`、`summary_id`、`created_at/updated_at`；迁移补列 `assessment_policy_version`（`db.py:1312`）。**无 phase 列**（阶段不落表）。
-- 约束/索引：唯一 `idx_v3_daily_flows_one_active_per_child_day` on `(child_key, local_date)`（`db.py:1461-1462`，每孩子每日一行）；`idx_v3_daily_flows_local_date_status`（`db.py:1464-1465`）。
+- 约束/索引：**部分唯一索引** `idx_v3_daily_flows_one_active_per_child_day` on `(child_key, local_date)` **带 WHERE 子句**（`db.py:1461-1465`：`where status in ('new','reviewing','ready_for_new_knowledge','learning_new','paused','blocked')`）→ 活跃状态每孩子每日至多一行；completed/superseded 终态行不占唯一位、可同日并存；`idx_v3_daily_flows_local_date_status`（`db.py:1464-1465`）。
 - 写入/读取：创建 `_create_daily_flow`（`daily_runtime.py:755-799`）+ 状态机 in-place `update`（`daily_runtime.py:719/1115/2152/2242/2277/2355/2416/2482/2649/3402` 等，`flow_revision` 递增防并发覆盖）；读取 `daily_runtime.py:4680/4854/4888/4899`、`reports._latest_daily_flows`（`reports.py:107-111`）、`knowledge_map.py:315/381`、`assessment_store.py:394`、`server.py`。
-- 日内步骤序列 = `flow_steps`（`db.py:1037-1062`）：`flow_id` FK（on delete cascade）、`position` 整数（`db.py:1041`）、`step_handle`/`step_type`/`status`、`node_id`/`question_id`、`step_revision`、`superseded_by_step_id`（`db.py:1059`，步骤可被取代）；`insert into flow_steps` 仅 `daily_runtime.py:13055/14283` 两处（运行时按 next_step_decisions/教学修复选步落库），**不从 `generated_plans.tasks_json` 物化** → 日内顺序由 `position` 承载、可演进替换（`superseded_by_step_id` + `flow_revision`）。
+- 日内步骤序列 = `flow_steps`（`db.py:1037-1062`）：`flow_id` FK（on delete cascade）、`position` 整数（`db.py:1041`）、`step_handle`/`step_type`/`status`、`node_id`/`question_id`、`step_revision`、`superseded_by_step_id`（`db.py:1059`，步骤可被取代）；生产代码（`learning_system/` + `scripts/`）范围内 `insert into flow_steps` 仅 `daily_runtime.py:13055/14283` 两处（运行时按 next_step_decisions/教学修复选步落库），**不从 `generated_plans.tasks_json` 物化** → 日内顺序由 `position` 承载、可演进替换（`superseded_by_step_id` + `flow_revision`）。
 
 **`learning_path` 现状（`data/knowledge_graphs/math/math_knowledge_graph_v2.json` 顶层 key，规划配置 dict 非档案）**
 
 - 结构（实测 json 解析）：dict，含 `daily_time_minutes`（60）、`math_priority`（文本）、`phase_strategy`（**5 元素数组**：第1-3天建档 / 第4-12天快补 / 第13-35天主线 / 第36-44天混合 / 第45-50天收口，每元素 `name`/`goal`/`phase`，其中 `phase` 是"第X-Y天"日期段标签）、`session_template`（每日 5 活动模板：旧错题复测 5min / 讲知识点本质模型 15min / 3-5 道变式 25min / 错因归类回退 10min / 记明天复测点 5min）。
-- **零代码消费**：`grep -rn "phase_strategy\|learning_path\|session_template" learning_system/ scripts/ --include="*.py"` **0 命中**；图谱唯一装载方 `seed_from_assets`（`db.py:3307-3309`）只读 `metadata`/`nodes`/`edges` 等，不读 `learning_path`（测试中 `learning_path_order` 指 view config 的 `module_order`，`knowledge_map.py:100`，与 JSON `learning_path` 无关）→ **纯规划配置文档，改结构零运行时耦合**。
+- **零代码消费**：`grep -rn "phase_strategy\|learning_path\|session_template" learning_system/ scripts/ --include="*.py"` **0 命中**；图谱唯一装载方 `seed_from_assets`（`db.py:3308 起`）只读 `metadata`/`nodes`/`edges` 等，不读 `learning_path`（测试中 `learning_path_order` 指 view config 的 `module_order`，`knowledge_map.py:100`，与 JSON `learning_path` 无关）→ **纯规划配置文档，改结构零运行时耦合**。
 
 #### 裁定点
 
@@ -163,7 +163,7 @@
 
 **选择：结构兼容——阶段是配置层概念、不落执行表；`learning_path` 零代码消费，阶段数组改造只动 JSON 配置，留到阶段数组计划执行；`generated_plans`/`daily_flows`/`flow_steps` 三表无需改动。**
 
-- "计划可重排"已由现有结构承载：`generated_plans` 是 append-only 计划日志，最新计划按 `created_at desc, rowid desc limit 1` 重取（`planner.py:1504`），"推翻重来" = 生成新计划行（`planner.py:1475`），无对既有计划的 in-place 重排更新路径（生产 grep 0 命中）；日内步骤顺序由 `flow_steps.position`（`db.py:1041`）+ `superseded_by_step_id`/`flow_revision`（`db.py:1059`）承载，可演进替换。
+- "计划可重排"已由现有结构承载：`generated_plans` 是 append-only 计划日志，最新计划按 `created_at desc, rowid desc limit 1` 重取（`planner.py:1504`），"推翻重来" = 生成新计划行（`planner.py:1477`），无对既有计划的 in-place 重排更新路径（生产 grep 0 命中）；日内步骤顺序由 `flow_steps.position`（`db.py:1041`）+ `superseded_by_step_id`/`flow_revision`（`db.py:1059`）承载，可演进替换。
 - 阶段不落表：`generated_plans`/`daily_flows`/`flow_steps` 均无 phase 列（db.py 中 `phase` 仅出现在 `agent_runs`/`agent_handoffs`/`session_steps`，`db.py:587/620/636`，是 LLM agent 执行阶段，非学习阶段）；`learning_path.phase_strategy` 已是数组（5 元素，元素顺序即阶段顺序），重排 = 改配置数组顺序 → 与设计稿 §3.3「`learning_path` 改阶段数组、先落 2 阶段」（`child-learning-companion-design.md:161`）**结构兼容**。
 - 零耦合依据：`learning_path` 无任何 Python 消费方（grep 0 命中，见现状）→ 阶段数组改造（替换/裁剪元素、`phase` 字段从"第X-Y天"日期段标签改为阶段标识）无运行时联动，与实现计划「阶段数组改造 → 后续计划，避免 digest 联动 churn」的前提一致（`2026-08-20-semester-data-link-prereqs.md:12-13`）。
 
@@ -184,7 +184,7 @@
 
 **`error_cause_log`（错因三年分布）**
 
-- 无现成表/列：`grep -rn "error_cause\|wrong_cause" learning_system/db.py` **0 命中**，全 `learning_system/`（`--include="*.py"`，含仓库其余 py）亦 0 命中；db.py 模式脚本（`db.py:295` 起 `conn.executescript`，共 **43 张** `create table if not exists`）无相关表。实测 `data/learning.db` 为空库（0 表），现状以 db.py 模式脚本为准。
+- 无现成表/列：`grep -rn "error_cause\|wrong_cause" learning_system/db.py` **0 命中**，全 `learning_system/`（`--include="*.py"`，含 learning_system/ 内其余 py 文件）亦 0 命中；db.py 模式脚本（`db.py:295` 起 `conn.executescript`，共 **43 张** `create table if not exists`）无相关表。实测 `data/learning.db` 为空库（0 表），现状以 db.py 模式脚本为准。
 - 现有错因载体均为**单次作答粒度，无跨期聚合语义**：
   - `attempts.error_tags_json`（`db.py:428`）：单次作答的规范化错因标签数组——批改路径规范化写入（`daily_runtime.py:9251-9276` `_canonical_error_tags_for_answer_output`：限 `CANONICAL_ERROR_TAGS`、≤4 个、正确→空、兜底 `general`）；两处写入：insert（`db.py:6874`）与批改 update（`db.py:7535`）→ **会被 in-place 回填，非不可变归档**。
   - `attempts.cause_analysis_json`（`db.py:434`，迁移补列 `db.py:1294`）：单次作答的 LLM 错因分析文本，唯一写点 `evolution.py:1279`。
@@ -221,7 +221,7 @@
 
 **最小 schema 草案（列清单，细节留 M4 计划）：**
 
-- **`error_cause_log`**（错因三年分布，append-only）：`id` text PK；`attempt_id` text（系统内作答 → FK `attempts(id)`，仅系统内源非空）；`manual_entry_id` text NULL（手动错题 → 引用侧表 `manual_error_entries`，经核对项 4 裁定；系统内/手动二选一）；`node_id` text REFERENCES `graph_nodes(id)`；`error_tag` text（枚举 `CANONICAL_ERROR_TAGS`，**一行一标签**，利于 group by 分布）；`source` text（`system_auto`/`manual_entry`）；`confidence` real（模型自评）；`trust_status` text（`counted`/`pending_parent`/`rule_hit`，§3.2 信任边界三态，低置信不计入分布）；`parent_confirmed_at` text NULL；`graph_version` text；`created_at` text。约束：只 insert；唯一索引 (source 引用, error_tag) 幂等；分布索引 (error_tag, created_at)。
+- **`error_cause_log`**（错因三年分布，append-only）：`id` text PK；`attempt_id` text（系统内作答 → FK `attempts(id)`，仅系统内源非空）；`manual_entry_id` text NULL（手动错题 → 引用侧表 `manual_error_entries`，经核对项 4 裁定；系统内/手动二选一）；`node_id` text REFERENCES `graph_nodes(id)`；`error_tag` text（枚举 `CANONICAL_ERROR_TAGS`，**一行一标签**，利于 group by 分布）；`source` text（`system_auto`/`manual_entry`）；`confidence` real（模型自评）；`trust_status` text（`counted`/`pending_parent`/`rule_hit`，§3.2 信任边界三态，低置信不计入分布）；`parent_confirmed_at` text NULL；`graph_version` text；`created_at` text。约束：只 insert；唯一索引 (source 引用, error_tag) 幂等（source 引用列名细节留 M4 明确）；分布索引 (error_tag, created_at)。
 - **`weekly_summary`**（周信存档，append-only）：`id` text PK；`iso_week` text（如 `2026-W34`，周唯一）；`status` text（`acknowledged`/`unacknowledged`，§6.1 降级依赖；行内容 append-only，确认状态变更允许 in-place 更新或另建确认留痕表——细节留 M4）；`node_status_snapshot_json` text（当周 A/B/C/D 时间快照）；`coverage_json` text（本周覆盖节点/素材引用，聚合自 `daily_summaries`/`attempts`）；`error_distribution_json` text（错因模式素材，聚合自 `error_cause_log`）；`evidence_scope` text（`system_only`/`with_manual`/`with_all_correct`，§6.1 三分类）；`narrative_json` text（LLM 叙述或降级模板标记）；`generated_at` text；`acknowledged_at` text NULL。约束：`iso_week` 唯一索引，每周一条。
 - **「作业全对」确认载体**（建议命名 `daily_all_correct_confirmations`，最轻量）：`id` text PK；`confirm_date` text（每日一键，日唯一）；`confirmed_by` text（归属人设计稿未定：孩子或爸爸 → **挂起待爸爸拍板**，时限 M4 启动前，对齐设计稿 §10 #1 时限）；`evidence_scope_mark` text（标记本日证据范围分类）；`source_refs_json` text（当日作业关联引用，可空）；`created_at` text。约束：`confirm_date` 唯一；只 insert；**mastery 判定不得读取本表**（不进判定样本）。
 
@@ -300,8 +300,11 @@
 |---|---|
 | `db.py:6459` | `is_current_attempt_question`：`get_question` KeyError → False（手动错题恒"非当前题"） |
 | `server.py:2366` | pending_review 批改 job 入队：`get_question` **无 try 保护** → NULL `question_id` 直接崩溃 |
-| `flow_nodes.py:113` | mastery 诊断取题面 |
-| `evolution.py:763/820` | 演化源题判失效 / 取题面（`_attempt_question_source_invalidated`，KeyError → True 判失效） |
+| `flow_nodes.py:113` | mastery 诊断取题面（`_question_for_attempt`，**无 try 保护** → NULL `question_id` 崩溃） |
+| `evolution.py:763` | `_attempt_question_source_invalidated`：`get_question` KeyError → True 判失效 |
+| `evolution.py:820` | `_base_question` 取题面：**无 try 保护** → NULL `question_id` 崩溃 |
+
+- **排除声明（不计入上述分组）**：另有 3 处 `question_items` LEFT JOIN 由 `graph_nodes`（`node_id`）驱动，与 `attempts` FK 无关、不受可空化影响、不计入 A–F 分组——`server.py:480`、`agents.py:210`、`reports.py:338`（均为 `from graph_nodes n left join question_items q on q.node_id = n.id` 形态）。
 
 **联动索引（`db.py:1475-1480`）**
 
@@ -321,7 +324,7 @@
 
 **方案①（可空化 `question_id`/`session_id`）——否决。** 理由：
 
-1. **消费链断裂**：判定/评估管线全链 NOT NULL——`attempt_assessments.question_id`（`db.py:959`）、`answer_contracts.question_id`（`db.py:743`）、`evidence_validations` 链均要求真实题。可空化后手动错题行"插得进、消费不了"：A 组 13 处 + B 组 1 处 INNER JOIN 静默过滤（批改队列 `db.py:7658`、最近作答 `db.py:7685`、报告视图 `reports.py:129` 形态之外全部看不到），F 组 5 处直接解引用中 `server.py:2366` **无保护会崩溃**、其余判 KeyError 失效。"复用 attempts"字面成立，但没有任何消费方读得到它。
+1. **消费链断裂**：判定/评估管线全链 NOT NULL——`attempt_assessments.question_id`（`db.py:959`）、`answer_contracts.question_id`（`db.py:743`）、`evidence_validations` 链均要求真实题。可空化后手动错题行"插得进、消费不了"：A 组 13 处 + B 组 1 处 INNER JOIN 静默过滤（批改队列 `db.py:7658`、最近作答 `db.py:7685`、报告视图 `reports.py:129` 形态之外全部看不到），F 组 5 处直接解引用中 **3 处无保护会崩溃**（`server.py:2366`、`flow_nodes.py:113`、`evolution.py:820`）、**2 处判失效**（`db.py:6459`、`evolution.py:763`：KeyError → False/True）。"复用 attempts"字面成立，但没有任何消费方读得到它。
 2. **改造面 = 全部 A/B/F 组（14 处 INNER JOIN + 5 处直接调用）**：需逐条改为 LEFT JOIN/条件过滤（现仅 D 组 3 处 LEFT，`reports.py:129` 是唯一范例），回归面大、风险高。
 3. **迁移成本高**：SQLite 无法 ALTER 去 NOT NULL，需全表重建迁移（见现状索引段）。
 4. **信任边界错位**：§3.2 要求手动/低置信证据**不计入判定样本**（`child-learning-companion-design.md:146-149`）；可空化把手动错题放进 `attempts`，目前靠 INNER JOIN 偶发过滤，语义脆弱——任何一处改成 LEFT JOIN 或按 `node_id` 聚合（如 `reports.py:129` 形态）都会让手动错题混入统计。
@@ -374,7 +377,7 @@
 | 5 | 开学前收口 | 两次综合检测，形成开学首月跟踪清单。 | 第45-50天 | 8653-8657 |
 
 - 元素结构：每元素含 `name`/`goal`/`phase` 三字段，其中 `phase` 是"第X-Y天"**日历段标签**（非语义阶段标识）；5 段合计覆盖第 1–50 天，数组元素顺序即执行顺序（核对项 2 已记录）。
-- **零代码消费（引用核对项 2 / Task 4 结论，不重复实测）**：`grep -rn "phase_strategy\|learning_path\|session_template" learning_system/ scripts/ --include="*.py"` **0 命中**（见核对项 2 现状）；图谱唯一装载方 `seed_from_assets`（`learning_system/db.py:3307-3309`）不读 `learning_path` → 纯规划配置，改结构零运行时耦合。
+- **零代码消费（引用核对项 2 / Task 4 结论，不重复实测）**：`grep -rn "phase_strategy\|learning_path\|session_template" learning_system/ scripts/ --include="*.py"` **0 命中**（见核对项 2 现状）；图谱唯一装载方 `seed_from_assets`（`learning_system/db.py:3308 起`）不读 `learning_path` → 纯规划配置，改结构零运行时耦合。
 - **与新设计冲突（Step 2 核对）**：
   - **建档（第1-3天）** vs 执行窗口：设计稿本稿日期 2026-08-20、距 2026-08-24 开学仅 4 天，假期活动（诊断建档、Tier 二轮复核）"挂下一假期或压缩执行"（`2026-08-20-child-learning-companion-design.md:77`）；Tier S 建档依赖 Tier 二轮复核前置、当前窗口无法执行（`:192/328`）；且建档在设计中是"假期头 1-3 天**单独时段**（不占日模板）"的子活动（`:109/190`），非独立阶段 → 与"第1-3天建档"作为独立阶段的配置冲突。
   - **快补（第4-12天）** vs §4.3：80 分孩子**不做预防性补差**（`:188`）——只做 Tier S 前置建档，其余小学前置"不做预防性诊断，等七上错题回查时按需触发"（`:190-191`）；小学前置+桥梁 24 节点整体重定义为**回查用前置层**："不再主动教，只在七上错题回查时按需诊断"（§4.2，`:182`）→ 与"第4-12天小学前置快补"预防性补差阶段直接冲突。
@@ -386,7 +389,7 @@
 
 #### 结论（或挂起原因）
 
-**选择：组合裁定——「折叠 + 裁剪」：裁剪建档与快补两段为独立阶段（建档语义折叠进「暑假衔接收口」，快补语义按 §4.3 否决裁剪），保留主线/混合/收口三段语义（重组进新阶段数组）。三选项逐一评估：**
+**选择：组合裁定——「折叠 + 裁剪」：建档折叠进「暑假衔接收口」、快补按 §4.3 裁剪，两段均不再作为独立阶段；保留主线/混合/收口三段语义（重组进新阶段数组）。三选项逐一评估：**
 
 1. **选项① 折叠进「暑假衔接收口」——采纳（对建档段）**。理由：建档本就不是独立阶段——设计稿定义其为"假期头 1-3 天单独时段（不占日模板）"的子活动（`:109/190`），且执行挂下一假期（`:77/192/328`）；折叠后语义不丢失，只在「暑假衔接收口」阶段配置内显式表达"建档子活动（执行状态：挂起，待下一假期）"。代价：阶段配置需新增"子活动/单独时段"表达位，否则丢失"建档不占日模板"语义（对齐 §2 假期模式日模板，`:109`）。
 2. **选项② 裁剪建档与快补两段——采纳（对快补段；对建档段须与选项①组合）**。理由：快补 = 预防性补差，被 §4.3 显式否决（`:188-191`），其"只补P0薄弱前置"目标被"回查用前置层：不再主动教，只在七上错题回查时按需诊断"取代（§4.2，`:182`）→ 独立阶段无存在必要，直接裁剪；建档则不是"不做"而是"挂下一假期做"，单独裁剪会丢失该配置表达，须与选项①组合（折叠）。
@@ -397,7 +400,7 @@
 
 1. 阶段数组计划（后续计划）的改造范围明确：`phase_strategy` 5 元素（`math_knowledge_graph_v2.json:8632-8658`）→ 收敛为先落 2 阶段「暑假衔接收口 + 开学首月」（设计稿 §8.2，`2026-08-20-child-learning-companion-design.md:333`）；建档子活动（挂下一假期）、收口动作等语义在阶段配置内显式表达，`phase` 字段从"第X-Y天"标签改为阶段标识。
 2. 零运行时耦合（Task 4 实测 grep 0 命中）→ 改造只动 JSON 配置、不动代码/数据；阶段数组若要驱动执行（如阶段 → daily_runtime mode 映射），须在阶段数组计划中显式定义（核对项 2 影响清单第 3 条）。
-3. 建档执行时序不受本裁定改变：挂下一假期（§0/§8.4，`2026-08-20-child-learning-companion-design.md:77/356`）；开学首月收口验收（错题录入可用、周信出首期、判定口径统一后状态可信）不等建档（`:356`）。
+3. 建档执行时序不受本裁定改变：挂下一假期（文档头执行窗口/§8.4，`2026-08-20-child-learning-companion-design.md:77/356`）；开学首月收口验收（错题录入可用、周信出首期、判定口径统一后状态可信）不等建档（`:356`）。
 4. **最终裁定随阶段数组计划执行**：本核对项只产出裁定建议（推荐 = 折叠 + 裁剪），不落地任何改动；阶段数组实际改写随后续「阶段数组计划」执行（设计稿 §8.2，`:333`；实现计划已声明阶段数组改造需本裁定结果 + v20 生题结束后，避免 digest 联动 churn，`2026-08-20-semester-data-link-prereqs.md:13`）。
 5. 挂起项：无独立挂起——"建档子活动在「暑假衔接收口」阶段配置内的具体表达（字段/子结构）"属执行细节，随阶段数组计划落地时裁定，不阻塞本裁定建议。
 
@@ -456,14 +459,14 @@
 - 证据要求：**定性描述**（能讲清方法 / 概念说不清），无最小样本数、无 explanation_score、无题型多样性/迁移证据的量化要求。
 - 落位：设计文档非代码——对应 §7.2 诊断 agent"给节点打 A/B/C/D 状态"（`:231`）。
 
-**四套口径差异表（阈值 × 状态枚举 × 证据要求）：**
+**四套口径差异表（阈值 × 状态枚举 × 证据要求 × 落库路径）：**
 
-| 实现 | 阈值 | 状态枚举 | 证据要求 |
-|---|---|---|---|
-| 蓝图 §12（文档，`:637-666`） | 正确率 A≥85% / B 60-85% / C<60%；D=节点错+前置链错 | A/B/C/D（语义档） | 定性（能讲清方法/概念说不清）；无最小样本、无解释分、无迁移/多样性量化 |
-| `evolution.py` `_status_from_attempts`（`:662-683`） | ratio 0.85/0.60；blocking→D、高分推理缺口→C 优先 | A/B/C/D | can_explain（explanation_score≥2 且无推理缺口）；A 需样本≥2；无迁移/多样性要求；**proposal-only 不落库** |
-| `flow_nodes.py` `_mastery_diagnosis`（`:399-498`） | ratio<0.6→unstable（0.6 边界）；无 0.85 硬阈值（strong 定义替代） | **6 态** mastery_state：blocked/unstable/emerging/stable/likely_stable/insufficient_evidence（另有 4 档 overall_status） | strong=correct+解释分≥2+五维 core 全 matched/alternative_valid；stable 需 strong≥2+迁移题型+题型≥2 种；经 orchestrator 落 A/B/C/D（`orchestrator.py:523-555`） |
-| `daily_runtime.py` v51（`:13533-13605`） | 无百分比阈值；确定性路径 score<8/10 或 severe_gap→weak（`:7813/7820`） | recommendation 6 枚举（no_update/blocked/weak/emerging/likely_stable/stable_for_now，`evaluation_decision.v2.json:39`）→ status_code A/B/C/D | A 档需≥2 条全链校验证据+≥2 structure+confirmation_core&transfer 双角色（`:13746-13840`）；B 需 correct+解释分≥2+sound 或 emerging/likely_stable；解释分<2 或 partial→C |
+| 实现 | 阈值 | 状态枚举 | 证据要求 | 落库路径 |
+|---|---|---|---|---|
+| 蓝图 §12（文档，`:637-666`） | 正确率 A≥85% / B 60-85% / C<60%；D=节点错+前置链错 | A/B/C/D（语义档） | 定性（能讲清方法/概念说不清）；无最小样本、无解释分、无迁移/多样性量化 | 不落库（设计文档，非代码） |
+| `evolution.py` `_status_from_attempts`（`:662-683`） | ratio 0.85/0.60；blocking→D、高分推理缺口→C 优先 | A/B/C/D | can_explain（explanation_score≥2 且无推理缺口）；A 需样本≥2；无迁移/多样性要求；**proposal-only（状态不入 learner_node_status/mastery_decisions）** | 不落库——仅写 `evolution_events`（`:1361`） |
+| `flow_nodes.py` `_mastery_diagnosis`（`:399-498`） | ratio<0.6→unstable（0.6 边界）；无 0.85 硬阈值（strong 定义替代） | **6 态** mastery_state：blocked/unstable/emerging/stable/likely_stable/insufficient_evidence（另有 4 档 overall_status） | strong=correct+解释分≥2+五维 core 全 matched/alternative_valid；stable 需 strong≥2+迁移题型+题型≥2 种 | v2 orchestrator 落库：`learner_node_status`（`orchestrator.py:565-581`）+ `mastery_decisions`（`orchestrator.py:695` → `db.py:1925`） |
+| `daily_runtime.py` v51（`:13533-13605`） | 无百分比阈值；确定性路径 score<8/10 或 severe_gap→weak（`:7813/7820`） | recommendation 6 枚举（no_update/blocked/weak/emerging/likely_stable/stable_for_now，`evaluation_decision.v2.json:39`）→ status_code A/B/C/D | A 档需≥2 条全链校验证据+≥2 structure+confirmation_core&transfer 双角色（`:13746-13840`）；B 需 correct+解释分≥2+sound 或 emerging/likely_stable；解释分<2 或 partial→C | v5 落库：`mastery_decisions`（`:13637`）+ `learner_node_status`（`:13699-13705`） |
 
 #### 裁定点
 
@@ -479,10 +482,10 @@
 
 **影响（供 M2.5 裁定输入，本步不执行）：**
 
-1. 差异收口主战场 = 两条**落库路径**：flow_nodes（v2 orchestrator，`orchestrator.py:565-581`）与 daily_runtime v51（v5，`daily_runtime.py:13699-13705`）；evolution.py 口径是 proposal-only（`evolution.py:1305`）不落库，统一时优先对齐两条落库路径。
+1. 差异收口主战场 = 两条**落库路径**：flow_nodes（v2 orchestrator，`orchestrator.py:565-581`）与 daily_runtime v51（v5，`daily_runtime.py:13699-13705`）；evolution.py 口径是 proposal-only（状态不入 `learner_node_status`/`mastery_decisions`，仅写 `evolution_events`，`evolution.py:1305/1361`），统一时优先对齐两条落库路径。
 2. A 档门槛差异显著（85%+能讲清 → ≥2 样本+can_explain → 2 条 strong+迁移+多样性 → 2 条全链校验+双角色），"最小证据量+复测确认"（§3.2 第 2 条，`2026-08-20-child-learning-companion-design.md:139`）在各实现的落地强度不同——`mastery_criteria_proposal` 需统一最小样本与确认条件。
 3. flow_nodes 6 态 vs 设计稿 §3.2"4 态"记录偏差已如实入表（§8.1 已改记 6 态，`:326`）；M2.5 统一时以实测 6 态为准。
-4. v51 确定性路径只产 weak/emerging，LLM 评估 agent 才产全 6 枚举——LLM 参与边界（§3.2 第 3 条：LLM 只在错因归类与叙述，`:140`）需在 `mastery_criteria_proposal` 中明确评估环节 LLM 的角色与降级路径。
+4. v51 确定性路径只产 weak/emerging，LLM 评估 agent 才产全 6 枚举（评估 agent 契约键 = `evaluation_decision` v2，`internal_agents.py:68-69`；recommendation 6 枚举定义 `agent_contracts/evaluation_decision.v2.json:39`）——LLM 参与边界（§3.2 第 3 条：LLM 只在错因归类与叙述，`:140`）需在 `mastery_criteria_proposal` 中明确评估环节 LLM 的角色与降级路径。
 5. 与核对项 4 挂起项呼应：手动错题（explanation_score 缺失）在 evolution/flow_nodes 口径下无法进 A 档——手动证据入档规则属 `mastery_criteria_proposal` 裁定（§3.1，`:130`；核对项 4 结论挂起项 1）。
 
 ---
@@ -493,20 +496,42 @@
 
 #### 现状（证据：文件:行）
 
-- 双定义：`learning_system/auto_review.py:10` 与 `learning_system/question_bank.py:16` 的 `CANONICAL_ERROR_TAGS`（逐字一致？）。
-- 需求背景：spec §7「双 `CANONICAL_ERROR_TAGS` 收口为单一导入源，防三年错因分布漂移」。
+**双定义（`diff` 逐字比对实测）**
 
-（骨架占位：Task 8 填充）
+- `learning_system/auto_review.py:10-17` 与 `learning_system/question_bank.py:16-23` 的 `CANONICAL_ERROR_TAGS` **逐字一致**：`diff <(sed -n '10,17p' learning_system/auto_review.py) <(sed -n '16,23p' learning_system/question_bank.py)` 输出为空；两段均为 8 行 set 字面量、无注释/空白差异。
+- **6 个 tag**：`calculation_or_symbol` / `concept_confusion` / `modeling_or_reading` / `process_habit` / `visual_spatial` / `general`。
+- `auto_review.py` 另派生 `DIMENSION_GAP_ERROR_TAGS`（`auto_review.py:22-28`，五维 → tag 映射），取值均在上述 6 tag 内。
+
+**消费方不对称（`grep -rn "CANONICAL_ERROR_TAGS" learning_system/ tests/ --include="*.py"`，21 命中，其中 2 处为定义）**
+
+- `question_bank.CANONICAL_ERROR_TAGS` 是**事实共享源**：外部消费者 4 个模块 8 处引用——`db.py:263/6106`（落库标签校验）、`daily_runtime.py:9263/9268`（批改规范化 `_canonical_error_tags_for_answer_output`，`daily_runtime.py:9251-9276`）、`evolution.py:174/284/356`（LLM 契约枚举/演化标签）、`tests/test_learning_system.py:5636`；另 `question_bank.py` 内部 8 处使用（题面过滤 `4270/5327/5958/9723/9751` 等）。
+- `auto_review.CANONICAL_ERROR_TAGS` **仅自用**（`auto_review.py:366/840/892`，批改 JSON schema 枚举与结果过滤），无外部导入者。
+- **无防漂移机制**：两定义各自独立维护；全库无测试断言两定义相等（`tests/test_learning_system.py:5636` 只断言 `grade["error_tags"] ⊆ question_bank.CANONICAL_ERROR_TAGS`，未比较 `auto_review` 版本）→ 任一侧增删 tag 不报错，三年错因分布（`error_cause_log.error_tag` 枚举，见核对项 3 结论影响清单第 4 条）将随消费方导入源不同而口径漂移。
+
+- 需求背景：spec §7「双 `CANONICAL_ERROR_TAGS` 收口为单一导入源，防三年错因分布漂移」（`2026-08-20-semester-data-link-prereqs.md:106` §Task 8 步骤 2）。
 
 #### 裁定点
 
-- 双定义是否逐字一致；收口为单一导入源的落地建议（列为后续计划项）。
-
-（骨架占位：Task 8 填充）
+- 双定义是否逐字一致（Task 8 Step 1）；收口为单一导入源的落点建议（Task 8 Step 2，列为后续计划项）。
 
 #### 结论（或挂起原因）
 
-（骨架占位：Task 8 填充；若存在未决点，标注"挂起待 X"）
+**选择：双定义现状逐字一致（6 tag 全同）、无紧急修复必要；收口为单一导入源（推荐 + 最小方案，均含落点），列为后续计划项，本核对不落地任何代码改动。**
+
+- 逐字一致性实测：`diff` 输出为空（见现状）——**现状无漂移**；但**漂移风险真实存在**：双定义独立演进、无测试护栏，任一侧增删 tag 即造成 `error_cause_log`（三年错因分布，核对项 3 已裁定新增）与批改/出题两侧的枚举口径分裂。
+- **收口建议（落点）**：
+  - **推荐方案**：新建 `learning_system/error_tags.py` 为**唯一定义源**（导出 `CANONICAL_ERROR_TAGS`，顺带托管 6 tag 语义注释）；`auto_review.py` 与 `question_bank.py` 均改为 `from .error_tags import CANONICAL_ERROR_TAGS`；既有外部消费者（`db.py`/`daily_runtime.py`/`evolution.py`/`tests`）继续经 `question_bank` 再导出，或逐步迁移到 `error_tags`。理由：中性落点、不引入模块方向依赖（避免 `auto_review → question_bank` 把 9836 行大模块拉进批改热路径 import 面）、为 `error_cause_log.error_tag` 提供唯一枚举锚点。
+  - **最小方案（不加新模块）**：`auto_review.py` 删定义、改 `from .question_bank import CANONICAL_ERROR_TAGS`——`question_bank` 已是事实共享源（4 个外部模块，见现状），改动面仅 2 行。
+  - **防漂移护栏（任选方案都应补）**：收口后加一条单元测试断言单一源唯一（或收口前断言双定义相等），防止未来重新分叉。
+- **列为后续计划项**：收口是代码改动（新增/修改模块 + import），超出本核对只读范围（本记录 §3 填写纪律第 5 条：结论不得引发对代码/数据的修改）→ 执行列入后续计划（可与核对项 3 的 `error_cause_log` schema、M4 错题录入同批，或作为独立小改动先行）。
+- 挂起项：无独立挂起——收口执行 = 后续计划项，不阻塞本核对项与 Chunk 1 完成。
+
+**影响：**
+
+1. 三年错因分布可信度前置：`error_cause_log.error_tag`（核对项 3 已裁定一行一标签、枚举对齐 `CANONICAL_ERROR_TAGS`）与批改/出题两侧同源后，分布统计口径唯一；收口前靠人工比对防漂移。
+2. 改动面评估：推荐方案 = 新增 1 模块 + 2 文件 import 替换 + 消费者可逐步迁移，集合内容不变、无行为变化；最小方案 = 仅 `auto_review.py` 2 行。
+3. 与设计稿 §7 一致：§7 已裁定收口为单一导入源（`2026-08-20-semester-data-link-prereqs.md:106`），本核对项为其提供现状证据（双定义逐字一致 + 消费方不对称）与落点建议。
+4. 后续计划承接：在阶段数组 / M2.5 / M4 之外新增"`CANONICAL_ERROR_TAGS` 收口"小计划项，执行时在推荐与最小方案间二选一。
 
 ---
 
