@@ -11,16 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from . import child_prompt, question_usage, question_visuals
+from .error_tags import CANONICAL_ERROR_TAGS
 
-
-CANONICAL_ERROR_TAGS = {
-    "calculation_or_symbol",
-    "concept_confusion",
-    "modeling_or_reading",
-    "process_habit",
-    "visual_spatial",
-    "general",
-}
 
 BASE_RUBRIC = [
     {

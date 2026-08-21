@@ -5,16 +5,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import db, model_router
+from .error_tags import CANONICAL_ERROR_TAGS
 
-
-CANONICAL_ERROR_TAGS = {
-    "calculation_or_symbol",
-    "concept_confusion",
-    "modeling_or_reading",
-    "process_habit",
-    "visual_spatial",
-    "general",
-}
 
 MIN_CONFIDENCE_TO_GRADE = 0.68
 MIN_PHOTO_OCR_CONFIDENCE = 0.62
