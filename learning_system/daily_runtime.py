@@ -23,6 +23,7 @@ from . import (
     internal_agents,
     job_queue,
     knowledge_cards,
+    mastery_v51_adapter,
     multimodal_evidence,
     model_router,
     question_bank,
@@ -13474,7 +13475,7 @@ class DailyLearningRuntime:
         evaluation_agent_run_id: str | None = None,
         evaluation_output: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        support = attempt.get("answer_analysis", {}).get("evaluation_support", {})
+        support = self._v51_evaluation_support(attempt=attempt, validation_id=validation.validation_id)
         evaluation_output = evaluation_output or {}
         try:
             usage_snapshot = db.attempt_usage_context(self.conn, str(attempt.get("id") or ""))["snapshot"]
@@ -13530,7 +13531,6 @@ class DailyLearningRuntime:
                     else {}
                 ),
             }
-        recommendation = str(evaluation_output.get("mastery_recommendation") or "")
         stored_old_status = self.conn.execute(
             "select * from learner_node_status where node_id = ?",
             (attempt["node_id"],),
@@ -13558,51 +13558,71 @@ class DailyLearningRuntime:
         old_validation_ids = db.json_load(old_status["source_evidence_validation_ids_json"], []) if old_status else []
         source_attempt_ids = list(dict.fromkeys([*(str(item) for item in old_attempt_ids if item), attempt["id"]]))
         source_validation_ids = list(dict.fromkeys([*(str(item) for item in old_validation_ids if item), *([validation.validation_id] if validation.validation_id else [])]))
-        if attempt.get("blocking_evidence") or recommendation == "blocked":
-            status_code = "D"
-            decision = "prerequisite_blocked"
-            reason = str(evaluation_output.get("reason") or "孩子明确卡住或证据显示不能启动。")
-        elif recommendation == "stable_for_now" and self._evidence_set_supports_stable_mastery(source_validation_ids):
-            status_code = "A"
-            decision = "stable_for_now"
-            reason = str(evaluation_output.get("reason") or "多条不同核心证据和近迁移证据支持暂时稳定。")
-        elif recommendation in {"weak"}:
-            status_code = "C"
-            decision = "current_node_weak"
-            reason = str(evaluation_output.get("reason") or "有效证据显示当前节点仍不稳。")
-        elif recommendation == "emerging":
-            if old_status and old_status["status_code"] in {"A", "C"}:
-                status_code = old_status["status_code"]
-                decision = "preserve_accumulated_status"
-                reason = str(evaluation_output.get("reason") or "单条高分证据不足以覆盖已有累积状态。")
-            else:
-                status_code = "B"
-                decision = "basic_understanding"
-                reason = str(evaluation_output.get("reason") or "本题关键得分点成立，先记为初步掌握，仍需迁移确认。")
-        elif old_status and old_status["status_code"] in {"A", "C"} and recommendation == "":
-            status_code = old_status["status_code"]
-            decision = "preserve_accumulated_status"
-            reason = str(evaluation_output.get("reason") or "单条窄证据不足以覆盖已有累积状态。")
-        elif recommendation == "likely_stable":
-            status_code = "B"
-            decision = "likely_stable"
-            reason = str(evaluation_output.get("reason") or "重复证据支持基本理解，但仍需迁移确认。")
-        elif attempt.get("result") == "correct" and int(attempt.get("explanation_score") or 0) >= 2 and support.get("reasoning_soundness") == "sound":
-            status_code = "B"
-            decision = "basic_understanding"
-            reason = str(evaluation_output.get("reason") or "本题答案和关键过程成立，但仍需变式确认稳定性。")
-        elif attempt.get("result") == "partial":
-            status_code = "C"
-            decision = "current_node_weak"
-            reason = "有部分思路，但过程、表达或检验仍不稳。"
-        else:
-            status_code = "C"
-            decision = "current_node_weak"
-            reason = "有效证据显示当前节点存在断点。"
-        if recommendation in {"blocked", "weak"} and status_code == "B":
-            status_code = "C"
-            decision = "current_node_weak"
-            reason = str(evaluation_output.get("reason") or reason)
+        # ------------------------------------------------------------------
+        # M2.5-5b: unified mastery judgment (proposal §2.2/§2.3/§5).
+        # The legacy recommendation -> status mapping and the A-gate
+        # (_evidence_set_supports_stable_mastery, kept below, deprecated) are
+        # replaced by mastery_v51_adapter.judge_v51_evaluation, which composes
+        # the unified rules: decide_verdict (R1-R6 + window AGG C1-C6) ->
+        # apply_llm_tightening (evaluation_output.mastery_recommendation as the
+        # §5 evidence-interpretation label, 只收紧不放宽) -> transition_status
+        # (§2.3 table, counter derived from the node's mastery_decisions).
+        # Only the *judgment* changed; the persistence below (mastery_decisions
+        # insert, learner_node_status upsert with status_revision + 1) is
+        # untouched. NO_CHANGE verdicts are never stored (applied=False).
+        # ------------------------------------------------------------------
+        deterministic_judgment = (
+            str(provider_mode) in {"deterministic_runtime", "mock", "replay"}
+            or not str(evaluation_output.get("mastery_recommendation") or "")
+        )
+        judgment = mastery_v51_adapter.judge_v51_evaluation(
+            current_row=self._v51_evidence_row(
+                attempt=attempt,
+                usage_snapshot=usage_snapshot,
+                support=support,
+                gate_passed=True,
+                voice_verifiable=True,
+            ),
+            history_rows=self._v51_node_evidence_rows(
+                node_id=attempt["node_id"],
+                graph_version=str(attempt.get("graph_version") or ""),
+                question_bank_version=str(attempt.get("question_bank_version") or ""),
+                current_created_at=str(attempt.get("created_at") or ""),
+                exclude_attempt_id=str(attempt.get("id") or ""),
+            ),
+            decision_history=self._v51_node_decision_history(
+                node_id=attempt["node_id"],
+                graph_version=str(attempt.get("graph_version") or ""),
+                question_bank_version=str(attempt.get("question_bank_version") or ""),
+                exclude_attempt_id=str(attempt.get("id") or ""),
+            ),
+            evaluation_output=evaluation_output,
+            current_status=old_status["status_code"] if old_status else None,
+            deterministic=deterministic_judgment,
+        )
+        if not judgment["applied"]:
+            return {
+                "applied": False,
+                "status_code": "",
+                "reason": judgment["reason"],
+                "reason_code": judgment["reason_code"],
+                "validation_id": validation.validation_id,
+                "report_label": validation.predicate.report_label,
+                "verdict": judgment["verdict"],
+            }
+        status_code = judgment["status"]
+        decision = judgment["decision"]
+        reason = judgment["reason"]
+        unified_verdict_trace = {
+            "verdict": judgment["verdict"],
+            "verdict_reason_code": judgment["reason_code"],
+            "verdict_decision": judgment["verdict_reason"],
+            "verdict_attrs": judgment["attrs"],
+            "cd_counter": judgment["counter"],
+            "previous_cd_counter": judgment["previous_counter"],
+            "recheck": judgment["recheck"],
+            "downgrade": judgment["downgrade"],
+        }
         if evaluation_agent_run_id:
             run = {"id": evaluation_agent_run_id}
         else:
@@ -13658,6 +13678,7 @@ class DailyLearningRuntime:
                     "report_label": validation.predicate.report_label,
                     "evaluation_agent_output": evaluation_output,
                     "step_usage_context": usage_snapshot,
+                    "unified_verdict": unified_verdict_trace,
                 }),
                 attempt.get("graph_version") or "",
                 attempt.get("question_bank_version") or "",
@@ -13743,6 +13764,11 @@ class DailyLearningRuntime:
             and evaluation.get("reason_code") != "client_unverified_voice_transcript"
         )
 
+    # DEPRECATED (M2.5-5b): the v51 A-gate. The wiring now uses the unified
+    # mastery rules via mastery_v51_adapter.judge_v51_evaluation (the A gate is
+    # decide_verdict's window AGG C1-C6, with this method's full-chain checks
+    # preserved per-row by _v51_node_evidence_rows). Kept untouched for
+    # rollback/audit; physical removal is deferred to M2.5-5c.
     def _evidence_set_supports_stable_mastery(self, validation_ids: list[str]) -> bool:
         ids = [str(item) for item in validation_ids if item]
         if len(ids) < 2:
@@ -13838,6 +13864,346 @@ class DailyLearningRuntime:
             and "confirmation_core" in diagnostic_roles
             and "confirmation_transfer" in diagnostic_roles
         )
+
+    # ------------------------------------------------------------------
+    # M2.5-5b: unified-mastery evidence wiring. These helpers build the
+    # mastery_bridge external row shape (judgment-event rows) for the node's
+    # evidence window and the §2.3 counter history, feeding
+    # mastery_v51_adapter.judge_v51_evaluation. Pure judgment lives in the
+    # adapter; here only DB reads and row shaping (no sqlite in the adapter).
+    # ------------------------------------------------------------------
+
+    def _v51_evidence_row(
+        self,
+        *,
+        attempt: dict[str, Any],
+        usage_snapshot: dict[str, Any],
+        support: dict[str, Any],
+        gate_passed: bool,
+        voice_verifiable: bool,
+    ) -> dict[str, Any]:
+        """Build one judgment-event row in the mastery_bridge external shape.
+
+        `attempt` is an attempt dict (db.get_attempt / the node-history query
+        rows below), `usage_snapshot` the attempt usage context snapshot
+        (purpose / hint_policy / mastery_update_eligible / purpose_role /
+        structure_fingerprint), `support` the answer_analysis evaluation_support
+        (reasoning_soundness / evidence_strength / next_evidence_need).
+        """
+        return {
+            "attempt_id": str(attempt.get("id") or attempt.get("attempt_id") or ""),
+            "created_at": str(attempt.get("created_at") or db.now_iso()),
+            "result": attempt.get("result"),
+            "score_points": attempt.get("score_points"),
+            "max_points": attempt.get("max_points"),
+            "explanation_score": attempt.get("explanation_score"),
+            "reasoning_soundness": support.get("reasoning_soundness"),
+            "evidence_strength": support.get("evidence_strength"),
+            "next_evidence_need": support.get("next_evidence_need"),
+            "blocking_evidence": bool(attempt.get("blocking_evidence")),
+            "structure_fingerprint": str(usage_snapshot.get("structure_fingerprint") or ""),
+            "purpose_role": str(usage_snapshot.get("purpose_role") or ""),
+            "purpose": str(usage_snapshot.get("purpose") or "diagnostic"),
+            "hint_policy": str(usage_snapshot.get("hint_policy") or "no_hint"),
+            "mastery_update_eligible": bool(usage_snapshot.get("mastery_update_eligible")),
+            "gate_passed": bool(gate_passed),
+            "voice_verifiable": bool(voice_verifiable),
+            "analysis_valid": str(attempt.get("analysis_status") or "") == "valid",
+            "is_manual": str(attempt.get("answer_source") or "") == "parent_manual",
+        }
+
+    def _v51_answer_analysis_run_output(self, validation_id: str) -> dict[str, Any] | None:
+        """The answer-analysis agent run output referenced by a validation.
+
+        The v5.1 assessment flow replaces attempts.answer_analysis_json with an
+        assessment projection (no reasoning fields); the full analysis with
+        evaluation_support lives in the answer_analysis agent run output.
+        """
+        if not validation_id:
+            return None
+        row = self.conn.execute(
+            """
+            select ar.output_json
+            from evidence_validations ev
+            join agent_runs ar on ar.id = ev.answer_analysis_agent_run_id
+            where ev.id = ?
+            """,
+            (validation_id,),
+        ).fetchone()
+        if not row:
+            return None
+        output = db.json_load(row["output_json"], None)
+        return output if isinstance(output, dict) else None
+
+    @staticmethod
+    def _v51_evaluation_support_from(
+        attempt_analysis: dict[str, Any], run_output: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """evaluation_support from the strongest available source.
+
+        Order: (1) explicit evaluation_support on the attempt analysis; (2)
+        evaluation_support in the answer-analysis agent run output (both the
+        nested "answer_analysis" and the top-level shapes are accepted). Empty
+        when none is available — the caller may then derive conservatively
+        from the assessment projection (_v51_support_from_assessment_projection).
+        """
+        for candidate in (attempt_analysis, run_output):
+            if not isinstance(candidate, dict):
+                continue
+            support = candidate.get("evaluation_support")
+            if isinstance(support, dict) and support:
+                return support
+            nested = candidate.get("answer_analysis")
+            if isinstance(nested, dict):
+                support = nested.get("evaluation_support")
+                if isinstance(support, dict) and support:
+                    return support
+        return {}
+
+    @staticmethod
+    def _v51_support_from_assessment_projection(attempt: dict[str, Any]) -> dict[str, Any]:
+        """Conservative reasoning fields derived from the v5.1 assessment projection.
+
+        The accepted assessment (score_out_of_10 / question_passed) is the
+        reasoning evidence the evidence gate already verified; this derivation
+        keeps gate-passed attempts classifiable when the full analysis is not
+        retrievable (e.g. replayed/legacy rows), aligned with the §2.2
+        thresholds: full-score passed correct -> strong/sound; correct below
+        8/10 -> unclear (C via reasoning gap); partial -> incomplete (C);
+        wrong -> empty (R2 -> C regardless).
+        """
+        projection = attempt.get("answer_analysis") if isinstance(attempt.get("answer_analysis"), dict) else {}
+        result = str(attempt.get("result") or "")
+        try:
+            score = (
+                float(projection.get("score_out_of_10"))
+                if projection.get("score_out_of_10") is not None
+                else None
+            )
+        except (TypeError, ValueError):
+            score = None
+        question_passed = bool(projection.get("question_passed", True))
+        if result == "correct" and question_passed and (score is None or score >= 8):
+            return {
+                "usable_for_evaluation": True,
+                "evidence_strength": "strong",
+                "reasoning_soundness": "sound",
+                "dominant_gap_dimensions": [],
+                "needs_clearer_evidence": False,
+                "next_evidence_need": "none",
+            }
+        if result == "correct":
+            return {
+                "usable_for_evaluation": True,
+                "evidence_strength": "medium",
+                "reasoning_soundness": "unclear",
+                "dominant_gap_dimensions": [],
+                "needs_clearer_evidence": True,
+                "next_evidence_need": "clearer_solution_evidence",
+            }
+        if result == "partial":
+            return {
+                "usable_for_evaluation": True,
+                "evidence_strength": "weak",
+                "reasoning_soundness": "incomplete",
+                "dominant_gap_dimensions": [],
+                "needs_clearer_evidence": True,
+                "next_evidence_need": "same_structure_confirmation",
+            }
+        return {}
+
+    def _v51_evaluation_support(
+        self, *, attempt: dict[str, Any], validation_id: str | None
+    ) -> dict[str, Any]:
+        """evaluation_support for one attempt (current or history row).
+
+        Combines the explicit analysis, the answer-analysis agent run output
+        (via the validation id) and the assessment-projection fallback.
+        """
+        attempt_analysis = attempt.get("answer_analysis") if isinstance(attempt.get("answer_analysis"), dict) else {}
+        support = self._v51_evaluation_support_from(
+            attempt_analysis,
+            self._v51_answer_analysis_run_output(validation_id),
+        )
+        if not support:
+            support = self._v51_support_from_assessment_projection(attempt)
+        return support
+
+    @staticmethod
+    def _v51_evidence_full_chain_passes(
+        evidence: dict[str, Any], snapshot: dict[str, Any]
+    ) -> bool:
+        """Per-row full-chain evidence gate (the old A-gate's checks, per row).
+
+        Mirrors _evidence_set_supports_stable_mastery's per-validation checks
+        (purpose/hint/mastery-eligible/hint-exposure/gate/evidence/grading/
+        analysis/assessment/review) so only pollution-free attempts enter the
+        unified window (proposal §2.5 keeps this as the 唯一防污染门). The
+        "current version" comparisons are intentionally skipped: in the legacy
+        gate they default to the row's own values (a no-op), and the wiring
+        already scopes history to the attempt's own graph/bank versions.
+        """
+        def value(*names: str, default: Any = None) -> Any:
+            for name in names:
+                if name in evidence:
+                    return evidence[name]
+                if name in snapshot:
+                    return snapshot[name]
+            return default
+
+        return not (
+            value("purpose") != "diagnostic"
+            or value("hint_policy") != "no_hint"
+            or not bool(value("mastery_update_eligible"))
+            or bool(value("actual_hint_exposed", default=False))
+            or bool(value("child_hint_exposed", default=False))
+            or bool(str(value("presented_hint", default="") or "").strip())
+            or value("gate_status", default="passed") != "passed"
+            or value("evidence_status", "attempt_evidence_status", default="active") != "active"
+            or value("grading_status", default="graded") != "graded"
+            or value("analysis_status", default="valid") != "valid"
+            or value("assessment_status", "accepted_assessment_status", default="accepted") != "accepted"
+            or not bool(value("question_passed", "assessment_question_passed", default=False))
+            or value("review_status", default="approved") != "approved"
+        )
+
+    def _v51_node_evidence_rows(
+        self,
+        *,
+        node_id: str,
+        graph_version: str,
+        question_bank_version: str,
+        current_created_at: str,
+        exclude_attempt_id: str = "",
+    ) -> list[dict[str, Any]]:
+        """The node's judgment-event rows for the 90-day evidence window.
+
+        Active attempts on the node up to `current_created_at` (a 92-day
+        buffer; mastery_bridge.build_window clips to exactly [current-90,
+        current] and sorts). Each row carries the external shape consumed by
+        the adapter; `gate_passed` reflects the full-chain per-row gate
+        (_v51_evidence_full_chain_passes + voice verifiability), so ineligible
+        rows are filtered out of the window by rules.is_eligible.
+        """
+        try:
+            current_date = date.fromisoformat(str(current_created_at)[:10])
+        except ValueError:
+            current_date = date.today()
+        lower_bound = (current_date - timedelta(days=92)).isoformat()
+        rows = self.conn.execute(
+            """
+            select
+              a.id, a.created_at, a.result, a.score_points, a.max_points,
+              a.explanation_score, a.blocking_evidence, a.evidence_status,
+              a.grading_status, a.analysis_status, a.answer_source,
+              a.answer_analysis_json,
+              ev.id as validation_id, ev.gate_status,
+              ar.output_json as answer_analysis_run_output_json,
+              aa.status as assessment_status, aa.question_passed,
+              r.review_status,
+              auc.snapshot_json,
+              suc.purpose, suc.purpose_role, suc.hint_policy,
+              suc.mastery_update_eligible, suc.structure_fingerprint
+            from attempts a
+            join attempt_usage_contexts auc on auc.attempt_id = a.id
+            join flow_step_usage_contexts suc on suc.id = auc.flow_step_usage_context_id
+            left join evidence_validations ev
+              on ev.id = (
+                select ev2.id from evidence_validations ev2
+                where ev2.attempt_id = a.id
+                  and ev2.gate_status = 'passed'
+                order by ev2.created_at desc, ev2.id desc
+                limit 1
+              )
+            left join agent_runs ar on ar.id = ev.answer_analysis_agent_run_id
+            left join attempt_assessments aa on aa.id = ev.assessment_id
+            left join question_review_records r on r.id = a.review_record_id
+            where a.node_id = ?
+              and a.evidence_status = 'active'
+              and a.created_at >= ?
+              and a.created_at <= ?
+              and (? = '' or a.id != ?)
+            order by a.created_at, a.id
+            """,
+            (
+                node_id,
+                lower_bound,
+                current_created_at,
+                exclude_attempt_id,
+                exclude_attempt_id,
+            ),
+        ).fetchall()
+        history: list[dict[str, Any]] = []
+        for raw in rows:
+            evidence = dict(raw)
+            snapshot = db.json_load(evidence.get("snapshot_json"), {})
+            gate_passed = self._v51_evidence_full_chain_passes(evidence, snapshot)
+            voice_ok = self._attempt_recognition_allows_mastery(
+                str(evidence.get("id") or "")
+            )
+            attempt_like = dict(evidence)
+            attempt_like["answer_analysis"] = db.json_load(
+                evidence.get("answer_analysis_json", "{}"), {}
+            )
+            run_output = db.json_load(
+                evidence.get("answer_analysis_run_output_json") or "", None
+            )
+            support = self._v51_evaluation_support_from(
+                attempt_like["answer_analysis"],
+                run_output if isinstance(run_output, dict) else None,
+            )
+            if not support:
+                support = self._v51_support_from_assessment_projection(attempt_like)
+            history.append(
+                self._v51_evidence_row(
+                    attempt=evidence,
+                    usage_snapshot=snapshot,
+                    support=support,
+                    gate_passed=gate_passed,
+                    voice_verifiable=voice_ok,
+                )
+            )
+        return history
+
+    def _v51_node_decision_history(
+        self,
+        *,
+        node_id: str,
+        graph_version: str,
+        question_bank_version: str,
+        exclude_attempt_id: str = "",
+    ) -> list[dict[str, Any]]:
+        """The node's applied mastery_decisions rows for the §2.3 counter.
+
+        Rows already covering `exclude_attempt_id` (e.g. a replayed current
+        attempt) are dropped: the counter must reflect history strictly before
+        the current judgment event. Legacy rows carry no unified verdict — the
+        adapter maps their new_status_code (A/B/C/D) as the verdict.
+        """
+        rows = self.conn.execute(
+            """
+            select id, node_id, decision, new_status_code, decision_payload_json,
+                   source_attempt_ids_json, created_at, applied
+            from mastery_decisions
+            where node_id = ?
+              and graph_version = ?
+              and question_bank_version = ?
+              and applied = 1
+              and created_at <= ?
+            order by created_at, id
+            """,
+            (node_id, graph_version, question_bank_version, db.now_iso()),
+        ).fetchall()
+        excluded = str(exclude_attempt_id or "")
+        history: list[dict[str, Any]] = []
+        for raw in rows:
+            row = dict(raw)
+            if excluded and excluded in (
+                db.json_load(row.get("source_attempt_ids_json"), []) or []
+            ):
+                continue
+            history.append(row)
+        return history
 
     def _advance_after_analysis(
         self,
