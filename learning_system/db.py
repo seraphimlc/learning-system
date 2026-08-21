@@ -1217,6 +1217,59 @@ def init_schema(conn: sqlite3.Connection) -> None:
           updated_at text not null
         );
 
+        -- M4-1 semester-mode tables (audit record 核对项 3 新增表 + 核对项 4 FK 方案③ 侧表)
+        create table if not exists manual_error_entries (
+          id text primary key,
+          node_id text not null references graph_nodes(id),
+          error_tag text not null,
+          prompt_ctx text,
+          source text not null default 'child_self_report',
+          trust_status text not null default 'pending_parent',
+          mode text not null default 'M0',
+          retest_triggered_at text,
+          recheck_count integer not null default 0,
+          recheck_triggered_at text,
+          parent_confirmed_at text,
+          created_at text not null
+        );
+
+        create table if not exists error_cause_log (
+          id text primary key,
+          attempt_id text references attempts(id),
+          manual_entry_id text references manual_error_entries(id),
+          node_id text not null references graph_nodes(id),
+          error_tag text not null,
+          source text not null,
+          confidence real,
+          trust_status text not null default 'pending_parent',
+          parent_confirmed_at text,
+          graph_version text not null default '',
+          created_at text not null
+        );
+
+        create table if not exists weekly_summary (
+          id text primary key,
+          iso_week text not null,
+          status text not null default 'unacknowledged',
+          node_status_snapshot_json text not null default '{}',
+          coverage_json text not null default '{}',
+          error_distribution_json text not null default '{}',
+          evidence_scope text not null default 'system_only',
+          narrative_json text not null default '{}',
+          generated_at text not null,
+          acknowledged_at text
+        );
+
+        create table if not exists daily_all_correct_confirmations (
+          id text primary key,
+          confirm_date text not null,
+          confirmed_by text not null default 'child',
+          evidence_scope_mark text not null default '',
+          source_refs_json text,
+          created_at text not null
+        );
+        -- mastery 判定不得读取本表：仅作每日全对证据范围标注，不进判定样本（设计稿 §3.1 / 审计核对项 3）；只 insert，confirm_date 每日唯一。
+
         create index if not exists idx_questions_node on question_items(node_id);
         create index if not exists idx_questions_source on question_items(source_type);
         create unique index if not exists idx_question_usage_policies_one_active
@@ -1272,6 +1325,20 @@ def init_schema(conn: sqlite3.Connection) -> None:
           on answer_contract_generation_receipts(run_id);
         create unique index if not exists idx_ac_generation_receipts_digest
           on answer_contract_generation_receipts(receipt_digest_sha256);
+        create index if not exists idx_manual_error_entries_node_created
+          on manual_error_entries(node_id, created_at);
+        create unique index if not exists idx_error_cause_log_system_idempotency
+          on error_cause_log(attempt_id, error_tag)
+          where attempt_id is not null;
+        create unique index if not exists idx_error_cause_log_manual_idempotency
+          on error_cause_log(manual_entry_id, error_tag)
+          where manual_entry_id is not null;
+        create index if not exists idx_error_cause_log_tag_created
+          on error_cause_log(error_tag, created_at);
+        create unique index if not exists idx_weekly_summary_iso_week
+          on weekly_summary(iso_week);
+        create unique index if not exists idx_daily_all_correct_confirmations_date
+          on daily_all_correct_confirmations(confirm_date);
 
         """
     )
