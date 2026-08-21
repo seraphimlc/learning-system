@@ -45,8 +45,12 @@ threshold 3, recheck + reset, never a direct downgrade). Recheck *scheduling*
 and question arrangement are wired elsewhere; this module only emits the
 signals (recheck=True / retest=True).
 
-Still out of scope (later M2.5 tasks): §4 over-diagnosis linkage (M2.5-4),
-§5 LLM tightening (M2.5-4), runtime wiring (M2.5-5).
+Implemented (M2.5 part 4, §4/§5): the over-diagnosis gate rulings
+(diagnosis_budget gate #1, recheck_depth_limit gate #2, gate #3 alignment via
+the unique counter) and the LLM tightening boundary (apply_llm_tightening /
+deterministic_fallback / llm_recommendation_usable, incl. anchors T14/T15).
+
+Still out of scope (later M2.5 tasks): runtime wiring (M2.5-5).
 
 Run: python3 -m unittest tests.test_mastery_rules
 """
@@ -877,3 +881,391 @@ def manual_entry(mode: str, count: int = 0) -> dict:
         "reason": f"M1 #{next_count} (below {MANUAL_RECHECK_LIMIT}): action-layer "
                   "count incremented; retest triggered; no downgrade.",
     }
+
+
+# ---------------------------------------------------------------------------
+# §4 over-diagnosis gates (M2.5 part 4)
+# ---------------------------------------------------------------------------
+#
+# The three gates of design §2 (proposal §4) do not enter the judgment rules
+# themselves; the judgment side provides the ruling signals the gates consume
+# (状态降级仅由系统判定事件驱动, 会审修订):
+#
+#   Gate #1 diagnosis_budget: one diagnostic session on a node asks at most
+#     DIAGNOSIS_QUESTION_LIMIT (=5) questions; beyond that the session
+#     switches to the mainline (超限转主线). The judgment rules never perceive
+#     the question count — decide_verdict consumes only the attempts within
+#     the compliant window (the wiring layer passes the budgeted slice as
+#     `window`). "已达标" (mastered) = the compliant window's latest verdict is
+#     A (window-level AGG, §2.2): the session stops early, before the cap.
+#
+#   Gate #2 recheck_depth_limit: the judgment side never executes the recheck
+#     (回查) — this pure rule tells the recheck driver at which chain depth to
+#     narrow. Interpretation (proposal ambiguity, documented): within the
+#     limit (depth <= RECHECK_DEPTH_LIMIT = 3) the prereq chain is walked in
+#     full; beyond it only C/D (weak) nodes are examined ("默认 3 层，超过只查
+#     C/D 节点" — a narrowing, not a hard stop), so critical weak nodes are
+#     still found without unbounded chain walking. Unfiled nodes are never
+#     rechecked beyond the limit (未建档不阻塞, design:197).
+#
+#   Gate #3 unique counter (M2.5-2) is the §4 alignment point: 连续 3 次 C/D
+#     is the same number everywhere (CD_COUNTER_LIMIT == MANUAL_RECHECK_LIMIT
+#     == 3, 同数同义); the counter reaching 3 fires downgrade + recheck +
+#     reset, and manual M1 entries never enter it — M1 has its own action-layer
+#     count (threshold 3, §3) that only triggers 回查, never the archive.
+
+DIAGNOSIS_QUESTION_LIMIT = 5   # 闸门 #1: 单节点单次诊断题量上限 (default 5)
+RECHECK_DEPTH_LIMIT = 3        # 闸门 #2: 回查深度上限 (default 3)
+
+
+def diagnosis_budget(question_count, *, limit=DIAGNOSIS_QUESTION_LIMIT, mastered=False) -> dict:
+    """Gate #1 ruling: how far may one diagnostic session on a node go (§4).
+
+    Args:
+        question_count: diagnostic questions already asked in this session
+            (non-negative int).
+        limit: per-session question cap (default DIAGNOSIS_QUESTION_LIMIT).
+        mastered: True when the compliant window's latest verdict is A
+            (已达标 — window-level AGG, §2.2). The judgment side only consumes
+            the compliant window; this flag is that verdict's signal.
+
+    Returns:
+        {"decision", "within_budget", "question_count", "limit",
+         "reason_code", "reason"}:
+        - "continue": within budget, not yet mastered -> keep diagnosing;
+        - "mastered": the node is confirmed mastered (window verdict A) ->
+          stop early, before the cap;
+        - "switch_mainline": budget exhausted without mastery -> stop
+          diagnosing this node, return to the mainline (超限转主线).
+    """
+    if not isinstance(question_count, int) or question_count < 0:
+        raise ValueError(
+            f"question_count must be a non-negative int, got {question_count!r}"
+        )
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError(f"limit must be a positive int, got {limit!r}")
+
+    within_budget = question_count < limit
+
+    if mastered:
+        return {
+            "decision": "mastered",
+            "within_budget": within_budget,
+            "question_count": question_count,
+            "limit": limit,
+            "reason_code": "mastered",
+            "reason": f"Compliant-window verdict is A (已达标): node confirmed "
+                      f"mastered after {question_count} question(s); diagnosis "
+                      "stops early, before the cap.",
+        }
+    if question_count >= limit:
+        return {
+            "decision": "switch_mainline",
+            "within_budget": within_budget,
+            "question_count": question_count,
+            "limit": limit,
+            "reason_code": "exceeded_switch_mainline",
+            "reason": f"Diagnosis reached the {limit}-question cap without "
+                      "mastery (超限转主线): stop diagnosing this node and "
+                      "return to the mainline.",
+        }
+    return {
+        "decision": "continue",
+        "within_budget": within_budget,
+        "question_count": question_count,
+        "limit": limit,
+        "reason_code": "within_budget",
+        "reason": f"{question_count} question(s) asked, "
+                  f"{limit - question_count} remaining within budget: keep "
+                  "diagnosing this node.",
+    }
+
+
+def recheck_depth_limit(depth, node_status=None, *, limit=RECHECK_DEPTH_LIMIT) -> dict:
+    """Gate #2 rule: at which chain depth does the recheck narrow (§4).
+
+    The judgment side never executes the recheck; this pure rule tells the
+    recheck driver where to stop walking the prereq chain in full. See the
+    section note for the documented interpretation (narrowing, not a hard
+    stop: beyond the limit only C/D nodes are examined).
+
+    Args:
+        depth: 1-based depth in the prereq chain under recheck (chain root = 1).
+        node_status: the chain node's stored status (A/B/C/D or None for
+            unfiled). Only consulted beyond the limit — unfiled nodes are
+            never rechecked there (未建档不阻塞, design:197).
+        limit: recheck depth cap (default RECHECK_DEPTH_LIMIT).
+
+    Returns:
+        {"depth", "limit", "within_limit", "only_cd", "should_recheck",
+         "reason_code", "reason"}:
+        - within_limit: depth <= limit (full-chain recheck zone);
+        - only_cd: True beyond the limit — only C/D nodes are rechecked;
+        - should_recheck: within limit -> True; beyond -> node_status in (C, D).
+    """
+    if not isinstance(depth, int) or depth < 1:
+        raise ValueError(
+            f"depth must be a positive int (1-based chain depth), got {depth!r}"
+        )
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError(f"limit must be a positive int, got {limit!r}")
+    if node_status is not None and node_status not in STORAGE_STATES:
+        raise ValueError(
+            f"node_status must be None or one of {sorted(STORAGE_STATES)}, "
+            f"got {node_status!r}"
+        )
+
+    within_limit = depth <= limit
+    if within_limit:
+        return {
+            "depth": depth,
+            "limit": limit,
+            "within_limit": True,
+            "only_cd": False,
+            "should_recheck": True,
+            "reason_code": "full_recheck",
+            "reason": f"Depth {depth} within the {limit}-level limit: recheck "
+                      "the prereq chain in full.",
+        }
+    should = node_status in (VERDICT_C, VERDICT_D)
+    return {
+        "depth": depth,
+        "limit": limit,
+        "within_limit": False,
+        "only_cd": True,
+        "should_recheck": should,
+        "reason_code": "cd_only",
+        "reason": f"Depth {depth} beyond the {limit}-level limit: only C/D "
+                  f"(weak) nodes are rechecked; node_status={node_status!r} "
+                  f"-> {'recheck' if should else 'no recheck'}.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# §5 LLM participation boundary (M2.5 part 4)
+# ---------------------------------------------------------------------------
+#
+# The evaluation recommendation is规约进 design §3.2's ① 错因归类 (evidence
+# interpretation / 证据归类), NOT a third LLM role (§5 point 1): the
+# recommendation is a soft "evidence interpretation label" input to the
+# judgment, never the status itself — the final verdict is always decided by
+# the §2.2 deterministic rules.
+#
+#   LLM_RECOMMENDATION_CANDIDATE maps the v51 6-enum recommendation to the
+#   verdict it *hints at* (§5 point 2): blocked -> D 候选, weak -> C,
+#   emerging/likely_stable -> B (single-strong label), stable_for_now -> A
+#   候选, no_update -> NO_CHANGE hint.
+#
+#   apply_llm_tightening(verdict, recommendation) enforces 只收紧不放宽 (hard
+#   constraint, §5 point 3): the recommendation may only push the verdict
+#   toward the conservative (weaker) end — weak/blocked demote (B->C, B->D,
+#   even A->C), while stable_for_now/emerging/likely_stable can never promote
+#   (T14/T15). Two documented edges:
+#     - NO_CHANGE is never promoted by the LLM (eligibility is deterministic);
+#     - no_update never suppresses an actual A/B/C/D verdict (the LLM cannot
+#       erase evidence-based judgment; the §5 no_update -> NO_CHANGE hint only
+#       aligns with a deterministic NO_CHANGE).
+#
+#   llm_recommendation_usable(confidence) is the contract confidence gate
+#   (evaluation_decision.v2.json:8, minimum_confidence_to_apply = 0.8).
+#
+#   deterministic_fallback(evidence, window, ...) is the 降级路径 (确定性兜底,
+#   §5 point 4): LLM unavailable / low-confidence / mock / replay -> the
+#   8/10-score weak judgment (v51 _v51_deterministic_evaluation_output
+#   semantics) produces the verdict, so judgment proceeds and state updates
+#   are never interrupted — but never A ("确定性路径只产 weak/emerging", §1
+#   fact 6). Interpretation (proposal ambiguity, documented): the default 8/10
+#   score is derived from the attempt ratio (score = ratio * 10); the wiring
+#   layer may pass the actual v51 rubric score via `score`. The result is the
+#   weaker of the §2.2 verdict and the label verdict, which keeps the fallback
+#   consistent with decide_verdict on the same evidence (e.g. a correct-but-
+#   inexplicable attempt stays C) while suppressing A when the LLM is down.
+
+LLM_RECOMMENDATION_BLOCKED = "blocked"
+LLM_RECOMMENDATION_WEAK = "weak"
+LLM_RECOMMENDATION_EMERGING = "emerging"
+LLM_RECOMMENDATION_LIKELY_STABLE = "likely_stable"
+LLM_RECOMMENDATION_STABLE_FOR_NOW = "stable_for_now"
+LLM_RECOMMENDATION_NO_UPDATE = "no_update"
+
+LLM_RECOMMENDATIONS = frozenset({
+    LLM_RECOMMENDATION_BLOCKED,
+    LLM_RECOMMENDATION_WEAK,
+    LLM_RECOMMENDATION_EMERGING,
+    LLM_RECOMMENDATION_LIKELY_STABLE,
+    LLM_RECOMMENDATION_STABLE_FOR_NOW,
+    LLM_RECOMMENDATION_NO_UPDATE,
+})
+
+# recommendation -> the verdict it hints at (§5 point 2: 提示 X 候选).
+LLM_RECOMMENDATION_CANDIDATE = {
+    LLM_RECOMMENDATION_BLOCKED: VERDICT_D,
+    LLM_RECOMMENDATION_WEAK: VERDICT_C,
+    LLM_RECOMMENDATION_EMERGING: VERDICT_B,
+    LLM_RECOMMENDATION_LIKELY_STABLE: VERDICT_B,
+    LLM_RECOMMENDATION_STABLE_FOR_NOW: VERDICT_A,
+    LLM_RECOMMENDATION_NO_UPDATE: VERDICT_NO_CHANGE,
+}
+
+MINIMUM_LLM_CONFIDENCE = 0.8     # evaluation_decision.v2.json:8 契约置信门槛
+
+DETERMINISTIC_SCORE_MAX = 10     # v51 8/10 分制
+DETERMINISTIC_WEAK_SCORE = 8     # score < 8/10 or severe_gap -> weak
+FALLBACK_REASONS = frozenset({"llm_unavailable", "low_confidence", "mock", "replay"})
+
+# Weakness order for 只收紧不放宽: A strongest, D weakest ("更保守" = 更弱,
+# higher rank). NO_CHANGE is not on the scale and never participates.
+_WEAKNESS_RANK = {VERDICT_A: 0, VERDICT_B: 1, VERDICT_C: 2, VERDICT_D: 3}
+
+
+def _annotated_verdict(verdict, attrs):
+    """Return a copy of a verdict dict with replaced attrs (pure)."""
+    result = dict(verdict)
+    result["attrs"] = dict(attrs)
+    return result
+
+
+def apply_llm_tightening(verdict, llm_recommendation) -> dict:
+    """Apply the §5 只收紧不放宽 rule to one deterministic verdict.
+
+    Args:
+        verdict: a verdict dict (output of decide_verdict / the deterministic
+            fallback path).
+        llm_recommendation: one of LLM_RECOMMENDATIONS (v51 6-enum evidence-
+            interpretation label), or None when no recommendation exists (no
+            tightening; the wiring layer should prefer the deterministic
+            fallback in that case).
+
+    Returns:
+        A new verdict dict (the input is never mutated) with the
+        recommendation recorded in attrs. The code may only move toward the
+        conservative (weaker) end: weak/blocked demote (B->C, B->D, A->C);
+        the other recommendations never promote (T14/T15) and never suppress
+        an actual A/B/C/D verdict. NO_CHANGE is never promoted by the LLM.
+    """
+    if not isinstance(verdict, dict) or verdict.get("code") not in VERDICTS:
+        raise ValueError(
+            f"verdict must be a verdict dict with a five-value code, got {verdict!r}"
+        )
+
+    attrs = dict(verdict.get("attrs") or {})
+    attrs["llm_recommendation"] = llm_recommendation
+
+    if llm_recommendation is None:
+        attrs["llm_applied"] = False
+        attrs["tightened"] = False
+        return _annotated_verdict(verdict, attrs)
+
+    if llm_recommendation not in LLM_RECOMMENDATIONS:
+        raise ValueError(
+            f"llm_recommendation must be one of {sorted(LLM_RECOMMENDATIONS)} "
+            f"or None, got {llm_recommendation!r}"
+        )
+
+    attrs["llm_applied"] = True
+    code = verdict["code"]
+    attrs["original_code"] = code
+    candidate = LLM_RECOMMENDATION_CANDIDATE[llm_recommendation]
+
+    if code == VERDICT_NO_CHANGE or candidate == VERDICT_NO_CHANGE:
+        # NO_CHANGE is never promoted (eligibility is deterministic); no_update
+        # never suppresses an actual verdict (documented edge, §5).
+        attrs["tightened"] = False
+        return _annotated_verdict(verdict, attrs)
+
+    if _WEAKNESS_RANK[candidate] > _WEAKNESS_RANK[code]:
+        attrs["tightened"] = True
+        result = _annotated_verdict(verdict, attrs)
+        result["code"] = candidate
+        result["is_strong"] = False
+        result["decision"] = f"{candidate}_tightened_by_llm"
+        result["reason"] = (
+            f"{verdict['reason']} | LLM '{llm_recommendation}' tightens "
+            f"{code} -> {candidate} (只收紧不放宽)."
+        )
+        return result
+
+    attrs["tightened"] = False
+    return _annotated_verdict(verdict, attrs)
+
+
+def llm_recommendation_usable(confidence, *, minimum_confidence=MINIMUM_LLM_CONFIDENCE) -> bool:
+    """§5 confidence gate (contract minimum_confidence_to_apply = 0.8).
+
+    A recommendation without a reported confidence (None) is treated as
+    unusable — conservative: the deterministic fallback takes over.
+    """
+    if confidence is None:
+        return False
+    return confidence >= minimum_confidence
+
+
+def _deterministic_label(evidence, *, score=None, severe_gap=False):
+    """8/10-score weak judgment (v51 _v51_deterministic_evaluation_output).
+
+    Returns (label_verdict_code, label_name): score < 8 or severe_gap ->
+    (C, "weak"); otherwise -> (B, "emerging"). Default score = ratio * 10.
+    """
+    if score is None:
+        score = _ratio(evidence) * DETERMINISTIC_SCORE_MAX
+    if severe_gap or score < DETERMINISTIC_WEAK_SCORE:
+        return VERDICT_C, "weak"
+    return VERDICT_B, "emerging"
+
+
+def deterministic_fallback(
+    evidence, window=None, *, reason="llm_unavailable", score=None, severe_gap=False,
+) -> dict:
+    """§5 deterministic fallback (LLM unavailable / low-confidence / mock / replay).
+
+    Judgment proceeds and state updates are never interrupted (§5 point 4),
+    but the fallback is conservative: it never yields A ("确定性路径只产
+    weak/emerging", §1 fact 6). The result is the weaker of (a) the §2.2
+    deterministic verdict (decide_verdict over the window) and (b) the 8/10-
+    score weak judgment (weak -> C candidate, emerging -> B candidate), which
+    keeps the fallback consistent with decide_verdict on the same evidence
+    while suppressing A when the LLM is down.
+
+    Args:
+        evidence: the attempt dict (same shape as decide_verdict).
+        window: the rolling evidence window (default: single-attempt window).
+        reason: why the LLM path was bypassed — one of FALLBACK_REASONS
+            ("llm_unavailable" | "low_confidence" | "mock" | "replay"),
+            recorded as provenance in attrs.
+        score: optional override of the 8/10-scale score (default derived
+            from score_points/max_points as ratio * 10). The wiring layer
+            passes the actual v51 rubric score when available.
+        severe_gap: True when the v51 severe-gap signal fires (weak
+            regardless of score).
+    """
+    if reason not in FALLBACK_REASONS:
+        raise ValueError(
+            f"reason must be one of {sorted(FALLBACK_REASONS)}, got {reason!r}"
+        )
+    base = decide_verdict(evidence, window)
+    attrs = dict(base.get("attrs") or {})
+    attrs["llm_fallback"] = True
+    attrs["fallback_reason"] = reason
+
+    if base["code"] == VERDICT_NO_CHANGE:
+        # Eligibility is deterministic: the fallback never fabricates a
+        # judgment event for ineligible / no-valid-evidence attempts.
+        attrs["label"] = "no_label"
+        return _annotated_verdict(base, attrs)
+
+    label_code, label = _deterministic_label(evidence, score=score, severe_gap=severe_gap)
+    attrs["label"] = label
+    if _WEAKNESS_RANK[label_code] > _WEAKNESS_RANK[base["code"]]:
+        # The weak judgment is more conservative -> it wins (e.g. B -> C on a
+        # sub-8/10 score; A suppressed to B when the LLM is down).
+        result = _annotated_verdict(base, attrs)
+        result["code"] = label_code
+        result["is_strong"] = False
+        result["decision"] = f"{label_code}_deterministic_fallback"
+        result["reason"] = (
+            f"{base['reason']} | LLM path unavailable ({reason}): 8/10-score "
+            f"weak judgment ({label}) tightens {base['code']} -> {label_code}."
+        )
+        return result
+    # base verdict is as conservative or more; keep it, annotated.
+    return _annotated_verdict(base, attrs)

@@ -916,5 +916,398 @@ class TestManualEvidence(unittest.TestCase):
         self.assertEqual(rules.MANUAL_RECHECK_LIMIT, rules.CD_COUNTER_LIMIT)
 
 
+# ---------------------------------------------------------------------------
+# M2.5 part 4: §4 over-diagnosis gates + §5 LLM tightening boundary
+# (anchors T14/T15 + gate linkage/isolation; proposal §4/§5)
+# ---------------------------------------------------------------------------
+#
+# Gate #1 diagnosis_budget(question_count, limit=5): one diagnostic session on
+# a node asks at most `limit` questions; beyond that the session switches to
+# the mainline (超限转主线). The judgment rules never perceive the question
+# count — the verdict functions consume only the attempts within the compliant
+# window (the wiring layer passes the budgeted slice as `window`). "已达标"
+# (mastered) = the compliant window's latest verdict is A (window-level AGG,
+# §2.2): the session stops early, before the cap.
+#
+# Gate #2 recheck_depth_limit(depth, node_status, limit=3): the judgment side
+# never executes the recheck (回查) — this pure rule tells the recheck driver
+# at which chain depth to narrow. Interpretation (proposal ambiguity,
+# documented): within the limit (depth <= 3) the prereq chain is walked in
+# full; beyond it only C/D (weak) nodes are examined ("默认 3 层，超过只查
+# C/D 节点" — a narrowing, not a hard stop), so critical weak nodes are still
+# found without unbounded chain walking. Unfiled nodes are never rechecked
+# beyond the limit (未建档不阻塞, design:197).
+#
+# Gate #3 unique counter (M2.5-2) is the §4 alignment point: 连续 3 次 C/D
+# 同数同义 (CD_COUNTER_LIMIT == MANUAL_RECHECK_LIMIT == 3). Linkage: the
+# counter reaching 3 fires downgrade + recheck + reset in one shot. Isolation:
+# 状态降级仅由系统判定事件驱动 — M1 manual entries only drive the action-layer
+# count (recheck), never the archive.
+#
+# §5 LLM tightening: the evaluation recommendation is规约进错因归类 (evidence
+# interpretation), not a third LLM role; the final verdict is decided by the
+# §2.2 deterministic rules. apply_llm_tightening(verdict, recommendation) may
+# only push the verdict toward the conservative end (只收紧不放宽): weak/blocked
+# demote (B->C, B->D, A->C) while stable_for_now/emerging/likely_stable can
+# never promote (T14/T15). deterministic_fallback(...) produces the 8/10-score
+# weak judgment when the LLM path is unavailable / low-confidence / mock /
+# replay — judgment proceeds and state updates are never interrupted, but the
+# fallback never yields A ("确定性路径只产 weak/emerging", §1 fact 6).
+
+
+class TestDiagnosisBudget(unittest.TestCase):
+    def test_default_limit_is_5(self):  # 闸门 #1 默认 5 题
+        self.assertEqual(rules.DIAGNOSIS_QUESTION_LIMIT, 5)
+
+    def test_below_limit_continues(self):
+        result = rules.diagnosis_budget(2)
+        self.assertEqual(result["decision"], "continue")
+        self.assertTrue(result["within_budget"])
+
+    def test_last_question_within_budget_continues(self):  # 边界: 第 4 题仍可继续
+        result = rules.diagnosis_budget(4)
+        self.assertEqual(result["decision"], "continue")
+        self.assertTrue(result["within_budget"])
+
+    def test_at_limit_switches_to_mainline(self):  # 第 5 题: 超限转主线
+        result = rules.diagnosis_budget(5)
+        self.assertEqual(result["decision"], "switch_mainline")
+        self.assertFalse(result["within_budget"])
+        self.assertEqual(result["reason_code"], "exceeded_switch_mainline")
+
+    def test_over_limit_switches_to_mainline(self):
+        result = rules.diagnosis_budget(7)
+        self.assertEqual(result["decision"], "switch_mainline")
+        self.assertFalse(result["within_budget"])
+
+    def test_mastered_stops_early(self):  # 已达标: 窗口内 verdict=A -> 提前结束
+        result = rules.diagnosis_budget(2, mastered=True)
+        self.assertEqual(result["decision"], "mastered")
+        self.assertTrue(result["within_budget"])
+
+    def test_mastered_wins_at_cap(self):
+        result = rules.diagnosis_budget(5, mastered=True)
+        self.assertEqual(result["decision"], "mastered")
+
+    def test_negative_count_raises(self):
+        with self.assertRaises(ValueError):
+            rules.diagnosis_budget(-1)
+
+    def test_zero_limit_raises(self):
+        with self.assertRaises(ValueError):
+            rules.diagnosis_budget(1, limit=0)
+
+    def test_result_has_contract_fields(self):
+        result = rules.diagnosis_budget(1)
+        for key in ("decision", "within_budget", "question_count", "limit",
+                    "reason_code", "reason"):
+            self.assertIn(key, result)
+
+
+class TestRecheckDepthLimit(unittest.TestCase):
+    def test_default_limit_is_3(self):  # 闸门 #2 默认 3 层
+        self.assertEqual(rules.RECHECK_DEPTH_LIMIT, 3)
+
+    def test_within_limit_full_recheck(self):
+        result = rules.recheck_depth_limit(1)
+        self.assertTrue(result["within_limit"])
+        self.assertFalse(result["only_cd"])
+        self.assertTrue(result["should_recheck"])
+        self.assertEqual(result["reason_code"], "full_recheck")
+
+    def test_at_limit_still_full_recheck(self):  # 边界: 深度 3 层内全量回查
+        result = rules.recheck_depth_limit(3)
+        self.assertTrue(result["within_limit"])
+        self.assertTrue(result["should_recheck"])
+
+    def test_beyond_limit_cd_node_rechecked(self):  # 超过 3 层: 只查 C/D 节点
+        result = rules.recheck_depth_limit(4, node_status="C")
+        self.assertFalse(result["within_limit"])
+        self.assertTrue(result["only_cd"])
+        self.assertTrue(result["should_recheck"])
+        self.assertEqual(result["reason_code"], "cd_only")
+
+    def test_beyond_limit_d_node_rechecked(self):
+        result = rules.recheck_depth_limit(4, node_status="D")
+        self.assertTrue(result["should_recheck"])
+
+    def test_beyond_limit_b_node_not_rechecked(self):  # 超过 3 层: B 节点不查
+        result = rules.recheck_depth_limit(4, node_status="B")
+        self.assertFalse(result["should_recheck"])
+
+    def test_beyond_limit_a_node_not_rechecked(self):
+        result = rules.recheck_depth_limit(4, node_status="A")
+        self.assertFalse(result["should_recheck"])
+
+    def test_beyond_limit_unfiled_not_rechecked(self):  # 未建档不阻塞 (design:197)
+        result = rules.recheck_depth_limit(4, node_status=None)
+        self.assertFalse(result["should_recheck"])
+
+    def test_depth_zero_raises(self):
+        with self.assertRaises(ValueError):
+            rules.recheck_depth_limit(0)
+
+    def test_invalid_node_status_raises(self):
+        with self.assertRaises(ValueError):
+            rules.recheck_depth_limit(4, node_status="E")
+
+    def test_result_has_contract_fields(self):
+        result = rules.recheck_depth_limit(1)
+        for key in ("depth", "limit", "within_limit", "only_cd",
+                    "should_recheck", "reason_code", "reason"):
+            self.assertIn(key, result)
+
+
+class TestGate3UniqueCounterAlignment(unittest.TestCase):
+    def test_gate3_threshold_same_number_as_proposal(self):  # §4: 连续 3 次同数同义
+        self.assertEqual(rules.CD_COUNTER_LIMIT, 3)
+        self.assertEqual(rules.MANUAL_RECHECK_LIMIT, rules.CD_COUNTER_LIMIT)
+
+    def test_unique_counter_counts_only_system_events(self):  # §4: 只统计系统内判定事件
+        events = [cd_event("C"), cd_event("C", is_manual=True), cd_event("C")]
+        self.assertEqual(rules.cd_counter(events), 2)
+
+    def test_counter_three_linkage_downgrade_recheck_reset(self):
+        # 联动: 唯一计数器到 3 -> 降级 + 回查 + 清零 (同一判定事件触发)。
+        result = rules.transition_status("A", "C", counter=2)
+        self.assertEqual(result["status"], "C")
+        self.assertTrue(result["recheck"])
+        self.assertEqual(result["counter"], 0)
+        self.assertEqual(result["reason_code"], "cd_trigger_downgrade")
+
+    def test_m1_action_layer_never_drives_downgrade(self):  # 隔离: M1 只触发回查
+        result = rules.manual_entry("M1", count=2)
+        self.assertTrue(result["recheck"])
+        self.assertFalse(result["downgrade"])
+        self.assertFalse(result["judgment_event"])
+
+    def test_state_downgrade_only_by_system_judgment_events(self):  # §4 表头硬约束
+        # 3 条 M1 (动作层计数到 3) 后节点状态仍保持 A; 唯一计数器仍为 0。
+        c0 = rules.manual_entry("M1", count=0)
+        c1 = rules.manual_entry("M1", count=c0["count"])
+        c2 = rules.manual_entry("M1", count=c1["count"])
+        self.assertTrue(c2["recheck"])
+        verdict = rules.decide_verdict(attempt(is_manual=True))
+        trans = rules.transition_status("A", verdict["code"], counter=0)
+        self.assertEqual(trans["status"], "A")
+        self.assertEqual(trans["counter"], 0)
+        self.assertEqual(rules.cd_counter([cd_event("C", is_manual=True)] * 3), 0)
+
+
+class TestLLMTighteningDirection(unittest.TestCase):
+    def test_t14_stable_for_now_never_promotes_b_to_a(self):  # T14: AGG 缺双角色
+        window = [
+            attempt(attempt_id="a1", structure_fingerprint="fp_core",
+                    purpose_role="confirmation_core", created_at="2026-08-01"),
+            attempt(attempt_id="a2", structure_fingerprint="fp_transfer",
+                    purpose_role="confirmation_core", created_at="2026-08-02"),
+        ]
+        verdict = rules.decide_verdict(window[1], window)
+        self.assertEqual(verdict["code"], "B")
+        self.assertIn("C3", verdict["attrs"]["failed"])
+        tightened = rules.apply_llm_tightening(verdict, "stable_for_now")
+        self.assertEqual(tightened["code"], "B")  # LLM 只收紧不放宽: 不升 A
+        self.assertFalse(tightened["attrs"]["tightened"])
+
+    def test_t15_weak_tightens_b_to_c(self):  # T15: weak 而确定性 emerging -> C
+        verdict = rules.decide_verdict(attempt())  # 单条 strong, AGG 不满足 -> B
+        self.assertEqual(verdict["code"], "B")
+        tightened = rules.apply_llm_tightening(verdict, "weak")
+        self.assertEqual(tightened["code"], "C")
+        self.assertTrue(tightened["attrs"]["tightened"])
+        self.assertEqual(tightened["attrs"]["original_code"], "B")
+        self.assertFalse(tightened["is_strong"])  # 收紧后不再是 strong
+
+    def test_blocked_tightens_b_to_d(self):
+        verdict = rules.decide_verdict(attempt())
+        tightened = rules.apply_llm_tightening(verdict, "blocked")
+        self.assertEqual(tightened["code"], "D")
+        self.assertTrue(tightened["attrs"]["tightened"])
+
+    def test_emerging_never_promotes_c(self):
+        verdict = rules.decide_verdict(attempt(result="wrong", score_points=2, max_points=10))
+        self.assertEqual(verdict["code"], "C")
+        tightened = rules.apply_llm_tightening(verdict, "emerging")
+        self.assertEqual(tightened["code"], "C")  # 不能把 C 升为 B
+        self.assertFalse(tightened["attrs"]["tightened"])
+
+    def test_likely_stable_never_promotes_c(self):
+        verdict = rules.decide_verdict(attempt(result="wrong", score_points=2, max_points=10))
+        tightened = rules.apply_llm_tightening(verdict, "likely_stable")
+        self.assertEqual(tightened["code"], "C")
+
+    def test_stable_for_now_never_promotes_c(self):
+        verdict = rules.decide_verdict(attempt(result="wrong", score_points=2, max_points=10))
+        tightened = rules.apply_llm_tightening(verdict, "stable_for_now")
+        self.assertEqual(tightened["code"], "C")  # 不能把 C 升为 B/A
+
+    def test_weak_tightens_a_to_c(self):  # 只收紧的最强形态: LLM weak 可把 A 降为 C
+        window = two_strong_window()
+        verdict = rules.decide_verdict(window[1], window)
+        self.assertEqual(verdict["code"], "A")
+        tightened = rules.apply_llm_tightening(verdict, "weak")
+        self.assertEqual(tightened["code"], "C")
+        self.assertTrue(tightened["attrs"]["tightened"])
+        self.assertFalse(tightened["is_strong"])
+
+    def test_d_never_changes(self):  # D 是最弱档: 任何 LLM 提示都不改 D
+        verdict = rules.decide_verdict(attempt(blocking_evidence=True))
+        self.assertEqual(verdict["code"], "D")
+        for rec in ("stable_for_now", "emerging", "weak", "blocked"):
+            self.assertEqual(rules.apply_llm_tightening(verdict, rec)["code"], "D")
+
+    def test_no_change_never_promoted_by_llm(self):  # 资格是确定性的: LLM 不能无中生有
+        verdict = rules.decide_verdict(attempt(purpose="practice"))
+        self.assertEqual(verdict["code"], "NO_CHANGE")
+        for rec in ("weak", "blocked", "stable_for_now"):
+            self.assertEqual(rules.apply_llm_tightening(verdict, rec)["code"], "NO_CHANGE")
+
+    def test_no_update_never_suppresses_real_verdict(self):
+        verdict = rules.decide_verdict(attempt())
+        self.assertEqual(verdict["code"], "B")
+        tightened = rules.apply_llm_tightening(verdict, "no_update")
+        self.assertEqual(tightened["code"], "B")  # no_update 不能抹掉有效判定事件
+        self.assertFalse(tightened["attrs"]["tightened"])
+
+    def test_same_verdict_kept(self):  # 同判保持
+        verdict = rules.decide_verdict(attempt())
+        tightened = rules.apply_llm_tightening(verdict, "emerging")
+        self.assertEqual(tightened["code"], "B")
+        self.assertTrue(tightened["attrs"]["llm_applied"])
+        self.assertFalse(tightened["attrs"]["tightened"])
+
+    def test_stable_for_now_on_a_keeps_a(self):  # A 门完全确定性: LLM 只确认不促成
+        window = two_strong_window()
+        verdict = rules.decide_verdict(window[1], window)
+        self.assertEqual(verdict["code"], "A")
+        tightened = rules.apply_llm_tightening(verdict, "stable_for_now")
+        self.assertEqual(tightened["code"], "A")
+        self.assertFalse(tightened["attrs"]["tightened"])
+
+    def test_none_recommendation_is_noop(self):  # LLM 缺失: 不收紧, 原样返回
+        verdict = rules.decide_verdict(attempt())
+        tightened = rules.apply_llm_tightening(verdict, None)
+        self.assertEqual(tightened["code"], "B")
+        self.assertFalse(tightened["attrs"]["llm_applied"])
+
+    def test_unknown_recommendation_raises(self):
+        with self.assertRaises(ValueError):
+            rules.apply_llm_tightening(rules.decide_verdict(attempt()), "great")
+
+    def test_input_verdict_not_mutated(self):  # 纯函数
+        verdict = rules.decide_verdict(attempt())
+        before = dict(verdict)
+        rules.apply_llm_tightening(verdict, "weak")
+        self.assertEqual(verdict, before)
+
+
+class TestLLMFallback(unittest.TestCase):
+    def test_high_score_emerging_b(self):
+        result = rules.deterministic_fallback(attempt(score_points=9, max_points=10))
+        self.assertEqual(result["code"], "B")
+        self.assertEqual(result["attrs"]["label"], "emerging")
+
+    def test_low_score_weak_c(self):  # 8/10 分制: score<8 -> weak -> C
+        result = rules.deterministic_fallback(attempt(score_points=7, max_points=10))
+        self.assertEqual(result["code"], "C")
+        self.assertEqual(result["attrs"]["label"], "weak")
+
+    def test_boundary_score_8_is_emerging(self):  # 8/10 边界: >=8 非 weak
+        result = rules.deterministic_fallback(attempt(score_points=8, max_points=10))
+        self.assertEqual(result["code"], "B")
+
+    def test_severe_gap_is_weak_even_with_high_score(self):
+        result = rules.deterministic_fallback(
+            attempt(score_points=10, max_points=10), severe_gap=True
+        )
+        self.assertEqual(result["code"], "C")
+        self.assertEqual(result["attrs"]["label"], "weak")
+
+    def test_fallback_never_yields_a(self):  # 确定性路径只产 weak/emerging
+        result = rules.deterministic_fallback(attempt(score_points=10, max_points=10))
+        self.assertEqual(result["code"], "B")
+
+    def test_fallback_with_window_suppresses_a(self):  # LLM 缺失时历史窗口也不能升 A
+        window = two_strong_window()
+        verdict = rules.decide_verdict(window[1], window)
+        self.assertEqual(verdict["code"], "A")
+        fallback = rules.deterministic_fallback(window[1], window)
+        self.assertEqual(fallback["code"], "B")  # 兜底降为 B: 不中断但保守
+
+    def test_fallback_consistent_with_verdict_on_weak_evidence(self):
+        # 确定性路径与判定规则同向: 答错 -> C (取两者中更弱)。
+        ev = attempt(result="wrong", score_points=2, max_points=10)
+        result = rules.deterministic_fallback(ev)
+        self.assertEqual(result["code"], "C")
+
+    def test_fallback_blocking_is_d(self):
+        result = rules.deterministic_fallback(attempt(blocking_evidence=True))
+        self.assertEqual(result["code"], "D")
+
+    def test_fallback_ineligible_is_no_change(self):  # 资格是确定性的
+        result = rules.deterministic_fallback(attempt(purpose="practice"))
+        self.assertEqual(result["code"], "NO_CHANGE")
+
+    def test_fallback_marks_provenance(self):
+        result = rules.deterministic_fallback(attempt(), reason="low_confidence")
+        self.assertTrue(result["attrs"]["llm_fallback"])
+        self.assertEqual(result["attrs"]["fallback_reason"], "low_confidence")
+
+    def test_fallback_default_reason_llm_unavailable(self):
+        result = rules.deterministic_fallback(attempt())
+        self.assertEqual(result["attrs"]["fallback_reason"], "llm_unavailable")
+
+    def test_fallback_mock_and_replay_reasons(self):
+        self.assertTrue(
+            rules.deterministic_fallback(attempt(), reason="mock")["attrs"]["llm_fallback"]
+        )
+        self.assertTrue(
+            rules.deterministic_fallback(attempt(), reason="replay")["attrs"]["llm_fallback"]
+        )
+
+    def test_invalid_reason_raises(self):
+        with self.assertRaises(ValueError):
+            rules.deterministic_fallback(attempt(), reason="nope")
+
+
+class TestLLMConfidenceGate(unittest.TestCase):
+    def test_confidence_at_threshold_usable(self):  # 契约置信门槛 0.8
+        self.assertTrue(rules.llm_recommendation_usable(0.8))
+        self.assertTrue(rules.llm_recommendation_usable(0.95))
+
+    def test_confidence_below_threshold_not_usable(self):
+        self.assertFalse(rules.llm_recommendation_usable(0.79))
+
+    def test_missing_confidence_not_usable(self):  # 无置信度 -> 保守走确定性兜底
+        self.assertFalse(rules.llm_recommendation_usable(None))
+
+    def test_minimum_confidence_override(self):
+        self.assertFalse(rules.llm_recommendation_usable(0.85, minimum_confidence=0.9))
+
+
+class TestLLMTighteningFlow(unittest.TestCase):
+    def test_t14_flow_no_promotion(self):
+        # T14 全链路: 判定 B -> LLM stable_for_now 不升 A -> 状态迁移保持。
+        window = [
+            attempt(attempt_id="a1", structure_fingerprint="fp_core",
+                    purpose_role="confirmation_core", created_at="2026-08-01"),
+            attempt(attempt_id="a2", structure_fingerprint="fp_transfer",
+                    purpose_role="confirmation_core", created_at="2026-08-02"),
+        ]
+        verdict = rules.decide_verdict(window[1], window)
+        verdict = rules.apply_llm_tightening(verdict, "stable_for_now")
+        self.assertEqual(verdict["code"], "B")
+        trans = rules.transition_status("B", verdict["code"], window=window)
+        self.assertEqual(trans["status"], "B")
+
+    def test_t15_flow_tightening_then_counter(self):
+        # T15 全链路: LLM weak 把 B 收紧为 C -> 收紧后的判定事件进入唯一计数器。
+        verdict = rules.decide_verdict(attempt())
+        verdict = rules.apply_llm_tightening(verdict, "weak")
+        self.assertEqual(verdict["code"], "C")
+        feed = rules.feed_cd_counter(1, verdict["code"])
+        self.assertEqual(feed["count"], 2)  # 收紧后的 C 正常计数
+
+
 if __name__ == "__main__":
     unittest.main()
