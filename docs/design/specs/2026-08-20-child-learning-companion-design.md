@@ -349,10 +349,10 @@ math_knowledge_graph.json（单文件，三年都在这里长）
 
 ### 8.4 里程碑
 
-> **状态更新（2026-08-20）**：第 0 步现状数据流核对已完成（7 项核对定稿，见 `docs/design/specs/2026-08-20-dataflow-audit-record.md`）；答案机器校验服务已交付（`learning_system/answer_verification.py` + `scripts/audit_question_bank_answers.py`，23 测试全绿）。关键裁定：FK 三方案推荐**方案③旁挂侧表**（修正 §3.1"复用 attempts"表述）；判定口径四套并存，统一挂起待 `mastery_criteria_proposal`（M2.5）。
+> **状态更新（2026-08-20）**：第 0 步现状数据流核对已完成（7 项核对定稿，见 `docs/design/specs/2026-08-20-dataflow-audit-record.md`）；答案机器校验服务已交付（`learning_system/answer_verification.py` + `scripts/audit_question_bank_answers.py`，23 测试全绿）；**阶段数组改造已完成**（learning_path 先落 2 阶段：summer_wrapup + semester_start，建档折叠为子活动挂下一假期、快补裁剪，依据核对项 5 裁定）。关键裁定：FK 三方案推荐**方案③旁挂侧表**；判定口径统一方案**已由权衡产出并经爸爸拍板**（`2026-08-20-mastery-criteria-proposal.md`，T1-T23 锚点），实现待 evolution/daily_runtime 并行改动落定。
 
 - M1：测试套件默认绿（待 visuals 重构落定，归属待确认）
-- M2：~~答案校验服务~~（✅ 已交付）+ 现状核对（✅ 已完成）+ **阶段数组改造**（待 v20 生题结束，避免 digest churn；依据核对项 5 折叠+裁剪裁定）
+- M2：~~答案校验服务~~（✅ 已交付）+ 现状核对（✅ 已完成）+ ~~阶段数组改造~~（✅ 已完成 2026-08-20，依据核对项 5 折叠+裁剪裁定；v20 已停故无 digest churn 顾虑）
 - **M2.5：按已拍板的 `mastery_criteria_proposal` 统一判定实现，旧口径退役 + 回归测试**（"裁定为一套"的代码归宿，防漂移；实现等 evolution/daily_runtime 并行改动落定后进行，T1-T23 为回归锚点）
 - M3：派生物从图谱生成（消灭诊断块漂移；依赖 lineage 分离方案先行）
 - M4：周信 + 错题录入（**FK 方案③旁挂侧表**落地）+ 已裁定新增表（error_cause_log / weekly_summary / 全对确认载体）

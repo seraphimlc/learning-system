@@ -1,7 +1,7 @@
 {
   "schema_version": "knowledge-views.v1",
   "config_version": "2026-07-14.v5.1",
-  "graph_lineage": "2026-07-04.v2+sha256:05e918ffdec26d9cc834673ae2f7f3109042ee55b8ef417ba46ebaec73743822",
+  "graph_lineage": "2026-07-04.v2+sha256:a2828a6b790240a93801a009cb35a2da5e7f639351feb3c5cd16fe41053c4081",
   "root": {
     "label": "我的数学知识体系",
     "module_order": [
