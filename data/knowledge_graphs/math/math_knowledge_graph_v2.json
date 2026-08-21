@@ -8683,177 +8683,244 @@
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-PRE-ORDER-OPS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-PRE-INTEGER-OPS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-PRE-INTEGER-OPS",
       "to": "M-PRE-DECIMAL-OPS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-ADD-SUB 直接前置边；有理数运算执行本质即整数四则；26 个 G7 可达"
     },
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-PRE-DECIMAL-OPS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-PRE-FRACTION-MEANING",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-PRE-FRACTION-MEANING",
       "to": "M-PRE-FRACTION-OPS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD'单位1'语义强依赖（仅 unlocks 边）；CLASSIFY 侧弱"
     },
     {
       "from": "M-PRE-INTEGER-OPS",
       "to": "M-PRE-FRACTION-OPS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-ADD-SUB 直接前置边；有理数运算执行本质即整数四则；26 个 G7 可达"
     },
     {
       "from": "M-PRE-FRACTION-MEANING",
       "to": "M-PRE-PERCENT",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD'单位1'语义强依赖（仅 unlocks 边）；CLASSIFY 侧弱"
     },
     {
       "from": "M-PRE-DECIMAL-OPS",
       "to": "M-PRE-PERCENT",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-MIXED'分数小数混合'题型强依赖（仅 unlocks 边）；EQ-DENOM 侧弱"
     },
     {
       "from": "M-PRE-FRACTION-MEANING",
       "to": "M-PRE-RATIO-PROP",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD'单位1'语义强依赖（仅 unlocks 边）；CLASSIFY 侧弱"
     },
     {
       "from": "M-PRE-FRACTION-OPS",
       "to": "M-PRE-RATIO-PROP",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "MUL-DIV 与 EQ-DENOM 双直接前置边；约分/倒数/带分数即其内核"
     },
     {
       "from": "M-PRE-INTEGER-OPS",
       "to": "M-PRE-DISTRIBUTIVE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-ADD-SUB 直接前置边；有理数运算执行本质即整数四则；26 个 G7 可达"
     },
     {
       "from": "M-PRE-ORDER-OPS",
       "to": "M-PRE-DISTRIBUTIVE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-MIXED 直接前置（本质=小学运算顺序+符号）；全计算链咽喉"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-PRE-LETTER-EXPR",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-INTEGER-OPS",
       "to": "M-PRE-QUANTITY-RELATION",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-ADD-SUB 直接前置边；有理数运算执行本质即整数四则；26 个 G7 可达"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-PRE-EQUATION-BASIC",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-ORDER-OPS",
       "to": "M-PRE-EQUATION-BASIC",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-MIXED 直接前置（本质=小学运算顺序+符号）；全计算链咽喉"
     },
     {
       "from": "M-PRE-DECIMAL-OPS",
       "to": "M-PRE-UNIT-CONVERSION",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-MIXED'分数小数混合'题型强依赖（仅 unlocks 边）；EQ-DENOM 侧弱"
     },
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-PRE-ANGLE-BASIC",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-PRE-UNIT-CONVERSION",
       "to": "M-PRE-GEO-AREA-VOLUME",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "soft"
     },
     {
       "from": "M-PRE-ORDER-OPS",
       "to": "M-PRE-GEO-AREA-VOLUME",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-MIXED 直接前置（本质=小学运算顺序+符号）；全计算链咽喉"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-WORD-PROBLEM-READING",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-SUM-DIFF-MULTIPLE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-FRACTION-MEANING",
       "to": "M-BRIDGE-SUM-DIFF-MULTIPLE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD'单位1'语义强依赖（仅 unlocks 边）；CLASSIFY 侧弱"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-MOTION-BASIC",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-UNIT-CONVERSION",
       "to": "M-BRIDGE-MOTION-BASIC",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "soft"
     },
     {
       "from": "M-BRIDGE-MOTION-BASIC",
       "to": "M-BRIDGE-MOTION-CHASE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD 行程主干；追及→钟表角→角度计算链路源头"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-MOTION-CHASE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-ANGLE-BASIC",
       "to": "M-BRIDGE-CLOCK-ANGLE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "ANGLE（P0）直接前置；角度链根，连锁阻塞 ANGLE-CALC"
     },
     {
       "from": "M-BRIDGE-MOTION-CHASE",
       "to": "M-BRIDGE-CLOCK-ANGLE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "soft"
     },
     {
       "from": "M-PRE-FRACTION-MEANING",
       "to": "M-BRIDGE-WORK-RATE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD'单位1'语义强依赖（仅 unlocks 边）；CLASSIFY 侧弱"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-WORK-RATE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-PERCENT",
       "to": "M-BRIDGE-PERCENT-MODEL",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "百分数建模无替代路径；销售/打折/增长率必卡（但影响面仅 1 个 G7）"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-PERCENT-MODEL",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-G7-POS-NEG",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-G7-POS-NEG",
@@ -8863,7 +8930,9 @@
     {
       "from": "M-PRE-FRACTION-MEANING",
       "to": "M-G7-RATIONAL-CLASSIFY",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD'单位1'语义强依赖（仅 unlocks 边）；CLASSIFY 侧弱"
     },
     {
       "from": "M-G7-POS-NEG",
@@ -8908,7 +8977,9 @@
     {
       "from": "M-PRE-INTEGER-OPS",
       "to": "M-G7-RATIONAL-ADD-SUB",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-ADD-SUB 直接前置边；有理数运算执行本质即整数四则；26 个 G7 可达"
     },
     {
       "from": "M-G7-RATIONAL-ADD-SUB",
@@ -8918,7 +8989,9 @@
     {
       "from": "M-PRE-FRACTION-OPS",
       "to": "M-G7-RATIONAL-MUL-DIV",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "MUL-DIV 与 EQ-DENOM 双直接前置边；约分/倒数/带分数即其内核"
     },
     {
       "from": "M-G7-RATIONAL-MUL-DIV",
@@ -8943,17 +9016,23 @@
     {
       "from": "M-PRE-ORDER-OPS",
       "to": "M-G7-RATIONAL-MIXED",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "RATIONAL-MIXED 直接前置（本质=小学运算顺序+符号）；全计算链咽喉"
     },
     {
       "from": "M-PRE-LETTER-EXPR",
       "to": "M-G7-ALG-EXPR",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "ALG-EXPR 唯一小学前置；文字译代数式无替代路径"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-G7-ALG-EXPR",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     },
     {
       "from": "M-G7-ALG-EXPR",
@@ -8998,7 +9077,9 @@
     {
       "from": "M-PRE-DISTRIBUTIVE",
       "to": "M-G7-PARENTHESIS",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "PARENTHESIS 直接前置；负号分配规则直接映射"
     },
     {
       "from": "M-G7-RATIONAL-ADD-SUB",
@@ -9018,7 +9099,9 @@
     {
       "from": "M-PRE-EQUATION-BASIC",
       "to": "M-G7-EQUATION-CONCEPT",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQUALITY-PROP 唯一前置；方程链根，薄弱整链瘫痪"
     },
     {
       "from": "M-G7-ALG-EXPR",
@@ -9028,7 +9111,9 @@
     {
       "from": "M-PRE-EQUATION-BASIC",
       "to": "M-G7-EQUALITY-PROP",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQUALITY-PROP 唯一前置；方程链根，薄弱整链瘫痪"
     },
     {
       "from": "M-G7-EQUALITY-PROP",
@@ -9058,12 +9143,16 @@
     {
       "from": "M-PRE-FRACTION-OPS",
       "to": "M-G7-EQ-DENOM",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "MUL-DIV 与 EQ-DENOM 双直接前置边；约分/倒数/带分数即其内核"
     },
     {
       "from": "M-BRIDGE-WORD-PROBLEM-READING",
       "to": "M-G7-EQ-WORD",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD 前置首项 + 错因回退首顺位（'回应用题审题流程'）"
     },
     {
       "from": "M-G7-EQ-SOLVE",
@@ -9073,22 +9162,28 @@
     {
       "from": "M-BRIDGE-SUM-DIFF-MULTIPLE",
       "to": "M-G7-EQ-WORD",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD 直接前置；'设一倍量→等量关系'即方程建模入口"
     },
     {
       "from": "M-BRIDGE-MOTION-BASIC",
       "to": "M-G7-EQ-WORD",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "EQ-WORD 行程主干；追及→钟表角→角度计算链路源头"
     },
     {
       "from": "M-BRIDGE-PERCENT-MODEL",
       "to": "M-G7-EQ-WORD",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "soft"
     },
     {
       "from": "M-PRE-GEO-AREA-VOLUME",
       "to": "M-G7-GEO-SOLID-PLANE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "soft"
     },
     {
       "from": "M-G7-GEO-SOLID-PLANE",
@@ -9113,12 +9208,16 @@
     {
       "from": "M-PRE-UNIT-CONVERSION",
       "to": "M-G7-SEGMENT-MEASURE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "SEGMENT-MEASURE 直接前置，错因'单位不统一'直接回查该边；soft 节点的强例外边"
     },
     {
       "from": "M-PRE-ANGLE-BASIC",
       "to": "M-G7-ANGLE",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "ANGLE（P0）直接前置；角度链根，连锁阻塞 ANGLE-CALC"
     },
     {
       "from": "M-G7-LINE-RAY-SEGMENT",
@@ -9143,17 +9242,22 @@
     {
       "from": "M-PRE-NUMBER-SENSE",
       "to": "M-G7-SCI-NOTATION-APPROX",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "无前置根节点；32 个 G7 可达（全图最大）；近似数即量感应用、离谱错检器"
     },
     {
       "from": "M-PRE-RATIO-PROP",
       "to": "M-BRIDGE-PROPORTION-MODEL",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "soft"
     },
     {
       "from": "M-PRE-QUANTITY-RELATION",
       "to": "M-BRIDGE-PROPORTION-MODEL",
-      "type": "prerequisite"
+      "type": "prerequisite",
+      "prereq_strength": "strong",
+      "strength_rationale": "11 个直接下游（全图枢纽）；EQ-WORD+ALG-EXPR 双主线"
     }
   ],
   "modules": {
@@ -9315,5 +9419,11 @@
       "last_review_date",
       "next_review_date"
     ]
-  }
+  },
+  "strong_unlock_edges": [
+    "M-PRE-FRACTION-MEANING→M-G7-EQ-WORD",
+    "M-PRE-DECIMAL-OPS→M-G7-RATIONAL-MIXED",
+    "M-BRIDGE-SOLUTION-HABIT→M-G7-EQ-SOLVE",
+    "M-BRIDGE-SOLUTION-HABIT→M-G7-EQ-WORD"
+  ]
 }
