@@ -48,7 +48,7 @@
 | 2 | `generated_plans` / `daily_flows`（短期计划现状） | spec §8.1 第 0 步逐表对照 | — | 已完成（Task 4） |
 | 3 | **已裁定新增表**：`error_cause_log` / `weekly_summary`（A/B/C/D 时间快照 + acknowledged 枚举）/「作业全对」确认载体 → **「新增 vs 别名」裁定** | spec §8.1 必答项**首项**、§3.3 | ✅ 必答 | 已完成（Task 3） |
 | 4 | `attempts` FK 三方案影响（`question_id`/`session_id` NOT NULL） | spec §8.1 必答项、§3.1 | ✅ 必答 | 已核对（Task 5）：推荐方案③ 旁挂侧表再反链 |
-| 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | 已核对（Task 6）：推荐折叠+裁剪，保留主线/混合/收口语义 |
+| 5 | `phase_strategy` 现状（5 阶段 → 迁移裁定） | spec §8.1 必答项（第三轮会审扩项） | ✅ 必答 | **已落地（2026-08-20）**：折叠+裁剪已执行，先落 2 阶段（summer_wrapup + semester_start） |
 | 6 | 判定口径逐实现（evolution / flow_nodes / daily_runtime / 蓝图） | spec §8.1 必答项、§3.2 | ✅ 必答 | 已完成（Task 7） |
 | 7 | `CANONICAL_ERROR_TAGS` 双定义（auto_review.py / question_bank.py） | spec §7 架构取舍、§8.1 | — | 已完成（Task 8） |
 
@@ -401,7 +401,7 @@
 1. 阶段数组计划（后续计划）的改造范围明确：`phase_strategy` 5 元素（`math_knowledge_graph_v2.json:8632-8658`）→ 收敛为先落 2 阶段「暑假衔接收口 + 开学首月」（设计稿 §8.2，`2026-08-20-child-learning-companion-design.md:333`）；建档子活动（挂下一假期）、收口动作等语义在阶段配置内显式表达，`phase` 字段从"第X-Y天"标签改为阶段标识。
 2. 零运行时耦合（Task 4 实测 grep 0 命中）→ 改造只动 JSON 配置、不动代码/数据；阶段数组若要驱动执行（如阶段 → daily_runtime mode 映射），须在阶段数组计划中显式定义（核对项 2 影响清单第 3 条）。
 3. 建档执行时序不受本裁定改变：挂下一假期（文档头执行窗口/§8.4，`2026-08-20-child-learning-companion-design.md:77/356`）；开学首月收口验收（错题录入可用、周信出首期、判定口径统一后状态可信）不等建档（`:356`）。
-4. **最终裁定随阶段数组计划执行**：本核对项只产出裁定建议（推荐 = 折叠 + 裁剪），不落地任何改动；阶段数组实际改写随后续「阶段数组计划」执行（设计稿 §8.2，`:333`；实现计划已声明阶段数组改造需本裁定结果 + v20 生题结束后，避免 digest 联动 churn，`2026-08-20-semester-data-link-prereqs.md:13`）。
+4. **最终裁定已随阶段数组计划执行（2026-08-20）**：本核对项产出裁定建议（折叠 + 裁剪）后，阶段数组改造已落地——learning_path 先落 2 阶段（summer_wrapup 暑假衔接收口 + semester_start 开学首月），建档折叠为子活动挂下一假期、快补裁剪、主线/混合/收口语义重组；v20 生题已停，digest 联动 churn 顾虑解除（commit c39c3d1）。
 5. 挂起项：无独立挂起——"建档子活动在「暑假衔接收口」阶段配置内的具体表达（字段/子结构）"属执行细节，随阶段数组计划落地时裁定，不阻塞本裁定建议。
 
 ---
