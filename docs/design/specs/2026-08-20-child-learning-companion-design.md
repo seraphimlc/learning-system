@@ -353,7 +353,7 @@ math_knowledge_graph.json（单文件，三年都在这里长）
 
 - M1：测试套件默认绿（待 visuals 重构落定，归属待确认）
 - M2：~~答案校验服务~~（✅ 已交付）+ 现状核对（✅ 已完成）+ ~~阶段数组改造~~（✅ 已完成 2026-08-20，依据核对项 5 折叠+裁剪裁定；v20 已停故无 digest churn 顾虑）
-- **M2.5：按已拍板的 `mastery_criteria_proposal` 统一判定实现，旧口径退役 + 回归测试**（"裁定为一套"的代码归宿，防漂移；实现等 evolution/daily_runtime 并行改动落定后进行，T1-T23 为回归锚点）
+- **M2.5：统一判定实现 —— ✅ 已完成（2026-08-20）**：`mastery_rules.py`（纯函数判定核心/状态迁移/唯一计数器/复测间隔/M0-M1/防过度诊断/LLM 收紧）+ `mastery_bridge.py`（适配层）+ `mastery_v51_adapter.py`（v51 接缝）+ `mastery_v2_adapter.py`（v2 接缝）；daily_runtime v51 与 flow_nodes v2/orchestrator 已接入，旧口径物理清理完成（commits f9ba38f/ace553b/dce5b24）。T1-T23 锚点全部落实；3 条旧语义测试已改写。收尾项：旧 v2 历史行（无 unified_verdict trace）需一次性回填方可被计数器读取（fail-loud 保护）。
 - M3：派生物从图谱生成（消灭诊断块漂移；依赖 lineage 分离方案先行）
 - M4：周信 + 错题录入（**FK 方案③旁挂侧表**落地）+ 已裁定新增表（error_cause_log / weekly_summary / 全对确认载体）
 - M5：动机层 + 双周简报
