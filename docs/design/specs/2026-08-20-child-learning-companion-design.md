@@ -355,7 +355,7 @@ math_knowledge_graph.json（单文件，三年都在这里长）
 - M2：~~答案校验服务~~（✅ 已交付）+ 现状核对（✅ 已完成）+ ~~阶段数组改造~~（✅ 已完成 2026-08-20，依据核对项 5 折叠+裁剪裁定；v20 已停故无 digest churn 顾虑）
 - **M2.5：统一判定实现 —— ✅ 已完成（2026-08-20）**：`mastery_rules.py`（纯函数判定核心/状态迁移/唯一计数器/复测间隔/M0-M1/防过度诊断/LLM 收紧）+ `mastery_bridge.py`（适配层）+ `mastery_v51_adapter.py`（v51 接缝）+ `mastery_v2_adapter.py`（v2 接缝）；daily_runtime v51 与 flow_nodes v2/orchestrator 已接入，旧口径物理清理完成（commits f9ba38f/ace553b/dce5b24）。T1-T23 锚点全部落实；3 条旧语义测试已改写。收尾项：旧 v2 历史行（无 unified_verdict trace）需一次性回填方可被计数器读取（fail-loud 保护）。
 - M3：派生物从图谱生成（消灭诊断块漂移；依赖 lineage 分离方案先行）
-- M4：周信 + 错题录入（**FK 方案③旁挂侧表**落地）+ 已裁定新增表（error_cause_log / weekly_summary / 全对确认载体）
+- **M4：后端链路 —— ✅ 已完成（2026-08-20）**：CANONICAL_ERROR_TAGS 收口（error_tags.py 单一源）+ 4 张新表（manual_error_entries / error_cause_log / weekly_summary / daily_all_correct_confirmations）+ 错题录入服务（M0/M1 语义、信任边界、周信批量确认）+ 周信生成服务（A1 连续 2 次 C/D 预警硬要求、证据范围三分类、模板降级）。**UI 接线待 visuals 重构落定**（孩子最小表单、网页页面默认决策已定）。
 - M5：动机层 + 双周简报
 - **收口验收（开学首月）**：错题录入链路可用、周信出首期、判定口径统一后状态可信。建档活动（Tier S）挂下一假期。
 
