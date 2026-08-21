@@ -340,38 +340,6 @@ def _record_close_audit(
     return run
 
 
-# DEPRECATED (M2.5-5c): the 6-态 -> v2 decision-label mapping. Replaced by
-# mastery_v2_adapter.judge_v2_node via _v2_unified_judgment_for_evaluation
-# (proposal §2.1/§2.5 — the unified verdict drives stored decisions). Kept
-# temporarily for rollback; physical removal in the M2.5 cleanup commit.
-def _mastery_decision_from_status(evaluation: dict[str, Any]) -> tuple[str, str, str, bool]:
-    mastery_state = str(evaluation.get("mastery_state") or "")
-    can_advance = bool(evaluation.get("can_advance"))
-    if mastery_state == "blocked":
-        return "prerequisite_blocked", "prerequisite_blocked", evaluation.get("why") or "Blocked prerequisite evidence.", True
-    if mastery_state == "unstable":
-        return "current_node_weak", "repaired_not_mastered", evaluation.get("why") or "Current node evidence is weak.", True
-    if mastery_state == "emerging":
-        return "basic_understanding", "repaired_not_mastered", evaluation.get("why") or "Evidence is emerging; confirmation is still required.", True
-    if mastery_state == "likely_stable" and not can_advance:
-        return "stable_understanding", "repaired_not_mastered", evaluation.get("why_not_advance") or "Likely stable, but transfer confirmation is still required.", True
-    if mastery_state == "stable" and can_advance:
-        return "stretch_ready", "mastered", evaluation.get("why") or "Repeated varied evidence is stable.", True
-
-    status = evaluation.get("overall_status", "unknown")
-    if status == "blocked":
-        return "prerequisite_blocked", "prerequisite_blocked", "Blocked prerequisite evidence.", True
-    if status == "weak":
-        return "current_node_weak", "repaired_not_mastered", "Current node evidence is weak.", True
-    if status == "basic":
-        return "basic_understanding", "repaired_not_mastered", "Basic evidence exists; consolidate before mastery.", True
-    if status == "stable":
-        return "stable_understanding", "repaired_not_mastered", "Stable evidence exists; use transfer before mastery.", True
-    if status == "stretch_ready":
-        return "stable_understanding", "repaired_not_mastered", "Repeated direct evidence exists; confirm transfer before mastery.", True
-    return "not_enough_evidence", "pending_analysis", "Not enough analyzed evidence.", False
-
-
 def _v2_unified_judgment_for_evaluation(
     conn: sqlite3.Connection,
     *,

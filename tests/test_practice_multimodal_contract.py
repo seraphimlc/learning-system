@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -1072,7 +1073,7 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         ).fetchone()
         self.assertEqual("succeeded", stored_job["status"])
 
-    def test_group_with_unverified_voice_only_requests_same_node_diagnostic_confirmation(self):
+    def test_group_with_unverified_voice_teaches_before_trusted_reconfirmation(self):
         first_row = self._step_row()
         self._set_practice_context(first_row, size=2)
         voice_payload, _ = self._confirmed_browser_voice_payload(
@@ -1148,11 +1149,14 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             result = self.runtime._handle_group_answer_analysis_job(job)
 
         self.assertEqual("succeeded", result["job_status"], result)
-        self.assertEqual(1, select_question.call_count)
-        args, kwargs = select_question.call_args
-        self.assertEqual(first_row["node_id"], args[0])
-        self.assertEqual("diagnostic", kwargs["required_purpose"])
-        self.assertEqual("untrusted_evidence_reconfirmation", kwargs["selection_intent"])
+        select_question.assert_not_called()
+        planned = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (result["planned_step_id"],),
+        ).fetchone()
+        self.assertEqual("teaching_repair", planned["step_type"])
+        usage = db.flow_step_usage_context(self.conn, planned["id"])
+        self.assertEqual("teaching", usage["purpose"])
 
     def test_stuck_interrupts_practice_block_immediately(self):
         first_row = self._step_row()
@@ -1264,7 +1268,7 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         next_row = self._step_row(next_state)
         self.assertEqual(first_row["node_id"], next_row["node_id"])
 
-    def test_stuck_on_second_practice_question_closes_prior_deferred_attempt(self):
+    def test_stuck_on_second_practice_question_preserves_prior_deferred_attempt_for_group_analysis(self):
         first_row = self._step_row()
         self._set_practice_context(first_row, size=3)
         second_state = self._submit_payload(
@@ -1277,10 +1281,28 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         self._submit_payload(stuck)
 
         prior = db.get_attempt(self.conn, first_attempt["id"])
-        self.assertNotEqual("pending_review", prior["grading_status"])
-        self.assertEqual("invalidated", prior["evidence_status"])
-        self.assertEqual("interrupted", prior["result"])
-        self.assertEqual(0, self.conn.execute(
+        stuck_attempt = self._attempt_for_key("practice-stuck-second")
+        self.assertEqual("pending_review", prior["grading_status"])
+        self.assertEqual("active", prior["evidence_status"])
+        self.assertEqual("submitted", prior["result"])
+        self.assertEqual("blocked", stuck_attempt["result"])
+        self.assertEqual("active", stuck_attempt["evidence_status"])
+        group_job = self.conn.execute(
+            """
+            select * from background_jobs
+            where flow_id = ? and job_type = 'group_answer_analysis'
+            order by created_at desc, id desc
+            limit 1
+            """,
+            (first_row["flow_id"],),
+        ).fetchone()
+        self.assertIsNotNone(group_job)
+        payload = json.loads(group_job["payload_json"])
+        self.assertEqual(
+            {prior["id"], stuck_attempt["id"]},
+            {item["attempt_id"] for item in payload["group_items"]},
+        )
+        self.assertEqual(1, self.conn.execute(
             """
             select count(*) from attempts a
             join flow_steps s on s.id = a.flow_step_id
@@ -1394,6 +1416,19 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         flow_id = self._step_row()["flow_id"]
         self._submit_payload(payload)
         self._attempt_for_key("completed-flow-http-replay")
+        self.conn.execute(
+            """
+            update background_jobs
+            set status = 'dead_letter', dead_letter_reason = ?
+            where flow_id = ? and status in ('queued','claimed','running','waiting','retry')
+            """,
+            ("completed-flow replay fixture", flow_id),
+        )
+        self.runtime._block_flow(
+            flow_id,
+            "答案已保存，但批阅任务未能继续；现在结束本次学习。",
+        )
+        self.conn.commit()
         summary = self.runtime.complete_summary(flow_id)
         self.assertEqual("summary", summary["child_state"])
 
@@ -1517,6 +1552,12 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         )
 
     def test_A_requires_active_accepted_current_passed_assessments(self):
+        # M2.5-5c 清理：旧 set 级 A 门删除后，版本过期防护由接线层的历史作用域
+        # 承担（_v51_node_evidence_rows 按 attempt 自身 graph/bank/item 版本
+        # 收窄；flow_nodes v2 路径用 EvidenceUsePolicy 重新门控）——原
+        # stale_*_version 三个 subTest 断言旧 oracle 的版本字段检查，随旧方法
+        # 一并移除，不再属于逐行全链门（见 _v51_evidence_full_chain_passes
+        # docstring："current version comparisons are intentionally skipped"）。
         mutations = {
             "inactive_attempt_evidence": {
                 "evidence_status": "invalidated",
@@ -1529,21 +1570,6 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             "question_not_passed": {
                 "question_passed": False,
                 "assessment_question_passed": False,
-            },
-            "stale_graph_version": {
-                "graph_version": "graph-stale",
-                "attempt_graph_version": "graph-stale",
-                "graph_version_is_current": False,
-            },
-            "stale_question_bank_version": {
-                "question_bank_version": "bank-stale",
-                "attempt_question_bank_version": "bank-stale",
-                "question_bank_version_is_current": False,
-            },
-            "stale_question_item_version": {
-                "question_item_version": "item-stale",
-                "assessment_question_item_version": "item-stale",
-                "question_item_version_is_current": False,
             },
         }
         self.assertTrue(
@@ -2050,6 +2076,311 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         state = self.runtime.project_child_state(self.runtime._flow_by_id(step_row["flow_id"]))
         self.assertEqual("clarify_evidence", state["child_state"])
 
+    def test_low_confidence_group_reducer_checkpoint_recovers_before_queue_finish(self):
+        step_row, _, job = self._enqueue_single_item_group_job(
+            key="group-low-confidence-reducer-checkpoint"
+        )
+        payload = db.json_load(job["payload_json"], {})
+        structured = self._structured_group_result(job)
+        for item in structured.value["items"]:
+            item["confidence"] = 0.1
+            item["answer_gap"] = "这份答案暂时看不清，不能安全判断。"
+            for criterion in item["criteria"]:
+                criterion["status"] = "unclear"
+                criterion["child_evidence"] = ""
+                criterion["reason"] = "现有证据不足，不能判错。"
+        structured.value["confidence"] = 0.1
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._configured_answer_route(),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ) as model_call, mock.patch.object(
+            job_queue.JobQueue,
+            "finish",
+            side_effect=SystemExit("process crashed before queue.finish"),
+        ):
+            with self.assertRaisesRegex(SystemExit, "queue.finish"):
+                self.runtime.process_next_background_job(
+                    worker_id="group-unclear-reducer-crash-worker",
+                    flow_id=step_row["flow_id"],
+                    job_id=job["id"],
+                )
+
+        self.assertEqual(1, model_call.call_count)
+        crashed_job = self.conn.execute(
+            "select status, result_refs_json from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()
+        self.assertEqual("running", crashed_job["status"])
+        checkpoint = db.json_load(crashed_job["result_refs_json"], {})[
+            "group_answer_analysis_reducer_checkpoint"
+        ]
+        self.assertEqual(payload["group_digest_sha256"], checkpoint["group_digest_sha256"])
+        checkpoint_refs = checkpoint["result_refs"]
+        self.assertEqual("clarify_evidence", checkpoint_refs["next_action"])
+        unclear_attempt_id = checkpoint_refs["unclear_attempt_id"]
+        clarification_items = checkpoint_refs["clarification_items"]
+        unclear_attempt_ids = [
+            item["attempt_id"] for item in clarification_items
+        ]
+        self.assertEqual(2, len(unclear_attempt_ids))
+        unclear_placeholders = ",".join("?" for _ in unclear_attempt_ids)
+        committed_counts = {
+            "clarify_steps": self.conn.execute(
+                "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
+                (step_row["flow_id"],),
+            ).fetchone()[0],
+            "validations": self.conn.execute(
+                f"select count(*) from evidence_validations where attempt_id in ({unclear_placeholders})",
+                tuple(unclear_attempt_ids),
+            ).fetchone()[0],
+            "decisions": self.conn.execute(
+                "select count(*) from next_step_decisions where flow_id = ? and action = 'clarify_evidence'",
+                (step_row["flow_id"],),
+            ).fetchone()[0],
+            "group_runs": self.conn.execute(
+                "select count(*) from agent_runs where trigger like ?",
+                (f"v5_group_answer_analysis:%{payload['mini_group_id']}%:unclear",),
+            ).fetchone()[0],
+            "item_runs": self.conn.execute(
+                "select count(*) from agent_runs where trigger like ?",
+                (f"v5_group_answer_analysis_item:{payload['mini_group_id']}:%:unclear",),
+            ).fetchone()[0],
+        }
+        self.assertEqual(
+            {
+                "clarify_steps": 2,
+                "validations": 2,
+                "decisions": 2,
+                "group_runs": 1,
+                "item_runs": 2,
+            },
+            committed_counts,
+        )
+
+        takeover_conn = db.connect(self.db_path)
+        self.addCleanup(takeover_conn.close)
+        takeover_runtime = daily_runtime.DailyLearningRuntime(
+            takeover_conn,
+            project_root=PROJECT_ROOT,
+        )
+        takeover_now = (
+            datetime.now(timezone.utc) + timedelta(seconds=181)
+        ).isoformat(timespec="microseconds")
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._configured_answer_route(),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=AssertionError("reducer replay must not call the provider"),
+        ) as replay_model_call:
+            recovered = takeover_runtime.process_next_background_job(
+                worker_id="group-unclear-reducer-takeover-worker",
+                now=takeover_now,
+                flow_id=step_row["flow_id"],
+                job_id=job["id"],
+            )
+
+        self.assertEqual(0, replay_model_call.call_count)
+        self.assertEqual("succeeded", recovered["job_status"], recovered)
+        self.assertEqual(checkpoint_refs, {
+            key: recovered[key]
+            for key in checkpoint_refs
+        })
+        self.assertEqual("succeeded", takeover_conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()["status"])
+        self.assertNotEqual("blocked", takeover_conn.execute(
+            "select status from daily_flows where id = ?",
+            (step_row["flow_id"],),
+        ).fetchone()["status"])
+        self.assertEqual("clarify_evidence", takeover_runtime.project_child_state(
+            takeover_runtime._flow_by_id(step_row["flow_id"])
+        )["child_state"])
+        replayed_counts = {
+            "clarify_steps": takeover_conn.execute(
+                "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
+                (step_row["flow_id"],),
+            ).fetchone()[0],
+            "validations": takeover_conn.execute(
+                f"select count(*) from evidence_validations where attempt_id in ({unclear_placeholders})",
+                tuple(unclear_attempt_ids),
+            ).fetchone()[0],
+            "decisions": takeover_conn.execute(
+                "select count(*) from next_step_decisions where flow_id = ? and action = 'clarify_evidence'",
+                (step_row["flow_id"],),
+            ).fetchone()[0],
+            "group_runs": takeover_conn.execute(
+                "select count(*) from agent_runs where trigger like ?",
+                (f"v5_group_answer_analysis:%{payload['mini_group_id']}%:unclear",),
+            ).fetchone()[0],
+            "item_runs": takeover_conn.execute(
+                "select count(*) from agent_runs where trigger like ?",
+                (f"v5_group_answer_analysis_item:{payload['mini_group_id']}:%:unclear",),
+            ).fetchone()[0],
+        }
+        self.assertEqual(committed_counts, replayed_counts)
+        self.assertEqual(1, takeover_conn.execute(
+            """
+            select count(*)
+            from model_response_checkpoints
+            where checkpoint_kind = 'group_answer_analysis'
+              and immutable_input_digest_sha256 = ?
+              and source_job_id = ?
+            """,
+            (payload["group_digest_sha256"], job["id"]),
+        ).fetchone()[0])
+        self.assertEqual(0, takeover_conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and status = 'dead_letter'",
+            (step_row["flow_id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, takeover_conn.execute(
+            "select count(*) from attempt_assessments where status = 'accepted'",
+        ).fetchone()[0])
+
+    def test_exhausted_planned_group_closes_with_feedback_instead_of_blocking(self):
+        step_row = self._step_row()
+        self._set_practice_context(step_row, size=2)
+        with mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=None,
+        ):
+            state = self._submit_payload(
+                self._typed_payload(
+                    self.started,
+                    key="group-short-close-on-bank-exhaustion",
+                    answer="-3",
+                )
+            )
+        self.assertEqual("analyzing", state["child_state"])
+        job = dict(self.conn.execute(
+            """
+            select * from background_jobs
+            where flow_id = ? and job_type = 'group_answer_analysis'
+            order by created_at desc, id desc limit 1
+            """,
+            (step_row["flow_id"],),
+        ).fetchone())
+        payload = db.json_load(job["payload_json"], {})
+        self.assertEqual(1, payload["mini_group_size"])
+        self.assertEqual(2, db.json_load(
+            self.conn.execute(
+                "select selection_reason_json from flow_steps where id = ?",
+                (payload["group_items"][0]["step_id"],),
+            ).fetchone()["selection_reason_json"],
+            {},
+        )["mini_group"]["size"])
+        structured = self._structured_group_result(job)
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._configured_answer_route(),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ), mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=None,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="group-short-close-worker",
+                flow_id=step_row["flow_id"],
+                job_id=job["id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("mini_group_assessment_feedback", result["next_action"])
+        self.assertEqual(1, result["mini_group_size"])
+        self.assertTrue(result["feedback_step_id"])
+        flow = dict(self.runtime._flow_by_id(step_row["flow_id"]))
+        self.assertNotEqual("blocked", flow["status"])
+        projected = self.runtime.project_child_state(flow)
+        self.assertEqual("assessment_feedback", projected["child_state"])
+        self.assertEqual(
+            1,
+            self.conn.execute(
+                "select count(*) from flow_steps where flow_id = ? and step_type = 'assessment_feedback'",
+                (step_row["flow_id"],),
+            ).fetchone()[0],
+        )
+        self.assertEqual(
+            1,
+            self.conn.execute(
+                "select count(*) from next_step_decisions where flow_id = ?",
+                (step_row["flow_id"],),
+            ).fetchone()[0],
+        )
+
+    def test_capacity_limited_group_declares_one_before_submission(self):
+        step_row = self._step_row()
+        self._bind_active_contract(step_row)
+        flow = dict(self.runtime._flow_by_id(step_row["flow_id"]))
+        selection_reason = self.runtime._mini_group_selection_reason(
+            {
+                "reason": "capacity_limited_group_fixture",
+                "bounded_candidate_count": 1,
+                "target_node_id": step_row["node_id"],
+            },
+            flow=flow,
+            step_type=step_row["step_type"],
+            group_role="review_short_set",
+            target_node_id=step_row["node_id"],
+            question_id=step_row["question_id"],
+            requested_usage={
+                "purpose": "diagnostic",
+                "purpose_role": "entry_probe",
+            },
+        )
+        mini_group = selection_reason["mini_group"]
+        self.assertEqual(1, mini_group["size"])
+        self.assertTrue(mini_group["capacity_limited"])
+        self.assertFalse(mini_group["defer_analysis_until_group_end"])
+        self.conn.execute(
+            "update flow_steps set selection_reason_json = ? where id = ?",
+            (db.json_dump(selection_reason), step_row["id"]),
+        )
+        self.conn.execute(
+            "update daily_flows set assessment_policy_version = 'v5.1' where id = ?",
+            (step_row["flow_id"],),
+        )
+        self.conn.commit()
+
+        projected = self.runtime.project_child_state(
+            self.runtime._flow_by_id(step_row["flow_id"])
+        )
+        self.assertEqual(
+            {"current": 1, "maximum": 1},
+            projected["current_step"]["group_progress"],
+        )
+        state = self._submit_payload(
+            self._typed_payload(
+                projected,
+                key="capacity-limited-single-before-submit",
+                answer="-3",
+            )
+        )
+        self.assertEqual("analyzing", state["child_state"])
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and job_type = 'answer_analysis'",
+            (step_row["flow_id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (step_row["flow_id"],),
+        ).fetchone()[0])
+
     def test_single_model_call_does_not_hold_sqlite_write_lock(self):
         _, _, contract, job = self._enqueue_single_answer_job(
             key="single-model-no-db-lock"
@@ -2122,7 +2453,11 @@ class PracticeMultimodalContractTests(unittest.TestCase):
             "rollback_candidates",
             return_value=["M-PRE-OTHER-NODE"],
         ):
-            result = self.runtime._next_selection_after_attempt(flow, attempt=graded)
+            result = self.runtime._next_selection_after_attempt(
+                flow,
+                attempt=graded,
+                required_purpose="diagnostic",
+            )
 
         self.assertEqual("same_node_trusted_reconfirmation", result["action"])
         select_question.assert_called_once()
@@ -2778,28 +3113,14 @@ class PracticeMultimodalContractTests(unittest.TestCase):
         ]
 
     def _stable_mastery_result_for_rows(self, rows):
-        class ResultRows:
-            def __init__(self, values):
-                self.values = values
-
-            def fetchall(self):
-                return self.values
-
-        class FocusedConnection:
-            def __init__(self, values):
-                self.values = values
-
-            def execute(self, _query, _params=()):
-                return ResultRows(self.values)
-
-        original = self.runtime.conn
-        self.runtime.conn = FocusedConnection(rows)
-        try:
-            return self.runtime._evidence_set_supports_stable_mastery(
-                [row["id"] for row in rows]
-            )
-        finally:
-            self.runtime.conn = original
+        # M2.5-5c 清理：旧 set 级 A 门 _evidence_set_supports_stable_mastery 已
+        # 删除；其逐行全链校验由保留的 _v51_evidence_full_chain_passes 承担
+        # （统一窗口的唯一防污染门，proposal §2.5）。结构/角色多样性要求移入
+        # decide_verdict 的窗口 AGG C2/C3，不在本 oracle 内。
+        return all(
+            daily_runtime.DailyLearningRuntime._v51_evidence_full_chain_passes(row, {})
+            for row in rows
+        )
 
     def _request(self, method, base_url, path, payload=None):
         host, port = base_url.replace("http://", "").split(":")

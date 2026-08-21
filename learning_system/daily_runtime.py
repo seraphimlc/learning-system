@@ -13561,7 +13561,7 @@ class DailyLearningRuntime:
         # ------------------------------------------------------------------
         # M2.5-5b: unified mastery judgment (proposal §2.2/§2.3/§5).
         # The legacy recommendation -> status mapping and the A-gate
-        # (_evidence_set_supports_stable_mastery, kept below, deprecated) are
+        # (_evidence_set_supports_stable_mastery, removed in M2.5-5c) are
         # replaced by mastery_v51_adapter.judge_v51_evaluation, which composes
         # the unified rules: decide_verdict (R1-R6 + window AGG C1-C6) ->
         # apply_llm_tightening (evaluation_output.mastery_recommendation as the
@@ -13764,107 +13764,6 @@ class DailyLearningRuntime:
             and evaluation.get("reason_code") != "client_unverified_voice_transcript"
         )
 
-    # DEPRECATED (M2.5-5b): the v51 A-gate. The wiring now uses the unified
-    # mastery rules via mastery_v51_adapter.judge_v51_evaluation (the A gate is
-    # decide_verdict's window AGG C1-C6, with this method's full-chain checks
-    # preserved per-row by _v51_node_evidence_rows). Kept untouched for
-    # rollback/audit; physical removal is deferred to M2.5-5c.
-    def _evidence_set_supports_stable_mastery(self, validation_ids: list[str]) -> bool:
-        ids = [str(item) for item in validation_ids if item]
-        if len(ids) < 2:
-            return False
-        placeholders = ",".join("?" for _ in ids)
-        rows = self.conn.execute(
-            f"""
-            select ev.id, ev.attempt_id, ev.gate_status, ev.graph_version,
-                   ev.question_bank_version, ev.question_id,
-                   a.evidence_status, a.grading_status, a.analysis_status,
-                   a.graph_version as attempt_graph_version,
-                   a.question_bank_version as attempt_question_bank_version,
-                   aa.status as assessment_status, aa.question_passed,
-                   aa.question_item_version as assessment_question_item_version,
-                   q.item_version as current_question_item_version,
-                   auc.snapshot_json,
-                   suc.purpose, suc.purpose_role, suc.hint_policy,
-                   suc.mastery_update_eligible, suc.structure_fingerprint,
-                   r.review_status
-            from evidence_validations ev
-            join attempts a on a.id = ev.attempt_id
-            join attempt_assessments aa on aa.id = ev.assessment_id
-            join question_items q on q.id = ev.question_id
-            join question_review_records r on r.id = a.review_record_id
-            join attempt_usage_contexts auc on auc.attempt_id = ev.attempt_id
-            join flow_step_usage_contexts suc on suc.id = auc.flow_step_usage_context_id
-            where ev.id in ({placeholders})
-              and ev.gate_status = 'passed'
-            """,
-            ids,
-        ).fetchall()
-        if len(rows) != len(ids):
-            return False
-        structures: set[str] = set()
-        diagnostic_roles: set[str] = set()
-        for row in rows:
-            evidence = dict(row)
-            snapshot = db.json_load(evidence.get("snapshot_json"), {})
-            if not self._attempt_recognition_allows_mastery(
-                str(evidence.get("attempt_id") or "")
-            ):
-                return False
-
-            def value(*names: str, default: Any = None) -> Any:
-                for name in names:
-                    if name in evidence:
-                        return evidence[name]
-                    if name in snapshot:
-                        return snapshot[name]
-                return default
-
-            if (
-                value("purpose") != "diagnostic"
-                or value("hint_policy") != "no_hint"
-                or not bool(value("mastery_update_eligible"))
-                or bool(value("actual_hint_exposed", default=False))
-                or bool(value("child_hint_exposed", default=False))
-                or bool(str(value("presented_hint", default="") or "").strip())
-                or value("gate_status", default="passed") != "passed"
-                or value("evidence_status", "attempt_evidence_status", default="active") != "active"
-                or value("grading_status", default="graded") != "graded"
-                or value("analysis_status", default="valid") != "valid"
-                or value("assessment_status", "accepted_assessment_status", default="accepted") != "accepted"
-                or not bool(value("question_passed", "assessment_question_passed", default=False))
-                or value("review_status", default="approved") != "approved"
-                or value("graph_version_is_current", default=True) is not True
-                or value("question_bank_version_is_current", default=True) is not True
-                or value("question_item_version_is_current", default=True) is not True
-            ):
-                return False
-            graph_version = str(value("graph_version", default="") or "")
-            current_graph_version = str(value("current_graph_version", default=graph_version) or "")
-            attempt_graph_version = str(value("attempt_graph_version", default=graph_version) or "")
-            bank_version = str(value("question_bank_version", default="") or "")
-            current_bank_version = str(value("current_question_bank_version", default=bank_version) or "")
-            attempt_bank_version = str(value("attempt_question_bank_version", default=bank_version) or "")
-            item_version = str(value("question_item_version", "assessment_question_item_version", default="") or "")
-            current_item_version = str(value("current_question_item_version", default=item_version) or "")
-            if any(
-                (
-                    graph_version != current_graph_version,
-                    attempt_graph_version != current_graph_version,
-                    bank_version != current_bank_version,
-                    attempt_bank_version != current_bank_version,
-                    item_version != current_item_version,
-                )
-            ):
-                return False
-            structures.add(str(value("structure_fingerprint") or value("id")))
-            diagnostic_roles.add(str(value("purpose_role", default="") or ""))
-        return (
-            len(structures) >= 2
-            and "confirmation_core" in diagnostic_roles
-            and "confirmation_transfer" in diagnostic_roles
-        )
-
     # ------------------------------------------------------------------
     # M2.5-5b: unified-mastery evidence wiring. These helpers build the
     # mastery_bridge external row shape (judgment-event rows) for the node's
@@ -14033,10 +13932,10 @@ class DailyLearningRuntime:
     def _v51_evidence_full_chain_passes(
         evidence: dict[str, Any], snapshot: dict[str, Any]
     ) -> bool:
-        """Per-row full-chain evidence gate (the old A-gate's checks, per row).
+        """Per-row full-chain evidence gate (the retired A-gate's checks, per row).
 
-        Mirrors _evidence_set_supports_stable_mastery's per-validation checks
-        (purpose/hint/mastery-eligible/hint-exposure/gate/evidence/grading/
+        Carries the legacy _evidence_set_supports_stable_mastery per-validation
+        checks (purpose/hint/mastery-eligible/hint-exposure/gate/evidence/grading/
         analysis/assessment/review) so only pollution-free attempts enter the
         unified window (proposal §2.5 keeps this as the 唯一防污染门). The
         "current version" comparisons are intentionally skipped: in the legacy
