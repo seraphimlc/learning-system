@@ -698,5 +698,223 @@ class TestTransitionManualM1(unittest.TestCase):
         self.assertEqual(result["counter"], 0)
 
 
+# ---------------------------------------------------------------------------
+# M2.5 part 3: §2.4 retest intervals + §3 manual evidence M0/M1 (anchors
+# T16/T17/T19-T23; T18 = db-layer, T14/T15 = LLM tightening, both out of scope
+# here). Interpretation notes (proposal ambiguities, documented):
+#
+# next_retest_at(depth, verdict, b_count, now):
+#   - `depth` = number of verdict=A judgment events since the node's most
+#     recent status-change-to-A anchor (cap 4), i.e. the value BEFORE this
+#     event; `days` is always looked up with the INCOMING depth so the
+#     achievement event itself schedules +1 day (T16: A 达成 -> 次日复测 1 天),
+#     then each further verdict=A schedules intervals[new depth]
+#     (3 -> 7 -> 14 -> 30, 30 capped). This is the reading that reproduces the
+#     anchor sequence [1,3,7,14,30] exactly.
+#   - verdict=A: new_depth = min(depth+1, 4); days = intervals[min(depth, 4)].
+#   - verdict=B: new_depth unchanged; depth>=1 -> days = intervals[depth]
+#     (T21 按当前间隔重排); depth=0 -> days = 3 if b_count+1 >= 3 else 1,
+#     where b_count = consecutive-B count BEFORE this event (T22: the 3rd
+#     consecutive B -> 3 days).
+#   - verdict=C/D: reset depth 0, days = 1 (T17).
+#   - NO_CHANGE: no-op (never stored -> never reschedules).
+#   - next_retest_at (absolute) = _as_date(now) + days when `now` is given.
+#
+# manual_entry(mode, count): M0 -> always emit the system-internal retest
+#   signal, zero judgment-side effect (not counted, no recheck); M1 -> retest
+#   signal + action-layer independent count (threshold 3, same number as the
+#   unique counter by design §4), 3rd consecutive M1 -> recheck + reset.
+#   Neither mode ever produces a judgment event or downgrades (M1 batch
+#   backfill is a reclassification into the same M1 path; carrier is M4).
+# ---------------------------------------------------------------------------
+
+FIXED_NOW = "2026-08-10"
+
+
+class TestRetestIntervals(unittest.TestCase):
+    def test_interval_table_is_1_3_7_14_30(self):  # §2.4 / T16
+        self.assertEqual(rules.RETEST_INTERVALS_DAYS, [1, 3, 7, 14, 30])
+
+    def test_a_at_depth0_schedules_next_day(self):  # T16: A 达成 -> 次日复测 1 天
+        from datetime import date
+        result = rules.next_retest_at(0, "A", now=FIXED_NOW)
+        self.assertEqual(result["new_depth"], 1)
+        self.assertEqual(result["days"], 1)
+        self.assertEqual(result["next_retest_at"], date(2026, 8, 11))
+
+    def test_a_progression_3_7_14(self):  # T16: 每次窗口级复测通过 -> 深度+1
+        self.assertEqual(rules.next_retest_at(1, "A", now=FIXED_NOW)["days"], 3)
+        self.assertEqual(rules.next_retest_at(2, "A", now=FIXED_NOW)["days"], 7)
+        self.assertEqual(rules.next_retest_at(3, "A", now=FIXED_NOW)["days"], 14)
+        self.assertEqual(rules.next_retest_at(3, "A", now=FIXED_NOW)["new_depth"], 4)
+
+    def test_a_capped_at_30_days(self):  # T16: 30 天通过后维持 30 天
+        result = rules.next_retest_at(4, "A", now=FIXED_NOW)
+        self.assertEqual(result["days"], 30)
+        self.assertEqual(result["new_depth"], 4)
+
+    def test_a_resets_b_count(self):
+        result = rules.next_retest_at(0, "A", b_count=2)
+        self.assertEqual(result["b_count"], 0)
+
+    def test_b_at_depth1_repeats_current_interval(self):  # T21
+        from datetime import date
+        result = rules.next_retest_at(2, "B", now=FIXED_NOW)
+        self.assertEqual(result["new_depth"], 2)  # 深度不变
+        self.assertEqual(result["days"], 7)  # 按当前间隔重排
+        self.assertEqual(result["next_retest_at"], date(2026, 8, 17))
+
+    def test_b_at_depth0_below_3_uses_one_day(self):  # T22 (b_count<3 -> 1 天)
+        result = rules.next_retest_at(0, "B", b_count=0, now=FIXED_NOW)
+        self.assertEqual(result["new_depth"], 0)
+        self.assertEqual(result["days"], 1)
+
+    def test_b_at_depth0_third_consecutive_uses_three_days(self):  # T22 (连续 B>=3 -> 3 天)
+        result = rules.next_retest_at(0, "B", b_count=2, now=FIXED_NOW)
+        self.assertEqual(result["new_depth"], 0)
+        self.assertEqual(result["days"], 3)
+
+    def test_b_after_trigger_stays_three_days(self):  # T22 boundary: b_count>=3 stays 3
+        result = rules.next_retest_at(0, "B", b_count=3)
+        self.assertEqual(result["days"], 3)
+
+    def test_b_increments_b_count(self):
+        result = rules.next_retest_at(1, "B", b_count=1)
+        self.assertEqual(result["b_count"], 2)
+
+    def test_c_resets_depth_and_interval(self):  # T17
+        from datetime import date
+        result = rules.next_retest_at(3, "C", b_count=4, now=FIXED_NOW)
+        self.assertEqual(result["new_depth"], 0)
+        self.assertEqual(result["days"], 1)
+        self.assertEqual(result["b_count"], 0)
+        self.assertEqual(result["next_retest_at"], date(2026, 8, 11))
+
+    def test_d_resets_depth_and_interval(self):  # T17
+        result = rules.next_retest_at(2, "D")
+        self.assertEqual(result["new_depth"], 0)
+        self.assertEqual(result["days"], 1)
+
+    def test_no_change_is_noop(self):
+        result = rules.next_retest_at(2, "NO_CHANGE", b_count=1)
+        self.assertEqual(result["new_depth"], 2)
+        self.assertEqual(result["days"], 0)
+        self.assertEqual(result["b_count"], 1)
+
+    def test_invalid_depth_raises(self):
+        with self.assertRaises(ValueError):
+            rules.next_retest_at(-1, "A")
+        with self.assertRaises(ValueError):
+            rules.next_retest_at("x", "A")
+
+    def test_invalid_verdict_raises(self):
+        with self.assertRaises(ValueError):
+            rules.next_retest_at(0, "X")
+
+    def test_invalid_b_count_raises(self):
+        with self.assertRaises(ValueError):
+            rules.next_retest_at(0, "B", b_count=-1)
+
+    def test_now_accepts_datetime_and_date(self):
+        from datetime import date, datetime
+        dt_result = rules.next_retest_at(0, "A", now=datetime(2026, 8, 10, 12, 30))
+        self.assertEqual(dt_result["next_retest_at"], date(2026, 8, 11))
+        d_result = rules.next_retest_at(0, "A", now=date(2026, 8, 10))
+        self.assertEqual(d_result["next_retest_at"], date(2026, 8, 11))
+
+
+class TestRetestAntiDeathLoop(unittest.TestCase):
+    def test_single_strong_retest_is_b_not_a(self):  # T23: 单题级 A 不存在
+        # 单条 correct+exp>=2+sound、无历史 strong: 窗口 AGG(C1) 不满足 -> verdict=B。
+        result = rules.decide_verdict(attempt())
+        self.assertEqual(result["code"], "B")
+
+    def test_b_retest_does_not_advance_depth(self):  # T23: 无每日复测死循环
+        # 单题复测产出 B -> next_retest_at 深度不推进（不会 1->2->3 天递增）。
+        first = rules.next_retest_at(0, "B", b_count=0)
+        self.assertEqual(first["new_depth"], 0)
+        self.assertEqual(first["days"], 1)
+        second = rules.next_retest_at(0, "B", b_count=first["b_count"])
+        self.assertEqual(second["new_depth"], 0)
+        self.assertEqual(second["days"], 1)  # b_count 未达 3, 维持 1 天, 深度不涨
+
+    def test_a_depth_advance_requires_window_level_a(self):
+        # 深度推进只在窗口级 verdict=A 之后: 单题 B 之后即便再来一条 strong,
+        # 只要 AGG 仍不满足就是 B, 深度保持 0。
+        window = two_strong_window(day1="2026-08-01", day2="2026-08-01")  # 同日 -> C5 不满足
+        retest = rules.decide_verdict(window[1], window)
+        self.assertEqual(retest["code"], "B")
+        schedule = rules.next_retest_at(0, retest["code"], b_count=1)
+        self.assertEqual(schedule["new_depth"], 0)
+
+
+class TestManualEvidence(unittest.TestCase):
+    def test_m0_triggers_retest_only(self):  # T19
+        result = rules.manual_entry("M0", count=2)
+        self.assertTrue(result["retest"])  # 触发一次系统内复测（教学动作）
+        self.assertFalse(result["counted"])  # M0 不计数
+        self.assertEqual(result["count"], 2)  # 动作层计数不受影响
+        self.assertFalse(result["recheck"])
+
+    def test_m0_zero_judgment_side_effect(self):  # T19: 判定侧零作用
+        result = rules.manual_entry("M0")
+        self.assertFalse(result["judgment_event"])  # 不产判定事件
+        self.assertFalse(result["downgrade"])  # 不降级
+        self.assertEqual(result["reason_code"], "m0_retest_only")
+
+    def test_m1_first_counts_one(self):
+        result = rules.manual_entry("M1", count=0)
+        self.assertTrue(result["retest"])
+        self.assertTrue(result["counted"])
+        self.assertEqual(result["count"], 1)
+        self.assertFalse(result["recheck"])
+
+    def test_m1_second_counts_two(self):
+        result = rules.manual_entry("M1", count=1)
+        self.assertEqual(result["count"], 2)
+        self.assertFalse(result["recheck"])
+
+    def test_m1_third_triggers_recheck_and_resets(self):  # T20
+        result = rules.manual_entry("M1", count=2)
+        self.assertTrue(result["recheck"])
+        self.assertEqual(result["count"], 0)  # 触发回查并清零
+        self.assertTrue(result["retest"])
+
+    def test_m1_fresh_streak_after_trigger(self):
+        result = rules.manual_entry("M1", count=0)
+        self.assertEqual(result["count"], 1)
+
+    def test_m1_never_downgrades_or_writes_judgment(self):  # T20: 状态不变
+        result = rules.manual_entry("M1", count=2)
+        self.assertFalse(result["judgment_event"])
+        self.assertFalse(result["downgrade"])  # 永不直接降档/D
+
+    def test_m1_count_is_isolated_from_unique_counter(self):  # T20: 与唯一计数器隔离
+        # 3 条 M1 触发动作层回查, 但 §2.3 唯一计数器不受影响 (manual 事件不计入)。
+        for i in range(3):
+            rules.manual_entry("M1", count=i)
+        events = [cd_event("C", is_manual=True) for _ in range(3)]
+        self.assertEqual(rules.cd_counter(events), 0)
+        # 等价单事件视角: manual=True 的 C 不进唯一计数器。
+        self.assertEqual(rules.feed_cd_counter(2, "C", manual=True)["count"], 2)
+
+    def test_m1_does_not_enter_cd_counter_semantics(self):
+        # M1 的"3 条触发"不改变唯一计数器派生值: 3 条 M1 事件后 cd_counter 仍为 0。
+        result = rules.manual_entry("M1", count=2)
+        self.assertTrue(result["recheck"])
+        self.assertEqual(rules.cd_counter([cd_event("C", is_manual=True)] * 3), 0)
+
+    def test_invalid_mode_raises(self):
+        with self.assertRaises(ValueError):
+            rules.manual_entry("M2")
+
+    def test_invalid_count_raises(self):
+        with self.assertRaises(ValueError):
+            rules.manual_entry("M1", count=-1)
+
+    def test_recheck_limit_equals_unique_counter_limit(self):  # §4: 同阈值 3
+        self.assertEqual(rules.MANUAL_RECHECK_LIMIT, rules.CD_COUNTER_LIMIT)
+
+
 if __name__ == "__main__":
     unittest.main()

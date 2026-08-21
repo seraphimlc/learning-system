@@ -35,18 +35,25 @@ non-empty. This is the "A 档补上 v51 缺失的推理缺口检查" (C4 + R3).
 
 Implemented (M2.5 part 2, §2.3): the unique consecutive C/D counter
 (feed_cd_counter / cd_counter) and the state-transition table
-(transition_status, incl. T8 "保持 A"). Still out of scope (later M2.5
-tasks): §2.4 retest intervals (RETEST_INTERVALS_DAYS), §3 manual-evidence
-M0/M1 flows (recheck wiring, action-layer counting), §4 over-diagnosis
-linkage, §5 LLM tightening. Recheck *scheduling* is wired elsewhere; this
-module only emits the "recheck required" signal (recheck=True).
+(transition_status, incl. T8 "保持 A").
+
+Implemented (M2.5 part 3, §2.4/§3): the retest-interval algorithm
+(next_retest_at / RETEST_INTERVALS_DAYS, incl. the 会审修订 B branch) and the
+manual-evidence M0/M1 flows (manual_entry: M0 retest signal with zero
+judgment-side effect; M1 action-layer independent counting with the same
+threshold 3, recheck + reset, never a direct downgrade). Recheck *scheduling*
+and question arrangement are wired elsewhere; this module only emits the
+signals (recheck=True / retest=True).
+
+Still out of scope (later M2.5 tasks): §4 over-diagnosis linkage (M2.5-4),
+§5 LLM tightening (M2.5-4), runtime wiring (M2.5-5).
 
 Run: python3 -m unittest tests.test_mastery_rules
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 # ---------------------------------------------------------------------------
 # Enumerations (proposal §2.1)
@@ -643,3 +650,230 @@ def transition_status(
         VERDICT_C, new_counter, False, "unfiled_c",
         "First C/D verdict files a previously unfiled node as C (有据建档即弱).",
     )
+
+
+# ---------------------------------------------------------------------------
+# §2.4 retest intervals (M2.5 part 3)
+# ---------------------------------------------------------------------------
+#
+# RETEST_INTERVALS_DAYS = [1, 3, 7, 14, 30] (cap 30 days). `depth` is the
+# number of verdict=A judgment events since the node's most recent
+# status-change-to-A anchor, capped at MAX_RETEST_DEPTH (= 4, the interval
+# index cap): next_retest_at(node) = last_A_event_at + intervals[depth].
+#
+# Retest-pass semantics (会审修订): a retest passes iff it produces
+# verdict=A, and verdict=A is decided by decide_verdict's *window-level* AGG
+# (C1-C6 over historical strong evidence, §2.2) — never by a single attempt,
+# which yields at most B (R4/R5). Hence there is no "single-attempt A ->
+# depth+1 -> daily retest death loop": depth advances only after a
+# window-level A (T23).
+#
+# Branch semantics:
+#   - verdict=A (窗口级复测通过): depth +1, next retest at intervals[depth].
+#   - verdict=B (会审修订): depth unchanged, reschedule at the current
+#     interval — depth>=1 -> intervals[depth]; depth=0 (never-A, e.g. the
+#     C->B->A path) -> 1 day, or 3 days once >=3 consecutive B verdicts
+#     (b_count = consecutive-B judgment-event count including the current
+#     event; the caller passes the count BEFORE this event, the returned
+#     "b_count" is the value after).
+#   - verdict=C/D (复测失败): reset depth 0, interval 1 day. The downgrade
+#     itself is driven by the §2.3 unique counter (part 2), not here.
+#
+# Interpretation note (proposal ambiguity, per M2.5-1 convention): the
+# interval lookup for verdict=A uses the *incoming* depth, so the achievement
+# event itself schedules +1 day (T16: "A 达成 -> 次日复测(1 天)"), and each
+# further verdict=A schedules intervals[new depth] -> 3 -> 7 -> 14 -> 30
+# (capped, maintain 30). This is the reading that reproduces the anchor
+# sequence [1,3,7,14,30] exactly; the alternative (look up with the
+# incremented depth) would schedule +3 days right after A 达成, contradicting
+# T16's first step.
+
+RETEST_INTERVALS_DAYS = [1, 3, 7, 14, 30]      # §2.4, cap 30 days
+MAX_RETEST_DEPTH = len(RETEST_INTERVALS_DAYS) - 1  # 4: interval index cap
+B_COUNT_LONG_INTERVAL_THRESHOLD = 3             # depth=0 B: b_count>=3 -> 3 days
+
+
+def _retest_result(new_depth, days, b_count, now, reason_code, reason):
+    result = {
+        "new_depth": new_depth,
+        "days": days,
+        "b_count": b_count,
+        "next_retest_at": None,
+        "reason_code": reason_code,
+        "reason": reason,
+    }
+    if now is not None:
+        result["next_retest_at"] = _as_date(now) + timedelta(days=days)
+    return result
+
+
+def next_retest_at(depth, verdict, b_count=0, now=None) -> dict:
+    """Retest-interval schedule update for one judgment event (§2.4).
+
+    Args:
+        depth: verdict=A count since the last status-change-to-A anchor,
+            capped at MAX_RETEST_DEPTH. Values above the cap are treated as
+            the cap (the "维持 30 天" semantic); negative/non-int raise.
+        verdict: one of D/C/B/A/NO_CHANGE (output of decide_verdict).
+        b_count: consecutive-B judgment-event count BEFORE this event
+            (non-negative int); used only by the depth=0 B branch.
+        now: date | datetime | "YYYY-MM-DD" for the absolute next_retest_at
+            (date granularity, consistent with _as_date); None skips it.
+
+    Returns:
+        {"new_depth", "days", "b_count", "next_retest_at", "reason_code",
+         "reason"}: the depth to persist, days until the next retest (the
+        wiring layer adds them to `now`), the consecutive-B count after this
+        event, the absolute retest date when `now` is given (None for
+        NO_CHANGE: never stored -> never rescheduled), and a code/reason.
+    """
+    if not isinstance(depth, int) or depth < 0:
+        raise ValueError(f"depth must be a non-negative int, got {depth!r}")
+    if not isinstance(b_count, int) or b_count < 0:
+        raise ValueError(f"b_count must be a non-negative int, got {b_count!r}")
+    if verdict not in VERDICTS:
+        raise ValueError(f"verdict must be one of {sorted(VERDICTS)}, got {verdict!r}")
+
+    if verdict == VERDICT_NO_CHANGE:  # never stored -> never reschedules
+        return _retest_result(
+            depth, 0, b_count, None, "no_change",
+            "NO_CHANGE is never stored: no schedule change.",
+        )
+
+    if verdict == VERDICT_A:  # 窗口级复测通过 -> 深度+1, 按当前深度索引排下次
+        new_depth = min(depth + 1, MAX_RETEST_DEPTH)
+        days = RETEST_INTERVALS_DAYS[min(depth, MAX_RETEST_DEPTH)]
+        return _retest_result(
+            new_depth, days, 0, now, "a_advance",
+            f"verdict=A (window-level AGG pass): depth {depth} -> {new_depth}, "
+            f"next retest in {days} day(s).",
+        )
+
+    if verdict == VERDICT_B:  # 深度不变, 按当前间隔重排 (会审修订)
+        next_b = b_count + 1
+        if depth >= 1:
+            days = RETEST_INTERVALS_DAYS[min(depth, MAX_RETEST_DEPTH)]
+            return _retest_result(
+                depth, days, next_b, now, "b_repeat_interval",
+                f"verdict=B at depth {depth} (>=1): depth unchanged, reschedule "
+                f"at the current interval {days} day(s).",
+            )
+        days = 3 if next_b >= B_COUNT_LONG_INTERVAL_THRESHOLD else 1
+        return _retest_result(
+            depth, days, next_b, now, "b_depth0_short_interval",
+            f"verdict=B at depth 0 (never-A): {next_b} consecutive B verdict(s) "
+            f"-> {days} day(s).",
+        )
+
+    # verdict == C/D: 复测失败 -> 归零重置 (深度 0、间隔 1 天)
+    return _retest_result(
+        0, RETEST_INTERVALS_DAYS[0], 0, now, "cd_reset",
+        f"verdict={verdict}: retest failed, depth reset to 0, interval reset "
+        "to 1 day.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# §3 manual evidence M0/M1 (M2.5 part 3)
+# ---------------------------------------------------------------------------
+#
+# M0 (child self-report, unconfirmed): triggers ONE system-internal retest
+# (1-2 questions, same-structure / near-transfer) as a teaching action — this
+# module only emits the "retest" signal; the wiring layer arranges the
+# questions. Judgment side is zero (会审修订 "未确认 ≠ 薄弱"): M0 itself
+# produces no judgment event, no counting, no downgrade, no promotion, no
+# archive write.
+#
+# M1 (child self-report + parent confirmation; the weekly-summary batch
+# confirmation backfills previously M0 entries into M1 — a reclassification
+# into this same path, carrier marking belongs to M4): also triggers one
+# system-internal retest, AND counts on the *action-layer independent
+# counter* (threshold 3, deliberately the same number as the unique counter
+# CD_COUNTER_LIMIT per §4 "同阈值 3"). 3 consecutive M1 entries trigger the
+# recheck (回查) action and reset to 0. M1 never directly downgrades to C/D
+# and never writes a judgment event: only the system-internal retest answers
+# (decide_verdict on real attempts) feed the §2.3 unique counter, which is
+# the only path that can downgrade (T13/T20).
+#
+# Interpretation notes (proposal ambiguity, per M2.5-1 convention): (1) M0
+# leaves the M1 action counter untouched — it neither increments nor resets
+# it (zero judgment-side effect); (2) whether a system judgment event between
+# two M1 entries breaks the streak is a wiring-layer policy — the caller
+# controls what it feeds into `count` (mirroring how cd_counter's caller
+# feeds event sequences; T20 assumes no system event interleaves).
+
+MANUAL_MODE_M0 = "M0"
+MANUAL_MODE_M1 = "M1"
+MANUAL_MODES = frozenset({MANUAL_MODE_M0, MANUAL_MODE_M1})
+MANUAL_RECHECK_LIMIT = CD_COUNTER_LIMIT  # 动作层独立计数, 阈值同 3 (§3/§4)
+
+
+def manual_entry(mode: str, count: int = 0) -> dict:
+    """Record one manual-evidence entry (M0/M1, §3) and emit its signals.
+
+    Args:
+        mode: "M0" (child self-report, unconfirmed) or "M1" (parent-
+            confirmed, including weekly-batch backfill).
+        count: the action-layer M1 counter value BEFORE this entry
+            (non-negative int; M0 ignores it but must still be valid).
+
+    Returns:
+        {"mode", "retest", "counted", "count", "recheck",
+         "judgment_event", "downgrade", "reason_code", "reason"}:
+        - retest: True for both modes — one system-internal retest signal
+          (教学动作; the wiring layer arranges 1-2 questions);
+        - counted: True only for M1 (action-layer independent count);
+        - count: the action-layer M1 counter AFTER this entry (M0: unchanged;
+          M1: +1, reset to 0 when MANUAL_RECHECK_LIMIT is reached);
+        - recheck: True when the 3rd consecutive M1 fires the 回查 action;
+        - judgment_event / downgrade: always False — M0/M1 never enter the
+          judgment side and never directly downgrade.
+    """
+    if mode not in MANUAL_MODES:
+        raise ValueError(f"mode must be one of {sorted(MANUAL_MODES)}, got {mode!r}")
+    if not isinstance(count, int) or count < 0:
+        raise ValueError(f"count must be a non-negative int, got {count!r}")
+
+    if mode == MANUAL_MODE_M0:
+        return {
+            "mode": mode,
+            "retest": True,
+            "counted": False,
+            "count": count,
+            "recheck": False,
+            "judgment_event": False,
+            "downgrade": False,
+            "reason_code": "m0_retest_only",
+            "reason": "M0 (unconfirmed self-report): triggers one system-internal "
+                      "retest (teaching action); zero judgment-side effect — no "
+                      "judgment event, no counting, no downgrade, no archive write.",
+        }
+
+    next_count = count + 1
+    if next_count >= MANUAL_RECHECK_LIMIT:
+        return {
+            "mode": mode,
+            "retest": True,
+            "counted": True,
+            "count": 0,
+            "recheck": True,
+            "judgment_event": False,
+            "downgrade": False,
+            "reason_code": "m1_trigger_recheck",
+            "reason": f"M1 #{next_count}: action-layer counter reached "
+                      f"{MANUAL_RECHECK_LIMIT} -> recheck (回查) triggered and "
+                      "counter reset; no downgrade, no judgment event (only "
+                      "system-internal retest verdicts enter the unique counter).",
+        }
+    return {
+        "mode": mode,
+        "retest": True,
+        "counted": True,
+        "count": next_count,
+        "recheck": False,
+        "judgment_event": False,
+        "downgrade": False,
+        "reason_code": "m1_counted",
+        "reason": f"M1 #{next_count} (below {MANUAL_RECHECK_LIMIT}): action-layer "
+                  "count incremented; retest triggered; no downgrade.",
+    }
