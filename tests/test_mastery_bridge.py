@@ -340,5 +340,152 @@ class TestToCounterEvents(unittest.TestCase):
         self.assertEqual(count, 0)
 
 
+class TestRetestHistory(unittest.TestCase):
+    """§2.4 follow-up: bridge.retest_history maps mastery_decisions rows to
+    the derivation inputs of rules.derive_retest_state / rules.retest_due
+    (pure; no I/O). Legacy-aware verdict fallback per row:
+
+        verdict_or_code (alias "verdict") ->
+        decision_payload_json.unified_verdict.verdict trace ->
+        new_status_code (stored A/B/C/D outcome; approximates the verdict
+        for legacy rows — a keep-A event reads as A, which advances depth;
+        rows written by M2.5-5b/5c always carry the exact unified trace).
+
+    Returns {"events": [{"verdict", "is_manual"}, ...], "last_event_at":
+    date | None} — the anchor date is the created_at of the last event that
+    maps to a real (non-NO_CHANGE) judgment event.
+    """
+
+    @staticmethod
+    def md_row(**overrides):
+        """mastery_decisions-shaped row (the columns the planner reads)."""
+        base = {
+            "node_id": "M-G7-POS-NEG",
+            "new_status_code": "B",
+            "decision_payload_json": {},
+            "created_at": "2026-08-01",
+            "is_manual": False,
+        }
+        base.update(overrides)
+        return base
+
+    @staticmethod
+    def trace(verdict):
+        return {"unified_verdict": {"verdict": verdict}}
+
+    def test_maps_rows_to_events_and_anchor(self):
+        rows = [
+            self.md_row(created_at="2026-08-01", new_status_code="C"),
+            self.md_row(created_at="2026-08-02", new_status_code="B"),
+        ]
+        history = bridge.retest_history(rows)
+        self.assertEqual(
+            history["events"],
+            [
+                {"verdict": "C", "is_manual": False},
+                {"verdict": "B", "is_manual": False},
+            ],
+        )
+        self.assertEqual(history["last_event_at"], date(2026, 8, 2))
+
+    def test_sorts_by_created_at(self):
+        rows = [
+            self.md_row(created_at="2026-08-05", new_status_code="A"),
+            self.md_row(created_at="2026-08-02", new_status_code="C"),
+            self.md_row(created_at="2026-08-01", new_status_code="B"),
+        ]
+        history = bridge.retest_history(rows)
+        self.assertEqual(
+            [e["verdict"] for e in history["events"]], ["B", "C", "A"],
+        )
+        self.assertEqual(history["last_event_at"], date(2026, 8, 5))
+
+    def test_legacy_new_status_code_fallback(self):
+        rows = [self.md_row(new_status_code="A")]
+        history = bridge.retest_history(rows)
+        self.assertEqual(history["events"], [{"verdict": "A", "is_manual": False}])
+
+    def test_payload_trace_priority_over_new_status_code(self):
+        # keep-A event: stored outcome A, real verdict B -> trace wins.
+        rows = [self.md_row(new_status_code="A", decision_payload_json=self.trace("B"))]
+        history = bridge.retest_history(rows)
+        self.assertEqual(history["events"], [{"verdict": "B", "is_manual": False}])
+
+    def test_payload_trace_accepts_json_string(self):
+        import json as _json
+        rows = [self.md_row(
+            new_status_code="A",
+            decision_payload_json=_json.dumps(self.trace("B")),
+        )]
+        history = bridge.retest_history(rows)
+        self.assertEqual(history["events"], [{"verdict": "B", "is_manual": False}])
+
+    def test_verdict_or_code_priority_over_trace(self):
+        rows = [self.md_row(
+            verdict_or_code="C",
+            new_status_code="A",
+            decision_payload_json=self.trace("B"),
+        )]
+        history = bridge.retest_history(rows)
+        self.assertEqual(history["events"], [{"verdict": "C", "is_manual": False}])
+
+    def test_no_change_rows_dropped_from_events_and_anchor(self):
+        rows = [
+            self.md_row(created_at="2026-08-01", new_status_code="C"),
+            self.md_row(created_at="2026-08-02", new_status_code="B"),
+            self.md_row(created_at="2026-08-03", new_status_code="A"),
+        ]
+        rows[1]["new_status_code"] = "NO_CHANGE"  # never stored in reality
+        history = bridge.retest_history(rows)
+        self.assertEqual(
+            [e["verdict"] for e in history["events"]], ["C", "A"],
+        )
+        self.assertEqual(history["last_event_at"], date(2026, 8, 3))
+
+    def test_manual_marker_passed_through(self):
+        rows = [
+            self.md_row(created_at="2026-08-01", new_status_code="C", is_manual=True),
+            self.md_row(created_at="2026-08-02", new_status_code="B"),
+        ]
+        history = bridge.retest_history(rows)
+        self.assertEqual(history["events"][0]["is_manual"], True)
+
+    def test_empty_rows_no_schedule(self):
+        history = bridge.retest_history([])
+        self.assertEqual(history["events"], [])
+        self.assertIsNone(history["last_event_at"])
+
+    def test_missing_created_at_raises(self):
+        bad = self.md_row()
+        del bad["created_at"]
+        with self.assertRaises(ValueError):
+            bridge.retest_history([bad])
+
+    def test_no_readable_verdict_row_skipped(self):
+        # Real legacy rows often carry new_status_code='' and no unified
+        # trace — such rows are not judgment events and are skipped (the
+        # planner must not crash on pre-unified data; the retest gate then
+        # falls back to "no schedule -> due", the conservative direction).
+        rows = [
+            self.md_row(created_at="2026-08-01", new_status_code="A"),
+            self.md_row(created_at="2026-08-02", new_status_code=""),
+        ]
+        history = bridge.retest_history(rows)
+        self.assertEqual(history["events"], [{"verdict": "A", "is_manual": False}])
+        self.assertEqual(history["last_event_at"], date(2026, 8, 1))
+
+    def test_events_feed_derive_retest_state(self):
+        rows = [
+            self.md_row(created_at="2026-08-01", new_status_code="A"),
+            self.md_row(created_at="2026-08-02", new_status_code="A"),
+            self.md_row(created_at="2026-08-03", new_status_code="B"),
+        ]
+        history = bridge.retest_history(rows)
+        state = rules.derive_retest_state(history["events"])
+        self.assertEqual(state["depth"], 2)
+        self.assertEqual(state["b_count"], 1)
+        self.assertEqual(state["days"], 7)  # depth>=1 -> 当前间隔
+
+
 if __name__ == "__main__":
     unittest.main()

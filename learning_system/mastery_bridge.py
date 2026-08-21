@@ -16,6 +16,12 @@ Inputs are plain dict sequences (judgment-event rows / mastery_decisions
 rows) that the runtime wiring (M2.5-5b/5c) reads from the DB and feeds in.
 Nothing here replaces or retires runtime judgment paths — that is 5b/5c.
 
+§2.4 follow-up (planner retest scheduling): retest_history maps a node's
+mastery_decisions rows (legacy-aware verdict fallback: verdict_or_code ->
+decision_payload_json.unified_verdict.verdict trace -> new_status_code) to
+the event sequence + anchor date consumed by
+mastery_rules.derive_retest_state / mastery_rules.retest_due.
+
 Judgment-event row shape (the adapter's primary input, aligned with the
 decide_verdict evidence contract):
 
@@ -262,3 +268,102 @@ def to_counter_events(rows) -> list[dict]:
             "is_manual": _to_bool(row.get("is_manual", False)) is True,
         })
     return events
+
+
+def _trace_verdict(row: dict) -> str:
+    """The unified verdict recorded in decision_payload_json.unified_verdict.
+
+    The M2.5-5b/5c wiring writes this trace on every stored mastery_decisions
+    row (daily_runtime.py:13616-13625 / orchestrator.py:416). Accepts a dict
+    or a JSON string (the DB column is TEXT). Returns "" when absent/invalid.
+    """
+    payload = row.get("decision_payload_json")
+    if isinstance(payload, str):
+        try:
+            import json as _json
+            payload = _json.loads(payload)
+        except ValueError:
+            payload = None
+    if isinstance(payload, dict):
+        trace = payload.get("unified_verdict")
+        if isinstance(trace, dict):
+            verdict = trace.get("verdict")
+            if verdict in rules.VERDICTS:
+                return verdict
+    return ""
+
+
+def _legacy_verdict(row: dict) -> str:
+    """Read the unified verdict from a mastery_decisions row (legacy-aware).
+
+    Fallback chain (documented in retest_history): the explicit unified
+    field verdict_or_code (alias "verdict") -> the decision_payload_json
+    .unified_verdict.verdict trace -> the legacy stored outcome
+    new_status_code (A/B/C/D are the unified verdict codes for stored
+    outcomes; NO_CHANGE is never stored). Returns "" when none of the three
+    carry a usable verdict — retest_history then skips the row (it carries
+    no judgment event; real legacy rows often have new_status_code='').
+    """
+    verdict = _extract_verdict_or_empty(row)
+    if verdict:
+        return verdict
+    verdict = _trace_verdict(row)
+    if verdict:
+        return verdict
+    verdict = row.get("new_status_code")
+    if verdict in rules.VERDICTS:
+        return verdict
+    return ""
+
+
+def _extract_verdict_or_empty(row: dict) -> str:
+    """_extract_verdict without raising ("" when absent/invalid)."""
+    verdict = row.get("verdict_or_code")
+    if verdict is None or verdict == "":
+        verdict = row.get("verdict")
+    if verdict is None or verdict == "":
+        return ""
+    return verdict if verdict in rules.VERDICTS else ""
+
+
+def retest_history(rows) -> dict:
+    """Map mastery_decisions rows to the §2.4 derivation inputs (pure).
+
+    The planner consumes this to gate interval-spaced retests: the verdict
+    sequence is derived from the node's append-only mastery_decisions history
+    (§2.4 "last_A_event_at / depth / b_count 均可重算推导"), replayed by
+    rules.derive_retest_state, and the anchor date feeds rules.retest_due.
+
+    Returns {"events": [...], "last_event_at": date | None}:
+    - events: chronological [{"verdict", "is_manual"}] — the exact input
+      shape of rules.derive_retest_state (and of to_counter_events);
+    - last_event_at: the created_at date of the last event that maps to a
+      real judgment event (None for an empty/no-event history).
+
+    Per row the unified verdict is read legacy-aware (see _legacy_verdict):
+    verdict_or_code -> payload unified trace -> new_status_code. The trace
+    takes priority over new_status_code because the stored outcome can
+    differ from the verdict (e.g. a keep-A event stores new_status_code='A'
+    while its verdict is B — using the stored outcome would advance depth
+    wrongly). Rows with no readable verdict are skipped (not judgment
+    events; real legacy rows often carry new_status_code='' — raising there
+    would crash plan generation for pre-unified data). NO_CHANGE rows are
+    dropped (never stored); the manual marker is passed through
+    (derive_retest_state treats manual events as inert).
+    """
+    ordered = sorted(
+        ((_as_date(r.get("created_at")), index, r) for index, r in enumerate(rows)),
+        key=lambda entry: (entry[0], entry[1]),
+    )
+    events = []
+    last_event_at = None
+    for _, _, row in ordered:
+        verdict = _legacy_verdict(row)
+        if not verdict or verdict == rules.VERDICT_NO_CHANGE:
+            continue
+        events.append({
+            "verdict": verdict,
+            "is_manual": _to_bool(row.get("is_manual", False)) is True,
+        })
+        last_event_at = _as_date(row["created_at"])
+    return {"events": events, "last_event_at": last_event_at}

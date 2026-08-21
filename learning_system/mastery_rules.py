@@ -43,7 +43,11 @@ manual-evidence M0/M1 flows (manual_entry: M0 retest signal with zero
 judgment-side effect; M1 action-layer independent counting with the same
 threshold 3, recheck + reset, never a direct downgrade). Recheck *scheduling*
 and question arrangement are wired elsewhere; this module only emits the
-signals (recheck=True / retest=True).
+signals (recheck=True / retest=True). The planner-side consumption of the
+interval algorithm is supported by the §2.4 follow-up derivations
+(derive_retest_state: replay a verdict sequence into the current
+depth/b_count plus the next interval; retest_due: due check at a reference
+date — both pure and used by planner._retest_is_due).
 
 Implemented (M2.5 part 4, §4/§5): the over-diagnosis gate rulings
 (diagnosis_budget gate #1, recheck_depth_limit gate #2, gate #3 alignment via
@@ -775,6 +779,80 @@ def next_retest_at(depth, verdict, b_count=0, now=None) -> dict:
         f"verdict={verdict}: retest failed, depth reset to 0, interval reset "
         "to 1 day.",
     )
+
+
+def derive_retest_state(events) -> dict:
+    """Replay the §2.4 schedule updates over a judgment-event sequence (pure).
+
+    `events` is a chronological list of {"verdict", "is_manual"} dicts — the
+    exact event shape bridge.to_counter_events / the adapters'
+    decision_history_events produce. The fold is next_retest_at applied to
+    every event, so the derived state is exactly what the §2.4 algorithm
+    leaves after the last event:
+
+      - verdict=A: depth +1 (cap MAX_RETEST_DEPTH), b_count reset to 0;
+      - verdict=B: depth unchanged, b_count +1;
+      - verdict=C/D: depth and b_count reset to 0;
+      - NO_CHANGE events are inert (never stored -> never reschedule);
+      - manual events (is_manual=True) are inert (never judgment events,
+        §2.2 eligibility "非手动证据").
+
+    Returns {"depth", "b_count", "days"}:
+
+      - depth/b_count: the current retest state (as next_retest_at would
+        leave them after the last event);
+      - days: the interval (in days) to the next retest after the last
+        event — the fold's final `days`. This is NOT recoverable from
+        {depth, b_count} alone: the verdict=A branch looks up the interval
+        with the *incoming* depth (T16 "A 达成 -> 次日复测(1 天)"), so e.g.
+        after the first A (derived depth 1) days is 1, not
+        RETEST_INTERVALS_DAYS[1] = 3. `days` is None for an empty sequence
+        (no derivable schedule — the caller treats that as "due by default",
+        see retest_due).
+    """
+    depth = 0
+    b_count = 0
+    days = None
+    for event in events:
+        if event.get("is_manual"):
+            continue
+        verdict = event["verdict"]
+        if verdict == VERDICT_NO_CHANGE:
+            continue
+        update = next_retest_at(depth, verdict, b_count=b_count)
+        depth = update["new_depth"]
+        b_count = update["b_count"]
+        days = update["days"]
+    return {"depth": depth, "b_count": b_count, "days": days}
+
+
+def retest_due(state: dict, last_retest_at, now) -> bool:
+    """Is this node's interval-spaced retest due at `now` (pure, §2.4)?
+
+    Args:
+        state: output of derive_retest_state — {"depth", "b_count",
+            "days"} where `days` is the interval to the next retest after
+            the node's last judgment event (None = no derivable schedule).
+        last_retest_at: the date (date | datetime | "YYYY-MM-DD") of the
+            node's last judgment event — the schedule anchor. None only when
+            the history is empty.
+        now: the reference "today" (date | datetime | "YYYY-MM-DD").
+
+    Returns True when the retest should be scheduled:
+
+      - no derivable schedule (state["days"] is None, i.e. no judgment
+        history) is always due — the conservative, non-blocking default
+        that preserves the planner's legacy behavior for nodes whose status
+        predates the unified judgment (no history to derive a schedule
+        from; under-claiming over over-claiming, §2.3 升降级不对称);
+      - otherwise due = now >= last_retest_at + state["days"] (date
+        granularity; the same-day-of-the-deadline counts as due).
+    """
+    days = state.get("days")
+    if days is None:
+        return True
+    next_at = _as_date(last_retest_at) + timedelta(days=days)
+    return _as_date(now) >= next_at
 
 
 # ---------------------------------------------------------------------------

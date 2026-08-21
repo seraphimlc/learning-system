@@ -848,6 +848,163 @@ class TestRetestAntiDeathLoop(unittest.TestCase):
         self.assertEqual(schedule["new_depth"], 0)
 
 
+class TestDeriveRetestState(unittest.TestCase):
+    """§2.4 follow-up: derive_retest_state replays next_retest_at's verdict
+    logic over a judgment-event sequence (pure; no date arithmetic).
+
+    Contract: derives the current {depth, b_count} exactly as the §2.4 fold
+    (next_retest_at per event) would leave them, plus `days` — the interval
+    to the next retest after the last event. `days` is NOT recoverable from
+    {depth, b_count} alone because the verdict=A branch looks up the interval
+    with the *incoming* depth (T16: A 达成 -> 次日复测 1 天; the fold's final
+    `days` carries that lookup). An empty sequence has no derivable schedule
+    (days=None). NO_CHANGE and manual events are inert (never stored /
+    never judgment events). Event shape: {"verdict", "is_manual"}.
+    """
+
+    @staticmethod
+    def ev(verdict, **overrides):
+        event = {"verdict": verdict, "is_manual": False}
+        event.update(overrides)
+        return event
+
+    def test_empty_sequence_has_no_schedule(self):
+        result = rules.derive_retest_state([])
+        self.assertEqual(result["depth"], 0)
+        self.assertEqual(result["b_count"], 0)
+        self.assertIsNone(result["days"])  # 无可推导排期
+
+    def test_first_a_advances_to_depth1_with_one_day(self):  # T16 起点
+        result = rules.derive_retest_state([self.ev("A")])
+        self.assertEqual(result["depth"], 1)
+        self.assertEqual(result["b_count"], 0)
+        self.assertEqual(result["days"], 1)
+
+    def test_a_progression_3_7_14(self):  # T16: 每次窗口级 A -> 深度+1
+        self.assertEqual(rules.derive_retest_state([self.ev("A"), self.ev("A")])["days"], 3)
+        self.assertEqual(rules.derive_retest_state([self.ev("A"), self.ev("A"), self.ev("A")])["days"], 7)
+        self.assertEqual(
+            rules.derive_retest_state([self.ev("A")] * 4)["days"], 14,
+        )
+
+    def test_a_capped_at_depth4_maintains_30_days(self):  # T16 封顶
+        result = rules.derive_retest_state([self.ev("A")] * 6)
+        self.assertEqual(result["depth"], 4)
+        self.assertEqual(result["days"], 30)
+
+    def test_b_at_depth0_increments_b_count_short_interval(self):  # T22
+        result = rules.derive_retest_state([self.ev("B")])
+        self.assertEqual(result["depth"], 0)
+        self.assertEqual(result["b_count"], 1)
+        self.assertEqual(result["days"], 1)
+
+    def test_b_third_consecutive_uses_three_days(self):  # T22 连续 B>=3 -> 3 天
+        result = rules.derive_retest_state([self.ev("B"), self.ev("B"), self.ev("B")])
+        self.assertEqual(result["depth"], 0)
+        self.assertEqual(result["b_count"], 3)
+        self.assertEqual(result["days"], 3)
+
+    def test_b_at_depth1_keeps_depth_and_current_interval(self):  # T21
+        result = rules.derive_retest_state([self.ev("A"), self.ev("B")])
+        self.assertEqual(result["depth"], 1)  # 深度不变
+        self.assertEqual(result["b_count"], 1)
+        self.assertEqual(result["days"], 3)  # 按当前间隔重排
+
+    def test_cd_resets_depth_and_interval(self):  # T17
+        for last in ("C", "D"):
+            result = rules.derive_retest_state([self.ev("A"), self.ev("A"), self.ev(last)])
+            self.assertEqual(result["depth"], 0)
+            self.assertEqual(result["b_count"], 0)
+            self.assertEqual(result["days"], 1)
+
+    def test_mixed_sequence_replays_fold(self):
+        # C, B, B, A, A, B, A -> 深度 3、b_count 0、末次 A 按进入前深度 2 排 7 天
+        result = rules.derive_retest_state([
+            self.ev("C"), self.ev("B"), self.ev("B"),
+            self.ev("A"), self.ev("A"), self.ev("B"), self.ev("A"),
+        ])
+        self.assertEqual(result["depth"], 3)
+        self.assertEqual(result["b_count"], 0)
+        self.assertEqual(result["days"], 7)
+
+    def test_no_change_events_are_inert(self):
+        result = rules.derive_retest_state([
+            self.ev("A"), self.ev("NO_CHANGE"), self.ev("A"),
+        ])
+        self.assertEqual(result["depth"], 2)
+        self.assertEqual(result["b_count"], 0)
+        self.assertEqual(result["days"], 3)
+
+    def test_manual_events_are_inert(self):
+        result = rules.derive_retest_state([
+            self.ev("B"), self.ev("A", is_manual=True),
+        ])
+        self.assertEqual(result["depth"], 0)
+        self.assertEqual(result["b_count"], 1)  # 手动事件不推进、不重置
+        self.assertEqual(result["days"], 1)
+
+    def test_invalid_verdict_raises(self):
+        with self.assertRaises(ValueError):
+            rules.derive_retest_state([self.ev("X")])
+
+
+class TestRetestDue(unittest.TestCase):
+    """§2.4 follow-up: retest_due gates the planner's interval-spaced retest.
+
+    Contract: due = no derivable schedule (no history) OR
+    now >= last_retest_at + state["days"] (date granularity, _as_date).
+    The "no schedule -> due" default preserves the planner's legacy behavior
+    for nodes whose status predates the unified judgment (no history to
+    derive a schedule from) — the conservative, non-blocking direction.
+    """
+
+    @staticmethod
+    def state(depth=0, b_count=0, days=1):
+        return {"depth": depth, "b_count": b_count, "days": days}
+
+    def test_no_schedule_is_due(self):
+        # derive_retest_state([]) -> days None: no derivable schedule -> due.
+        self.assertTrue(rules.retest_due(self.state(days=None), None, "2026-08-10"))
+
+    def test_cd_reset_not_due_same_day_due_next_day(self):  # T17 边界
+        state = self.state(depth=0, b_count=0, days=1)
+        self.assertFalse(rules.retest_due(state, "2026-08-10", "2026-08-10"))
+        self.assertTrue(rules.retest_due(state, "2026-08-10", "2026-08-11"))
+
+    def test_depth0_below3_uses_one_day(self):  # T22 (b_count<3 -> 1 天)
+        state = self.state(depth=0, b_count=1, days=1)
+        self.assertFalse(rules.retest_due(state, "2026-08-10", "2026-08-10"))
+        self.assertTrue(rules.retest_due(state, "2026-08-10", "2026-08-11"))
+
+    def test_depth0_three_bs_uses_three_days(self):  # T22 (连续 B>=3 -> 3 天)
+        state = self.state(depth=0, b_count=3, days=3)
+        self.assertFalse(rules.retest_due(state, "2026-08-10", "2026-08-12"))
+        self.assertTrue(rules.retest_due(state, "2026-08-10", "2026-08-13"))
+
+    def test_depth1_uses_current_interval(self):  # T21
+        state = self.state(depth=1, b_count=1, days=3)
+        self.assertFalse(rules.retest_due(state, "2026-08-10", "2026-08-12"))
+        self.assertTrue(rules.retest_due(state, "2026-08-10", "2026-08-13"))
+
+    def test_depth4_capped_30_days(self):  # T16 封顶
+        state = self.state(depth=4, b_count=0, days=30)
+        self.assertFalse(rules.retest_due(state, "2026-08-10", "2026-09-08"))
+        self.assertTrue(rules.retest_due(state, "2026-08-10", "2026-09-09"))
+
+    def test_accepts_date_and_datetime_now(self):
+        from datetime import date, datetime
+        state = self.state(depth=0, b_count=0, days=1)
+        self.assertFalse(rules.retest_due(state, date(2026, 8, 10), date(2026, 8, 10)))
+        self.assertTrue(rules.retest_due(state, date(2026, 8, 10), datetime(2026, 8, 11, 12, 30)))
+
+    def test_consumes_derive_retest_state_output(self):
+        derived = rules.derive_retest_state([
+            {"verdict": "A", "is_manual": False},
+        ])
+        self.assertFalse(rules.retest_due(derived, "2026-08-10", "2026-08-10"))
+        self.assertTrue(rules.retest_due(derived, "2026-08-10", "2026-08-11"))
+
+
 class TestManualEvidence(unittest.TestCase):
     def test_m0_triggers_retest_only(self):  # T19
         result = rules.manual_entry("M0", count=2)

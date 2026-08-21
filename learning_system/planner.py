@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from . import db, question_bank
+from . import db, mastery_bridge, mastery_rules, question_bank
 from .trace_back import ordered_prerequisite_candidates
 
 
@@ -1300,11 +1300,48 @@ def plan_uses_current_active_bank(conn: sqlite3.Connection, plan: dict[str, Any]
     return _plan_uses_current_active_bank(conn, plan)
 
 
-def generate_next_plan(conn: sqlite3.Connection, title: str = "今日学习", *, commit: bool = True) -> dict[str, Any]:
+def _retest_is_due(conn: sqlite3.Connection, node_id: str, now: str | None = None) -> bool:
+    """§2.4 due check: is this node's interval-spaced retest due at `now`?
+
+    Reads the node's mastery_decisions history (append-only, applied rows),
+    derives the retest state by replaying next_retest_at's verdict logic
+    (mastery_rules.derive_retest_state), and compares `now` against the last
+    judgment event + the derived interval (mastery_rules.retest_due).
+    A node with no derivable schedule (no history) is always due — the
+    conservative default that preserves the planner's legacy behavior for
+    nodes whose status predates the unified judgment.
+
+    Only applied rows are read (retest scheduling must consider judgment
+    events that actually landed; unapplied rows are NO_CHANGE-equivalent and
+    never stored). Rows without a readable verdict are skipped by the bridge
+    (real legacy rows often carry new_status_code='').
+    """
+    rows = conn.execute(
+        """
+        select new_status_code, decision_payload_json, created_at
+        from mastery_decisions
+        where node_id = ? and applied = 1
+        order by created_at asc, rowid asc
+        """,
+        (node_id,),
+    ).fetchall()
+    history = mastery_bridge.retest_history([dict(row) for row in rows])
+    state = mastery_rules.derive_retest_state(history["events"])
+    return mastery_rules.retest_due(state, history["last_event_at"], now or db.now_iso())
+
+
+def generate_next_plan(
+    conn: sqlite3.Connection,
+    title: str = "今日学习",
+    *,
+    commit: bool = True,
+    now: str | None = None,
+) -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     scheduled_node_ids: set[str] = set()
     scheduled_question_ids: set[str] = set()
     scheduled_round_signatures: set[str] = set()
+    now = now or db.now_iso()
     weak_rows = sorted(
         db.current_learner_node_status_rows(conn, status_codes=("C", "D", "B")),
         key=lambda row: (
@@ -1359,6 +1396,9 @@ def generate_next_plan(conn: sqlite3.Connection, title: str = "今日学习", *,
                 planning_signal=signal,
             )
         else:
+            if not _retest_is_due(conn, node_id, now):
+                # §2.4: 间隔复测未到期 (now < 末次判定事件 + 间隔) — 本轮不排复测任务。
+                continue
             _append_task(
                 conn,
                 tasks,
@@ -1380,6 +1420,10 @@ def generate_next_plan(conn: sqlite3.Connection, title: str = "今日学习", *,
             if node_id in scheduled_node_ids:
                 continue
             signal = _latest_planning_signal(conn, node_id)
+            # 评估要求确认 (confirmation_needed) 的复测是"教学层"确认动作
+            # (§2.4: C/D 档不排间隔复测、由回查/修复流程驱动, 同属教学层),
+            # 不是 §2.4 的间隔复测 — 不套用 next_retest_at 到期门控,
+            # 保持"评估要求确认后尽快补测"的既有调度行为。
             task_type = "prerequisite_probe" if signal.get("confirmation_type") == "prerequisite_probe" else "retest"
             _append_task(
                 conn,
