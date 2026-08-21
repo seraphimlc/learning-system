@@ -370,5 +370,333 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(rules.mastery_verdict(ev), rules.decide_verdict(ev))
 
 
+# ---------------------------------------------------------------------------
+# M2.5 part 2: §2.3 unique counter + state transitions (anchors T8-T13)
+# ---------------------------------------------------------------------------
+#
+# Unique counter (proposal §2.3): consecutive C/D judgment events only,
+# A/B verdict resets, NO_CHANGE skipped (neither counted nor breaking),
+# manual (M1) events never counted, count reaching CD_COUNTER_LIMIT=3 fires
+# the downgrade/recheck signal and resets to 0.
+#
+# Transition table (proposal §2.3): A/B -> C only after 3 consecutive C/D
+# (no A->B->C ladder); C -> B requires >=2 strong in the window while D -> B
+# needs a single strong; a single strong never overwrites A; blocking
+# evidence (verdict=D from R1) jumps A/B/C straight to D.
+
+STRONG = attempt()
+
+
+def cd_event(verdict, **overrides):
+    """A judgment-event dict for the counter functions."""
+    base = {"verdict": verdict, "is_manual": False}
+    base.update(overrides)
+    return base
+
+
+class TestCDCounterFeed(unittest.TestCase):
+    def test_single_c_counts_one(self):  # T8 counter part
+        result = rules.feed_cd_counter(0, "C")
+        self.assertEqual(result["count"], 1)
+        self.assertFalse(result["triggered"])
+
+    def test_d_counts_like_c(self):
+        result = rules.feed_cd_counter(1, "D")
+        self.assertEqual(result["count"], 2)
+        self.assertFalse(result["triggered"])
+
+    def test_third_consecutive_cd_triggers_and_resets(self):
+        result = rules.feed_cd_counter(2, "C")
+        self.assertEqual(result["count"], 0)
+        self.assertTrue(result["triggered"])
+
+    def test_verdict_a_resets_counter(self):
+        result = rules.feed_cd_counter(2, "A")
+        self.assertEqual(result["count"], 0)
+        self.assertFalse(result["triggered"])
+
+    def test_verdict_b_resets_counter(self):
+        result = rules.feed_cd_counter(2, "B")
+        self.assertEqual(result["count"], 0)
+        self.assertFalse(result["triggered"])
+
+    def test_no_change_is_skipped_not_counted(self):
+        result = rules.feed_cd_counter(2, "NO_CHANGE")
+        self.assertEqual(result["count"], 2)
+        self.assertFalse(result["triggered"])
+
+    def test_no_change_does_not_break_streak(self):
+        # C -> NO_CHANGE -> C keeps the streak alive.
+        first = rules.feed_cd_counter(0, "C")
+        middle = rules.feed_cd_counter(first["count"], "NO_CHANGE")
+        last = rules.feed_cd_counter(middle["count"], "C")
+        self.assertEqual(last["count"], 2)
+
+    def test_manual_event_is_not_counted(self):
+        result = rules.feed_cd_counter(0, "C", manual=True)
+        self.assertEqual(result["count"], 0)
+        self.assertFalse(result["triggered"])
+
+    def test_manual_event_does_not_break_streak(self):
+        first = rules.feed_cd_counter(0, "C")
+        middle = rules.feed_cd_counter(first["count"], "C", manual=True)
+        last = rules.feed_cd_counter(middle["count"], "C")
+        self.assertEqual(last["count"], 2)
+
+    def test_count_resumes_after_trigger(self):
+        # C,C,C -> trigger resets; a 4th C starts a fresh streak at 1.
+        result = rules.feed_cd_counter(0, "C")
+        result = rules.feed_cd_counter(result["count"], "C")
+        result = rules.feed_cd_counter(result["count"], "C")
+        self.assertTrue(result["triggered"])
+        self.assertEqual(result["count"], 0)
+        result = rules.feed_cd_counter(result["count"], "C")
+        self.assertEqual(result["count"], 1)
+        self.assertFalse(result["triggered"])
+
+    def test_unknown_verdict_raises(self):
+        with self.assertRaises(ValueError):
+            rules.feed_cd_counter(0, "X")
+
+    def test_negative_count_raises(self):
+        with self.assertRaises(ValueError):
+            rules.feed_cd_counter(-1, "C")
+
+
+class TestCDCounterScan(unittest.TestCase):
+    def test_empty_sequence_is_zero(self):
+        self.assertEqual(rules.cd_counter([]), 0)
+
+    def test_two_consecutive_c(self):
+        events = [cd_event("C"), cd_event("C")]
+        self.assertEqual(rules.cd_counter(events), 2)
+
+    def test_three_consecutive_c_reset_to_zero(self):
+        events = [cd_event("C"), cd_event("C"), cd_event("C")]
+        self.assertEqual(rules.cd_counter(events), 0)
+
+    def test_four_consecutive_c_leave_one_after_trigger(self):
+        events = [cd_event("C")] * 4
+        self.assertEqual(rules.cd_counter(events), 1)
+
+    def test_no_change_events_are_skipped(self):
+        events = [cd_event("C"), cd_event("NO_CHANGE"), cd_event("C")]
+        self.assertEqual(rules.cd_counter(events), 2)
+
+    def test_a_verdict_clears_streak(self):
+        events = [cd_event("C"), cd_event("C"), cd_event("A")]
+        self.assertEqual(rules.cd_counter(events), 0)
+
+    def test_b_verdict_clears_streak_then_c_restarts(self):
+        events = [cd_event("C"), cd_event("C"), cd_event("B"), cd_event("C")]
+        self.assertEqual(rules.cd_counter(events), 1)
+
+    def test_mixed_cd_verdicts_count_together(self):
+        events = [cd_event("C"), cd_event("D"), cd_event("C")]
+        self.assertEqual(rules.cd_counter(events), 0)  # 3 -> trigger -> reset
+
+    def test_manual_events_are_ignored(self):
+        events = [
+            cd_event("C"),
+            cd_event("C", is_manual=True),
+            cd_event("C"),
+        ]
+        self.assertEqual(rules.cd_counter(events), 2)
+
+
+class TestTransitionContract(unittest.TestCase):
+    def test_result_has_contract_fields(self):
+        result = rules.transition_status("A", "C")
+        for key in ("status", "counter", "recheck", "reason", "reason_code"):
+            self.assertIn(key, result)
+
+    def test_invalid_current_status_raises(self):
+        with self.assertRaises(ValueError):
+            rules.transition_status("E", "C")
+
+    def test_invalid_verdict_raises(self):
+        with self.assertRaises(ValueError):
+            rules.transition_status("A", "X")
+
+
+class TestTransitionUnfiled(unittest.TestCase):
+    def test_unfiled_verdict_a_files_a(self):
+        result = rules.transition_status(None, "A")
+        self.assertEqual(result["status"], "A")
+
+    def test_unfiled_verdict_b_files_b(self):
+        result = rules.transition_status(None, "B")
+        self.assertEqual(result["status"], "B")
+
+    def test_unfiled_verdict_c_files_c(self):
+        result = rules.transition_status(None, "C")
+        self.assertEqual(result["status"], "C")
+
+    def test_unfiled_verdict_d_files_d(self):
+        result = rules.transition_status(None, "D")
+        self.assertEqual(result["status"], "D")
+
+    def test_unfiled_no_change_stays_unfiled(self):
+        result = rules.transition_status(None, "NO_CHANGE")
+        self.assertIsNone(result["status"])
+        self.assertFalse(result["recheck"])
+
+
+class TestTransitionA(unittest.TestCase):
+    def test_single_c_keeps_a_counter_one(self):  # T8
+        result = rules.transition_status("A", "C", counter=0)
+        self.assertEqual(result["status"], "A")
+        self.assertEqual(result["counter"], 1)
+        self.assertFalse(result["recheck"])
+
+    def test_third_consecutive_cd_downgrades_to_c(self):  # T9
+        result = rules.transition_status("A", "C", counter=2)
+        self.assertEqual(result["status"], "C")
+        self.assertEqual(result["counter"], 0)
+        self.assertTrue(result["recheck"])
+        self.assertEqual(result["reason_code"], "cd_trigger_downgrade")
+
+    def test_blocking_verdict_beats_counter_on_a(self):
+        # verdict=D (R1 blocking) jumps A -> D even when it would push the
+        # counter to 3: the blocking column wins over the counter column.
+        result = rules.transition_status("A", "D", counter=2)
+        self.assertEqual(result["status"], "D")
+
+    def test_a_keeps_through_counter_one_and_two(self):
+        # A row counter column: 连续计数+1 直到 3, 之前保持 A.
+        one = rules.transition_status("A", "C", counter=0)
+        self.assertEqual(one["status"], "A")
+        self.assertEqual(one["counter"], 1)
+        two = rules.transition_status("A", "C", counter=one["counter"])
+        self.assertEqual(two["status"], "A")
+        self.assertEqual(two["counter"], 2)
+
+    def test_verdict_a_keeps_a(self):
+        result = rules.transition_status("A", "A")
+        self.assertEqual(result["status"], "A")
+
+    def test_single_strong_does_not_overwrite_a(self):
+        # verdict=B (single strong, AGG incomplete) never demotes A.
+        result = rules.transition_status("A", "B", window=[STRONG])
+        self.assertEqual(result["status"], "A")
+
+    def test_verdict_b_r5_keeps_a(self):
+        result = rules.transition_status("A", "B")
+        self.assertEqual(result["status"], "A")
+
+    def test_blocking_evidence_jumps_to_d(self):
+        result = rules.transition_status("A", "D")
+        self.assertEqual(result["status"], "D")
+
+    def test_no_change_keeps_a_and_counter(self):
+        result = rules.transition_status("A", "NO_CHANGE", counter=2)
+        self.assertEqual(result["status"], "A")
+        self.assertEqual(result["counter"], 2)
+        self.assertFalse(result["recheck"])
+
+
+class TestTransitionB(unittest.TestCase):
+    def test_verdict_a_promotes_to_a(self):
+        result = rules.transition_status("B", "A")
+        self.assertEqual(result["status"], "A")
+
+    def test_verdict_a_resets_counter_on_promotion(self):
+        # A/B verdicts clear the streak (§2.3): promotion resets the counter.
+        result = rules.transition_status("B", "A", counter=2)
+        self.assertEqual(result["status"], "A")
+        self.assertEqual(result["counter"], 0)
+
+    def test_verdict_b_keeps_b(self):
+        result = rules.transition_status("B", "B")
+        self.assertEqual(result["status"], "B")
+
+    def test_single_c_keeps_b_counter_one(self):
+        result = rules.transition_status("B", "C", counter=0)
+        self.assertEqual(result["status"], "B")
+        self.assertEqual(result["counter"], 1)
+
+    def test_third_consecutive_cd_downgrades_b_to_c(self):
+        result = rules.transition_status("B", "C", counter=2)
+        self.assertEqual(result["status"], "C")
+        self.assertEqual(result["counter"], 0)
+        self.assertTrue(result["recheck"])
+
+    def test_blocking_evidence_jumps_to_d(self):
+        result = rules.transition_status("B", "D")
+        self.assertEqual(result["status"], "D")
+
+
+class TestTransitionC(unittest.TestCase):
+    def test_single_strong_keeps_c(self):  # T10
+        result = rules.transition_status("C", "B", window=[STRONG])
+        self.assertEqual(result["status"], "C")
+
+    def test_two_strong_in_window_promotes_to_b(self):  # T11
+        result = rules.transition_status("C", "B", window=two_strong_window())
+        self.assertEqual(result["status"], "B")
+
+    def test_verdict_a_promotes_directly_to_a(self):
+        result = rules.transition_status("C", "A")
+        self.assertEqual(result["status"], "A")
+
+    def test_verdict_b_with_two_strong_history_but_r5_current_promotes(self):
+        # Window condition is on strong count, not on the current event being strong.
+        window = two_strong_window() + [
+            attempt(attempt_id="a3", score_points=7, max_points=10, created_at="2026-08-03")
+        ]
+        result = rules.transition_status("C", "B", window=window)
+        self.assertEqual(result["status"], "B")
+
+    def test_single_c_keeps_c_counter_one(self):
+        result = rules.transition_status("C", "C", counter=0)
+        self.assertEqual(result["status"], "C")
+        self.assertEqual(result["counter"], 1)
+        self.assertFalse(result["recheck"])
+
+    def test_third_consecutive_cd_triggers_recheck_only(self):
+        # C stays C; the 3rd consecutive C/D fires the recheck signal, not a downgrade.
+        result = rules.transition_status("C", "C", counter=2)
+        self.assertEqual(result["status"], "C")
+        self.assertEqual(result["counter"], 0)
+        self.assertTrue(result["recheck"])
+
+    def test_blocking_evidence_jumps_to_d(self):
+        result = rules.transition_status("C", "D")
+        self.assertEqual(result["status"], "D")
+
+
+class TestTransitionD(unittest.TestCase):
+    def test_single_strong_promotes_to_b(self):  # T12
+        result = rules.transition_status("D", "B", window=[STRONG])
+        self.assertEqual(result["status"], "B")
+
+    def test_verdict_a_promotes_to_b_not_a(self):  # D never jumps to A
+        result = rules.transition_status("D", "A")
+        self.assertEqual(result["status"], "B")
+
+    def test_verdict_b_r5_promotes_to_b(self):
+        result = rules.transition_status("D", "B")
+        self.assertEqual(result["status"], "B")
+
+    def test_verdict_c_keeps_d(self):
+        result = rules.transition_status("D", "C")
+        self.assertEqual(result["status"], "D")
+
+    def test_verdict_d_keeps_d(self):
+        result = rules.transition_status("D", "D")
+        self.assertEqual(result["status"], "D")
+
+
+class TestTransitionManualM1(unittest.TestCase):
+    def test_manual_evidence_is_no_change_and_never_downgrades(self):  # T13
+        # M1 手动错题不产判定事件: decide_verdict -> NO_CHANGE, transition no-op.
+        ev = attempt(is_manual=True)
+        verdict = rules.decide_verdict(ev)
+        self.assertEqual(verdict["code"], "NO_CHANGE")
+        result = rules.transition_status("A", verdict["code"], counter=0)
+        self.assertEqual(result["status"], "A")
+        self.assertEqual(result["counter"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

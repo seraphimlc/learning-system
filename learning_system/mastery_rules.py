@@ -33,10 +33,13 @@ proposal §2.2 R3 / §1 fact 3): reasoning_soundness in {incomplete, unsound,
 unclear} OR evidence_strength in {weak, insufficient} OR next_evidence_need
 non-empty. This is the "A 档补上 v51 缺失的推理缺口检查" (C4 + R3).
 
-Not implemented here (later M2.5 tasks): §2.3 consecutive C/D counter and
-state transitions (incl. T8 "保持 A"), §2.4 retest intervals
-(RETEST_INTERVALS_DAYS), §3 manual-evidence M0/M1 flows, §4 over-diagnosis
-linkage, §5 LLM tightening.
+Implemented (M2.5 part 2, §2.3): the unique consecutive C/D counter
+(feed_cd_counter / cd_counter) and the state-transition table
+(transition_status, incl. T8 "保持 A"). Still out of scope (later M2.5
+tasks): §2.4 retest intervals (RETEST_INTERVALS_DAYS), §3 manual-evidence
+M0/M1 flows (recheck wiring, action-layer counting), §4 over-diagnosis
+linkage, §5 LLM tightening. Recheck *scheduling* is wired elsewhere; this
+module only emits the "recheck required" signal (recheck=True).
 
 Run: python3 -m unittest tests.test_mastery_rules
 """
@@ -410,3 +413,233 @@ def decide_verdict(evidence: dict, window: list[dict] | None = None) -> dict:
 # Proposal §2.2 names the contract mastery_verdict(evidence, window);
 # decide_verdict is the canonical entry point, this is a compatibility alias.
 mastery_verdict = decide_verdict
+
+# ---------------------------------------------------------------------------
+# §2.3 unique consecutive C/D counter (M2.5 part 2)
+# ---------------------------------------------------------------------------
+#
+# One counter per node, over *system judgment events only* (the events
+# decide_verdict produces for eligible attempts). Semantics (proposal §2.3):
+#   - scan the node's judgment events in created_at time order;
+#   - consecutive verdict ∈ {C, D} increment; verdict ∈ {A, B} resets to 0;
+#   - NO_CHANGE events are skipped: neither counted nor breaking the streak
+#     ("没测过 ≠ 薄弱" — no event is still no event);
+#   - manual (M1) evidence never counts (M1 has its own action-layer counter,
+#     §3/§4; it never enters this counter — T13);
+#   - count reaching CD_COUNTER_LIMIT (=3) fires the downgrade/recheck signal
+#     and resets to 0 ("计数达到 3 → 触发降级/回查并清零").
+#
+# Input shapes (pure): feed_cd_counter(count, verdict) for the incremental
+# "current count + new event" form, cd_counter(events) for the "event
+# sequence" form. The wiring layer reads history from mastery_decisions and
+# maps each row's decision verdict into an event dict {"verdict": ...,
+# "is_manual": ...}.
+#
+# Interpretation note (ambiguity, per M2.5-1 convention): cd_counter folds
+# feed_cd_counter over the whole sequence, so trigger resets are reproduced —
+# it derives the same value the operational counter would hold. A retroactive
+# "pending trigger" buried in pre-M2.5 history is therefore *not* surfaced by
+# cd_counter; the wiring layer bootstraps from the derived value and lets the
+# next qualifying event drive the downgrade. This is the conservative choice
+# (under-claiming is preferred over over-claiming, §2.3 升降级不对称).
+
+CD_COUNTER_LIMIT = 3
+
+
+def feed_cd_counter(count: int, verdict: str, *, manual: bool = False) -> dict:
+    """One new judgment event updates the consecutive C/D counter (§2.3).
+
+    Args:
+        count: the counter value before this event (non-negative int).
+        verdict: one of D/C/B/A/NO_CHANGE (output of decide_verdict).
+        manual: True when the event is manual M1 evidence — never counted.
+
+    Returns:
+        {"count": int, "triggered": bool} — the new counter value, and whether
+        this event pushed the streak to CD_COUNTER_LIMIT (trigger fires and the
+        count resets to 0).
+    """
+    if not isinstance(count, int) or count < 0:
+        raise ValueError(f"count must be a non-negative int, got {count!r}")
+    if verdict not in VERDICTS:
+        raise ValueError(f"verdict must be one of {sorted(VERDICTS)}, got {verdict!r}")
+    if manual:
+        return {"count": count, "triggered": False}
+    if verdict in (VERDICT_A, VERDICT_B):
+        return {"count": 0, "triggered": False}
+    if verdict in (VERDICT_C, VERDICT_D):
+        next_count = count + 1
+        if next_count >= CD_COUNTER_LIMIT:
+            return {"count": 0, "triggered": True}
+        return {"count": next_count, "triggered": False}
+    # NO_CHANGE: skipped — neither counted nor breaking the streak.
+    return {"count": count, "triggered": False}
+
+
+def cd_counter(events: list[dict]) -> int:
+    """Derive the consecutive C/D counter from a judgment-event sequence (§2.3).
+
+    `events` is a chronological list of dicts, each with a "verdict" key in the
+    five-value enum and an optional "is_manual" bool. Equivalent to folding
+    feed_cd_counter over the sequence (trigger resets reproduced; see the
+    interpretation note above).
+    """
+    count = 0
+    for event in events:
+        count = feed_cd_counter(
+            count, event["verdict"], manual=event.get("is_manual", False)
+        )["count"]
+    return count
+
+
+def _transition_result(status, counter, recheck, reason_code, reason):
+    return {
+        "status": status,
+        "counter": counter,
+        "recheck": recheck,
+        "reason_code": reason_code,
+        "reason": reason,
+    }
+
+
+def transition_status(
+    current_status: str | None, verdict: str, window: list[dict] | None = None,
+    counter: int = 0,
+) -> dict:
+    """Apply the §2.3 state-transition table to one judgment event.
+
+    Args:
+        current_status: None (未建档, no learner_node_status row) or one of
+            A/B/C/D (STORAGE_STATES).
+        verdict: one of D/C/B/A/NO_CHANGE (output of decide_verdict). R1
+            blocking_evidence produces verdict=D, so the table's
+            "blocking_evidence" column is the verdict=D branch here.
+        window: the rolling evidence window (list of attempt dicts, including
+            the current attempt) — read only by the C -> B gate
+            "window strong >= 2" (T10/T11).
+        counter: the node's consecutive C/D counter value *before* this event.
+
+    Returns:
+        {"status": str|None, "counter": int, "recheck": bool,
+         "reason": str, "reason_code": str} — new status (None = unfiled),
+        counter value to persist, whether a recheck signal fires (count reached
+        CD_COUNTER_LIMIT; A/B/C rows, T9), and a machine-readable code.
+
+    Table (proposal §2.3), per row:
+        A:   A/B verdict keep A; C/D count (3 -> C, recheck); D -> D
+        B:   A -> A; B keeps B; C/D count (3 -> C, recheck); D -> D
+        C:   A -> A (AGG already satisfied); B -> B only if window strong >= 2
+             else keep C; C/D count (3 -> recheck only); D -> D
+        D:   A/B -> B (never A); C/D keeps D; D keeps D
+        None: files A/B/C/D on first qualifying verdict; NO_CHANGE never stored
+
+    Downgrade is direct A/B -> C (no A->B->C ladder) and only via the counter
+    (3 consecutive C/D); a single strong verdict never overwrites A; upgrade
+    is conservative (C -> B needs 2 strong) while downgrade is sensitive
+    (§2.3 升降级不对称).
+    """
+    if current_status is not None and current_status not in STORAGE_STATES:
+        raise ValueError(
+            f"current_status must be None or one of {sorted(STORAGE_STATES)}, "
+            f"got {current_status!r}"
+        )
+    if verdict not in VERDICTS:
+        raise ValueError(f"verdict must be one of {sorted(VERDICTS)}, got {verdict!r}")
+    window = list(window) if window is not None else []
+
+    feed = feed_cd_counter(counter, verdict)
+    new_counter = feed["count"]
+    triggered = feed["triggered"]
+
+    if verdict == VERDICT_NO_CHANGE:
+        return _transition_result(
+            current_status, counter, False, "no_change",
+            "NO_CHANGE verdict is never stored: status and counter unchanged.",
+        )
+
+    if verdict == VERDICT_D:  # R1 blocking evidence -> D (blocking column wins)
+        return _transition_result(
+            VERDICT_D, new_counter, False, "blocking_d",
+            f"Blocking evidence on {current_status!r} -> D (direct jump, "
+            "blocking column beats the counter column).",
+        )
+
+    if verdict == VERDICT_A:
+        if current_status == VERDICT_D:
+            return _transition_result(
+                VERDICT_B, new_counter, False, "promote_b",
+                "D never jumps to A: verdict=A on D -> B (repair confirmed).",
+            )
+        if current_status == VERDICT_A:
+            return _transition_result(
+                VERDICT_A, new_counter, False, "keep_a",
+                "verdict=A on A keeps A.",
+            )
+        return _transition_result(
+            VERDICT_A, new_counter, False, "promote_a",
+            f"verdict=A on {current_status!r} -> A (AGG fully satisfied).",
+        )
+
+    if verdict == VERDICT_B:
+        if current_status == VERDICT_D:
+            return _transition_result(
+                VERDICT_B, new_counter, False, "promote_b",
+                "D repair confirmed by verdict=B -> B.",
+            )
+        if current_status == VERDICT_C:
+            if len(_strong_attempts(window)) >= 2:
+                return _transition_result(
+                    VERDICT_B, new_counter, False, "promote_b",
+                    "C + window strong >= 2 -> B (T11); single strong is not "
+                    "enough (T10, 防单条翻案).",
+                )
+            return _transition_result(
+                VERDICT_C, new_counter, False, "keep_c",
+                "C + window strong < 2 keeps C (single strong may be "
+                "fluctuation, 防单条翻案).",
+            )
+        if current_status == VERDICT_B:
+            return _transition_result(
+                VERDICT_B, new_counter, False, "keep_b",
+                "verdict=B on B keeps B.",
+            )
+        if current_status == VERDICT_A:
+            return _transition_result(
+                VERDICT_A, new_counter, False, "keep_a",
+                "verdict=B on A keeps A (single strong never overwrites the "
+                "accumulated A archive, v51 preserve semantics).",
+            )
+        return _transition_result(
+            VERDICT_B, new_counter, False, "promote_b",
+            "verdict=B files a previously unfiled node as B.",
+        )
+
+    # verdict == VERDICT_C (non-blocking C/D event; D verdict handled above).
+    if triggered:
+        if current_status in (VERDICT_A, VERDICT_B):
+            return _transition_result(
+                VERDICT_C, new_counter, True, "cd_trigger_downgrade",
+                f"{current_status} + 3 consecutive C/D -> C (direct downgrade, "
+                "no ladder), counter reset, recheck fired (T9).",
+            )
+        return _transition_result(
+            VERDICT_C if current_status is None else current_status,
+            new_counter, True, "cd_trigger_recheck",
+            f"{current_status!r} + 3 consecutive C/D -> counter reset, recheck "
+            "fired (C keeps C / D keeps D / unfiled files C).",
+        )
+    if current_status == VERDICT_D:
+        return _transition_result(
+            VERDICT_D, new_counter, False, "keep_d",
+            "C/D verdict on D keeps D (回查/修复中).",
+        )
+    if current_status in (VERDICT_A, VERDICT_B, VERDICT_C):
+        return _transition_result(
+            current_status, new_counter, False, "cd_count",
+            f"Consecutive C/D counter {counter} -> {new_counter}; "
+            f"{current_status} kept.",
+        )
+    return _transition_result(
+        VERDICT_C, new_counter, False, "unfiled_c",
+        "First C/D verdict files a previously unfiled node as C (有据建档即弱).",
+    )
