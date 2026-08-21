@@ -330,6 +330,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
           kind text not null,
           question_type text not null,
           variant_level text not null,
+          production_category text not null default '',
           prompt text not null,
           answer_format text not null,
           expected_answer text not null,
@@ -1021,6 +1022,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
           graph_version text not null,
           planned_graph_node_ids_json text not null default '[]',
           question_bank_version text not null default '',
+          question_bank_ledger_id text not null default '',
+          question_bank_manifest_sha256 text not null default '',
           legacy_session_id text references learning_sessions(id),
           flow_revision integer not null default 1,
           created_by_runtime_version text not null default '2026-07-10.v3.skeleton',
@@ -1272,6 +1275,16 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
         """
     )
+    _ensure_column(
+        conn,
+        "question_items",
+        "production_category",
+        "text not null default ''",
+    )
+    conn.execute(
+        "create index if not exists idx_questions_production_category "
+        "on question_items(production_category, item_version)"
+    )
     _ensure_column(conn, "attempt_attachments", "original_filename", "text not null default ''")
     _ensure_column(conn, "attempt_attachments", "byte_size", "integer not null default 0")
     _ensure_column(conn, "attempt_attachments", "sha256", "text not null default ''")
@@ -1297,6 +1310,12 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "attempts", "clarifies_attempt_id", "text references attempts(id)")
     _ensure_column(conn, "attempts", "attempt_role", "text not null default 'primary'")
     _ensure_column(conn, "daily_flows", "assessment_policy_version", "text not null default 'legacy'")
+    _ensure_column(conn, "daily_flows", "question_bank_ledger_id", "text not null default ''")
+    _ensure_column(conn, "daily_flows", "question_bank_manifest_sha256", "text not null default ''")
+    conn.execute(
+        "create unique index if not exists idx_question_bank_version_ledger_unique_version "
+        "on question_bank_version_ledger(question_bank_version)"
+    )
     _ensure_column(conn, "answer_contracts", "generation_input_digest_sha256", "text not null default ''")
     _ensure_column(conn, "answer_contracts", "parent_contract_id", "text references answer_contracts(id)")
     _ensure_column(conn, "answer_contracts", "parent_contract_version", "integer")
@@ -2064,6 +2083,32 @@ def _reviewer_run_authorizes_question_review(
             )
         )
 
+    if run["phase"] == "formal_question_quality_review_import":
+        formal_review = (
+            source.get("formal_review")
+            if isinstance(source.get("formal_review"), dict)
+            else {}
+        )
+        canonical_sha256 = str(
+            candidate.get("canonical_activation_payload_sha256")
+            or formal_review.get("reviewed_content_sha256")
+            or ""
+        )
+        return (
+            source_type == "graph_generated"
+            and source.get("formal_production_source")
+            == question_bank.FORMAL_ADMIN_PRODUCTION_SOURCE
+            and input_refs.get("question_id") == str(candidate.get("id") or "")
+            and input_refs.get("canonical_activation_payload_sha256")
+            == canonical_sha256
+            and formal_review.get("reviewed_content_sha256") == canonical_sha256
+            and output.get("review_status") == "approved"
+            and output.get("active_eligible") is True
+            and output.get("receipt_status") == "PASS"
+            and output.get("provider_mode") == "live_model"
+            and output.get("review_authority_current") is True
+        )
+
     return False
 
 
@@ -2081,11 +2126,21 @@ def record_question_review_record(
 ) -> dict[str, Any]:
     quality = question_bank.review_item_quality_for_active_use(candidate)
     candidate_sha256 = _digest_json(candidate)
+    source = candidate.get("source") if isinstance(candidate.get("source"), dict) else {}
+    is_formal_admin_question = (
+        source.get("formal_production_source")
+        == question_bank.FORMAL_ADMIN_PRODUCTION_SOURCE
+    )
     active_eligible = (
         quality.get("review_status") == "approved"
         and quality.get("age_floor") == question_bank.INCOMING_GRADE_7_AGE_FLOOR
-        and quality.get("requires_reasoning") is True
-        and quality.get("no_mechanical_drill") is True
+        and (
+            is_formal_admin_question
+            or (
+                quality.get("requires_reasoning") is True
+                and quality.get("no_mechanical_drill") is True
+            )
+        )
         and _reviewer_run_authorizes_question_review(conn, reviewer_run_id, candidate, source_type)
     )
     if question_id:
@@ -2117,6 +2172,11 @@ def record_question_review_record(
         "problem_instance_id": quality.get("problem_instance_id", ""),
         "node_alignment": quality.get("node_alignment", {}),
         "identity_basis": quality.get("identity_basis", {}),
+        "formal_review_evidence": (
+            source.get("formal_review", {}).get("review_evidence", {})
+            if isinstance(source.get("formal_review"), dict)
+            else {}
+        ),
     })
     existing = (
         conn.execute(
@@ -2682,14 +2742,62 @@ def _invalidate_attempts_on_invalidated_source_questions(conn: sqlite3.Connectio
 
 def _repair_learner_node_status_invalid_refs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute(
-        "select node_id, evidence_attempt_ids_json, status_reason from learner_node_status order by node_id"
+        """
+        select node_id, evidence_attempt_ids_json, status_reason,
+               mastery_decision_id, graph_version, question_bank_version
+        from learner_node_status
+        order by node_id
+        """
     ).fetchall()
     repaired = []
     for row in rows:
-        original_ids = json_load(row["evidence_attempt_ids_json"], [])
+        if row["mastery_decision_id"]:
+            authoritative = authoritative_learner_node_status_rows(
+                conn,
+                graph_version=str(row["graph_version"] or ""),
+                question_bank_version=str(row["question_bank_version"] or ""),
+            )
+            authoritative_row = next(
+                (
+                    item
+                    for item in authoritative
+                    if item.get("node_id") == row["node_id"]
+                    and item.get("mastery_decision_id") == row["mastery_decision_id"]
+                ),
+                None,
+            )
+            if authoritative_row is None:
+                conn.execute(
+                    "delete from learner_node_status where node_id = ?",
+                    (row["node_id"],),
+                )
+                repaired.append({
+                    "node_id": row["node_id"],
+                    "action": "deleted_non_authoritative_mastery_status",
+                    "mastery_decision_id": row["mastery_decision_id"],
+                })
+                continue
+        evidence_ids_invalid = False
+        try:
+            original_ids = json_load(row["evidence_attempt_ids_json"], [])
+        except (TypeError, ValueError):
+            original_ids = []
+            evidence_ids_invalid = True
         if not isinstance(original_ids, list):
             original_ids = []
+            evidence_ids_invalid = True
         original_ids = [str(item) for item in original_ids if item]
+        if evidence_ids_invalid:
+            conn.execute(
+                "delete from learner_node_status where node_id = ?",
+                (row["node_id"],),
+            )
+            repaired.append({
+                "node_id": row["node_id"],
+                "action": "deleted_status_invalid_evidence_refs",
+                "removed_attempt_ids": [],
+            })
+            continue
         valid_attempts = [
             attempt for attempt in _valid_status_attempts_for_ids(conn, original_ids)
             if attempt.get("node_id") == row["node_id"]
@@ -2812,15 +2920,18 @@ def authoritative_learner_node_status_rows(
             )
         ):
             continue
-        status_attempt_ids = json_load(data.get("source_attempt_ids_json"), [])
-        status_validation_ids = json_load(
-            data.get("source_evidence_validation_ids_json"), []
-        )
-        mastery_attempt_ids = json_load(data.get("mastery_attempt_ids_json"), [])
-        mastery_validation_ids = json_load(
-            data.get("mastery_validation_ids_json"), []
-        )
-        legacy_attempt_ids = json_load(data.get("evidence_attempt_ids_json"), [])
+        try:
+            status_attempt_ids = json_load(data.get("source_attempt_ids_json"), [])
+            status_validation_ids = json_load(
+                data.get("source_evidence_validation_ids_json"), []
+            )
+            mastery_attempt_ids = json_load(data.get("mastery_attempt_ids_json"), [])
+            mastery_validation_ids = json_load(
+                data.get("mastery_validation_ids_json"), []
+            )
+            legacy_attempt_ids = json_load(data.get("evidence_attempt_ids_json"), [])
+        except (TypeError, ValueError):
+            continue
         if not all(
             isinstance(value, list)
             for value in (
@@ -2895,7 +3006,11 @@ def authoritative_learner_node_status_rows(
         valid_attempt_ids: list[str] = []
         evidence_valid = True
         for evidence in evidence_rows:
-            predicate = json_load(evidence["predicate_result_json"], {})
+            try:
+                predicate = json_load(evidence["predicate_result_json"], {})
+            except (TypeError, ValueError):
+                evidence_valid = False
+                break
             if any(
                 (
                     evidence["gate_status"] != "passed",
@@ -2960,13 +3075,62 @@ def current_learner_node_status_counts(conn: sqlite3.Connection) -> dict[str, in
 def lineage_integrity_audit(conn: sqlite3.Connection) -> dict[str, Any]:
     learner_status_invalid_refs = []
     for row in conn.execute(
-        "select node_id, evidence_attempt_ids_json from learner_node_status order by node_id"
+        """
+        select node_id, evidence_attempt_ids_json, mastery_decision_id,
+               graph_version, question_bank_version
+        from learner_node_status
+        order by node_id
+        """
     ).fetchall():
-        evidence_ids = json_load(row["evidence_attempt_ids_json"], [])
+        evidence_refs_invalid = False
+        try:
+            evidence_ids = json_load(row["evidence_attempt_ids_json"], [])
+        except (TypeError, ValueError):
+            evidence_ids = []
+            evidence_refs_invalid = True
         if not isinstance(evidence_ids, list):
             evidence_ids = []
+            evidence_refs_invalid = True
         evidence_ids = [str(item) for item in evidence_ids if item]
-        valid_ids = {attempt["id"] for attempt in _valid_status_attempts_for_ids(conn, evidence_ids)}
+        if evidence_refs_invalid:
+            learner_status_invalid_refs.append({
+                "node_id": row["node_id"],
+                "mastery_decision_id": row["mastery_decision_id"],
+                "reason": "invalid_evidence_attempt_ids_json",
+                "invalid_attempt_ids": [],
+            })
+            continue
+        if row["mastery_decision_id"]:
+            authoritative = authoritative_learner_node_status_rows(
+                conn,
+                graph_version=str(row["graph_version"] or ""),
+                question_bank_version=str(row["question_bank_version"] or ""),
+            )
+            authoritative_row = next(
+                (
+                    item
+                    for item in authoritative
+                    if item.get("node_id") == row["node_id"]
+                    and item.get("mastery_decision_id") == row["mastery_decision_id"]
+                ),
+                None,
+            )
+            valid_ids = set(
+                authoritative_row.get("evidence_attempt_ids") or []
+            ) if authoritative_row else set()
+            if authoritative_row is None:
+                learner_status_invalid_refs.append({
+                    "node_id": row["node_id"],
+                    "mastery_decision_id": row["mastery_decision_id"],
+                    "reason": "mastery_decision_not_authoritative",
+                    "invalid_attempt_ids": evidence_ids,
+                })
+                continue
+        else:
+            valid_ids = {
+                attempt["id"]
+                for attempt in _valid_status_attempts_for_ids(conn, evidence_ids)
+            }
         invalid_ids = [attempt_id for attempt_id in evidence_ids if attempt_id not in valid_ids]
         if invalid_ids:
             learner_status_invalid_refs.append({
@@ -3197,9 +3361,13 @@ def seed_from_assets(conn: sqlite3.Connection, project_root: Path) -> None:
 
 
 def get_active_question_bank_version(conn: sqlite3.Connection) -> str:
+    return str(get_active_question_bank_authority(conn)["question_bank_version"])
+
+
+def get_active_question_bank_authority(conn: sqlite3.Connection) -> dict[str, Any]:
     rows = conn.execute(
         """
-        select question_bank_version
+        select *
         from question_bank_version_ledger
         where status = 'active'
         order by activated_at desc, updated_at desc, id desc
@@ -3207,7 +3375,20 @@ def get_active_question_bank_version(conn: sqlite3.Connection) -> str:
     ).fetchall()
     if len(rows) != 1:
         raise ValueError("exactly one active question-bank ledger row is required")
-    return str(rows[0]["question_bank_version"])
+    authority = dict(rows[0])
+    required = (
+        "id",
+        "question_bank_version",
+        "graph_version",
+        "manifest_id",
+        "manifest_sha256",
+    )
+    missing = [key for key in required if not str(authority.get(key) or "").strip()]
+    if missing:
+        raise ValueError(
+            "active question-bank authority is incomplete: " + ",".join(missing)
+        )
+    return authority
 
 
 def is_ledger_managed_question_bank_version(
@@ -3247,7 +3428,6 @@ def stage_question_bank_version(
         select *
         from question_bank_version_ledger
         where question_bank_version = ?
-          and status in ('staged','active')
         order by created_at desc, id desc
         limit 1
         """,
@@ -3270,6 +3450,10 @@ def stage_question_bank_version(
             raise ValueError(
                 "staged question bank identity conflict: "
                 + ",".join(sorted(mismatches))
+            )
+        if str(existing["status"] or "") not in {"staged", "active"}:
+            raise ValueError(
+                "question bank version cannot be reused after leaving staged/active status"
             )
         if commit:
             conn.commit()
@@ -5164,6 +5348,16 @@ def upsert_question(
     designer_run_id: str | None = None,
     reviewer_run_id: str | None = None,
 ) -> None:
+    existing = conn.execute(
+        "select item_version from question_items where id = ?",
+        (item["id"],),
+    ).fetchone()
+    if existing and str(existing["item_version"] or "") != str(
+        item.get("item_version") or "2026-07-05.v1"
+    ):
+        raise ValueError(
+            f"question id cannot be reused across bank versions: {item['id']}"
+        )
     if _question_has_attempts(conn, item["id"]):
         return
     _validate_question_graph_references(conn, item)
@@ -5173,11 +5367,11 @@ def upsert_question(
         """
         insert or replace into question_items(
           id, item_version, source_type, node_id, secondary_node_ids_json, kind,
-          question_type, variant_level, prompt, answer_format, expected_answer,
+          question_type, variant_level, production_category, prompt, answer_format, expected_answer,
           rubric_json, solution_steps_json, error_tags_json,
           rollback_candidate_node_ids_json, rollback_candidate_relations_json,
           estimated_minutes, parent_observation, source_json, created_by_event_id, raw_json
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             item["id"],
@@ -5188,6 +5382,7 @@ def upsert_question(
             item.get("kind", "practice"),
             item.get("question_type", ""),
             item.get("variant_level", "L2"),
+            item.get("production_category", ""),
             item["prompt"],
             item.get("answer_format", "关键步骤 + 答案"),
             item.get("expected_answer", ""),
@@ -5296,6 +5491,16 @@ def question_usage_policy_row_to_dict(row: sqlite3.Row | dict[str, Any]) -> dict
     data["not_for_activation"] = bool(data.get("not_for_activation"))
     source_meta = json_load(data.pop("source_json", "{}"), {})
     stored_policy = source_meta.get("policy") if isinstance(source_meta, dict) else None
+    data["selection_preconditions"] = question_usage.normalize_selection_preconditions(
+        (stored_policy or {}).get("selection_preconditions")
+        if isinstance(stored_policy, dict)
+        else None
+    )
+    data["support_routing"] = question_usage.normalize_support_routing(
+        (stored_policy or {}).get("support_routing")
+        if isinstance(stored_policy, dict)
+        else None
+    )
     data["source"] = str(
         (stored_policy or {}).get("source")
         if isinstance(stored_policy, dict)
@@ -5713,6 +5918,8 @@ def row_to_question(row: sqlite3.Row) -> dict[str, Any]:
             "scoring_targets",
             "assessment_policy",
             "usage_policy",
+            "question_visual_asset_ref",
+            "question_visual",
         ):
             if key in data["raw"]:
                 data[key] = data["raw"][key]
@@ -5737,6 +5944,7 @@ def question_snapshot_payload(question: dict[str, Any]) -> dict[str, Any]:
         "answer_format": question.get("answer_format", ""),
         "expected_answer": question.get("expected_answer", ""),
         "interaction_schema": question.get("interaction_schema") or {},
+        "question_visual": question.get("question_visual") or {},
         "rubric": question.get("rubric", []),
         "solution_steps": question.get("solution_steps", []),
         "target_error_tags": question.get("target_error_tags", []),

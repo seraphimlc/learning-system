@@ -709,7 +709,7 @@ def question_reviewer_agent_report(conn: sqlite3.Connection) -> dict[str, Any]:
         },
         "quality_audit": quality_audit,
         "invariants": [
-            "拦截弱智题、答案-only题、无思路证据题。",
+            "拦截低价值题、无法区分掌握状态的题、无效书写负担题。",
             "不追求题量。",
             "调度前必须重新计算质量门，不能相信候选题自带的 approved 元数据。",
         ],

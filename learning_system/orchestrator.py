@@ -252,14 +252,37 @@ def validate_transition(phase: str, next_action: str) -> str:
     return internal_agents.transition_next_phase(phase, next_action)
 
 
-def _existing_closed_result(conn: sqlite3.Connection, session_id: str) -> dict[str, Any] | None:
+def _closure_response(
+    conn: sqlite3.Connection,
+    *,
+    result: dict[str, Any],
+    session: dict[str, Any],
+    include_agent_reports: bool,
+) -> dict[str, Any]:
+    response = {**result, "session": session}
+    if include_agent_reports:
+        response["agent_reports"] = agents.build_agent_reports(conn)
+    return response
+
+
+def _existing_closed_result(
+    conn: sqlite3.Connection,
+    session_id: str,
+    *,
+    include_agent_reports: bool,
+) -> dict[str, Any] | None:
     session = db.get_learning_session(conn, session_id)
     if session.get("status") != "closed":
         return None
     result = dict(session.get("closure_result") or {})
     if not result:
         return None
-    return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+    return _closure_response(
+        conn,
+        result=result,
+        session=session,
+        include_agent_reports=include_agent_reports,
+    )
 
 
 def _decision_from_attempts(attempts: list[dict[str, Any]]) -> tuple[str, str, str, bool]:
@@ -903,14 +926,27 @@ def _record_teaching_agent(
     return run, child_message
 
 
-def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[str, Any]:
-    existing = _existing_closed_result(conn, session_id)
+def close_learning_session(
+    conn: sqlite3.Connection,
+    session_id: str,
+    *,
+    include_agent_reports: bool = True,
+) -> dict[str, Any]:
+    existing = _existing_closed_result(
+        conn,
+        session_id,
+        include_agent_reports=include_agent_reports,
+    )
     if existing is not None:
         return existing
 
     session = db.get_learning_session(conn, session_id)
     if session.get("status") == "closing":
-        existing = _existing_closed_result(conn, session_id)
+        existing = _existing_closed_result(
+            conn,
+            session_id,
+            include_agent_reports=include_agent_reports,
+        )
         if existing is not None:
             return existing
 
@@ -937,7 +973,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             closure_result=result,
             commit=False,
         )
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
     if summary["pending_attempt_ids"]:
         result = {
             "session_id": session_id,
@@ -955,7 +996,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             closure_result=result,
             commit=False,
         )
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
     if summary["missing_analysis_attempt_ids"]:
         result = {
             "session_id": session_id,
@@ -973,7 +1019,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             closure_result=result,
             commit=False,
         )
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
     if summary.get("unusable_evidence_attempt_ids"):
         result = {
             "session_id": session_id,
@@ -992,7 +1043,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             closure_result=result,
             commit=False,
         )
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
 
     claimed = conn.execute(
         """
@@ -1008,7 +1064,11 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
         (session_id,),
     )
     if claimed.rowcount != 1:
-        existing = _existing_closed_result(conn, session_id)
+        existing = _existing_closed_result(
+            conn,
+            session_id,
+            include_agent_reports=include_agent_reports,
+        )
         if existing is not None:
             return existing
         session = db.get_learning_session(conn, session_id)
@@ -1019,7 +1079,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             "attempt_summary": summary,
             "next_plan": None,
         }
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
 
     answer_package = flow_nodes.build_answer_analysis_package(conn, session_id, summary)
     answer_run = _record_answer_analysis_node(conn, session_id=session_id, answer_package=answer_package)
@@ -1053,7 +1118,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             closure_result=result,
             commit=False,
         )
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
 
     mastery_package = flow_nodes.build_mastery_evaluation_package(conn, session_id, summary)
     evaluation_run = _record_evaluation_agent(
@@ -1133,7 +1203,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
             closure_result=result,
             commit=False,
         )
-        return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+        return _closure_response(
+            conn,
+            result=result,
+            session=session,
+            include_agent_reports=include_agent_reports,
+        )
     planner_run = _record_planner_agent(conn, session_id=session_id, summary=summary, event=event, next_plan=next_plan)
     teaching_decision_run = _record_teaching_decision_agent(
         conn,
@@ -1218,7 +1293,12 @@ def close_learning_session(conn: sqlite3.Connection, session_id: str) -> dict[st
         closed_at=db.now_iso(),
         commit=False,
     )
-    return {**result, "session": session, "agent_reports": agents.build_agent_reports(conn)}
+    return _closure_response(
+        conn,
+        result=result,
+        session=session,
+        include_agent_reports=include_agent_reports,
+    )
 
 
 def run_maintenance_evolution(conn: sqlite3.Connection, *, trigger: str = "manual") -> dict[str, Any]:
@@ -1266,7 +1346,12 @@ def run_maintenance_evolution(conn: sqlite3.Connection, *, trigger: str = "manua
                 summary=summary,
                 mastery_package=mastery_package,
             ))
-    event = evolution.run_evolution(conn, trigger=trigger, commit=False)
+    event = evolution.run_evolution(
+        conn,
+        trigger=trigger,
+        allow_model_question_candidate=False,
+        commit=False,
+    )
     event.setdefault("after", {})["maintenance_evaluation_run_ids"] = [run["id"] for run in evaluation_runs]
     try:
         if event["status"] in {"evolved", "state_updated", "question_review_rejected"}:

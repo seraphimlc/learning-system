@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import sqlite3
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -19,15 +20,44 @@ REQUIRED_INVENTORY_NODE_IDS = {
     "M-G7-GEO-VIEWS",
 }
 REQUIRED_ITEM_VERSION = "2026-07-12.bank.v12"
-ALLOWED_SCENE_TYPES = {
+_LEGACY_PRODUCTION_INVENTORY_SCENE_TYPES = {
     "number_line",
     "cube_net",
     "orthographic_view",
     "simple_geometry",
 }
+NUMBER_LINE_REFERENCE_FRAME_DIAGNOSTIC_SCENE_TYPE = (
+    "number_line_reference_frame_diagnostic"
+)
+_REFERENCE_FRAME_PRODUCTION_INVENTORY_SCENE_TYPES = {
+    *_LEGACY_PRODUCTION_INVENTORY_SCENE_TYPES,
+    NUMBER_LINE_REFERENCE_FRAME_DIAGNOSTIC_SCENE_TYPE,
+}
+ALLOWED_SCENE_TYPES = set(_REFERENCE_FRAME_PRODUCTION_INVENTORY_SCENE_TYPES)
+_PRODUCTION_INVENTORY_SCENE_PROFILES = {
+    INVENTORY_SCHEMA_VERSION: {
+        frozenset(_LEGACY_PRODUCTION_INVENTORY_SCENE_TYPES),
+        frozenset(_REFERENCE_FRAME_PRODUCTION_INVENTORY_SCENE_TYPES),
+    }
+}
 CHILD_VISUAL_KEYS = {"scene_type", "alt_text", "long_description", "scene"}
+CHILD_VISUAL_INTERACTION_KEY = "interaction_contract"
+_CHILD_VISUAL_KEYSETS = {
+    frozenset(CHILD_VISUAL_KEYS),
+    frozenset({*CHILD_VISUAL_KEYS, CHILD_VISUAL_INTERACTION_KEY}),
+}
 PRODUCTION_INVENTORY_RELATIVE_PATH = (
     "data/question_visuals/math_question_visual_inventory_v1.json"
+)
+_NUMBER_LINE_RENDER_SPAN = 348.0
+_NUMBER_LINE_MAX_INTERVALS = 12
+_NUMBER_LINE_MAX_POINTS = 8
+_NUMBER_LINE_TICK_FONT_SIZE = 20.0
+_NUMBER_LINE_POINT_FONT_SIZE = 20.0
+_REFERENCE_FRAME_FAULT_IDS = (
+    "missing_origin",
+    "missing_positive_direction",
+    "inconsistent_unit_length",
 )
 
 _MANIFEST_KEYS = {
@@ -43,6 +73,10 @@ _ENTRY_KEYS = {
     "question_digest_sha256",
     "required",
     *CHILD_VISUAL_KEYS,
+}
+_ENTRY_KEYSETS = {
+    frozenset(_ENTRY_KEYS),
+    frozenset({*_ENTRY_KEYS, CHILD_VISUAL_INTERACTION_KEY}),
 }
 _RECEIPT_KEYS = {
     "receipt_schema_version",
@@ -67,6 +101,7 @@ _FORBIDDEN_KEYS = {
     "url",
     "external_url",
     "data_url",
+    "canvas",
 }
 _FORBIDDEN_TEXT = (
     "<svg",
@@ -76,6 +111,7 @@ _FORBIDDEN_TEXT = (
     "https://",
     "data:image",
     "url(",
+    "<canvas",
 )
 
 
@@ -121,6 +157,14 @@ def _safe_text(value: Any, label: str, *, maximum: int = 1200) -> str:
     return value
 
 
+def _safe_optional_text(value: Any, label: str, *, maximum: int) -> str:
+    if not isinstance(value, str) or len(value) > maximum:
+        raise ValueError(f"question visual {label} must be bounded text")
+    if value:
+        _safe_text(value, label, maximum=maximum)
+    return value
+
+
 def _validate_safe_tree(value: Any, label: str = "scene") -> None:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -131,12 +175,104 @@ def _validate_safe_tree(value: Any, label: str = "scene") -> None:
         for index, child in enumerate(value):
             _validate_safe_tree(child, f"{label}[{index}]")
     elif isinstance(value, str):
-        _safe_text(value, label)
+        if value:
+            _safe_text(value, label)
     elif value is not None and not isinstance(value, (str, int, float, bool)):
         raise ValueError(f"question visual {label} contains an unsupported value")
 
 
-def _validate_number_line(scene: Any) -> None:
+def _grid_position(value: float, *, minimum: float, step: float) -> int:
+    raw = (value - minimum) / step
+    position = round(raw)
+    if not math.isclose(raw, position, rel_tol=0.0, abs_tol=1e-9):
+        raise ValueError("question visual number_line value is not aligned to axis step")
+    return int(position)
+
+
+def _estimated_svg_text_width(value: str, *, font_size: float) -> float:
+    width = 0.0
+    for character in value:
+        category = unicodedata.category(character)
+        if category.startswith("P"):
+            width += font_size * 0.36
+        elif ord(character) < 128 or category.startswith("S"):
+            width += font_size * 0.62
+        elif unicodedata.east_asian_width(character) in {"W", "F"}:
+            width += font_size
+        else:
+            width += font_size * 0.72
+    return width
+
+
+def _number_token(value: float) -> str:
+    return str(int(value)) if value.is_integer() else format(value, ".12g")
+
+
+def _validate_complete_missing_ticks_contract(
+    *,
+    contract: Any,
+    minimum: float,
+    step: float,
+    interval_count: int,
+    visible_tick_values: list[float],
+) -> None:
+    contract = _exact_keys(
+        contract,
+        {
+            "operation",
+            "response_capture",
+            "required_interaction_capabilities",
+            "visible_entity_ids_for_visual",
+            "required_child_produced_entity_ids",
+            "answer_hidden",
+        },
+        "complete_missing_ticks interaction contract",
+    )
+    if contract["operation"] != "complete_missing_ticks":
+        raise ValueError("question visual number_line operation is unsupported")
+    if contract["response_capture"] != "paper_photo":
+        raise ValueError("question visual missing ticks must use paper photo capture")
+    if contract["required_interaction_capabilities"] != [
+        "construction_interaction"
+    ]:
+        raise ValueError(
+            "question visual missing ticks construction capability is invalid"
+        )
+    if contract["answer_hidden"] is not True:
+        raise ValueError("question visual missing ticks answer must be hidden")
+
+    visible_ids = contract["visible_entity_ids_for_visual"]
+    required_ids = contract["required_child_produced_entity_ids"]
+    if (
+        not isinstance(visible_ids, list)
+        or not isinstance(required_ids, list)
+        or not required_ids
+        or any(not isinstance(value, str) or not value for value in visible_ids)
+        or any(not isinstance(value, str) or not value for value in required_ids)
+        or len(visible_ids) != len(set(visible_ids))
+        or len(required_ids) != len(set(required_ids))
+    ):
+        raise ValueError("question visual missing ticks entity ids are invalid")
+
+    expected_visible_ids = [
+        f"tick:{_number_token(value)}" for value in visible_tick_values
+    ]
+    all_tick_ids = [
+        f"tick:{_number_token(minimum + step * index)}"
+        for index in range(interval_count + 1)
+    ]
+    if visible_ids != expected_visible_ids:
+        raise ValueError("question visual missing ticks visible entity binding is invalid")
+    if set(visible_ids) & set(required_ids):
+        raise ValueError("question visual missing ticks visible and required ids overlap")
+    if set(visible_ids) | set(required_ids) != set(all_tick_ids):
+        raise ValueError("question visual missing ticks do not cover the axis grid")
+
+
+def _validate_number_line(
+    scene: Any,
+    interaction_contract: dict[str, Any] | None = None,
+) -> None:
     scene = _exact_keys(scene, {"axis", "ticks", "points"}, "number_line scene")
     axis = _exact_keys(
         scene["axis"],
@@ -158,29 +294,249 @@ def _validate_number_line(scene: Any) -> None:
         raise ValueError("question visual number_line axis bounds are invalid")
     if axis["direction"] not in {"right", "left"}:
         raise ValueError("question visual number_line direction is invalid")
+    raw_interval_count = span / step
+    interval_count = round(raw_interval_count)
+    if (
+        not math.isclose(raw_interval_count, interval_count, rel_tol=0.0, abs_tol=1e-9)
+        or not 1 <= interval_count <= _NUMBER_LINE_MAX_INTERVALS
+    ):
+        raise ValueError("question visual number_line interval density is invalid")
+    origin_position = _grid_position(origin, minimum=minimum, step=step)
+    if not 0 <= origin_position <= interval_count:
+        raise ValueError("question visual number_line origin is not on the visible grid")
     ticks = scene["ticks"]
     points = scene["points"]
-    if not isinstance(ticks, list) or not 1 <= len(ticks) <= 41:
+    sparse_construction = interaction_contract is not None
+    if (
+        not isinstance(ticks, list)
+        or (
+            sparse_construction
+            and not 2 <= len(ticks) < interval_count + 1
+        )
+        or (
+            not sparse_construction
+            and len(ticks) != interval_count + 1
+        )
+    ):
         raise ValueError("question visual number_line tick budget is invalid")
-    if not isinstance(points, list) or len(points) > 16:
+    if not isinstance(points, list) or len(points) > _NUMBER_LINE_MAX_POINTS:
         raise ValueError("question visual number_line point budget is invalid")
+    if sparse_construction and points:
+        raise ValueError("question visual missing ticks cannot prefill points")
     tick_values: set[float] = set()
+    ordered_tick_values: list[float] = []
+    tick_positions: set[int] = set()
+    tick_labels: list[tuple[int, str]] = []
     for tick in ticks:
         tick = _exact_keys(tick, {"value", "label"}, "number_line tick")
         value = _plain_number(tick["value"], "number_line tick value")
-        _safe_text(tick["label"], "number_line tick label", maximum=80)
+        label = tick["label"]
+        if not isinstance(label, str) or len(label) > 12:
+            raise ValueError(
+                "question visual number_line tick label must be bounded text"
+            )
         if value in tick_values or not minimum <= value <= maximum:
             raise ValueError("question visual number_line ticks are duplicated or out of bounds")
+        position = _grid_position(value, minimum=minimum, step=step)
         tick_values.add(value)
+        ordered_tick_values.append(value)
+        tick_positions.add(position)
+        tick_labels.append((position, label))
+    if not sparse_construction and tick_positions != set(range(interval_count + 1)):
+        raise ValueError("question visual number_line ticks do not represent every axis step")
+    if origin_position not in tick_positions:
+        raise ValueError("question visual number_line origin tick is missing")
+    origin_label = next(
+        label for position, label in tick_labels if position == origin_position
+    )
+    if not origin_label.strip():
+        raise ValueError("question visual number_line origin label is missing")
+    if sparse_construction:
+        if ordered_tick_values != sorted(ordered_tick_values):
+            raise ValueError("question visual missing ticks must be ordered by value")
+        _validate_complete_missing_ticks_contract(
+            contract=interaction_contract,
+            minimum=minimum,
+            step=step,
+            interval_count=interval_count,
+            visible_tick_values=ordered_tick_values,
+        )
+    pixels_per_interval = _NUMBER_LINE_RENDER_SPAN / interval_count
+    ordered_tick_labels = sorted(tick_labels)
+    for (_, left_label), (_, right_label) in zip(
+        ordered_tick_labels,
+        ordered_tick_labels[1:],
+    ):
+        needed = (
+            _estimated_svg_text_width(
+                left_label,
+                font_size=_NUMBER_LINE_TICK_FONT_SIZE,
+            )
+            + _estimated_svg_text_width(
+                right_label,
+                font_size=_NUMBER_LINE_TICK_FONT_SIZE,
+            )
+        ) / 2.0 + 6.0
+        if needed > pixels_per_interval:
+            raise ValueError("question visual number_line tick labels would collide")
     point_keys: set[str] = set()
+    point_positions: set[int] = set()
+    point_labels: list[tuple[int, str]] = []
     for point in points:
         point = _exact_keys(point, {"key", "value", "label"}, "number_line point")
         key = _safe_text(point["key"], "number_line point key", maximum=80)
         value = _plain_number(point["value"], "number_line point value")
-        _safe_text(point["label"], "number_line point label", maximum=80)
+        label = _safe_text(point["label"], "number_line point label", maximum=8)
         if key in point_keys or not minimum <= value <= maximum:
             raise ValueError("question visual number_line points are duplicated or out of bounds")
+        position = _grid_position(value, minimum=minimum, step=step)
+        if position in point_positions:
+            raise ValueError("question visual number_line points overlap")
         point_keys.add(key)
+        point_positions.add(position)
+        point_labels.append((position, label))
+    ordered_point_labels = sorted(point_labels)
+    for (left_position, left_label), (right_position, right_label) in zip(
+        ordered_point_labels,
+        ordered_point_labels[1:],
+    ):
+        available = (right_position - left_position) * pixels_per_interval
+        needed = (
+            _estimated_svg_text_width(
+                left_label,
+                font_size=_NUMBER_LINE_POINT_FONT_SIZE,
+            )
+            + _estimated_svg_text_width(
+                right_label,
+                font_size=_NUMBER_LINE_POINT_FONT_SIZE,
+            )
+        ) / 2.0 + 18.0
+        if needed > available:
+            raise ValueError("question visual number_line point labels would collide")
+
+
+def _validate_number_line_reference_frame_diagnostic(scene: Any) -> None:
+    scene = _exact_keys(
+        scene,
+        {
+            "direction_marker_visible",
+            "origin_tick_id",
+            "origin_label_visible",
+            "visible_fault_ids",
+            "ticks",
+        },
+        "number_line_reference_frame_diagnostic scene",
+    )
+    if not isinstance(scene["direction_marker_visible"], bool):
+        raise ValueError(
+            "question visual reference frame direction marker visibility must be boolean"
+        )
+    if not isinstance(scene["origin_label_visible"], bool):
+        raise ValueError(
+            "question visual reference frame origin label visibility must be boolean"
+        )
+    origin_tick_id = _safe_text(
+        scene["origin_tick_id"],
+        "reference frame origin tick id",
+        maximum=80,
+    )
+    ticks = scene["ticks"]
+    if not isinstance(ticks, list) or not 3 <= len(ticks) <= 9:
+        raise ValueError("question visual reference frame tick budget is invalid")
+
+    tick_ids: set[str] = set()
+    ordered_ticks: list[dict[str, Any]] = []
+    zero_label_tick_ids: list[str] = []
+    for tick in ticks:
+        tick = _exact_keys(
+            tick,
+            {"id", "scale_index", "position", "value_label", "point_label"},
+            "number_line_reference_frame_diagnostic tick",
+        )
+        tick_id = _safe_text(tick["id"], "reference frame tick id", maximum=80)
+        scale_index = _plain_int(
+            tick["scale_index"],
+            "reference frame tick scale index",
+        )
+        position = _plain_int(tick["position"], "reference frame tick position")
+        value_label = _safe_optional_text(
+            tick["value_label"],
+            "reference frame tick value label",
+            maximum=12,
+        )
+        point_label = _safe_optional_text(
+            tick["point_label"],
+            "reference frame tick point label",
+            maximum=8,
+        )
+        if tick_id in tick_ids:
+            raise ValueError("question visual reference frame tick ids are duplicated")
+        if not 0 <= position <= 100:
+            raise ValueError("question visual reference frame tick position is out of bounds")
+        tick_ids.add(tick_id)
+        if value_label == "0":
+            zero_label_tick_ids.append(tick_id)
+        ordered_ticks.append(
+            {
+                "id": tick_id,
+                "scale_index": scale_index,
+                "position": position,
+                "value_label": value_label,
+                "point_label": point_label,
+            }
+        )
+
+    ordered_ticks.sort(key=lambda tick: tick["scale_index"])
+    first_scale_index = ordered_ticks[0]["scale_index"]
+    expected_scale_indices = list(
+        range(first_scale_index, first_scale_index + len(ordered_ticks))
+    )
+    if [tick["scale_index"] for tick in ordered_ticks] != expected_scale_indices:
+        raise ValueError(
+            "question visual reference frame scale indices must be consecutive"
+        )
+    positions = [tick["position"] for tick in ordered_ticks]
+    if any(left >= right for left, right in zip(positions, positions[1:])):
+        raise ValueError(
+            "question visual reference frame tick positions must increase with scale"
+        )
+    origin_tick = next(
+        (tick for tick in ordered_ticks if tick["id"] == origin_tick_id),
+        None,
+    )
+    if origin_tick is None:
+        raise ValueError("question visual reference frame origin tick reference is invalid")
+    if origin_tick["scale_index"] != 0 or origin_tick["value_label"] != "0":
+        raise ValueError("question visual reference frame origin tick is invalid")
+    if zero_label_tick_ids != [origin_tick_id]:
+        raise ValueError("question visual reference frame zero label binding is invalid")
+
+    visible_fault_ids = scene["visible_fault_ids"]
+    if (
+        not isinstance(visible_fault_ids, list)
+        or any(
+            not isinstance(fault_id, str)
+            or fault_id not in _REFERENCE_FRAME_FAULT_IDS
+            for fault_id in visible_fault_ids
+        )
+        or len(set(visible_fault_ids)) != len(visible_fault_ids)
+    ):
+        raise ValueError("question visual reference frame visible fault ids are invalid")
+
+    adjacent_spacings = [
+        right - left for left, right in zip(positions, positions[1:])
+    ]
+    actual_fault_ids = []
+    if not scene["origin_label_visible"]:
+        actual_fault_ids.append("missing_origin")
+    if not scene["direction_marker_visible"]:
+        actual_fault_ids.append("missing_positive_direction")
+    if len(set(adjacent_spacings)) > 1:
+        actual_fault_ids.append("inconsistent_unit_length")
+    if visible_fault_ids != actual_fault_ids:
+        raise ValueError(
+            "question visual reference frame visible faults do not match the scene"
+        )
 
 
 def _validate_cube_net(scene: Any) -> None:
@@ -296,9 +652,12 @@ def _validate_simple_geometry(scene: Any) -> None:
 def _viewbox_proof(entry: dict[str, Any]) -> dict[str, Any]:
     scene_type = entry["scene_type"]
     scene = entry["scene"]
-    if scene_type == "number_line":
-        coordinates = [(60.0, 99.0), (660.0, 142.0), (60.0, 86.0), (660.0, 117.0)]
-        view_box = (0.0, 0.0, 720.0, 220.0)
+    if scene_type in {
+        "number_line",
+        NUMBER_LINE_REFERENCE_FRAME_DIAGNOSTIC_SCENE_TYPE,
+    }:
+        coordinates = [(26.0, 61.0), (374.0, 104.0), (26.0, 48.0), (374.0, 79.0)]
+        view_box = (0.0, 0.0, 400.0, 150.0)
     elif scene_type == "cube_net":
         cells = scene["cells"]
         minimum_x = min(cell["x"] for cell in cells)
@@ -374,6 +733,108 @@ def _viewbox_proof(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def validate_child_visual(visual: dict[str, Any]) -> dict[str, Any]:
+    """Validate an embedded child-safe visual without trusting model markup."""
+    if not isinstance(visual, dict) or frozenset(visual) not in _CHILD_VISUAL_KEYSETS:
+        raise ValueError("question visual child visual schema is not exact")
+    scene_type = visual["scene_type"]
+    if scene_type not in ALLOWED_SCENE_TYPES:
+        raise ValueError("question visual scene type is not allowed")
+    _safe_text(visual["alt_text"], "alt text", maximum=300)
+    _safe_text(visual["long_description"], "long description", maximum=1200)
+    _validate_safe_tree(visual)
+    interaction_contract = visual.get(CHILD_VISUAL_INTERACTION_KEY)
+    if interaction_contract is not None and scene_type != "number_line":
+        raise ValueError("question visual interaction contract scene is unsupported")
+    validators = {
+        NUMBER_LINE_REFERENCE_FRAME_DIAGNOSTIC_SCENE_TYPE: (
+            _validate_number_line_reference_frame_diagnostic
+        ),
+        "cube_net": _validate_cube_net,
+        "orthographic_view": _validate_orthographic,
+        "simple_geometry": _validate_simple_geometry,
+    }
+    if scene_type == "number_line":
+        _validate_number_line(visual["scene"], interaction_contract)
+    else:
+        validators[scene_type](visual["scene"])
+    _viewbox_proof({"question_id": "embedded", **visual})
+    return copy.deepcopy(visual)
+
+
+def embedded_visual_for_question(question: dict[str, Any]) -> dict[str, Any] | None:
+    raw = question.get("raw") if isinstance(question.get("raw"), dict) else {}
+    visual = question.get("question_visual")
+    if visual is None:
+        visual = raw.get("question_visual")
+    if visual is None:
+        return None
+    if not isinstance(visual, dict):
+        raise ValueError("embedded question visual must be an object")
+    return validate_child_visual(visual)
+
+
+def question_visual_sha256(visual: dict[str, Any]) -> str:
+    return _canonical_sha256(validate_child_visual(visual))
+
+
+def validated_embedded_visual_for_question(
+    question: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Validate both the child visual and its immutable production lineage."""
+    visual = embedded_visual_for_question(question)
+    if visual is None:
+        return None
+    raw = question.get("raw") if isinstance(question.get("raw"), dict) else {}
+    design = question.get("child_surface_design")
+    if not isinstance(design, dict):
+        design = (
+            raw.get("child_surface_design")
+            if isinstance(raw.get("child_surface_design"), dict)
+            else {}
+        )
+    support = (
+        design.get("visual_support")
+        if isinstance(design.get("visual_support"), dict)
+        else {}
+    )
+    asset_ref = str(
+        question.get("question_visual_asset_ref")
+        or raw.get("question_visual_asset_ref")
+        or ""
+    ).strip()
+    lineage = question.get("production_lineage")
+    if not isinstance(lineage, dict):
+        lineage = (
+            raw.get("production_lineage")
+            if isinstance(raw.get("production_lineage"), dict)
+            else {}
+        )
+    if support.get("mode") != "external_asset":
+        raise ValueError("embedded question visual must use an external asset binding")
+    if not asset_ref or str(support.get("asset_ref") or "").strip() != asset_ref:
+        raise ValueError("embedded question visual asset ref binding is invalid")
+    if str(lineage.get("question_visual_asset_ref") or "").strip() != asset_ref:
+        raise ValueError("embedded question visual asset lineage is invalid")
+    if str(lineage.get("question_visual_sha256") or "").strip() != _canonical_sha256(visual):
+        raise ValueError("embedded question visual digest lineage is invalid")
+    return visual
+
+
+def embedded_visual_required(question: dict[str, Any]) -> bool:
+    raw = question.get("raw") if isinstance(question.get("raw"), dict) else {}
+    design = question.get("child_surface_design")
+    if not isinstance(design, dict):
+        design = raw.get("child_surface_design") if isinstance(raw.get("child_surface_design"), dict) else {}
+    support = design.get("visual_support") if isinstance(design.get("visual_support"), dict) else {}
+    return bool(
+        support.get("prompt_depends_on_visual") is True
+        or support.get("mode") == "external_asset"
+        or question.get("question_visual") is not None
+        or raw.get("question_visual") is not None
+    )
+
+
 class QuestionVisualManifest:
     def __init__(
         self,
@@ -404,7 +865,8 @@ class QuestionVisualManifest:
 
     @staticmethod
     def validate_entry(entry: dict[str, Any]) -> dict[str, Any]:
-        entry = _exact_keys(entry, _ENTRY_KEYS, "entry")
+        if not isinstance(entry, dict) or frozenset(entry) not in _ENTRY_KEYSETS:
+            raise ValueError("question visual entry schema is not exact")
         _safe_text(entry["question_id"], "question id", maximum=160)
         _safe_text(entry["item_version"], "item version", maximum=160)
         digest = str(entry["question_digest_sha256"])
@@ -412,19 +874,12 @@ class QuestionVisualManifest:
             raise ValueError("question visual question digest must be lowercase sha256")
         if entry["required"] is not True:
             raise ValueError("question visual required binding must be true")
-        scene_type = entry["scene_type"]
-        if scene_type not in ALLOWED_SCENE_TYPES:
-            raise ValueError("question visual scene type is not allowed")
-        _safe_text(entry["alt_text"], "alt text", maximum=300)
-        _safe_text(entry["long_description"], "long description", maximum=1200)
-        _validate_safe_tree(entry)
-        validators = {
-            "number_line": _validate_number_line,
-            "cube_net": _validate_cube_net,
-            "orthographic_view": _validate_orthographic,
-            "simple_geometry": _validate_simple_geometry,
-        }
-        validators[scene_type](entry["scene"])
+        child_visual = {key: entry[key] for key in CHILD_VISUAL_KEYS}
+        if CHILD_VISUAL_INTERACTION_KEY in entry:
+            child_visual[CHILD_VISUAL_INTERACTION_KEY] = entry[
+                CHILD_VISUAL_INTERACTION_KEY
+            ]
+        validate_child_visual(child_visual)
         _viewbox_proof(entry)
         return copy.deepcopy(entry)
 
@@ -605,7 +1060,21 @@ class QuestionVisualManifest:
         )
         if inventory["schema_version"] != INVENTORY_SCHEMA_VERSION:
             raise ValueError("question visual inventory schema version is invalid")
-        if set(inventory["allowed_scene_types"]) != ALLOWED_SCENE_TYPES:
+        declared_scene_types = inventory["allowed_scene_types"]
+        declared_scene_type_set = (
+            set(declared_scene_types)
+            if isinstance(declared_scene_types, list)
+            else set()
+        )
+        allowed_profiles = _PRODUCTION_INVENTORY_SCENE_PROFILES.get(
+            inventory["schema_version"],
+            set(),
+        )
+        if (
+            not isinstance(declared_scene_types, list)
+            or len(declared_scene_type_set) != len(declared_scene_types)
+            or frozenset(declared_scene_type_set) not in allowed_profiles
+        ):
             raise ValueError("question visual inventory scene allowlist is invalid")
         groups = inventory["groups"]
         if (
@@ -643,7 +1112,7 @@ class QuestionVisualManifest:
                     slot in slots
                     or not 1 <= slot <= 20
                     or item["required"] is not True
-                    or item["scene_type"] not in ALLOWED_SCENE_TYPES
+                    or item["scene_type"] not in declared_scene_type_set
                     or question_id in global_question_ids
                 ):
                     raise ValueError("question visual inventory item is invalid")
@@ -707,7 +1176,12 @@ class QuestionVisualManifest:
         entry = self.lookup(question_id, item_version, digest)
         if entry is None:
             raise ValueError("question visual required manifest binding is missing")
-        return {key: copy.deepcopy(entry[key]) for key in CHILD_VISUAL_KEYS}
+        child_visual = {key: copy.deepcopy(entry[key]) for key in CHILD_VISUAL_KEYS}
+        if CHILD_VISUAL_INTERACTION_KEY in entry:
+            child_visual[CHILD_VISUAL_INTERACTION_KEY] = copy.deepcopy(
+                entry[CHILD_VISUAL_INTERACTION_KEY]
+            )
+        return child_visual
 
 
 def required_binding_for_question(
@@ -726,7 +1200,7 @@ def visual_required_by_policy(question: dict[str, Any]) -> bool:
         or question.get("question_bank_version")
         or ""
     )
-    return (
+    return embedded_visual_required(question) or (
         item_version == REQUIRED_ITEM_VERSION
         and str(question.get("node_id") or "") in REQUIRED_INVENTORY_NODE_IDS
     )

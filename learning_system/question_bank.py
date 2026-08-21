@@ -10,7 +10,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-from . import child_prompt, question_usage
+from . import child_prompt, question_usage, question_visuals
 
 
 CANONICAL_ERROR_TAGS = {
@@ -50,6 +50,38 @@ QUESTION_DESIGNER_AGENT_KEY = "question_designer_agent"
 QUESTION_REVIEWER_AGENT_KEY = "question_reviewer_agent"
 QUESTION_ID_PREFIX = "QB17"
 INCOMING_GRADE_7_AGE_FLOOR = "incoming_grade_7"
+FORMAL_ADMIN_PRODUCTION_SOURCE = "admin_reviewed_graph_production"
+FORMAL_ADMIN_REVIEW_CONTRACT_VERSION = "2026-07-28.admin-reviewed-question.v1"
+PRODUCTION_CATEGORY_TEACHING_DIAGNOSTIC = "teaching_diagnostic"
+PRODUCTION_CATEGORY_CHALLENGING_PRACTICE = "challenging_practice"
+EVIDENCE_MODE_GUIDED_FORMATIVE = "guided_formative"
+EVIDENCE_MODE_NO_HINT_CONFIRMATION = "no_hint_confirmation"
+EVIDENCE_MODE_TRANSFER_SIGNAL_ONLY = "transfer_signal_only"
+TEACHING_DIAGNOSTIC_EVIDENCE_MODES = frozenset(
+    {
+        EVIDENCE_MODE_GUIDED_FORMATIVE,
+        EVIDENCE_MODE_NO_HINT_CONFIRMATION,
+    }
+)
+INDEPENDENT_LIVE_REVIEW_MIN_RECEIPTS = 3
+INDEPENDENT_LIVE_REVIEW_REQUIRED_PROFILES = frozenset(
+    {
+        "frontline_math_teacher",
+        "diagnostic_assessment_expert",
+        "sixth_grade_child_perspective",
+    }
+)
+INDEPENDENT_LIVE_REVIEW_ADJUDICATOR_PROFILE = (
+    "senior_question_review_adjudicator"
+)
+INDEPENDENT_LIVE_REVIEW_MIN_CONFIDENCE = 0.86
+INDEPENDENT_LIVE_REVIEW_DIRECT_PASS_CONFIDENCE = 0.90
+FORMAL_PRODUCTION_CATEGORIES = frozenset(
+    {
+        PRODUCTION_CATEGORY_TEACHING_DIAGNOSTIC,
+        PRODUCTION_CATEGORY_CHALLENGING_PRACTICE,
+    }
+)
 QUESTIONS_PER_GRAPH_NODE = 20
 V12_FULL_BANK_NODE_COUNT = 56
 V12_FULL_BANK_ITEM_COUNT = V12_FULL_BANK_NODE_COUNT * QUESTIONS_PER_GRAPH_NODE
@@ -4334,6 +4366,91 @@ class QuestionSpecLoader:
         }
 
 
+def _validated_support_routing_context(
+    conn,
+    *,
+    flow_id: str,
+    node_id: str,
+    question_bank_version: str,
+    requested_context: dict[str, Any] | None,
+) -> dict[str, Any]:
+    context = requested_context if isinstance(requested_context, dict) else {}
+    assessment_id = str(context.get("source_assessment_id") or "").strip()
+    assessment_digest = str(
+        context.get("source_assessment_digest_sha256") or ""
+    ).strip()
+    attempt_id = str(context.get("source_attempt_id") or "").strip()
+    source_item_id = str(context.get("source_item_id") or "").strip()
+    if not all(
+        (flow_id, assessment_id, assessment_digest, attempt_id, source_item_id)
+    ):
+        raise ValueError(
+            "targeted support requires an accepted assessment routing receipt"
+        )
+    row = conn.execute(
+        """
+        select
+          assessment.id as assessment_id,
+          assessment.attempt_id,
+          assessment.assessment_digest_sha256,
+          assessment.question_id as assessment_question_id,
+          assessment.question_item_version,
+          assessment.criterion_judgments_json,
+          assessment.question_passed,
+          assessment.status as assessment_status,
+          attempt.node_id,
+          attempt.question_id as attempt_question_id,
+          attempt.question_bank_version,
+          attempt.evidence_status,
+          step.flow_id
+        from attempt_assessments assessment
+        join attempts attempt on attempt.id = assessment.attempt_id
+        join flow_steps step on step.id = attempt.flow_step_id
+        where assessment.id = ?
+        """,
+        (assessment_id,),
+    ).fetchone()
+    if not row:
+        raise ValueError("targeted support routing receipt is unknown")
+    if (
+        str(row["assessment_status"] or "") != "accepted"
+        or str(row["evidence_status"] or "") != "active"
+        or str(row["flow_id"] or "") != flow_id
+        or str(row["attempt_id"] or "") != attempt_id
+        or str(row["assessment_digest_sha256"] or "") != assessment_digest
+        or str(row["assessment_question_id"] or "") != source_item_id
+        or str(row["attempt_question_id"] or "") != source_item_id
+        or str(row["question_item_version"] or "") != question_bank_version
+        or str(row["question_bank_version"] or "") != question_bank_version
+        or str(row["node_id"] or "") != node_id
+        or bool(row["question_passed"])
+        or str(context.get("node_state") or "") != "weak"
+    ):
+        raise ValueError("targeted support routing receipt does not match the flow")
+    try:
+        judgments = json.loads(str(row["criterion_judgments_json"] or "[]"))
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError("targeted support assessment criteria are unreadable") from exc
+    criterion_statuses = {
+        str(judgment.get("criterion_key") or "").strip(): str(
+            judgment.get("status") or ""
+        ).strip()
+        for judgment in judgments
+        if isinstance(judgment, dict)
+        and str(judgment.get("criterion_key") or "").strip()
+    }
+    if not criterion_statuses:
+        raise ValueError("targeted support assessment has no criterion evidence")
+    return {
+        "source_assessment_id": assessment_id,
+        "source_assessment_digest_sha256": assessment_digest,
+        "source_attempt_id": attempt_id,
+        "source_item_id": source_item_id,
+        "criterion_statuses": criterion_statuses,
+        "node_state": "weak",
+    }
+
+
 class QuestionBankService:
     """v3 metadata-only candidate packet skeleton for planner hot path."""
 
@@ -4346,18 +4463,58 @@ class QuestionBankService:
         *,
         node_id: str,
         graph_version: str,
+        question_bank_version: str,
+        required_purpose: str,
         flow_id: str = "",
         flow_revision: int = 0,
         source_review_target_id: str = "",
         limit: int = 8,
         exclusions: dict[str, Any] | None = None,
-        question_bank_version: str = QUESTION_BANK_VERSION,
         selection_intent: str = "general",
         next_evidence_goal: str = "",
         learner_status: str = "",
         prerequisite_ready: bool = False,
-        required_purpose: str = "",
+        support_routing_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        question_bank_version = str(question_bank_version or "").strip()
+        if not question_bank_version:
+            raise ValueError("candidate packet requires an explicit question-bank version")
+        required_purpose = str(required_purpose or "").strip()
+        if required_purpose not in {"teaching", "practice", "diagnostic"}:
+            raise ValueError(
+                "candidate packet requires purpose teaching, practice, or diagnostic"
+            )
+        ledger_rows = conn.execute(
+            """
+            select id, question_bank_version, graph_version, manifest_sha256, status
+            from question_bank_version_ledger
+            where question_bank_version = ?
+            order by created_at desc, id desc
+            """,
+            (question_bank_version,),
+        ).fetchall()
+        if len(ledger_rows) != 1:
+            raise ValueError(
+                "candidate packet requires exactly one known question-bank ledger row"
+            )
+        ledger = ledger_rows[0]
+        if str(ledger["status"] or "") not in {"active", "superseded"}:
+            raise ValueError(
+                "candidate packet question-bank version is not available to a learning flow"
+            )
+        if str(ledger["graph_version"] or "") != str(graph_version or ""):
+            raise ValueError(
+                "candidate packet graph version does not match question-bank ledger"
+            )
+        trusted_support_routing_context = None
+        if selection_intent == "targeted_support_repair":
+            trusted_support_routing_context = _validated_support_routing_context(
+                conn,
+                flow_id=str(flow_id or ""),
+                node_id=str(node_id or ""),
+                question_bank_version=question_bank_version,
+                requested_context=support_routing_context,
+            )
         limit = max(0, min(int(limit or 0), 8))
         filter_summary = {
             "active_rows_seen": 0,
@@ -4371,6 +4528,7 @@ class QuestionBankService:
             "excluded_missing_lineage": 0,
             "excluded_intent_role_mismatch": 0,
             "excluded_purpose_mismatch": 0,
+            "excluded_support_routing_mismatch": 0,
         }
         exclusions = exclusions or {}
         recent_question_ids = set(exclusions.get("recent_question_ids") or [])
@@ -4432,9 +4590,25 @@ class QuestionBankService:
                 item_version=item["item_version"],
             )
             allowed_purposes = list((usage_policy or {}).get("allowed_purposes") or [])
-            if required_purpose and required_purpose not in allowed_purposes:
+            support_only = bool((usage_policy or {}).get("support_only"))
+            if (
+                (support_only and required_purpose != "teaching")
+                or (required_purpose and required_purpose not in allowed_purposes)
+            ):
                 filter_summary["excluded_purpose_mismatch"] += 1
                 continue
+            matched_support_route: dict[str, Any] | None = None
+            if support_only:
+                if selection_intent != "targeted_support_repair":
+                    filter_summary["excluded_intent_role_mismatch"] += 1
+                    continue
+                matched_support_route = question_usage.matching_support_route(
+                    usage_policy or {},
+                    trusted_support_routing_context,
+                )
+                if matched_support_route is None:
+                    filter_summary["excluded_support_routing_mismatch"] += 1
+                    continue
             candidate = _candidate_metadata_row(
                 item,
                 row,
@@ -4445,6 +4619,9 @@ class QuestionBankService:
             candidate["usage_policy_digest_sha256"] = str(
                 (usage_policy or {}).get("policy_digest_sha256") or ""
             )
+            candidate["support_only"] = support_only
+            if matched_support_route is not None:
+                candidate["matched_support_route"] = matched_support_route
             prefiltered.append(candidate)
         ranked_candidates: list[tuple[tuple[int, int, str], dict[str, Any]]] = []
         for index, candidate in enumerate(prefiltered):
@@ -4499,11 +4676,16 @@ class QuestionBankService:
             "node_id": node_id,
             "graph_version": graph_version,
             "question_bank_version": question_bank_version,
+            "question_bank_ledger_id": str(ledger["id"] or ""),
+            "question_bank_manifest_sha256": str(
+                ledger["manifest_sha256"] or ""
+            ),
             "selection_intent": selection_intent,
             "next_evidence_goal": next_evidence_goal,
             "learner_status": learner_status,
             "prerequisite_ready": bool(prerequisite_ready),
-            "required_purpose": str(required_purpose or ""),
+            "required_purpose": required_purpose,
+            "support_routing_context": trusted_support_routing_context or {},
         }
         packet = {
             "packet_id": "CP-" + hashlib.sha256(
@@ -4513,6 +4695,10 @@ class QuestionBankService:
             "legacy_packet_schema_version": "2026-07-10.v3.candidate-packet",
             "graph_version": graph_version,
             "question_bank_version": question_bank_version,
+            "question_bank_ledger_id": str(ledger["id"] or ""),
+            "question_bank_manifest_sha256": str(
+                ledger["manifest_sha256"] or ""
+            ),
             "target_node_id": node_id,
             "flow_id": flow_id,
             "flow_revision": int(flow_revision or 0),
@@ -4523,6 +4709,12 @@ class QuestionBankService:
             "next_evidence_goal": next_evidence_goal,
             "learner_status": learner_status,
             "prerequisite_ready": bool(prerequisite_ready),
+            "required_purpose": required_purpose,
+            "support_routing_context_digest_sha256": (
+                question_usage.canonical_sha256(trusted_support_routing_context)
+                if trusted_support_routing_context
+                else ""
+            ),
             "candidates": candidates,
         }
         packet["packet_hash"] = hashlib.sha256(
@@ -4622,9 +4814,32 @@ TRANSFER_SLOT_ROLES = {
     "integrated_transfer",
     "multi_representation",
     "alternative_method",
+    "model_selection",
     "summary_transfer_check",
 }
 STRETCH_SLOT_ROLES = {"stretch_readiness_check", "controlled_stretch"}
+TRANSFER_QUESTION_KINDS = {
+    "variant",
+    "transfer_retest",
+    "near_transfer",
+    "integrated_transfer",
+    "multi_representation",
+    "two_method_compare",
+    "model_selection",
+    "reverse_reasoning",
+}
+STRETCH_QUESTION_KINDS = {"stretch_transfer", "controlled_stretch"}
+TRANSFER_VARIANT_LEVELS = {"transfer_retest", "near_transfer"}
+STRETCH_VARIANT_LEVELS = {"stretch_readiness_check", "controlled_stretch"}
+TRANSFER_EVIDENCE_ROLES = {
+    "transfer",
+    "near_transfer",
+    "integrated_transfer",
+    "multi_representation",
+    "alternative_method",
+    "summary_transfer_check",
+}
+STRETCH_EVIDENCE_ROLES = {"stretch_readiness", "picture_level_extension"}
 CONCEPT_BOUNDARY_SLOT_ROLES = {
     "concept_boundary",
     "misconception_boundary",
@@ -4788,14 +5003,89 @@ def _candidate_evidence_role(item: dict[str, Any], slot_role: str) -> str:
     return "direct"
 
 
-def _candidate_is_stretch(candidate: dict[str, Any]) -> bool:
+def candidate_supports_transfer(candidate: dict[str, Any]) -> bool:
+    if not isinstance(candidate, dict):
+        raise TypeError("candidate role metadata must be a mapping")
+    return bool(
+        str(candidate.get("slot_role") or "") in TRANSFER_SLOT_ROLES
+        or str(candidate.get("evidence_role") or "")
+        in TRANSFER_EVIDENCE_ROLES
+        or str(candidate.get("kind") or "") in TRANSFER_QUESTION_KINDS
+        or str(candidate.get("variant_level") or "")
+        in TRANSFER_VARIANT_LEVELS
+    )
+
+
+def candidate_supports_stretch(candidate: dict[str, Any]) -> bool:
+    if not isinstance(candidate, dict):
+        raise TypeError("candidate role metadata must be a mapping")
     role = str(candidate.get("slot_role") or "")
     evidence_role = str(candidate.get("evidence_role") or "")
     return (
-        bool(candidate.get("controlled_stretch"))
+        candidate.get("controlled_stretch") is True
         or role in STRETCH_SLOT_ROLES
-        or "stretch" in evidence_role
-        or evidence_role == "picture_level_extension"
+        or evidence_role in STRETCH_EVIDENCE_ROLES
+        or str(candidate.get("kind") or "") in STRETCH_QUESTION_KINDS
+        or str(candidate.get("variant_level") or "")
+        in STRETCH_VARIANT_LEVELS
+    )
+
+
+def _candidate_is_stretch(candidate: dict[str, Any]) -> bool:
+    return candidate_supports_stretch(candidate)
+
+
+def question_is_transfer_or_stretch(question: dict[str, Any]) -> bool:
+    if not isinstance(question, dict):
+        raise TypeError("question role metadata must be a mapping")
+    raw = question.get("raw") if isinstance(question.get("raw"), dict) else {}
+    source = (
+        question.get("source")
+        if isinstance(question.get("source"), dict)
+        else {}
+    )
+    kinds = {
+        str(question.get("kind") or ""),
+        str(raw.get("kind") or ""),
+        str(source.get("kind") or ""),
+    }
+    variant_levels = {
+        str(question.get("variant_level") or ""),
+        str(raw.get("variant_level") or ""),
+        str(source.get("variant_level") or ""),
+    }
+    slot_roles = {
+        str(raw.get("slot_role") or ""),
+        str(source.get("slot_role") or ""),
+    }
+    evidence_roles = {
+        str(raw.get("evidence_role") or ""),
+        str(source.get("evidence_role") or ""),
+    }
+    return bool(
+        kinds.intersection(TRANSFER_QUESTION_KINDS | STRETCH_QUESTION_KINDS)
+        or variant_levels.intersection(
+            TRANSFER_VARIANT_LEVELS | STRETCH_VARIANT_LEVELS
+        )
+        or slot_roles.intersection(TRANSFER_SLOT_ROLES | STRETCH_SLOT_ROLES)
+        or evidence_roles.intersection(
+            TRANSFER_EVIDENCE_ROLES | STRETCH_EVIDENCE_ROLES
+        )
+    )
+
+
+def question_is_stretch(question: dict[str, Any]) -> bool:
+    if not isinstance(question, dict):
+        raise TypeError("question role metadata must be a mapping")
+    raw = question.get("raw") if isinstance(question.get("raw"), dict) else {}
+    source = (
+        question.get("source")
+        if isinstance(question.get("source"), dict)
+        else {}
+    )
+    return any(
+        candidate_supports_stretch(candidate)
+        for candidate in (question, raw, source)
     )
 
 
@@ -4816,6 +5106,13 @@ def _candidate_allowed_for_intent(
     intent = str(selection_intent or "general")
     role = str(candidate.get("slot_role") or "")
     legacy = role == "legacy_mainline"
+    if intent == "targeted_support_repair":
+        return bool(
+            candidate.get("support_only")
+            and isinstance(candidate.get("matched_support_route"), dict)
+        )
+    if candidate.get("support_only"):
+        return False
     try:
         expert_priority = int(candidate.get("selection_priority") or 0)
     except (TypeError, ValueError):
@@ -6063,6 +6360,506 @@ def _is_v12_external_active_item(item: dict[str, Any]) -> bool:
     )
 
 
+def production_category_for_coverage_role(coverage_role: Any) -> str:
+    return (
+        PRODUCTION_CATEGORY_CHALLENGING_PRACTICE
+        if str(coverage_role or "") == "transfer_or_stretch"
+        else PRODUCTION_CATEGORY_TEACHING_DIAGNOSTIC
+    )
+
+
+def evidence_mode_for_coverage_role(coverage_role: Any) -> str:
+    role = str(coverage_role or "")
+    if role == "transfer_or_stretch":
+        return EVIDENCE_MODE_TRANSFER_SIGNAL_ONLY
+    if role == "confirmation_or_variant":
+        return EVIDENCE_MODE_NO_HINT_CONFIRMATION
+    return EVIDENCE_MODE_GUIDED_FORMATIVE
+
+
+def evidence_mode_for_production_mode(production_mode: Any) -> str:
+    mapping = {
+        "guided_formative": EVIDENCE_MODE_GUIDED_FORMATIVE,
+        "no_hint_confirmation": EVIDENCE_MODE_NO_HINT_CONFIRMATION,
+        "challenging_practice": EVIDENCE_MODE_TRANSFER_SIGNAL_ONLY,
+    }
+    mode = str(production_mode or "")
+    if mode not in mapping:
+        raise ValueError(f"unsupported production_mode: {mode or 'missing'}")
+    return mapping[mode]
+
+
+def production_evidence_mode_rejection_reasons(item: dict[str, Any]) -> list[str]:
+    category = str(item.get("production_category") or "")
+    evidence_mode = str(item.get("evidence_mode") or "")
+    lineage = (
+        item.get("production_lineage")
+        if isinstance(item.get("production_lineage"), dict)
+        else {}
+    )
+    coverage_role = str(lineage.get("coverage_role") or item.get("coverage_role") or "")
+    production_mode = str(
+        lineage.get("production_mode") or item.get("production_mode") or ""
+    )
+    reasons: list[str] = []
+    if category == PRODUCTION_CATEGORY_TEACHING_DIAGNOSTIC:
+        if evidence_mode not in TEACHING_DIAGNOSTIC_EVIDENCE_MODES:
+            reasons.append("teaching_diagnostic_evidence_mode_invalid")
+    elif category == PRODUCTION_CATEGORY_CHALLENGING_PRACTICE:
+        if evidence_mode != EVIDENCE_MODE_TRANSFER_SIGNAL_ONLY:
+            reasons.append("challenging_practice_evidence_mode_invalid")
+    else:
+        reasons.append("formal_production_category_invalid")
+    if production_mode:
+        try:
+            expected_evidence_mode = evidence_mode_for_production_mode(
+                production_mode
+            )
+        except ValueError:
+            reasons.append("production_mode_invalid")
+        else:
+            if evidence_mode != expected_evidence_mode:
+                reasons.append("production_mode_evidence_mode_mismatch")
+    return reasons
+
+
+def formal_purpose_for_evidence_mode(evidence_mode: Any) -> str:
+    mapping = {
+        EVIDENCE_MODE_GUIDED_FORMATIVE: "teaching",
+        EVIDENCE_MODE_NO_HINT_CONFIRMATION: "diagnostic",
+        EVIDENCE_MODE_TRANSFER_SIGNAL_ONLY: "practice",
+    }
+    mode = str(evidence_mode or "")
+    if mode not in mapping:
+        raise ValueError(f"unsupported formal evidence_mode: {mode or 'missing'}")
+    return mapping[mode]
+
+
+def formal_child_surface_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "prompt": item.get("prompt"),
+        "answer_format": item.get("answer_format"),
+        "interaction_schema": item.get("interaction_schema") or {},
+        "child_surface_design": item.get("child_surface_design") or {},
+        "question_visual_asset_ref": item.get("question_visual_asset_ref") or "",
+        "question_visual": item.get("question_visual") or {},
+    }
+
+
+def formal_child_surface_sha256(item: dict[str, Any]) -> str:
+    payload = json.dumps(
+        formal_child_surface_payload(item),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def prepare_formal_activation_candidate(item: dict[str, Any]) -> dict[str, Any]:
+    """Freeze the exact child/runtime semantic payload before any live review."""
+    candidate = json.loads(json.dumps(item, ensure_ascii=False))
+    evidence_mode = str(candidate.get("evidence_mode") or "")
+    purpose = formal_purpose_for_evidence_mode(evidence_mode)
+    if not candidate.get("variant_level"):
+        candidate["variant_level"] = candidate.get("difficulty")
+    if not candidate.get("expected_answer"):
+        candidate["expected_answer"] = candidate.get("standard_answer")
+    if not candidate.get("kind"):
+        candidate["kind"] = {
+            EVIDENCE_MODE_GUIDED_FORMATIVE: "standard_example",
+            EVIDENCE_MODE_NO_HINT_CONFIRMATION: "misconception_probe",
+            EVIDENCE_MODE_TRANSFER_SIGNAL_ONLY: "stretch_transfer",
+        }[evidence_mode]
+    if question_visuals.embedded_visual_required(candidate):
+        visual = question_visuals.validated_embedded_visual_for_question(candidate)
+        if visual is None:
+            raise ValueError("formal candidate requires a validated embedded question visual")
+        candidate["question_visual"] = visual
+    reasons = production_evidence_mode_rejection_reasons(candidate)
+    if reasons:
+        raise ValueError("formal evidence contract rejected: " + ",".join(reasons))
+    usage_policy = candidate.get("usage_policy")
+    if not isinstance(usage_policy, dict):
+        raise ValueError("formal candidate requires usage_policy before review")
+    allowed_purposes = list(usage_policy.get("allowed_purposes") or [])
+    if allowed_purposes != [purpose]:
+        raise ValueError(
+            "formal candidate purpose must be exclusive and match evidence_mode"
+        )
+    required = (
+        "id",
+        "node_id",
+        "question_type",
+        "kind",
+        "difficulty",
+        "variant_level",
+        "production_category",
+        "evidence_mode",
+        "prompt",
+        "answer_format",
+        "expected_answer",
+    )
+    missing = [field for field in required if candidate.get(field) in (None, "")]
+    if missing:
+        raise ValueError("formal canonical payload missing fields: " + ",".join(missing))
+    candidate["parent_observation"] = str(candidate.get("parent_observation") or "")
+    try:
+        estimated_minutes = int(candidate.get("estimated_minutes") or 3)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "formal candidate estimated_minutes must be a positive integer"
+        ) from exc
+    if isinstance(candidate.get("estimated_minutes"), bool) or estimated_minutes <= 0:
+        raise ValueError("formal candidate estimated_minutes must be a positive integer")
+    candidate["estimated_minutes"] = estimated_minutes
+    canonical = formal_reviewed_content_payload(candidate)
+    candidate["canonical_activation_payload"] = canonical
+    candidate["canonical_activation_payload_sha256"] = formal_reviewed_content_sha256(
+        candidate
+    )
+    candidate["question_surface_sha256"] = formal_child_surface_sha256(candidate)
+    return candidate
+
+
+def validate_independent_live_review_receipts(
+    receipts: Any,
+    *,
+    expected_candidate_sha256: str = "",
+) -> dict[str, Any]:
+    errors: list[str] = []
+    values = receipts if isinstance(receipts, list) else []
+    if not isinstance(receipts, list):
+        errors.append("independent_review_receipts_must_be_list")
+    required = INDEPENDENT_LIVE_REVIEW_MIN_RECEIPTS
+    if len(values) < required:
+        errors.append("independent_review_receipt_count_below_minimum")
+    if len(values) > required + 1:
+        errors.append("independent_review_receipt_count_above_maximum")
+
+    profiles: list[str] = []
+    run_ids: list[str] = []
+    invocation_ids: list[str] = []
+    context_ids: list[str] = []
+    response_hashes: list[str] = []
+    confidences: dict[str, float] = {}
+    for index, receipt in enumerate(values):
+        if not isinstance(receipt, dict):
+            errors.append(f"independent_review_receipt_invalid:{index}")
+            continue
+        profile = str(receipt.get("review_profile") or "")
+        run_id = str(receipt.get("run_id") or "")
+        invocation_id = str(receipt.get("invocation_id") or "")
+        context_id = str(receipt.get("context_id") or "")
+        raw_response_sha256 = str(receipt.get("raw_response_sha256") or "").lower()
+        status = str(receipt.get("status") or "").upper()
+        provider_mode = str(receipt.get("provider_mode") or "")
+        profiles.append(profile)
+        run_ids.append(run_id)
+        invocation_ids.append(invocation_id)
+        context_ids.append(context_id)
+        response_hashes.append(raw_response_sha256)
+        if not profile:
+            errors.append(f"independent_review_profile_missing:{index}")
+        if not run_id:
+            errors.append(f"independent_review_run_id_missing:{index}")
+        if not invocation_id:
+            errors.append(f"independent_review_invocation_id_missing:{index}")
+        if not context_id:
+            errors.append(f"independent_review_context_id_missing:{index}")
+        if not re.fullmatch(r"[0-9a-f]{64}", raw_response_sha256):
+            errors.append(f"independent_review_raw_response_sha256_invalid:{index}")
+        if provider_mode != "live_model":
+            errors.append(f"independent_review_not_live_model:{index}")
+        if status != "PASS":
+            errors.append(f"independent_review_not_passed:{index}:{status or 'MISSING'}")
+        confidence = receipt.get("confidence")
+        if (
+            isinstance(confidence, bool)
+            or not isinstance(confidence, (int, float))
+            or not 0 <= float(confidence) <= 1
+        ):
+            errors.append(f"independent_review_confidence_invalid:{index}")
+        else:
+            confidences[profile] = float(confidence)
+        if (
+            expected_candidate_sha256
+            and str(receipt.get("candidate_sha256") or "") != expected_candidate_sha256
+        ):
+            errors.append(f"independent_review_candidate_sha256_mismatch:{index}")
+
+    required_profiles = INDEPENDENT_LIVE_REVIEW_REQUIRED_PROFILES
+    primary_profiles = {
+        profile
+        for profile in profiles
+        if profile != INDEPENDENT_LIVE_REVIEW_ADJUDICATOR_PROFILE
+    }
+    if primary_profiles != required_profiles:
+        errors.append("independent_review_required_profiles_mismatch")
+    allowed_profiles = required_profiles | {
+        INDEPENDENT_LIVE_REVIEW_ADJUDICATOR_PROFILE
+    }
+    if any(profile not in allowed_profiles for profile in profiles):
+        errors.append("independent_review_profile_not_allowed")
+    if len(profiles) != len(set(profiles)):
+        errors.append("independent_review_profiles_not_distinct")
+    if len(set(run_ids)) != len(run_ids):
+        errors.append("independent_review_run_ids_not_distinct")
+    if len(set(invocation_ids)) != len(invocation_ids):
+        errors.append("independent_review_invocation_ids_not_distinct")
+    if len(set(context_ids)) != len(context_ids):
+        errors.append("independent_review_context_ids_not_distinct")
+    if len(set(response_hashes)) != len(response_hashes):
+        errors.append("independent_review_raw_responses_not_distinct")
+
+    primary_confidences = [
+        confidences.get(profile)
+        for profile in sorted(required_profiles)
+    ]
+    below_minimum = any(
+        confidence is not None
+        and confidence < INDEPENDENT_LIVE_REVIEW_MIN_CONFIDENCE
+        for confidence in primary_confidences
+    )
+    adjudication_required = any(
+        confidence is not None
+        and INDEPENDENT_LIVE_REVIEW_MIN_CONFIDENCE
+        <= confidence
+        < INDEPENDENT_LIVE_REVIEW_DIRECT_PASS_CONFIDENCE
+        for confidence in primary_confidences
+    )
+    adjudicator_present = (
+        INDEPENDENT_LIVE_REVIEW_ADJUDICATOR_PROFILE in profiles
+    )
+    adjudication_confidence = confidences.get(
+        INDEPENDENT_LIVE_REVIEW_ADJUDICATOR_PROFILE
+    )
+    adjudicator_receipt = next(
+        (
+            receipt
+            for receipt in values
+            if isinstance(receipt, dict)
+            and receipt.get("review_profile")
+            == INDEPENDENT_LIVE_REVIEW_ADJUDICATOR_PROFILE
+        ),
+        {},
+    )
+    adjudication_verified = bool(
+        adjudication_required
+        and adjudicator_present
+        and adjudication_confidence is not None
+        and adjudication_confidence
+        >= INDEPENDENT_LIVE_REVIEW_DIRECT_PASS_CONFIDENCE
+        and str(adjudicator_receipt.get("status") or "").upper() == "PASS"
+    )
+    if below_minimum:
+        errors.append("independent_review_confidence_below_minimum")
+    if adjudication_required and not adjudicator_present:
+        errors.append("independent_review_adjudication_required")
+    elif adjudication_required and not adjudication_verified:
+        errors.append("independent_review_adjudication_not_verified")
+    elif not adjudication_required and adjudicator_present:
+        errors.append("independent_review_adjudication_unexpected")
+    unique_errors = list(dict.fromkeys(errors))
+    return {
+        "status": "PASS" if not unique_errors else "BLOCKED",
+        "verified": not unique_errors,
+        "minimum_receipts": required,
+        "receipt_count": len(values),
+        "distinct_review_profile_count": len(set(profiles)),
+        "distinct_run_id_count": len(set(run_ids)),
+        "distinct_invocation_id_count": len(set(invocation_ids)),
+        "distinct_context_id_count": len(set(context_ids)),
+        "distinct_raw_response_sha256_count": len(set(response_hashes)),
+        "adjudication_required": adjudication_required,
+        "adjudication_verified": adjudication_verified,
+        "errors": unique_errors,
+    }
+
+
+def formal_reviewed_content_payload(item: dict[str, Any]) -> dict[str, Any]:
+    raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
+    candidate = raw if raw.get("source") else item
+    lineage = (
+        candidate.get("production_lineage")
+        if isinstance(candidate.get("production_lineage"), dict)
+        else {}
+    )
+    payload = {
+        "id": candidate.get("id"),
+        "node_id": candidate.get("node_id"),
+        "secondary_node_ids": list(candidate.get("secondary_node_ids") or []),
+        "question_type": candidate.get("question_type"),
+        "kind": candidate.get("kind"),
+        "difficulty": candidate.get("difficulty") or candidate.get("variant_level"),
+        "variant_level": candidate.get("variant_level"),
+        "production_category": candidate.get("production_category"),
+        "evidence_mode": candidate.get("evidence_mode"),
+        "prompt": candidate.get("prompt"),
+        "answer_format": candidate.get("answer_format"),
+        "expected_answer": candidate.get("expected_answer"),
+        "standard_answer": candidate.get("standard_answer"),
+        "accepted_alternatives": list(candidate.get("accepted_alternatives") or []),
+        "required_evidence": list(candidate.get("required_evidence") or []),
+        "key_score_points": list(candidate.get("key_score_points") or []),
+        "solution_steps": list(candidate.get("solution_steps") or []),
+        "target_error_tags": list(candidate.get("target_error_tags") or []),
+        "rollback_candidates": list(candidate.get("rollback_candidates") or []),
+        "rollback_candidate_node_ids": list(
+            candidate.get("rollback_candidate_node_ids") or []
+        ),
+        "rollback_candidate_relations": list(
+            candidate.get("rollback_candidate_relations") or []
+        ),
+        "estimated_minutes": candidate.get("estimated_minutes"),
+        "parent_observation": candidate.get("parent_observation"),
+        "interaction_schema": candidate.get("interaction_schema") or {},
+        "child_surface_design": candidate.get("child_surface_design") or {},
+        "question_visual_asset_ref": candidate.get("question_visual_asset_ref") or "",
+        "question_visual": candidate.get("question_visual") or {},
+        "math_core_signature": candidate.get("math_core_signature"),
+        "response_domain_contract": candidate.get("response_domain_contract") or {},
+        "usage_policy": candidate.get("usage_policy") or {},
+    }
+    visual_authority = lineage.get("visual_authority")
+    if isinstance(visual_authority, dict) and visual_authority:
+        payload["visual_authority"] = visual_authority
+        payload["item_visual_authority_sha256"] = str(
+            lineage.get("item_visual_authority_sha256") or ""
+        )
+    measurement_authority = lineage.get("measurement_authority")
+    if isinstance(measurement_authority, dict) and measurement_authority:
+        payload["measurement_authority"] = measurement_authority
+        payload["item_measurement_authority_sha256"] = str(
+            lineage.get("item_measurement_authority_sha256") or ""
+        )
+    visual_adjudication = lineage.get("visual_adjudication")
+    if isinstance(visual_adjudication, dict) and visual_adjudication:
+        payload["visual_adjudication"] = visual_adjudication
+        payload["item_visual_adjudication_sha256"] = str(
+            lineage.get("item_visual_adjudication_sha256") or ""
+        )
+    return payload
+
+
+def formal_reviewed_content_sha256(item: dict[str, Any]) -> str:
+    payload = json.dumps(
+        formal_reviewed_content_payload(item),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+FORMAL_CONTENT_ENVELOPE_SCHEMA_VERSION = (
+    "2026-07-24.codex-admin.staged-content-envelope.v1"
+)
+_FORMAL_CONTENT_ENVELOPE_QUALITY_FIELDS = {
+    "activation_eligible",
+    "content_envelope_sha256",
+    "review_evidence",
+    "review_status",
+    "staging_receipts",
+    "status",
+}
+
+
+def formal_content_envelope_payload(item: dict[str, Any]) -> dict[str, Any]:
+    """Freeze every candidate field reviewed before staging metadata is attached."""
+    content = json.loads(json.dumps(item, ensure_ascii=False))
+    content.pop("question_bank_version", None)
+    content["source_type"] = str(content.get("source_type") or "ai_original")
+    quality = dict(
+        content.get("quality") if isinstance(content.get("quality"), dict) else {}
+    )
+    for field in _FORMAL_CONTENT_ENVELOPE_QUALITY_FIELDS:
+        quality.pop(field, None)
+    if quality:
+        content["quality"] = quality
+    else:
+        content.pop("quality", None)
+    return {
+        "schema_version": FORMAL_CONTENT_ENVELOPE_SCHEMA_VERSION,
+        "item": content,
+    }
+
+
+def formal_content_envelope_sha256(item: dict[str, Any]) -> str:
+    payload = json.dumps(
+        formal_content_envelope_payload(item),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _formal_admin_active_quality(item: dict[str, Any]) -> dict[str, Any] | None:
+    raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
+    candidate = raw if raw.get("source") else item
+    source = candidate.get("source") if isinstance(candidate.get("source"), dict) else {}
+    if source.get("formal_production_source") != FORMAL_ADMIN_PRODUCTION_SOURCE:
+        return None
+    quality = candidate.get("quality") if isinstance(candidate.get("quality"), dict) else {}
+    formal_review = source.get("formal_review") if isinstance(source.get("formal_review"), dict) else {}
+    review_evidence = formal_review.get("review_evidence") if isinstance(formal_review.get("review_evidence"), dict) else {}
+    receipts = review_evidence.get("receipts") if isinstance(review_evidence.get("receipts"), dict) else {}
+    independent_receipts = review_evidence.get("independent_live_model_reviews")
+    semantic_receipt = receipts.get("semantic_qa_review") or receipts.get("guanzhi_qa_review") or {}
+    reasons: list[str] = []
+    category = str(candidate.get("production_category") or "")
+    if category not in FORMAL_PRODUCTION_CATEGORIES:
+        reasons.append("formal_production_category_invalid")
+    reasons.extend(production_evidence_mode_rejection_reasons(candidate))
+    if candidate.get("item_version") != source.get("question_bank_version"):
+        reasons.append("formal_question_bank_version_mismatch")
+    if not str(source.get("graph_version") or ""):
+        reasons.append("formal_graph_version_missing")
+    if formal_review.get("contract_version") != FORMAL_ADMIN_REVIEW_CONTRACT_VERSION:
+        reasons.append("formal_review_contract_version_mismatch")
+    if formal_review.get("reviewed_content_sha256") != formal_reviewed_content_sha256(candidate):
+        reasons.append("formal_reviewed_content_digest_mismatch")
+    required_receipts = {
+        "deterministic_expert_review": receipts.get("deterministic_expert_review") or {},
+        "model_expert_board_review": receipts.get("model_expert_board_review") or {},
+        "semantic_qa_review": semantic_receipt,
+    }
+    for receipt_name, receipt in required_receipts.items():
+        if not isinstance(receipt, dict) or receipt.get("status") != "PASS":
+            reasons.append(f"formal_{receipt_name}_not_passed")
+    model_receipt = required_receipts["model_expert_board_review"]
+    if model_receipt.get("role") != "live_model_expert_board_review" or model_receipt.get("provider_mode") != "live_model":
+        reasons.append("formal_model_expert_review_not_live_model")
+    if semantic_receipt.get("role") != "live_model_semantic_qa_review" or semantic_receipt.get("provider_mode") != "live_model":
+        reasons.append("formal_semantic_qa_not_live_model")
+    independent_validation = validate_independent_live_review_receipts(
+        independent_receipts,
+        expected_candidate_sha256=str(formal_review.get("reviewed_content_sha256") or ""),
+    )
+    reasons.extend(
+        f"formal_{error}" for error in independent_validation.get("errors") or []
+    )
+    expected_quality = {
+        "review_status": "approved",
+        "activation_eligible": True,
+        "age_floor": INCOMING_GRADE_7_AGE_FLOOR,
+        "no_mechanical_drill": True,
+    }
+    for key, expected in expected_quality.items():
+        if quality.get(key) != expected:
+            reasons.append(f"formal_quality_{key}_mismatch")
+    return {
+        **quality,
+        "contract_version": FORMAL_ADMIN_REVIEW_CONTRACT_VERSION,
+        "review_status": "rejected" if reasons else "approved",
+        "rejection_reasons": reasons,
+    }
+
+
 def _v12_active_quality_rejection_reasons(item: dict[str, Any]) -> list[str]:
     source = item.get("source") if isinstance(item.get("source"), dict) else {}
     quality = item.get("quality") if isinstance(item.get("quality"), dict) else {}
@@ -6136,6 +6933,9 @@ def _v12_active_quality_rejection_reasons(item: dict[str, Any]) -> list[str]:
 
 
 def review_item_quality_for_active_use(item: dict[str, Any]) -> dict[str, Any]:
+    formal_quality = _formal_admin_active_quality(item)
+    if formal_quality is not None:
+        return formal_quality
     if not _is_v12_external_active_item(item):
         return review_item_quality(item)
     quality = item.get("quality") if isinstance(item.get("quality"), dict) else {}
@@ -6157,6 +6957,14 @@ def validate_active_item_quality(item: dict[str, Any]) -> None:
     source = item.get("source") if isinstance(item.get("source"), dict) else {}
     if source_type == "evolved" and source.get("evidence_status") == "invalidated":
         raise ValueError(f"Active question item {item.get('id')} is based on invalidated evidence")
+    formal_quality = _formal_admin_active_quality(item)
+    if formal_quality is not None:
+        if formal_quality["review_status"] != "approved":
+            raise ValueError(
+                f"Active formal question item {item.get('id')} fails review gate: "
+                f"{formal_quality['rejection_reasons']}"
+            )
+        return
     if _is_v12_external_active_item(item):
         reviewed = review_item_quality_for_active_use(item)
         if reviewed["review_status"] != "approved":
@@ -6190,6 +6998,9 @@ def is_item_approved_for_active_use(item: dict[str, Any]) -> bool:
         or raw_source.get("evidence_status") == "invalidated"
     ):
         return False
+    formal_quality = _formal_admin_active_quality(item)
+    if formal_quality is not None:
+        return formal_quality["review_status"] == "approved"
     if _is_v12_external_active_item(item):
         return review_item_quality_for_active_use(item)["review_status"] == "approved"
     quality = item.get("quality") or raw.get("quality") or item.get("review_agent_check") or raw.get("review_agent_check") or {}

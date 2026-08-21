@@ -4,6 +4,7 @@ import argparse
 import base64
 import binascii
 import hashlib
+import hmac
 import json
 import mimetypes
 import os
@@ -46,6 +47,8 @@ CHILD_SESSION_HANDLE = "current-learning-group"
 CHILD_SCHEMA_VERSION = "2.0.0-child-skeleton"
 V3_CHILD_SCHEMA_VERSION = daily_runtime.V3_CHILD_SCHEMA_VERSION
 OPERATOR_SCHEMA_VERSION = "1.4.0"
+OPERATOR_TOKEN_ENV = "SON_AI_OPERATOR_TOKEN"
+TEST_OPERATOR_TOKEN = "test-operator-token"
 CHILD_UI_STATES = (
     "loading",
     "empty",
@@ -434,6 +437,16 @@ def _review_points_from_answer_package(result: dict) -> list[dict[str, str]]:
 
 
 def _bootstrap(conn: sqlite3.Connection) -> dict:
+    if daily_runtime.v3_daily_runtime_enabled():
+        return {
+            "schema_version": OPERATOR_SCHEMA_VERSION,
+            "runtime_mode": "v5_operator",
+            "readiness": db.readiness(conn),
+            "daily_flow": daily_runtime.DailyLearningRuntime(
+                conn,
+                project_root=PROJECT_ROOT,
+            ).operator_inspect_today(),
+        }
     readiness = db.readiness(conn)
     planner_blocked = None
     try:
@@ -830,6 +843,7 @@ def _child_bootstrap(conn: sqlite3.Connection) -> dict:
 class LearningHandler(BaseHTTPRequestHandler):
     db_path: Path
     answer_upload_root: Path
+    operator_token: str
     background_lock = threading.Lock()
     background_sessions: set[str] = set()
     background_session_rerun: set[str] = set()
@@ -866,8 +880,39 @@ class LearningHandler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length).decode("utf-8")
         return json.loads(raw)
 
+    @staticmethod
+    def _is_operator_path(path: str) -> bool:
+        return (
+            path == "/api/bootstrap"
+            or path == "/api/questions"
+            or path == "/api/evolution-events"
+            or path == "/api/agent-reports"
+            or path.startswith("/api/operator/")
+            or path == "/api/attempts"
+            or path.startswith("/api/attempts/")
+            or path == "/api/evolve"
+            or path == "/api/plans/generate"
+            or path.startswith("/api/attachments/")
+        )
+
+    def _require_operator_access(self, path: str) -> bool:
+        if not self._is_operator_path(path):
+            return True
+        configured = str(self.operator_token or "")
+        if not configured:
+            self._send_error(404, "Not found")
+            return False
+        supplied = str(self.headers.get("Authorization") or "")
+        expected = f"Bearer {configured}"
+        if not hmac.compare_digest(supplied, expected):
+            self._send_error(403, "Forbidden")
+            return False
+        return True
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if not self._require_operator_access(parsed.path):
+            return
         if parsed.path == "/api/bootstrap":
             with closing(self._conn()) as conn:
                 self._send_json(OperatorAPIProjection.bootstrap(conn))
@@ -948,6 +993,8 @@ class LearningHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if not self._require_operator_access(parsed.path):
+            return
         try:
             if parsed.path == "/api/knowledge-map/select":
                 payload = self._read_json()
@@ -1264,6 +1311,19 @@ class LearningHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/learning-sessions":
                 payload = self._read_json()
+                if daily_runtime.v3_daily_runtime_enabled():
+                    with closing(self._conn()) as conn:
+                        try:
+                            result = self._v3_runtime(conn).start_review_mode(
+                                client_day_key=payload.get("client_day_key"),
+                            )
+                        except daily_runtime.ChildSafeRuntimeError as exc:
+                            self._send_json(exc.child_payload(), status=exc.status)
+                            return
+                        self._send_json(
+                            daily_runtime.canonicalize_v5_child_payload(result)
+                        )
+                    return
                 with closing(self._conn()) as conn:
                     plan = planner.latest_or_create_plan(conn)
                     with conn:
@@ -1928,7 +1988,11 @@ class LearningHandler(BaseHTTPRequestHandler):
     def _close_learning_session(self, session_id: str, *, child_safe: bool = True) -> dict:
         with closing(self._conn()) as conn:
             with conn:
-                result = orchestrator.close_learning_session(conn, session_id)
+                result = orchestrator.close_learning_session(
+                    conn,
+                    session_id,
+                    include_agent_reports=not child_safe,
+                )
         if result.get("closure_status") == "waiting_ai" and auto_review._ai_enabled():
             self._start_background_session_processing(session_id)
         elif result.get("closure_status") == "waiting_ai" and not auto_review._ai_enabled():
@@ -2079,7 +2143,11 @@ class LearningHandler(BaseHTTPRequestHandler):
                     close_result = None
                     if ready_to_close:
                         with conn:
-                            close_result = orchestrator.close_learning_session(conn, session_id)
+                            close_result = orchestrator.close_learning_session(
+                                conn,
+                                session_id,
+                                include_agent_reports=False,
+                            )
                 if close_result is not None and close_result.get("closure_status") != "waiting_ai":
                     return
                 pending_after = close_result.get("attempt_summary", summary).get("pending_attempt_ids", []) if close_result else summary.get("pending_attempt_ids", [])
@@ -2550,12 +2618,18 @@ def make_server(
     host: str = "127.0.0.1",
     port: int = 8765,
     upload_root: Path | None = None,
+    operator_token: str | None = None,
 ) -> ThreadingHTTPServer:
     class BoundHandler(LearningHandler):
         pass
 
     BoundHandler.db_path = db_path
     BoundHandler.answer_upload_root = upload_root or ANSWER_UPLOAD_ROOT
+    BoundHandler.operator_token = (
+        str(operator_token)
+        if operator_token is not None
+        else os.environ.get(OPERATOR_TOKEN_ENV, "")
+    )
     BoundHandler.background_lock = threading.Lock()
     BoundHandler.background_sessions = set()
     BoundHandler.background_session_rerun = set()
@@ -2582,8 +2656,17 @@ def _should_reconcile_v3_uploads(db_path: Path, upload_root: Path | None = None)
         return False
 
 
-def start_test_server(db_path: Path, upload_root: Path | None = None) -> tuple[ThreadingHTTPServer, str]:
-    httpd = make_server(db_path, port=0, upload_root=upload_root)
+def start_test_server(
+    db_path: Path,
+    upload_root: Path | None = None,
+    operator_token: str = TEST_OPERATOR_TOKEN,
+) -> tuple[ThreadingHTTPServer, str]:
+    httpd = make_server(
+        db_path,
+        port=0,
+        upload_root=upload_root,
+        operator_token=operator_token,
+    )
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     host, port = httpd.server_address

@@ -38,3 +38,47 @@ def load_local_env_file(path: Path | None = None, *, override: bool = False) -> 
         os.environ[key] = parse_env_file_value(raw_value)
         loaded.append(key)
     return loaded
+
+
+def configure_v20_test_routes() -> None:
+    """Bind the opt-in v20 test endpoint to the two Phase 0 model routes.
+
+    The test credentials are deliberately separate from the child's runtime
+    ``OPENAI_*`` route. This helper only maps already-loaded local values and
+    never prints or persists secrets.
+    """
+    api_key = os.environ.get("V20_TEST_API_KEY", "").strip()
+    base_url = os.environ.get("V20_TEST_BASE_URL", "").strip()
+    model = os.environ.get("V20_TEST_MODEL", "").strip()
+    if not api_key or not base_url:
+        return
+    for prefix in (
+        "AI_SLOT_BRIEF_DESIGNER_AGENT_SLOT_BRIEF_GENERATION",
+        "AI_SLOT_BRIEF_REVIEWER_AGENT_SLOT_BRIEF_REVIEW",
+    ):
+        os.environ.setdefault(f"{prefix}_API_KEY", api_key)
+        os.environ.setdefault(f"{prefix}_BASE_URL", base_url)
+        if model:
+            os.environ.setdefault(f"{prefix}_MODEL", model)
+
+
+def configure_v20_concrete_test_routes() -> None:
+    """Bind concrete-question pilot routes to the opt-in v20 test endpoint."""
+    api_key = os.environ.get("V20_TEST_API_KEY", "").strip()
+    base_url = os.environ.get("V20_TEST_BASE_URL", "").strip()
+    model = os.environ.get("V20_TEST_MODEL", "").strip()
+    if not api_key or not base_url:
+        return
+    prefixes = [
+        "AI_QUESTION_DESIGNER_AGENT_QUESTION_CANDIDATE",
+        "AI_QUESTION_REVIEWER_AGENT_QUESTION_REVIEW",
+    ]
+    prefixes.extend(
+        f"AI_QUESTION_REVIEWER_AGENT_QUESTION_REVIEW_{stage}"
+        for stage in ("TARGETED", "MATH_EDUCATION", "ASSESSMENT", "CHILD_LEARNING", "COLLISION")
+    )
+    for prefix in prefixes:
+        os.environ[f"{prefix}_API_KEY"] = api_key
+        os.environ[f"{prefix}_BASE_URL"] = base_url
+        if model:
+            os.environ[f"{prefix}_MODEL"] = model

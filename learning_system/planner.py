@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections import Counter
+import json
 import re
 import sqlite3
 import uuid
+from pathlib import Path
 from typing import Any
 
 from . import db, question_bank
+from .trace_back import ordered_prerequisite_candidates
 
 
 LEARNING_ROUND_TASK_COUNT = 10
@@ -1093,6 +1096,26 @@ def _pending_confirmation_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]
     return sorted(pending, key=lambda item: (item["sequence_band"], item["created_at"], item["node_id"]))
 
 
+_TRACE_GRAPH_CACHE: dict[str, Any] | None = None
+
+
+def _trace_graph() -> dict[str, Any]:
+    """Lazily load the raw knowledge graph JSON for trace-back lookups.
+
+    The daily-runtime DB stores per-node raw_json but not the top-level
+    strong_unlock_edges / prereq_strength contract, so rollback targeting needs
+    the graph file. Loaded once per process; the graph is frozen while v20
+    question generation runs, so a cached snapshot is consistent.
+    """
+    global _TRACE_GRAPH_CACHE
+    if _TRACE_GRAPH_CACHE is None:
+        from .graph_runtime import DEFAULT_GRAPH_RELATIVE_PATH
+
+        path = Path(__file__).resolve().parents[1] / DEFAULT_GRAPH_RELATIVE_PATH
+        _TRACE_GRAPH_CACHE = json.loads(path.read_text(encoding="utf-8"))
+    return _TRACE_GRAPH_CACHE
+
+
 def _is_trusted_signal_task_target(
     conn: sqlite3.Connection,
     *,
@@ -1122,7 +1145,16 @@ def _is_trusted_signal_task_target(
         if str(node_id).strip()
         and conn.execute("select 1 from graph_nodes where id = ?", (str(node_id),)).fetchone()
     ]
-    return task_node_id in set(graph_targets)
+    trusted = set(graph_targets)
+    # Trace-back integration: strong unlocks-only edges (graph top-level
+    # strong_unlock_edges) are legitimate rollback targets too — they are
+    # semantic strong dependencies (review doc 6.2). ordered_prerequisite_
+    # candidates returns the full chain closest-first/strong-first; only
+    # candidates that exist in the DB snapshot are trusted.
+    for candidate in ordered_prerequisite_candidates(_trace_graph(), signal_node_id):
+        if conn.execute("select 1 from graph_nodes where id = ?", (candidate,)).fetchone():
+            trusted.add(candidate)
+    return task_node_id in trusted
 
 
 def _signal_uses_current_evidence(

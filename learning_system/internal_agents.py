@@ -33,7 +33,7 @@ INTERNAL_AGENT_ROLES: dict[str, dict[str, str]] = {
     },
     "question_reviewer_agent": {
         "display": "审题 Agent",
-        "does": "拦截弱智题、答案-only题、无思路证据题",
+        "does": "拦截低价值题、无法区分掌握状态的题、无效书写负担题",
         "does_not": "不追求题量",
         "contract_key": "question_review",
     },

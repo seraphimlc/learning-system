@@ -426,6 +426,16 @@ def _model_question_candidate_attempt(
     *,
     allow_model: bool = True,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    if not allow_model:
+        return None, {
+            "attempt_id": attempt["id"],
+            "base_question_id": base_question["id"],
+            "node_id": node["id"],
+            "status": "skipped",
+            "error_reason": "legacy self-evolution question generation is disabled; use the v20 slot queue.",
+            "confidence": 0.0,
+            "output": {"fallback": "no_active_question_created"},
+        }
     rendered_prompt, trusted_context, untrusted_payload = _question_candidate_payload(node, base_question, attempt)
     schema = _question_candidate_response_schema()
     route = model_router.question_designer_route()
@@ -451,14 +461,6 @@ def _model_question_candidate_attempt(
             "untrusted_payload_digest": _stable_sha256(untrusted_payload),
         },
     }
-    if not allow_model:
-        metadata.update({
-            "status": "skipped",
-            "error_reason": "session_close uses deterministic question evolution; live model question design runs outside the child waiting path.",
-            "confidence": 0.0,
-            "output": {"fallback": "no_active_question_created"},
-        })
-        return None, metadata
     if not _ai_question_enabled():
         metadata.update({
             "status": "skipped",

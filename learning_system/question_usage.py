@@ -36,6 +36,17 @@ DIAGNOSTIC_ROLES = frozenset({"entry_probe", "confirmation_core", "confirmation_
 TEACHING_ROLES = frozenset({"concept_build", "worked_example", "targeted_repair"})
 HINT_POLICIES = frozenset({"guided", "after_first_attempt", "no_hint"})
 DIFFICULTIES = frozenset({"L1", "L2", "L3", "L4", "L5"})
+SUPPORT_ROUTING_VERSION = "2026-07-28.support-routing.v1"
+SELECTION_NODE_STATES = frozenset({"untested", "weak", "failed", "due", "mastered"})
+SUPPORT_TRIGGER_STATUSES = frozenset({"not_met", "contradicted"})
+_SELECTION_LIST_FIELDS = (
+    "node_state_in",
+    "requires_prior_item_ids",
+    "prefer_after_evidence_keys",
+    "prefer_when_error_tags_include",
+    "prerequisite_node_ids",
+)
+_SELECTION_BOOL_FIELDS = ("do_not_select_after_equivalent_instance",)
 
 _ERROR_KINDS = frozenset({"error_spotting", "misconception_probe", "self_correction", "symbol_unit_audit"})
 _APPLICATION_KINDS = frozenset({"estimation_modeling", "model_selection", "communication"})
@@ -91,6 +102,106 @@ def _structure_fingerprint(item: dict[str, Any]) -> str:
     return f"USAGE-{canonical_sha256({'question_id': item.get('id'), 'kind': item.get('kind'), 'prompt': item.get('prompt')})[:20]}"
 
 
+def normalize_selection_preconditions(value: Any) -> dict[str, Any]:
+    if value in (None, {}):
+        return {}
+    if not isinstance(value, dict):
+        raise TypeError("selection_preconditions must be a mapping")
+    allowed_fields = set(_SELECTION_LIST_FIELDS) | set(_SELECTION_BOOL_FIELDS)
+    unknown_fields = sorted(set(value) - allowed_fields)
+    if unknown_fields:
+        raise ValueError(
+            "selection_preconditions has unknown fields: "
+            + ", ".join(unknown_fields)
+        )
+    normalized: dict[str, Any] = {}
+    for field in _SELECTION_LIST_FIELDS:
+        if field not in value:
+            continue
+        raw_items = value[field]
+        if not isinstance(raw_items, list):
+            raise TypeError(f"selection_preconditions.{field} must be a list")
+        items = [str(item or "").strip() for item in raw_items]
+        if any(not item for item in items) or len(items) != len(set(items)):
+            raise ValueError(
+                f"selection_preconditions.{field} must contain unique nonempty values"
+            )
+        if field == "node_state_in" and any(
+            item not in SELECTION_NODE_STATES for item in items
+        ):
+            raise ValueError("selection_preconditions.node_state_in has an unknown state")
+        normalized[field] = items
+    for field in _SELECTION_BOOL_FIELDS:
+        if field not in value:
+            continue
+        if not isinstance(value[field], bool):
+            raise TypeError(f"selection_preconditions.{field} must be boolean")
+        normalized[field] = value[field]
+    return normalized
+
+
+def normalize_support_routing(value: Any) -> dict[str, Any]:
+    if value in (None, {}):
+        return {}
+    if not isinstance(value, dict):
+        raise TypeError("support_routing must be a mapping")
+    if str(value.get("schema_version") or "") != SUPPORT_ROUTING_VERSION:
+        raise ValueError("support_routing has an unsupported schema version")
+    raw_routes = value.get("routes")
+    if not isinstance(raw_routes, list) or not raw_routes:
+        raise ValueError("support_routing.routes must be a nonempty list")
+    routes: list[dict[str, Any]] = []
+    route_keys: set[tuple[str, str, str]] = set()
+    for raw_route in raw_routes:
+        if not isinstance(raw_route, dict):
+            raise TypeError("support_routing route must be a mapping")
+        unknown_fields = sorted(
+            set(raw_route)
+            - {
+                "evidence_key",
+                "source_item_id",
+                "criterion_key",
+                "trigger_statuses",
+            }
+        )
+        if unknown_fields:
+            raise ValueError(
+                "support_routing route has unknown fields: "
+                + ", ".join(unknown_fields)
+            )
+        evidence_key = str(raw_route.get("evidence_key") or "").strip()
+        source_item_id = str(raw_route.get("source_item_id") or "").strip()
+        criterion_key = str(raw_route.get("criterion_key") or "").strip()
+        trigger_statuses = [
+            str(status or "").strip()
+            for status in (raw_route.get("trigger_statuses") or [])
+        ]
+        if not evidence_key or not source_item_id or not criterion_key:
+            raise ValueError("support_routing route identity fields must be nonempty")
+        if (
+            not trigger_statuses
+            or len(trigger_statuses) != len(set(trigger_statuses))
+            or any(status not in SUPPORT_TRIGGER_STATUSES for status in trigger_statuses)
+        ):
+            raise ValueError("support_routing route has invalid trigger statuses")
+        route_key = (evidence_key, source_item_id, criterion_key)
+        if route_key in route_keys:
+            raise ValueError("support_routing routes must be unique")
+        route_keys.add(route_key)
+        routes.append(
+            {
+                "evidence_key": evidence_key,
+                "source_item_id": source_item_id,
+                "criterion_key": criterion_key,
+                "trigger_statuses": trigger_statuses,
+            }
+        )
+    return {
+        "schema_version": SUPPORT_ROUTING_VERSION,
+        "routes": routes,
+    }
+
+
 def policy_for_item(item: dict[str, Any]) -> dict[str, Any]:
     explicit = _explicit_policy(item)
     kind = str(item.get("kind") or "").strip()
@@ -120,6 +231,14 @@ def policy_for_item(item: dict[str, Any]) -> dict[str, Any]:
         "structure_fingerprint": str(explicit.get("structure_fingerprint") or _structure_fingerprint(item)),
         "support_only": support_only,
         "not_for_activation": not_for_activation,
+        "selection_preconditions": normalize_selection_preconditions(
+            explicit.get("selection_preconditions")
+            if "selection_preconditions" in explicit
+            else item.get("selection_preconditions")
+        ),
+        "support_routing": normalize_support_routing(
+            explicit.get("support_routing")
+        ),
         "source": "explicit" if explicit else "legacy_policy_default",
     }
     validate_policy(policy)
@@ -149,26 +268,103 @@ def validate_policy(policy: dict[str, Any]) -> None:
         raise ValueError("question usage policy must bind a primary graph node")
     if not str(policy.get("structure_fingerprint") or "").strip():
         raise ValueError("question usage policy must include a structure fingerprint")
+    selection_preconditions = normalize_selection_preconditions(
+        policy.get("selection_preconditions")
+    )
+    support_routing = normalize_support_routing(policy.get("support_routing"))
+    if support_routing and not bool(policy.get("support_only")):
+        raise ValueError("support_routing is only valid for support-only questions")
+    if support_routing:
+        required_source_ids = set(
+            selection_preconditions.get("requires_prior_item_ids") or []
+        )
+        preferred_evidence_keys = set(
+            selection_preconditions.get("prefer_after_evidence_keys") or []
+        )
+        allowed_node_states = selection_preconditions.get("node_state_in") or []
+        if not required_source_ids or not preferred_evidence_keys or not allowed_node_states:
+            raise ValueError(
+                "support_routing requires source items, evidence keys, and node states"
+            )
+        for route in support_routing["routes"]:
+            if route["source_item_id"] not in required_source_ids:
+                raise ValueError("support_routing source item is not permitted by selection preconditions")
+            if route["evidence_key"] not in preferred_evidence_keys:
+                raise ValueError("support_routing evidence key is not permitted by selection preconditions")
 
 
 def policy_digest(policy: dict[str, Any]) -> str:
     validate_policy(policy)
-    return canonical_sha256(
-        {
-            "schema_version": policy["schema_version"],
-            "allowed_purposes": list(policy["allowed_purposes"]),
-            "default_practice_family": policy["default_practice_family"],
-            "allowed_practice_roles": list(policy["allowed_practice_roles"]),
-            "diagnostic_roles": list(policy["diagnostic_roles"]),
-            "teaching_roles": list(policy["teaching_roles"]),
-            "primary_node_id": policy["primary_node_id"],
-            "secondary_node_ids": list(policy["secondary_node_ids"]),
-            "structure_fingerprint": policy["structure_fingerprint"],
-            "support_only": bool(policy["support_only"]),
-            "not_for_activation": bool(policy["not_for_activation"]),
-            "source": str(policy.get("source") or ""),
-        }
+    digest_payload = {
+        "schema_version": policy["schema_version"],
+        "allowed_purposes": list(policy["allowed_purposes"]),
+        "default_practice_family": policy["default_practice_family"],
+        "allowed_practice_roles": list(policy["allowed_practice_roles"]),
+        "diagnostic_roles": list(policy["diagnostic_roles"]),
+        "teaching_roles": list(policy["teaching_roles"]),
+        "primary_node_id": policy["primary_node_id"],
+        "secondary_node_ids": list(policy["secondary_node_ids"]),
+        "structure_fingerprint": policy["structure_fingerprint"],
+        "support_only": bool(policy["support_only"]),
+        "not_for_activation": bool(policy["not_for_activation"]),
+        "source": str(policy.get("source") or ""),
+    }
+    selection_preconditions = normalize_selection_preconditions(
+        policy.get("selection_preconditions")
     )
+    support_routing = normalize_support_routing(policy.get("support_routing"))
+    if selection_preconditions:
+        digest_payload["selection_preconditions"] = selection_preconditions
+    if support_routing:
+        digest_payload["support_routing"] = support_routing
+    return canonical_sha256(digest_payload)
+
+
+def matching_support_route(
+    policy: dict[str, Any],
+    routing_context: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    validate_policy(policy)
+    if not bool(policy.get("support_only")) or not isinstance(routing_context, dict):
+        return None
+    source_item_id = str(routing_context.get("source_item_id") or "").strip()
+    node_state = str(routing_context.get("node_state") or "").strip()
+    criterion_statuses = routing_context.get("criterion_statuses")
+    if (
+        not source_item_id
+        or node_state not in SELECTION_NODE_STATES
+        or not isinstance(criterion_statuses, dict)
+    ):
+        return None
+    normalized_statuses = {
+        str(key or "").strip(): str(status or "").strip()
+        for key, status in criterion_statuses.items()
+        if str(key or "").strip()
+    }
+    selection_preconditions = normalize_selection_preconditions(
+        policy.get("selection_preconditions")
+    )
+    if source_item_id not in set(
+        selection_preconditions.get("requires_prior_item_ids") or []
+    ):
+        return None
+    if node_state not in set(selection_preconditions.get("node_state_in") or []):
+        return None
+    preferred_evidence_keys = set(
+        selection_preconditions.get("prefer_after_evidence_keys") or []
+    )
+    support_routing = normalize_support_routing(policy.get("support_routing"))
+    for route in support_routing.get("routes") or []:
+        if route["source_item_id"] != source_item_id:
+            continue
+        if route["evidence_key"] not in preferred_evidence_keys:
+            continue
+        if normalized_statuses.get(route["criterion_key"]) not in set(
+            route["trigger_statuses"]
+        ):
+            continue
+        return dict(route)
+    return None
 
 
 def context_for_step(

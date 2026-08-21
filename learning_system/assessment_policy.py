@@ -154,6 +154,7 @@ _PROFILE_SLOT_LAYOUTS = {
 }
 
 _POINTS_BY_TARGET_COUNT = {
+    1: (10,),
     2: (6, 4),
     3: (4, 3, 3),
     4: (3, 3, 2, 2),
@@ -246,8 +247,8 @@ def _has_reference_value(value: Any) -> bool:
 def _validate_scoring_targets(targets: Any) -> list[dict[str, Any]]:
     if not isinstance(targets, list):
         raise TypeError("scoring_targets must be a list")
-    if len(targets) < 2:
-        raise ValueError("scoring_targets must contain at least two targets")
+    if len(targets) < 1:
+        raise ValueError("scoring_targets must contain at least one target")
 
     validated: list[dict[str, Any]] = []
     keys: list[str] = []
@@ -272,6 +273,59 @@ def _validate_scoring_targets(targets: Any) -> list[dict[str, Any]]:
     if len(keys) != len(set(keys)):
         raise ValueError("scoring target keys must be unique")
     return validated
+
+
+def validate_authoritative_scoring_targets(
+    question: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if not isinstance(question, dict):
+        raise TypeError("authoritative question must be a mapping")
+    supplied_targets = question.get("scoring_targets")
+    if not supplied_targets:
+        raise ValueError(
+            "v5.1 authoritative questions require explicit scoring_targets"
+        )
+    targets = _validate_scoring_targets(supplied_targets)
+    for target in targets:
+        _authoritative_reference_component_value(
+            question,
+            target.get("reference_component"),
+        )
+    return targets
+
+
+def _authoritative_reference_component_value(
+    question: dict[str, Any],
+    reference_component: Any,
+) -> Any:
+    if not isinstance(reference_component, str) or not reference_component.strip():
+        raise ValueError(
+            "v5.1 authoritative scoring targets require explicit reference_component"
+        )
+    path = reference_component.strip()
+    if path == "expected_answer":
+        value = question.get("expected_answer")
+        if not _has_reference_value(value):
+            raise ValueError(
+                "reference_component expected_answer has no usable content"
+            )
+        return value
+    prefix = "solution_steps["
+    if not path.startswith(prefix) or not path.endswith("]"):
+        raise ValueError(
+            "reference_component must be expected_answer or solution_steps[n]"
+        )
+    index_text = path[len(prefix):-1]
+    if not index_text.isascii() or not index_text.isdigit():
+        raise ValueError("reference_component solution_steps index is invalid")
+    index = int(index_text)
+    steps = question.get("solution_steps")
+    if not isinstance(steps, (list, tuple)) or index >= len(steps):
+        raise ValueError("reference_component solution_steps index is out of range")
+    value = steps[index]
+    if not _has_reference_value(value):
+        raise ValueError("reference_component solution_steps entry is empty")
+    return value
 
 
 def _fallback_scoring_targets(question: dict[str, Any]) -> list[dict[str, Any]]:
@@ -926,8 +980,8 @@ def build_answer_contract(question: dict[str, Any]) -> dict[str, Any]:
         *[target for target in scoring_targets if not target["required_for_pass"]],
     ]
     selected_targets = ordered_targets[:4]
-    if len(selected_targets) < 2:
-        raise ValueError("a contract needs two to four independent scoring targets")
+    if len(selected_targets) < 1:
+        raise ValueError("a contract needs one to four independent scoring targets")
     selected_keys = [target["key"] for target in selected_targets]
     omitted_keys = [
         target["key"]
@@ -987,6 +1041,66 @@ def build_answer_contract(question: dict[str, Any]) -> dict[str, Any]:
     return contract
 
 
+_FORMAL_DIMENSION_ALIASES = {
+    "model": "model_relation",
+    "reasoning": "procedure",
+    "result": "final_answer",
+    "expression": "expression_notation",
+}
+
+
+def build_formal_answer_contract(
+    item: dict[str, Any],
+    *,
+    item_version: str,
+) -> dict[str, Any]:
+    """Compile reviewed score points without inventing extra criteria."""
+    question = deepcopy(item)
+    question["item_version"] = _nonempty_text(item_version, "item_version")
+    if not question.get("expected_answer"):
+        question["expected_answer"] = question.get("standard_answer")
+    raw_points = question.get("key_score_points")
+    if not isinstance(raw_points, list) or not raw_points:
+        raise ValueError("formal item requires at least one key_score_point")
+    scoring_targets: list[dict[str, Any]] = []
+    for index, point in enumerate(raw_points):
+        if not isinstance(point, dict):
+            raise TypeError("formal key_score_points must contain mappings")
+        raw_points_value = point.get("points")
+        if (
+            isinstance(raw_points_value, bool)
+            or not isinstance(raw_points_value, (int, float))
+            or not float(raw_points_value).is_integer()
+            or int(raw_points_value) <= 0
+        ):
+            raise ValueError("formal score-point values must be positive integers")
+        raw_dimension = str(point.get("mastery_dimension") or "")
+        dimension = _FORMAL_DIMENSION_ALIASES.get(raw_dimension, raw_dimension)
+        if dimension not in ALLOWED_MASTERY_DIMENSIONS:
+            raise ValueError(f"unsupported formal mastery dimension: {raw_dimension}")
+        required_for_pass = point.get("required_for_pass")
+        if required_for_pass is None:
+            required_for_pass = index == 0
+        if not isinstance(required_for_pass, bool):
+            raise TypeError("formal required_for_pass must be boolean")
+        scoring_targets.append(
+            {
+                "key": _nonempty_text(point.get("key"), "formal score-point key"),
+                "criterion": _nonempty_text(
+                    point.get("evidence"), "formal score-point evidence"
+                ),
+                "dimension": dimension,
+                "required_for_pass": required_for_pass,
+                "points": int(raw_points_value),
+            }
+        )
+    question["scoring_targets"] = scoring_targets
+    contract = build_answer_contract(question)
+    contract["status"] = "approved_reviewed_source"
+    validate_contract(contract)
+    return contract
+
+
 def validate_contract(contract: dict[str, Any]) -> None:
     if not isinstance(contract, dict):
         raise TypeError("contract must be a mapping")
@@ -1010,8 +1124,8 @@ def validate_contract(contract: dict[str, Any]) -> None:
     score_points = contract.get("score_points")
     if not isinstance(score_points, list):
         raise TypeError("score_points must be a list")
-    if not 2 <= len(score_points) <= 4:
-        raise ValueError("score_points must contain two to four criteria")
+    if not 1 <= len(score_points) <= 4:
+        raise ValueError("score_points must contain one to four criteria")
 
     keys: list[str] = []
     source_keys: list[str] = []
@@ -1073,7 +1187,9 @@ def validate_criterion_judgments(
     if not isinstance(judgments, list):
         raise TypeError("judgments must be a list")
 
-    expected_keys = [point["key"] for point in contract["score_points"]]
+    expected_keys = [
+        point["source_target_key"] for point in contract["score_points"]
+    ]
     actual_keys: list[str] = []
     for judgment in judgments:
         if not isinstance(judgment, dict):
@@ -1103,7 +1219,7 @@ def calculate_assessment(
     by_key = {judgment["criterion_key"]: judgment for judgment in judgments}
 
     required_keys = {
-        point["key"]
+        point["source_target_key"]
         for point in contract["score_points"]
         if point["required_for_pass"]
     }
@@ -1120,15 +1236,23 @@ def calculate_assessment(
         }
 
     passed = all(
-        by_key[point["key"]]["status"] == "met"
+        by_key[point["source_target_key"]]["status"] == "met"
         for point in contract["score_points"]
         if point["required_for_pass"]
     )
-    score = 10 if passed else sum(
-        point["points"]
-        for point in contract["score_points"]
-        if by_key[point["key"]]["status"] == "met"
-    )
+    if passed:
+        score = 10 - sum(
+            point["points"]
+            for point in contract["score_points"]
+            if not point["required_for_pass"]
+            and by_key[point["source_target_key"]]["status"] == "contradicted"
+        )
+    else:
+        score = sum(
+            point["points"]
+            for point in contract["score_points"]
+            if by_key[point["source_target_key"]]["status"] == "met"
+        )
     return {
         "finalized": True,
         "score_out_of_10": score,

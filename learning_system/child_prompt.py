@@ -18,6 +18,11 @@ INTERACTION_TYPES = frozenset({
     "multi_choice",
     "formula_input",
 })
+RESPONSE_CAPTURE_TYPES = frozenset({
+    "existing_control",
+    "bound_visual_choice",
+    "paper_photo",
+})
 
 FORBIDDEN_SCHEMA_KEYS = frozenset({
     "answer",
@@ -113,6 +118,18 @@ def _single_line(value: Any, *, limit: int) -> str:
     return " ".join(str(value or "").split())[:limit]
 
 
+def _exact_safe_identifier(value: Any, *, limit: int) -> str:
+    if not isinstance(value, str) or not value or len(value) > limit:
+        return ""
+    if any(
+        not character.isascii()
+        or not (character.isalnum() or character in {"_", "-"})
+        for character in value
+    ):
+        return ""
+    return value
+
+
 def _walk_forbidden_schema_values(value: Any, path: str, errors: list[str]) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -145,6 +162,13 @@ def normalize_interaction_schema(
     interaction_type = str(schema.get("type") or "")
     if interaction_type not in INTERACTION_TYPES:
         errors.append("interaction_schema:type_invalid")
+    if "response_capture" in schema:
+        response_capture = schema.get("response_capture")
+        if not isinstance(response_capture, str) or response_capture not in RESPONSE_CAPTURE_TYPES:
+            errors.append("interaction_schema:response_capture_invalid")
+            response_capture = ""
+    else:
+        response_capture = "existing_control"
     requires_explanation = bool(
         schema.get("requires_explanation", schema.get("explanation_required", False))
     )
@@ -181,6 +205,7 @@ def normalize_interaction_schema(
         raw_choices = []
     if len(raw_choices) > 8:
         errors.append("interaction_schema.choices:too_many")
+    visual_entity_declaration_count = 0
     for index, choice in enumerate(raw_choices):
         if not isinstance(choice, dict):
             errors.append(f"interaction_schema.choices[{index}]:not_object")
@@ -190,7 +215,20 @@ def normalize_interaction_schema(
         if not choice_id or not label:
             errors.append(f"interaction_schema.choices[{index}]:id_and_label_required")
             continue
-        choices.append({"id": choice_id, "label": label})
+        normalized_choice = {"id": choice_id, "label": label}
+        if "visual_entity_id" in choice:
+            visual_entity_declaration_count += 1
+            visual_entity_id = _exact_safe_identifier(
+                choice.get("visual_entity_id"),
+                limit=80,
+            )
+            if not visual_entity_id:
+                errors.append(
+                    f"interaction_schema.choices[{index}].visual_entity_id:invalid"
+                )
+            else:
+                normalized_choice["visual_entity_id"] = visual_entity_id
+        choices.append(normalized_choice)
 
     title = _single_line(schema.get("title"), limit=120)
     explanation_label = _single_line(schema.get("explanation_label"), limit=60)
@@ -207,6 +245,22 @@ def normalize_interaction_schema(
         errors.append("interaction_schema.fill_blank:at_least_one_field_required")
     if interaction_type in {"single_choice", "multi_choice"} and len(choices) < 2:
         errors.append("interaction_schema.choice:at_least_two_choices_required")
+    if visual_entity_declaration_count and interaction_type != "single_choice":
+        errors.append("interaction_schema.visual_entity_id:single_choice_required")
+    if response_capture in {"existing_control", "paper_photo"} and visual_entity_declaration_count:
+        errors.append("interaction_schema.visual_entity_id:not_allowed_for_response_capture")
+    if response_capture == "bound_visual_choice":
+        if interaction_type != "single_choice":
+            errors.append("interaction_schema.bound_visual_choice:single_choice_required")
+        if visual_entity_declaration_count != len(raw_choices):
+            errors.append("interaction_schema.bound_visual_choice:all_choices_required")
+        visual_entity_ids = [
+            choice.get("visual_entity_id")
+            for choice in choices
+            if choice.get("visual_entity_id")
+        ]
+        if len(visual_entity_ids) != len(set(visual_entity_ids)):
+            errors.append("interaction_schema.bound_visual_choice:duplicate_visual_entity_id")
     if interaction_type == "formula_input" and not formula_label:
         errors.append("interaction_schema.formula_input:formula_label_required")
     if interaction_type == "short_text" and (fields or choices):
@@ -232,6 +286,7 @@ def normalize_interaction_schema(
     return {
         "schema_version": QUESTION_INTERACTION_SCHEMA_V2,
         "type": interaction_type,
+        "response_capture": response_capture,
         "title": title,
         "allow_explanation": allow_explanation,
         "requires_explanation": requires_explanation,

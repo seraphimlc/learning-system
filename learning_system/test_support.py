@@ -12,6 +12,29 @@ from . import db, question_bank
 RUNTIME_TEST_BANK_MANIFEST_ID = "runtime_test_bank_v1"
 
 
+def _runtime_test_scoring_targets(item: dict[str, Any]) -> list[dict[str, Any]]:
+    if not item.get("expected_answer") or not item.get("solution_steps"):
+        raise ValueError(
+            f"runtime test question lacks explicit contract sources: {item.get('id')}"
+        )
+    return [
+        {
+            "key": "fixture_reference_answer",
+            "criterion": "给出与测试题标准答案数学等价的结论。",
+            "dimension": "final_answer",
+            "required_for_pass": True,
+            "reference_component": "expected_answer",
+        },
+        {
+            "key": "fixture_mathematical_execution",
+            "criterion": "给出支撑结论的关键计算、变形或判断过程。",
+            "dimension": "procedure",
+            "required_for_pass": True,
+            "reference_component": "solution_steps[0]",
+        },
+    ]
+
+
 def seed_runtime_test_question_bank(
     conn: sqlite3.Connection,
     project_root: Path,
@@ -20,7 +43,7 @@ def seed_runtime_test_question_bank(
 
     Production startup must remain blocked until a formal bank passes its
     activation gate. This helper gives mechanism tests a complete schedulable
-    bank without turning the empty v18 production bank into trusted content.
+    bank without turning the empty production bank into trusted content.
     """
 
     database_row = conn.execute("pragma database_list").fetchone()
@@ -54,6 +77,14 @@ def seed_runtime_test_question_bank(
         raise ValueError("runtime test bootstrap requires graph lineage")
 
     items = question_bank.build_practice_bank(graph, graph_version=graph_version)
+    items = [dict(item) for item in items]
+    for item in items:
+        if item.get("scoring_targets"):
+            continue
+        item["scoring_targets"] = _runtime_test_scoring_targets(item)
+        item["test_fixture_contract_source"] = (
+            "fixed_structured_sources_for_runtime_tests_only"
+        )
     manifest_sha256 = hashlib.sha256(
         json.dumps(items, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()

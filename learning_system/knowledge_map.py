@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable
 
-from . import daily_runtime, db, knowledge_cards
+from . import assessment_policy, daily_runtime, db, knowledge_cards
 from .graph_runtime import GraphRuntimeService
 from .knowledge_view_config import KnowledgeViewConfig
 
@@ -614,6 +614,9 @@ class KnowledgeMapService:
                     "allowed_purposes": list(
                         (usage_policy or {}).get("allowed_purposes") or []
                     ),
+                    "support_only": bool(
+                        (usage_policy or {}).get("support_only")
+                    ),
                     "child_active_use_eligible": (
                         db.is_child_schedulable_question(
                             self.conn,
@@ -728,6 +731,16 @@ class KnowledgeMapService:
                 )
             question = db.row_to_question(question_row)
             raw_candidate = db.json_load(item["raw_json"], {})
+            try:
+                assessment_policy.validate_authoritative_scoring_targets(
+                    raw_candidate
+                )
+            except (TypeError, ValueError) as exc:
+                raise KnowledgeMapError(
+                    "答案评估缺少显式得分点来源，暂时不能作为当前学习依据。",
+                    status=409,
+                    state="assessment_unavailable",
+                ) from exc
             question_digest = _answer_contract_question_digest(raw_candidate)
             candidate_digest = db._digest_json(raw_candidate)
             active_eligible = int(item["active_eligible"] or 0) == 1
@@ -772,6 +785,9 @@ class KnowledgeMapService:
                     "question": question,
                     "allowed_purposes": list(
                         (usage_policy or {}).get("allowed_purposes") or []
+                    ),
+                    "support_only": bool(
+                        (usage_policy or {}).get("support_only")
                     ),
                     "child_active_use_eligible": (
                         db.is_child_schedulable_question(
@@ -1347,6 +1363,7 @@ class KnowledgeMapService:
                 "action_descriptors": action_descriptors,
                 "allowed_actions": allowed_actions,
                 "recommended": status_code in {"C", "D"},
+                "recommendation_label": "建议看看" if status_code in {"C", "D"} else "",
             })
         relationships = [
             {
