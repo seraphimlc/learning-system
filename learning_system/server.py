@@ -20,7 +20,27 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import agents, auto_review, daily_runtime, db, evolution, internal_agents, job_queue, knowledge_cards, knowledge_map, local_env, model_router, multimodal_evidence, orchestrator, planner, question_bank
+from . import (
+    agents,
+    auto_review,
+    biweekly_brief_service,
+    daily_runtime,
+    db,
+    evolution,
+    internal_agents,
+    job_queue,
+    knowledge_cards,
+    knowledge_map,
+    lightup_service,
+    local_env,
+    manual_entry_service,
+    model_router,
+    multimodal_evidence,
+    orchestrator,
+    planner,
+    question_bank,
+    weekly_report_service,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -83,6 +103,42 @@ CHILD_DTO_FORBIDDEN_KEYS = {
     "policy",
     "planner_policy_version",
     "planning_signal_refs",
+}
+
+# ---------------------------------------------------------------------------
+# semester-mode service API (objective ②) — 孩子面投影 schema
+# ---------------------------------------------------------------------------
+# 孩子面只暴露 知识点名称/进度/点亮状态; 内部 id (node_id/manual_entry_id/M-*)
+# 与内部措辞 (图谱/节点/审计/模型路由…) 绝不进入孩子面响应
+# (对齐 internal_agents.FORBIDDEN_CHILD_PATTERNS 语义).
+CHILD_LIGHTUP_SCHEMA_VERSION = "lightup-child.v1"
+CHILD_MANUAL_ERROR_SCHEMA_VERSION = "manual-error-child.v1"
+
+# 孩子最小表单的错因词表 (设计稿 §3.1: 下拉词表对齐 CANONICAL_ERROR_TAGS):
+# key 是孩子可见标识; 原始 tag 属于 FORBIDDEN_CHILD_PATTERNS, 只留在服务层.
+CHILD_ERROR_TAG_OPTIONS: dict[str, str] = {
+    "careless": "算错或写错",
+    "unclear": "概念没搞清",
+    "misread": "读题或理解错了",
+    "habit": "步骤或书写习惯",
+    "visual": "看图或图形位置",
+    "other": "其他原因",
+}
+CHILD_ERROR_TAG_KEY_TO_CANONICAL: dict[str, str] = {
+    "careless": "calculation_or_symbol",
+    "unclear": "concept_confusion",
+    "misread": "modeling_or_reading",
+    "habit": "process_habit",
+    "visual": "visual_spatial",
+    "other": "general",
+}
+
+# 点亮视图的掌握档位只以孩子可读标签呈现 (A/B/C/D 是内部档位, 不暴露).
+_LIGHTUP_BAND_LABELS = {
+    "A": "暂时掌握",
+    "B": "学习中",
+    "C": "待巩固",
+    "D": "待巩固",
 }
 
 
@@ -840,6 +896,114 @@ def _child_bootstrap(conn: sqlite3.Connection) -> dict:
     }
 
 
+def _resolve_node_handle(conn: sqlite3.Connection, handle: str) -> str:
+    """Resolve an opaque child node handle to a graph node id.
+
+    Mirrors the KnowledgeMapService handle minting policy: same system_meta
+    secret key, same graph lineage, same HMAC construction
+    (`knowledge_map._opaque_handle`), so handles minted by `/api/knowledge-map`
+    resolve here without ever exposing node_id to the child. Returns '' for an
+    unknown/stale handle. (`_opaque_handle`/`_secret_bytes` are private seams of
+    knowledge_map; the handle policy's single owner stays there.)
+    """
+    if not handle:
+        return ""
+    secret_row = conn.execute(
+        "select value from system_meta where key = ?",
+        (knowledge_map.HANDLE_SECRET_KEY,),
+    ).fetchone()
+    secret = knowledge_map._secret_bytes(secret_row["value"] if secret_row else "")
+    if len(secret) < 16:
+        return ""
+    ref_row = conn.execute(
+        "select value from system_meta where key = 'graph_ref'"
+    ).fetchone()
+    graph_ref = db.json_load(ref_row["value"], {}) if ref_row else {}
+    lineage = str(graph_ref.get("lineage") or "")
+    if not lineage:
+        return ""
+    for row in conn.execute("select id from graph_nodes"):
+        candidate = knowledge_map._opaque_handle(
+            secret, domain="node", graph_lineage=lineage, canonical_id=row["id"]
+        )
+        if hmac.compare_digest(str(handle), candidate):
+            return str(row["id"])
+    return ""
+
+
+def _node_display_name(conn: sqlite3.Connection, node_id: str) -> str:
+    row = conn.execute("select name from graph_nodes where id = ?", (node_id,)).fetchone()
+    return str(row["name"]) if row else "这个知识点"
+
+
+def _child_manual_error_projection(
+    *,
+    node_name: str,
+    cause_label: str,
+    message: str,
+    client_idempotency_key: str,
+) -> dict[str, Any]:
+    """孩子面错题录入响应: 只回名称与孩子可读措辞, 不回内部 id/状态机字段."""
+    return {
+        "schema_version": CHILD_MANUAL_ERROR_SCHEMA_VERSION,
+        "status": "recorded",
+        "message": message,
+        "node_name": node_name,
+        "error_cause_label": cause_label,
+        "client_idempotency_key": client_idempotency_key,
+    }
+
+
+def _child_lightup_projection(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """lightup_snapshot 的孩子面投影: 剔除 node_id 键的 nodes 字典与一切内部
+    状态 (A/B/C/D 档位 → 孩子可读标签), 只保留 进度行/分阶段进度/本周点亮/里程碑."""
+    summary = snapshot.get("summary") if isinstance(snapshot.get("summary"), dict) else {}
+    total = int(summary.get("total") or 0)
+    mastered = int(summary.get("mastered") or 0)
+    by_stage = summary.get("by_stage") if isinstance(summary.get("by_stage"), dict) else {}
+    this_week = snapshot.get("this_week") if isinstance(snapshot.get("this_week"), dict) else {}
+    milestones = (
+        snapshot.get("recent_milestones")
+        if isinstance(snapshot.get("recent_milestones"), list)
+        else []
+    )
+    return {
+        "schema_version": CHILD_LIGHTUP_SCHEMA_VERSION,
+        "summary": {
+            "total": total,
+            "mastered": mastered,
+            "progress_line": f"已点亮 {mastered} / {total} 个知识点",
+        },
+        "stages": [
+            {
+                "stage": str(stage),
+                "total": int(meta.get("total") or 0),
+                "mastered": int(meta.get("mastered") or 0),
+            }
+            for stage, meta in sorted(by_stage.items())
+        ],
+        "this_week": {
+            "lit_up": [
+                {
+                    "name": str(item.get("name") or ""),
+                    "from_label": _LIGHTUP_BAND_LABELS.get(str(item.get("from") or ""), ""),
+                    "to_label": _LIGHTUP_BAND_LABELS.get(str(item.get("to") or ""), ""),
+                }
+                for item in this_week.get("lit_up") or []
+            ]
+        },
+        "milestones": [
+            {
+                "name": str(item.get("name") or ""),
+                "date": str(item.get("date") or ""),
+                "from_label": _LIGHTUP_BAND_LABELS.get(str(item.get("from") or ""), ""),
+                "to_label": _LIGHTUP_BAND_LABELS.get(str(item.get("to") or ""), ""),
+            }
+            for item in milestones
+        ],
+    }
+
+
 class LearningHandler(BaseHTTPRequestHandler):
     db_path: Path
     answer_upload_root: Path
@@ -988,6 +1152,35 @@ class LearningHandler(BaseHTTPRequestHandler):
             return
         if parsed.path.startswith("/api/attachments/"):
             self._serve_attachment(parsed.path)
+            return
+        if parsed.path == "/api/lightup":
+            with closing(self._conn()) as conn:
+                snapshot = lightup_service.lightup_snapshot(conn)
+                self._send_json(_child_lightup_projection(snapshot))
+            return
+        if parsed.path == "/api/operator/biweekly-brief":
+            query = parse_qs(parsed.query)
+            end_iso_week = str((query.get("end_iso_week") or [""])[0] or "")
+            if not end_iso_week:
+                self._send_error(400, "end_iso_week is required")
+                return
+            try:
+                period_weeks = int((query.get("period_weeks") or ["2"])[0])
+            except (TypeError, ValueError):
+                self._send_error(400, "period_weeks must be an integer")
+                return
+            with closing(self._conn()) as conn:
+                try:
+                    result = biweekly_brief_service.generate_biweekly_brief(
+                        conn,
+                        end_iso_week=end_iso_week,
+                        period_weeks=period_weeks,
+                        narrative_fn=None,
+                    )
+                except ValueError as exc:
+                    self._send_error(400, str(exc))
+                    return
+                self._send_json(result)
             return
         self._serve_static(parsed.path)
 
@@ -1566,6 +1759,114 @@ class LearningHandler(BaseHTTPRequestHandler):
                             **_agent_contract_metadata("planner_agent"),
                         )
                     self._send_json(plan)
+                return
+            if parsed.path == "/api/manual-errors":
+                payload = self._read_json()
+                handle = str(payload.get("handle") or "")
+                tag_key = str(payload.get("error_tag_key") or "")
+                idempotency_key = str(payload.get("client_idempotency_key") or "")
+                with closing(self._conn()) as conn:
+                    node_id = _resolve_node_handle(conn, handle)
+                    if not node_id:
+                        self._send_json(
+                            {
+                                "status": "unknown_node",
+                                "message": "请先打开知识页选择知识点。",
+                            },
+                            status=409,
+                        )
+                        return
+                    canonical_tag = CHILD_ERROR_TAG_KEY_TO_CANONICAL.get(tag_key)
+                    if not canonical_tag:
+                        self._send_json(
+                            {
+                                "status": "invalid_cause",
+                                "message": "请重新选择出错原因。",
+                            },
+                            status=400,
+                        )
+                        return
+                    try:
+                        manual_entry_service.record_manual_error(
+                            conn,
+                            node_id=node_id,
+                            error_tag=canonical_tag,
+                            source="child_self_report",
+                            commit=True,
+                        )
+                    except ValueError:
+                        # 防御: 服务层原始错误可能含内部措辞, 孩子面一律降级为
+                        # 通用孩子可读提示 (绝不把 node_id/内部消息透出).
+                        self._send_json(
+                            {
+                                "status": "record_failed",
+                                "message": "这次没有记成功，请刷新后再试一次。",
+                            },
+                            status=409,
+                        )
+                        return
+                    node_name = _node_display_name(conn, node_id)
+                self._send_json(
+                    _child_manual_error_projection(
+                        node_name=node_name,
+                        cause_label=CHILD_ERROR_TAG_OPTIONS[tag_key],
+                        message="已经记下来了。接下来会安排一两道类似的题复习一下。",
+                        client_idempotency_key=idempotency_key,
+                    )
+                )
+                return
+            if parsed.path == "/api/operator/manual-errors/confirm":
+                payload = self._read_json()
+                entry_id = str(payload.get("manual_entry_id") or "").strip()
+                if not entry_id:
+                    raise ValueError("manual_entry_id is required")
+                confirmed_by = str(payload.get("confirmed_by") or "parent")
+                with closing(self._conn()) as conn:
+                    exists = conn.execute(
+                        "select 1 from manual_error_entries where id = ?",
+                        (entry_id,),
+                    ).fetchone()
+                    if exists is None:
+                        self._send_error(404, f"Unknown manual error entry: {entry_id}")
+                        return
+                    result = manual_entry_service.confirm_manual_error(
+                        conn, entry_id, confirmed_by=confirmed_by, commit=True
+                    )
+                self._send_json(result)
+                return
+            if parsed.path == "/api/operator/weekly-summaries":
+                payload = self._read_json()
+                iso_week = str(payload.get("iso_week") or "").strip()
+                if not iso_week:
+                    raise ValueError("iso_week is required")
+                with closing(self._conn()) as conn:
+                    result = weekly_report_service.generate_weekly_summary(
+                        conn, iso_week=iso_week, narrative_fn=None, commit=True
+                    )
+                self._send_json(result)
+                return
+            if parsed.path.startswith("/api/operator/weekly-summaries/") and parsed.path.endswith("/acknowledge"):
+                payload = self._read_json()
+                summary_id = (
+                    parsed.path
+                    .removeprefix("/api/operator/weekly-summaries/")
+                    .removesuffix("/acknowledge")
+                    .strip("/")
+                )
+                if not summary_id or "/" in summary_id:
+                    raise ValueError("Invalid weekly summary id")
+                acknowledged_by = str(payload.get("acknowledged_by") or "parent")
+                with closing(self._conn()) as conn:
+                    exists = conn.execute(
+                        "select 1 from weekly_summary where id = ?", (summary_id,)
+                    ).fetchone()
+                    if exists is None:
+                        self._send_error(404, f"Unknown weekly summary: {summary_id}")
+                        return
+                    result = weekly_report_service.acknowledge_weekly_summary(
+                        conn, summary_id, acknowledged_by=acknowledged_by, commit=True
+                    )
+                self._send_json(result)
                 return
             self._send_error(404, "Unknown API endpoint")
         except knowledge_map.KnowledgeMapError as exc:
