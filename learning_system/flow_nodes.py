@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from . import db
@@ -406,6 +407,12 @@ def _mastery_diagnosis(
     weak_result: bool,
     error_tags: Counter[str],
 ) -> dict[str, Any]:
+    # DEPRECATED (M2.5-5c): the 6-state session-level aggregate judgment is
+    # retired as a status source (proposal §2.1/§2.2 — one eligible attempt =
+    # one judgment event; the unified verdict lives in mastery_rules via
+    # mastery_v2_adapter). Kept as the 证据打包器 metadata for teaching
+    # decisions / planner signals / decision_payload (解释性元数据, §2.5);
+    # physical removal is deferred to the M2.5 cleanup.
     strong_attempts = [
         attempt for attempt in attempts
         if attempt["result"] == "correct"
@@ -567,6 +574,119 @@ def build_mastery_evaluation_package(
         "session_id": session_id,
         "evaluations": evaluations,
     }
+
+
+# ---------------------------------------------------------------------------
+# M2.5-5c: unified-mastery judgment wiring helpers. These build the
+# mastery_bridge external row shape (judgment-event rows) for one node's
+# evidence window, feeding mastery_v2_adapter.judge_v2_node. Pure judgment
+# lives in the adapter (mastery_rules + mastery_bridge, no sqlite); here
+# only DB reads and row shaping. The 6-state _mastery_diagnosis output is
+# unchanged and still feeds teaching decisions / planner signals; the
+# *stored* status now comes from the unified verdict (proposal §2.1/§2.5).
+# ---------------------------------------------------------------------------
+
+def _v2_evidence_row(conn: sqlite3.Connection, attempt: dict[str, Any]) -> dict[str, Any]:
+    """Map one attempt dict to a judgment-event row (mastery_bridge shape).
+
+    Reasoning fields come from the attempt's answer_analysis.evaluation_support
+    (db.derive_answer_evaluation_support semantics); the question kind serves
+    as the structure fingerprint (C2) and maps to the purpose role (C3):
+    transfer-confirmation kinds -> confirmation_transfer, others ->
+    confirmation_core — the same transfer/diversity semantics the legacy
+    _mastery_diagnosis used for "stable" (has_transfer_evidence /
+    has_form_diversity, both kind-based). gate_passed reflects the v2
+    EvidenceUsePolicy gate, so stale/pending/invalidated history rows never
+    enter the judgment window (mirrors the v51 full-chain gate).
+    """
+    analysis = attempt.get("answer_analysis")
+    if not isinstance(analysis, dict):
+        analysis = {}
+    support = analysis.get("evaluation_support")
+    if not isinstance(support, dict) or not support:
+        support = db.derive_answer_evaluation_support(analysis)
+    kind = ""
+    try:
+        question = _question_for_attempt(conn, attempt)
+    except KeyError:
+        question = {}
+    if isinstance(question, dict):
+        kind = str(question.get("kind") or question.get("question_type") or "")
+    return {
+        "attempt_id": str(attempt.get("id") or ""),
+        "created_at": str(attempt.get("created_at") or db.now_iso()),
+        "result": attempt.get("result"),
+        "score_points": attempt.get("score_points"),
+        "max_points": attempt.get("max_points"),
+        "explanation_score": attempt.get("explanation_score"),
+        "reasoning_soundness": support.get("reasoning_soundness"),
+        "evidence_strength": support.get("evidence_strength"),
+        "next_evidence_need": support.get("next_evidence_need"),
+        "blocking_evidence": bool(attempt.get("blocking_evidence")),
+        "structure_fingerprint": kind,
+        "purpose_role": (
+            "confirmation_transfer" if kind in TRANSFER_CONFIRMATION_KINDS
+            else "confirmation_core"
+        ),
+        "purpose": "diagnostic",
+        "hint_policy": "no_hint",
+        "mastery_update_eligible": True,
+        "gate_passed": db.EvidenceUsePolicy.is_usable_attempt(conn, attempt),
+        "voice_verifiable": True,
+        "analysis_valid": db.is_valid_answer_analysis(analysis),
+        "is_manual": str(attempt.get("answer_source") or "") == "parent_manual",
+    }
+
+
+def build_v2_evidence_rows(
+    conn: sqlite3.Connection,
+    *,
+    node_id: str,
+    session_id: str,
+    summary: dict[str, Any],
+    window_days: int = 92,
+) -> list[dict[str, Any]]:
+    """Judgment-event rows for one node: this session's usable attempts plus
+    the node's prior active attempts in the rolling window (decision-time
+    anchored, a 92-day buffer; mastery_bridge.build_window clips to exactly
+    [current-90, current] per event). Any order — the adapter folds
+    chronologically. Pure data shaping; no judgment here.
+    """
+    session_attempts = [
+        attempt for attempt in _attempts_for_summary(conn, session_id, summary)
+        if attempt["node_id"] == node_id
+    ]
+    anchor = ""
+    for attempt in session_attempts:
+        created = str(attempt.get("created_at") or "")
+        if created and created > anchor:
+            anchor = created
+    if not anchor:
+        anchor = db.now_iso()
+    try:
+        anchor_date = datetime.strptime(anchor[:10], "%Y-%m-%d").date()
+    except ValueError:
+        anchor_date = datetime.now().date()
+    lower = (anchor_date - timedelta(days=window_days)).isoformat()
+    history_rows = conn.execute(
+        """
+        select *
+        from attempts
+        where node_id = ?
+          and evidence_status = 'active'
+          and session_id != ?
+          and created_at >= ?
+          and created_at <= ?
+        order by created_at, id
+        """,
+        (node_id, session_id, lower, anchor),
+    ).fetchall()
+    rows = [
+        _v2_evidence_row(conn, dict(raw)) for raw in history_rows
+    ] + [
+        _v2_evidence_row(conn, attempt) for attempt in session_attempts
+    ]
+    return rows
 
 
 def build_teaching_decision_package(

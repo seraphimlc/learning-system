@@ -5,7 +5,15 @@ import uuid
 from collections import Counter, defaultdict
 from typing import Any
 
-from . import agents, db, evolution, flow_nodes, internal_agents, planner
+from . import (
+    agents,
+    db,
+    evolution,
+    flow_nodes,
+    internal_agents,
+    mastery_v2_adapter,
+    planner,
+)
 
 
 class SessionClosureStateMachine:
@@ -332,6 +340,10 @@ def _record_close_audit(
     return run
 
 
+# DEPRECATED (M2.5-5c): the 6-态 -> v2 decision-label mapping. Replaced by
+# mastery_v2_adapter.judge_v2_node via _v2_unified_judgment_for_evaluation
+# (proposal §2.1/§2.5 — the unified verdict drives stored decisions). Kept
+# temporarily for rollback; physical removal in the M2.5 cleanup commit.
 def _mastery_decision_from_status(evaluation: dict[str, Any]) -> tuple[str, str, str, bool]:
     mastery_state = str(evaluation.get("mastery_state") or "")
     can_advance = bool(evaluation.get("can_advance"))
@@ -358,6 +370,94 @@ def _mastery_decision_from_status(evaluation: dict[str, Any]) -> tuple[str, str,
     if status == "stretch_ready":
         return "stable_understanding", "repaired_not_mastered", "Repeated direct evidence exists; confirm transfer before mastery.", True
     return "not_enough_evidence", "pending_analysis", "Not enough analyzed evidence.", False
+
+
+def _v2_unified_judgment_for_evaluation(
+    conn: sqlite3.Connection,
+    *,
+    evaluation: dict[str, Any],
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    """Run the unified mastery judgment for one v2 node evaluation (M2.5-5c).
+
+    Feeds mastery_v2_adapter.judge_v2_node: the node's evidence rows (this
+    session's usable attempts + prior 90-day window, built by flow_nodes),
+    the node's applied mastery_decisions history (rows already covering this
+    session's attempts excluded — the current session's row is written after
+    judging), and the stored learner_node_status as current_status.
+    """
+    node_id = evaluation["node_id"]
+    session_id = summary["session_id"]
+    session_attempt_ids = set(
+        str(item) for item in (evaluation.get("evidence_attempt_ids") or []) if item
+    )
+    evidence_rows = flow_nodes.build_v2_evidence_rows(
+        conn,
+        node_id=node_id,
+        session_id=session_id,
+        summary=summary,
+    )
+    decision_history: list[dict[str, Any]] = []
+    for raw in conn.execute(
+        """
+        select id, node_id, decision, new_status_code, decision_payload_json,
+               source_attempt_ids_json, created_at, applied
+        from mastery_decisions
+        where node_id = ?
+          and applied = 1
+          and created_at <= ?
+        order by created_at, id
+        """,
+        (node_id, db.now_iso()),
+    ).fetchall():
+        row = dict(raw)
+        source_ids = set(
+            str(item) for item in (db.json_load(row.get("source_attempt_ids_json"), []) or [])
+            if item
+        )
+        if session_attempt_ids & source_ids:
+            continue
+        decision_history.append(row)
+    stored = conn.execute(
+        "select status_code from learner_node_status where node_id = ?",
+        (node_id,),
+    ).fetchone()
+    current_status = str(stored["status_code"]) if stored else None
+    return mastery_v2_adapter.judge_v2_node(
+        evidence_rows=evidence_rows,
+        decision_history=decision_history,
+        current_status=current_status,
+        reason_base=str(
+            evaluation.get("why_not_advance") or evaluation.get("why") or ""
+        ),
+    )
+
+
+def _evaluation_payload_with_verdict(
+    evaluation: dict[str, Any],
+    judgment: dict[str, Any],
+) -> dict[str, Any]:
+    """The legacy evaluation payload plus the unified-verdict trace.
+
+    The payload keeps the 6-态 / overall_status fields as interpretation
+    metadata (proposal §2.1 point 2 / §2.5); the unified verdict (5-value +
+    §2.3 counter + signals) is recorded alongside so mastery_decisions rows
+    stay replayable for the counter derivation.
+    """
+    payload = _evaluation_payload(evaluation)
+    payload["unified_verdict"] = {
+        "verdict": judgment["verdict"],
+        "reason_code": judgment["reason_code"],
+        "decision": judgment["decision"],
+        "closure_result": judgment["closure_result"],
+        "cd_counter": judgment["counter"],
+        "previous_cd_counter": judgment["previous_counter"],
+        "recheck": judgment["recheck"],
+        "downgrade": judgment["downgrade"],
+        "reason": judgment["reason"],
+        "attrs": judgment["attrs"],
+    }
+    return payload
 
 
 def _planner_signal_from_evaluation_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -498,19 +598,28 @@ def _evaluation_decisions_for_summary(
     conn: sqlite3.Connection,
     summary: dict[str, Any],
     mastery_package: dict[str, Any] | None = None,
+    judgments: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     if mastery_package is None:
         mastery_package = flow_nodes.build_mastery_evaluation_package(conn, summary["session_id"], summary)
+    evaluations = sorted(
+        mastery_package.get("evaluations", []),
+        key=lambda item: item.get("node_id", ""),
+    )
     decisions = []
-    for evaluation in sorted(mastery_package.get("evaluations", []), key=lambda item: item.get("node_id", "")):
-        decision, closure_result, reason, applied = _mastery_decision_from_status(evaluation)
-        payload = _evaluation_payload(evaluation)
+    for evaluation in evaluations:
+        judgment = (
+            judgments.get(evaluation.get("node_id", ""))
+            if judgments
+            else _v2_unified_judgment_for_evaluation(conn, evaluation=evaluation, summary=summary)
+        )
+        payload = _evaluation_payload_with_verdict(evaluation, judgment)
         decisions.append({
             "node_id": evaluation.get("node_id", ""),
-            "decision": decision,
-            "closure_result": closure_result,
-            "applied": applied,
-            "reason": reason,
+            "decision": judgment["decision"],
+            "closure_result": judgment["closure_result"],
+            "applied": judgment["applied"],
+            "reason": judgment["reason"],
             "evidence_attempt_ids": evaluation.get("evidence_attempt_ids", []),
             "error_dimensions": {
                 tag: 1 for tag in evaluation.get("dominant_error_tags", [])
@@ -520,38 +629,27 @@ def _evaluation_decisions_for_summary(
     return decisions
 
 
-def _status_update_from_evaluation(evaluation: dict[str, Any]) -> dict[str, Any]:
-    mastery_state = str(evaluation.get("mastery_state") or "")
-    overall_status = str(evaluation.get("overall_status") or "")
-    strong_count = int(evaluation.get("strong_evidence_count") or 0)
-    weak_count = int(evaluation.get("weak_evidence_count") or 0)
-    if mastery_state == "blocked" or overall_status == "blocked":
-        status_code = "D"
-    elif (
-        mastery_state == "insufficient_evidence"
-        or (mastery_state == "unstable" and not strong_count)
-        or (overall_status == "weak" and not strong_count)
-        or (weak_count and not strong_count)
-    ):
-        status_code = "C"
-    elif mastery_state == "stable" and evaluation.get("can_advance"):
-        status_code = "A"
-    else:
-        status_code = "B"
-    can_explain = bool(strong_count)
-    if status_code in {"C", "D"}:
-        can_explain = False
-    reason = (
-        str(evaluation.get("why_not_advance") or evaluation.get("why") or "")
-        or f"Evaluation Agent applied mastery_state={mastery_state or overall_status}."
-    )
+def _status_update_from_judgment(
+    evaluation: dict[str, Any],
+    judgment: dict[str, Any],
+) -> dict[str, Any] | None:
+    """learner_node_status update driven by the unified judgment (M2.5-5c).
+
+    Replaces the old 6-态 -> status reducer (_status_update_from_evaluation,
+    whose insufficient_evidence -> C branch was the misjudgment point,
+    proposal §2.1 point 3 / §2.5). NO_CHANGE verdicts return None — never
+    written ("没测过 ≠ 薄弱": no row / keep-as-is).
+    """
+    if not judgment["applied"]:
+        return None
+    status_code = judgment["status"]
     return {
         "node_id": evaluation["node_id"],
         "status_code": status_code,
         "latest_score": float(evaluation.get("evidence_strength") or 0.0),
-        "can_explain": can_explain,
+        "can_explain": status_code in {"A", "B"},
         "evidence_attempt_ids": evaluation.get("evidence_attempt_ids", []),
-        "status_reason": f"Evaluation Agent: {reason}",
+        "status_reason": f"Evaluation Agent: {judgment['reason']}",
     }
 
 
@@ -559,9 +657,15 @@ def _apply_evaluation_node_statuses(
     conn: sqlite3.Connection,
     *,
     evaluations: list[dict[str, Any]],
+    judgments: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    updates = [_status_update_from_evaluation(evaluation) for evaluation in evaluations]
-    for update in updates:
+    updates: list[dict[str, Any]] = []
+    for evaluation in evaluations:
+        update = _status_update_from_judgment(
+            evaluation, judgments.get(evaluation.get("node_id", ""), {})
+        )
+        if update is None:
+            continue
         conn.execute(
             """
             insert or replace into learner_node_status(
@@ -579,6 +683,7 @@ def _apply_evaluation_node_statuses(
                 db.now_iso(),
             ),
         )
+        updates.append(update)
     return updates
 
 
@@ -634,10 +739,30 @@ def _record_evaluation_agent(
 ) -> dict[str, Any]:
     event = event or {}
     mastery_package = mastery_package or flow_nodes.build_mastery_evaluation_package(conn, session_id, summary)
-    decisions = _evaluation_decisions_for_summary(conn, summary, mastery_package)
+    evaluations = sorted(
+        mastery_package.get("evaluations", []),
+        key=lambda item: item.get("node_id", ""),
+    )
+    # M2.5-5c: unified mastery judgment (proposal §2.2/§2.3). The legacy
+    # 6-态 -> decision/status reducers (_mastery_decision_from_status /
+    # _status_update_from_evaluation, incl. the insufficient_evidence -> C
+    # misjudgment point) are replaced by mastery_v2_adapter.judge_v2_node,
+    # which composes decide_verdict (R1-R6 + window AGG C1-C6) ->
+    # transition_status (§2.3 table, counter from the node's
+    # mastery_decisions). Only the *judgment* changed; the persistence below
+    # (mastery_decisions insert + learner_node_status upsert) is untouched,
+    # and NO_CHANGE verdicts are never stored (applied=False).
+    judgments = {
+        evaluation["node_id"]: _v2_unified_judgment_for_evaluation(
+            conn, evaluation=evaluation, summary=summary
+        )
+        for evaluation in evaluations
+    }
+    decisions = _evaluation_decisions_for_summary(conn, summary, mastery_package, judgments)
     status_updates = _apply_evaluation_node_statuses(
         conn,
-        evaluations=mastery_package.get("evaluations", []),
+        evaluations=evaluations,
+        judgments=judgments,
     )
     run = _record_internal_agent_run(
         conn,
@@ -677,8 +802,11 @@ def _record_evaluation_agent(
         step_type="evaluate_node_status",
         payload=mastery_package,
     )
-    for evaluation in mastery_package.get("evaluations", []):
-        decision, closure_result, reason, applied = _mastery_decision_from_status(evaluation)
+    for evaluation in evaluations:
+        judgment = judgments[evaluation["node_id"]]
+        if not judgment["applied"]:
+            # NO_CHANGE is never stored (proposal §2.1/§2.3: 没测过 ≠ 薄弱).
+            continue
         existing = conn.execute(
             """
             select 1
@@ -692,18 +820,24 @@ def _record_evaluation_agent(
         ).fetchone()
         if existing:
             continue
-        db.record_mastery_decision(
+        decision_row = db.record_mastery_decision(
             conn,
             session_id=session_id,
             node_id=evaluation["node_id"],
-            decision=decision,
-            closure_result=closure_result,
+            decision=judgment["decision"],
+            closure_result=judgment["closure_result"],
             evidence_attempt_ids=evaluation.get("evidence_attempt_ids", []),
             agent_run_id=run["id"],
-            applied=applied,
-            reason=reason,
-            decision_payload=_evaluation_payload(evaluation),
+            applied=True,
+            reason=judgment["reason"],
+            decision_payload=_evaluation_payload_with_verdict(evaluation, judgment),
             commit=False,
+        )
+        # Record the unified stored status on the row so the §2.3 counter
+        # derivation (mastery_v2_adapter.decision_history_events) can read it.
+        conn.execute(
+            "update mastery_decisions set new_status_code = ? where id = ?",
+            (judgment["status"] or "", decision_row["id"]),
         )
     return run
 
