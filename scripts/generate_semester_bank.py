@@ -13630,6 +13630,903 @@ NODE_QUESTIONS: dict[str, list[dict[str, Any]]] = {
         },
     ],
 
+    # ===== M-BRIDGE-MOTION-BASIC 行程基础模型（建模计算型：15 unverifiable） =====
+    # 节点契约：essence="路程、速度、时间三者互相决定：路程=速度×时间"；
+    # seed=求路程/求速度/求时间/单位换算干扰；common_mistakes=速度单位不统一/时间小时分钟混用/公式知道但题意对应错；
+    # diagnostic_probes=3道基本行程题（至少1题含单位换算）；mastery=能先统一单位/能写出三量关系；
+    # prereq=M-PRE-QUANTITY-RELATION、M-PRE-UNIT-CONVERSION；unlock=M-BRIDGE-MOTION-CHASE、M-G7-EQ-WORD。
+    # authoring 原则：全部 unverifiable（行程建模类，题干不嵌"计算："算式，防 sympy 半截提取）；
+    # L1 真识别（公式选择/速度单位写法/相遇追及方向）；hard 真难（单位换算×求路程、相遇迁移、往返行程）；
+    # 错因逐一布点："速度时间路程公式混"（B1-I1 识别/B5-I1 诊断）、"单位不统一（小时分钟混用）"（B2-I1 正面/B5-I2 诊断）、
+    # "相遇时间算错"（B2-I2 正面/B3-I2 迁移）；表格辅助（B1-I0/B4-I2，teaching strategy"用表格列三量"）；
+    # 相遇/同向基础在 B2-I2/B3-I0 铺路，为 M-BRIDGE-MOTION-CHASE unlock 预告。
+    "M-BRIDGE-MOTION-BASIC": [
+        {
+            "slot": "B1-I0",
+            "prompt": "一辆汽车每小时行 60 千米，行驶 3 小时。把'速度、时间、路程'填进三量表格，并求汽车一共行了多少千米。",
+            "expected_answer": "表格：速度 60 千米/时、时间 3 小时、路程 ？。路程 = 速度 × 时间 = 60 × 3 = 180（千米）。检验：180 ÷ 3 = 60 ✓，180 ÷ 60 = 3 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "求路程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "三量关系：路程 = 速度 × 时间（essence'三者互相决定'的直接载体）",
+                "填表：速度 60 千米/时、时间 3 小时，求路程",
+                "60 × 3 = 180（千米）；检验：180 ÷ 3 = 60、180 ÷ 60 = 3 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "行程三量关系标准例题（路程=速度×时间 + 表格，essence'路程、速度、时间三者互相决定'的演示载体）", "难度理由": "medium 锚点——'三量关系 + 表格'是节点基准难度", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌表格与检验示范）", "教学角色": "讲本质用——'路程=速度×时间'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "汽车 2 小时行了 120 千米，要求汽车每小时行多少千米，应该用哪个关系式？（　）\nA. 路程 ÷ 时间 = 速度：120 ÷ 2 = 60（千米/时）\nB. 速度 × 时间 = 路程：120 × 2\nC. 路程 ÷ 速度 = 时间：120 ÷ 60\nD. 时间 × 路程：2 × 120",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "求速度",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "问'每小时行多少千米'就是求速度",
+                "三量关系：速度 = 路程 ÷ 时间（先想谁除以谁）",
+                "120 ÷ 2 = 60（千米/时），选 A（B/D 把求速度当求路程/乱乘——'速度时间路程公式混'）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "识别求速度用哪个关系式（'求速度'，'速度时间路程公式混'错因的直接形态）", "难度理由": "easy——四选一选关系式", "认知阶梯定位": "L1 识别正宗实现——三量公式的第一道判断", "错因陷阱": "选 B/D（把求速度当求路程/乱乘——'速度时间路程公式混'）、选 C（把 60 当已知）", "教学角色": "L1 识别脚手架——三量关系的判断"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "下面哪个是'速度'的正确写法？（　）\nA. 60 千米/时（读作'每小时 60 千米'）\nB. 60 千米\nC. 60 时\nD. 千米 60",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "速度单位识别",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "速度 = 单位时间里行的路程，写作'路程单位/时间单位'",
+                "60 千米/时表示每小时行 60 千米",
+                "选 A（B 只有路程缺时间、C 只有时间缺路程——速度单位不完整）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "速度单位的写法与含义（'千米/时'，'速度单位不统一'错因的源头识别）", "难度理由": "easy——速度单位形式判断", "认知阶梯定位": "L1 识别——速度单位的第一道判断", "错因陷阱": "选 B/C（把路程或时间当速度单位——单位概念不清）", "教学角色": "L1 识别脚手架——'千米/时'写法探针"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "一辆汽车以每小时 70 千米的速度行驶，一共行了 350 千米。它行驶了多少小时？（用三量关系式解答）",
+            "expected_answer": "时间 = 路程 ÷ 速度 = 350 ÷ 70 = 5（小时）。检验：70 × 5 = 350 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "求时间",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "求时间：时间 = 路程 ÷ 速度",
+                "350 ÷ 70 = 5（小时）",
+                "检验：70 × 5 = 350 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "求时间直接套用（三量关系'求时间'的标准形态）", "难度理由": "easy 套用——单步除法", "认知阶梯定位": "L2 套用——求时间的标准应用", "错因陷阱": "用乘法（350 × 70——'速度时间路程公式混'）、350 ÷ 70 算错", "教学角色": "L2 套用脚手架——三量关系'求时间'的标准形态"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "小军骑自行车 15 分钟行了 3 千米，他骑车的速度是每分钟多少米？（先统一单位再算）",
+            "expected_answer": "3 千米 = 3000 米；速度 = 路程 ÷ 时间 = 3000 ÷ 15 = 200（米/分）。检验：200 × 15 = 3000 米 = 3 千米 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "求速度",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "先统一单位：3 千米 = 3000 米（mastery'能先统一单位'取证）",
+                "速度 = 路程 ÷ 时间 = 3000 ÷ 15 = 200（米/分）",
+                "检验：200 × 15 = 3000 米 = 3 千米 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "求速度 + 单位统一（'千米→米'，'速度单位不统一'错因的正面战场）", "难度理由": "medium——先统一单位再算，漏换算直接 3 ÷ 15 会错", "认知阶梯定位": "L2 套用——单位统一 × 求速度", "错因陷阱": "不换单位直接 3 ÷ 15（'速度单位不统一'）、3000 ÷ 15 算错", "教学角色": "L2 套用——'先统一单位'的标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "小明和小红同时从相距 500 米的两地相向而行，小明每分钟走 60 米、小红每分钟走 40 米。①他们 1 分钟共走多少米？②几分钟后相遇？",
+            "expected_answer": "① 速度和 = 60 + 40 = 100（米/分）；② 相遇时间 = 路程和 ÷ 速度和 = 500 ÷ 100 = 5（分钟）。检验：5 分钟共走 (60 + 40) × 5 = 500 米 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相遇基础",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "相向而行：两人 1 分钟共走 60 + 40 = 100 米（速度和）",
+                "相遇时间 = 相距路程 ÷ 速度和 = 500 ÷ 100 = 5（分钟）",
+                "检验：(60 + 40) × 5 = 500 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "相遇基础模型（路程和 ÷ 速度和，M-BRIDGE-MOTION-CHASE unlock 预告，'相遇时间算错'错因的正面战场）", "难度理由": "medium——先算速度和再求时间两步，且要用'速度和'而非单速", "认知阶梯定位": "L3 变式——行程基础切到相遇形态", "错因陷阱": "用单速除（500 ÷ 60——'相遇时间算错'）、把路程和当单程", "教学角色": "变式核心——相遇时间标准形态（chase 节点铺路）"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "小明和小红从同一起点同时同向出发，小明每分钟走 80 米、小红每分钟走 60 米。①每分钟小明比小红多走多少米？②5 分钟后两人相距多少米？",
+            "expected_answer": "① 速度差 = 80 − 60 = 20（米/分）；② 5 分钟后相距 = 速度差 × 时间 = 20 × 5 = 100（米）。检验：小明 80 × 5 = 400 米，小红 60 × 5 = 300 米，400 − 300 = 100 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "同向基础",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "同向而行：两人距离每分钟拉开 80 − 60 = 20 米（速度差）",
+                "5 分钟后相距 = 20 × 5 = 100 米",
+                "检验：80 × 5 − 60 × 5 = 400 − 300 = 100 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "同向基础模型（速度差 × 时间 = 距离差，chase 节点'追及看速度差'的铺路）", "难度理由": "medium——先识别'同向用速度差'再乘时间", "认知阶梯定位": "L3 变式——从相遇切到同向（速度差）", "错因陷阱": "用速度和（80 + 60——'速度和速度差混淆'预告）、80 × 5 直接当距离差", "教学角色": "变式核心——同向距离差的标准形态"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "一列火车 3 小时行了 216 千米。照这样的速度，这列火车 40 分钟能行多少千米？（提示：先求速度，再把 40 分钟换算成小时）",
+            "expected_answer": "速度 = 216 ÷ 3 = 72（千米/时）；40 分钟 = 40/60 = 2/3 小时；路程 = 72 × 2/3 = 48（千米）。检验：48 ÷ 72 = 2/3 小时 = 40 分钟 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "单位换算干扰",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "先求速度：216 ÷ 3 = 72（千米/时）",
+                "统一单位：40 分钟 = 2/3 小时（分钟→小时除以 60）",
+                "路程 = 72 × 2/3 = 48（千米）；检验：48 ÷ 72 = 2/3 小时 = 40 分钟 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "单位换算 × 求路程迁移（分钟↔小时，M-PRE-UNIT-CONVERSION 前置 × 三量关系）", "难度理由": "hard——先求速度、再换时间单位、最后乘，三处可错；72 × 40 的直觉是最大陷阱", "认知阶梯定位": "L4 迁移——单位换算前置 × 行程三量", "错因陷阱": "把 40 分钟当小时直接 72 × 40（'时间小时分钟混用'）、2/3 换算错", "教学角色": "判定层 transfer 证据来源（C3 双角色）——单位换算 × 行程迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "甲、乙两地相距 270 千米，一辆摩托车和一辆汽车同时从两地相向开出，摩托车每小时行 40 千米、汽车每小时行 50 千米。①几小时后两车相遇？②相遇时汽车行了多少千米？",
+            "expected_answer": "① 速度和 = 40 + 50 = 90（千米/时）；相遇时间 = 270 ÷ 90 = 3（小时）；② 汽车行的路程 = 50 × 3 = 150（千米）。检验：摩托车 40 × 3 = 120 千米，120 + 150 = 270 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相遇基础",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "相向而行：速度和 = 40 + 50 = 90 千米/时",
+                "相遇时间 = 270 ÷ 90 = 3 小时",
+                "相遇时汽车行 50 × 3 = 150 千米；检验：120 + 150 = 270 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "相遇模型 × 单车路程迁移（相遇时间后再求其中一车路程，chase 节点 unlock 预告）", "难度理由": "hard——相遇时间 + 单方路程两步建模，'相遇时间算错'错因的迁移形态", "认知阶梯定位": "L4 迁移——相遇基础 × 三量关系复合", "错因陷阱": "用单速求相遇时间（270 ÷ 50）、相遇时用 40 × 3 当汽车路程（张冠李戴）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——相遇模型的迁移取证"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "一辆电动车每小时行 25 千米，行驶 4 小时，一共行了多少千米？（用三量关系式解答）",
+            "expected_answer": "路程 = 速度 × 时间 = 25 × 4 = 100（千米）。检验：100 ÷ 4 = 25 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "求路程",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "路程 = 速度 × 时间",
+                "25 × 4 = 100（千米）",
+                "检验：100 ÷ 4 = 25 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "求路程快速检测（三量关系掌握档一键探针）", "难度理由": "easy 检测——单步乘法", "认知阶梯定位": "L2 检测——求路程防退化检测", "错因陷阱": "用除法（100 ÷ 25——'速度时间路程公式混'）、25 × 4 算错", "教学角色": "掌握档快速检测——求路程一键探针"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "小华跑步锻炼，前 5 分钟每分钟跑 200 米，后 15 分钟每分钟跑 150 米。他一共跑了多少千米？（注意最后答案的单位）",
+            "expected_answer": "前段路程 200 × 5 = 1000 米；后段路程 150 × 15 = 2250 米；一共 1000 + 2250 = 3250 米 = 3.25 千米。检验：3.25 千米 = 3250 米 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "分段行程",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "分两段求路程：前 200 × 5 = 1000 米，后 150 × 15 = 2250 米",
+                "总路程 = 1000 + 2250 = 3250 米",
+                "单位换算：3250 米 = 3.25 千米（答句带单位，'单位不统一'错因复测）"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "分段求路程 + 单位换算检测（两段时间 × 不同速度，最后换千米）", "难度理由": "hard——两段路程求和再换单位，漏一段或单位不换即错", "认知阶梯定位": "L3 检测 hard——分段行程取证", "错因陷阱": "漏前段（只算 150 × 15）、3250 不换单位写'3250 千米'（'速度单位不统一'）", "教学角色": "检测 hard 档，判定层 hard 证据来源——分段行程"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "一辆汽车从甲城到乙城共 240 千米，前一半路程每小时行 60 千米，后一半路程每小时行 40 千米。用表格整理（各段速度、时间），并求全程共用多少小时。",
+            "expected_answer": "前一半 120 千米：时间 = 120 ÷ 60 = 2 小时；后一半 120 千米：时间 = 120 ÷ 40 = 3 小时；全程共用 2 + 3 = 5 小时。表格：前段（速度 60 千米/时、路程 120 千米、时间 2 小时）、后段（40 千米/时、120 千米、3 小时）。检验：60 × 2 + 40 × 3 = 120 + 120 = 240 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "求时间",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "先求各段路程：240 ÷ 2 = 120 千米（每半段）",
+                "填表：前段时间 120 ÷ 60 = 2 小时，后段时间 120 ÷ 40 = 3 小时",
+                "全程 2 + 3 = 5 小时；检验：60 × 2 + 40 × 3 = 240 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "表格整理 × 分段求时间复测（teaching strategy'用表格列路程/速度/时间'取证，mastery'能写出三量关系'复测）", "难度理由": "medium 复测——分段转化 + 表格 + 求和", "认知阶梯定位": "L3 复测——三量关系的表格化复测", "错因陷阱": "用 240 ÷ 60 当全程时间（忽略后半段速度不同）、120 ÷ 40 算错", "教学角色": "复测 medium——表格三量复测防退化"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "小明去学校每分钟走 80 米，走了 15 分钟；放学回家每分钟走 60 米。①去学校和回家的路程有什么关系？②回家用了多少分钟？",
+            "expected_answer": "① 去学校和回家的路程相等（都是家到学校的距离）；② 去程路程 = 80 × 15 = 1200 米；回家时间 = 1200 ÷ 60 = 20（分钟）。检验：60 × 20 = 1200 米 = 去程路程 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "往返行程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "关键：去程路程 = 回程路程（同一段路）",
+                "去程路程 = 80 × 15 = 1200 米",
+                "回家时间 = 1200 ÷ 60 = 20 分钟；检验：60 × 20 = 1200 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "往返行程复测（'路程相同'是隐藏条件，速度不同 → 时间不同）", "难度理由": "hard——要自己发现'往返路程相等'再求时间，两处可错", "认知阶梯定位": "L4 复测——三量关系最高阶复测", "错因陷阱": "以为时间也相同（直接写 15 分钟）、1200 ÷ 60 算错", "教学角色": "复测 hard 档，判定层 hard 证据来源——往返行程"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小刚算：'汽车 2 小时行了 150 千米，所以速度 = 150 × 2 = 300。'他错在哪里？（　）\nA. 求速度应该用 路程 ÷ 时间 = 150 ÷ 2 = 75（千米/时），他把公式用反了\nB. 没错，300 就是速度\nC. 应该用 150 + 2\nD. 应该用 2 ÷ 150",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "求速度",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "问'速度'：速度 = 路程 ÷ 时间",
+                "150 ÷ 2 = 75（千米/时）",
+                "小刚用 150 × 2，把'求速度'当成了'求路程'（'速度时间路程公式混'错因），选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'速度时间路程公式混'错因的诊断（求速度列成乘法的直接探针）", "难度理由": "easy——L1 判断并指出公式", "认知阶梯定位": "L1 诊断——三量公式混淆的一键探针", "错因陷阱": "选 B（接受 150 × 2——'速度时间路程公式混'）、选 D（方向反）", "教学角色": "诊断题——三量公式意识的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小丽做：'一辆汽车每小时行 60 千米，行驶 90 分钟，行了多少千米？'她列式 60 × 90 = 5400（千米）。她错在哪里？（　）\nA. 90 分钟要先换算成 1.5 小时：60 × 1.5 = 90（千米）；分钟和小时不能直接相乘\nB. 没错，5400 千米是对的\nC. 应该 90 ÷ 60 = 1.5 千米\nD. 应该 60 ÷ 90",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "求时间",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "速度是'每小时 60 千米'，时间必须用'小时'才能相乘",
+                "90 分钟 = 90 ÷ 60 = 1.5 小时（统一单位）",
+                "60 × 1.5 = 90（千米）；小丽没换单位（'时间小时分钟混用'错因），选 A"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'单位不统一（小时分钟混用）'错因的诊断（时间单位换算 × 三量关系）", "难度理由": "medium——要指出单位问题并完成换算重算", "认知阶梯定位": "L2 诊断——'时间小时分钟混用'的直接探针", "错因陷阱": "选 B（接受 60 × 90——'单位不统一'）、选 C/D（乱套运算）", "教学角色": "诊断题——单位统一意识的一键探针"}
+        },
+    ],
+
+    # ===== M-BRIDGE-MOTION-CHASE 追及与相遇模型（建模计算型：15 unverifiable） =====
+    # 节点契约：essence="追及看速度差，相遇看速度和；本质是距离差/距离和如何变化"；
+    # seed=相向相遇/同向追及/先走后追/环形跑道；common_mistakes=速度和速度差混淆/先走时间没有转成距离差/环形追及不知道一圈差；
+    # diagnostic_probes=1道相遇、1道追及、1道先走后追；mastery=能说出为什么用速度和/速度差、能把先走时间转成距离差；
+    # prereq=M-BRIDGE-MOTION-BASIC、M-PRE-QUANTITY-RELATION；unlock=M-BRIDGE-CLOCK-ANGLE、M-G7-EQ-WORD。
+    # authoring 原则：全部 unverifiable（行程建模类，题干不嵌"计算："算式）；
+    # L1 真识别（速度差/速度和的方向选择）；hard 真难（环形一圈差、相遇位置迁移、相遇后多阶段）；
+    # 错因逐一布点："速度和速度差混淆"（B1-I1/B1-I2 识别 + B5-I1 诊断）、"先走时间没有转成距离差"（B3-I0 正面/B4-I1 检测/B5-I2 诊断）、
+    # "距离差算错"（B4-I0 正面/B4-I1 陷阱）；环形追及（B3-I1 迁移/B4-I2 复测，controlled extension）；
+    # 动态距离变化讲法：相遇（B1-I0/B2-I0/B2-I2）、追及（B2-I1/B3-I0）、多阶段（B5-I0）。
+    "M-BRIDGE-MOTION-CHASE": [
+        {
+            "slot": "B1-I0",
+            "prompt": "甲、乙两地相距 300 千米，客车和货车同时从两地相向开出，客车每小时行 80 千米、货车每小时行 70 千米。①两车每小时共走多少千米（速度和）？②几小时后两车相遇？（先想：相遇时两车走的路程和是什么关系）",
+            "expected_answer": "① 速度和 = 80 + 70 = 150（千米/时）；② 相遇时两车走的路程和 = 全程 300 千米；相遇时间 = 300 ÷ 150 = 2（小时）。检验：2 小时两车共走 (80 + 70) × 2 = 300 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相向相遇",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "相向而行：两车每小时共走 80 + 70 = 150 千米（速度和）",
+                "相遇时：两车路程和 = 全程 300 千米（essence'距离和如何变化'）",
+                "相遇时间 = 300 ÷ 150 = 2 小时；检验：(80+70) × 2 = 300 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "相遇模型标准例题（路程和 ÷ 速度和，essence'相遇看速度和，本质是距离和如何变化'的演示载体）", "难度理由": "medium 锚点——'速度和 + 路程和'是相遇模型的基准", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌'路程和'本质说明）", "教学角色": "讲本质用——相遇'路程和 ÷ 速度和'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "小明和小红从同一起点同时同向出发，小明每分钟走 90 米、小红每分钟走 60 米。要算 5 分钟后两人相距多少米，应该（　）\nA. 用速度差：(90 − 60) × 5 = 150（米）——同向而行距离每分钟拉开 30 米\nB. 用速度和：(90 + 60) × 5 = 750（米）\nC. 90 × 5 = 450（米）\nD. 60 × 5 = 300（米）",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "同向追及",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "同向而行：两人距离每分钟拉开多少 = 速度差 90 − 60 = 30 米",
+                "5 分钟后相距 = 30 × 5 = 150 米",
+                "选 A（B 把追及当相遇——'速度和速度差混淆'错因）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "识别同向追及用速度差（'同向追及'，'速度和速度差混淆'错因的直接形态）", "难度理由": "easy——四选一选'差'还是'和'", "认知阶梯定位": "L1 识别正宗实现——追及 vs 相遇的第一道判断", "错因陷阱": "选 B（同向却用速度和——'速度和速度差混淆'）、选 C/D（只用一方速度）", "教学角色": "L1 识别脚手架——'追及看速度差'判断"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "小明去追先出发的小红，小明每分钟走 90 米、小红每分钟走 70 米，小明开始追时小红已经在前面 40 米。每分钟小明能追上多少米？（　）\nA. 90 − 70 = 20 米（速度差，每分钟距离缩短 20 米）\nB. 90 + 70 = 160 米\nC. 40 米\nD. 90 米",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "先走后追",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "追及看速度差：快者每分钟比慢者多走 90 − 70 = 20 米",
+                "每分钟距离缩短 20 米（'追及看速度差'）",
+                "选 A（B 用速度和——'速度和速度差混淆'、C 把距离差当速度差）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "识别追及每分钟追上多少 = 速度差（'先走后追'，'速度和速度差混淆'的直接形态）", "难度理由": "easy——速度差识别", "认知阶梯定位": "L1 识别——追及模型的核心判断", "错因陷阱": "选 B（用速度和）、选 C（把 40 米距离差当速度差——'距离差算错'预告）", "教学角色": "L1 识别脚手架——追及'速度差'判断"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "两人从相距 600 米的两地同时相向而行，一个每分钟走 70 米、另一个每分钟走 50 米，几分钟后相遇？",
+            "expected_answer": "速度和 = 70 + 50 = 120（米/分）；相遇时间 = 路程和 ÷ 速度和 = 600 ÷ 120 = 5（分钟）。检验：(70 + 50) × 5 = 600 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相向相遇",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "相向而行：速度和 = 70 + 50 = 120 米/分",
+                "相遇时间 = 600 ÷ 120 = 5 分钟",
+                "检验：(70 + 50) × 5 = 600 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "相遇模型直接套用（'相向相遇'标准形态，检测型套用）", "难度理由": "easy 套用——单模型除法", "认知阶梯定位": "L2 套用——相遇时间标准应用", "错因陷阱": "用单速（600 ÷ 70——'相遇时间算错'）、600 ÷ 120 算错", "教学角色": "L2 套用脚手架——相遇时间标准形态"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "小明和小红同时从相距 480 米的两地相向而行，小明每分钟走 65 米、小红每分钟走 55 米。几分钟后相遇？相遇时小红走了多少米？",
+            "expected_answer": "速度和 = 65 + 55 = 120（米/分）；相遇时间 = 480 ÷ 120 = 4（分钟）；小红走了 55 × 4 = 220（米）。检验：65 × 4 + 55 × 4 = 260 + 220 = 480 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相向相遇",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "速度和 = 65 + 55 = 120 米/分",
+                "相遇时间 = 480 ÷ 120 = 4 分钟",
+                "小红路程 = 55 × 4 = 220 米；检验：260 + 220 = 480 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "相遇时间 + 单方路程套用（两步，'相遇看速度和'标准应用）", "难度理由": "medium——相遇时间后再求一方路程", "认知阶梯定位": "L2 套用——相遇模型两步形态", "错因陷阱": "相遇时把小红路程当 65 × 4（张冠李戴）、速度和算错", "教学角色": "L2 套用——相遇'时间 + 单方路程'标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "甲、乙两城相距 360 千米，客车和货车同时从两城相向开出，客车每小时行 100 千米、货车每小时行 80 千米。相遇时货车行了多少千米？",
+            "expected_answer": "速度和 = 100 + 80 = 180（千米/时）；相遇时间 = 360 ÷ 180 = 2（小时）；货车行了 80 × 2 = 160（千米）。检验：100 × 2 + 80 × 2 = 360 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相向相遇",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "速度和 = 100 + 80 = 180 千米/时",
+                "相遇时间 = 360 ÷ 180 = 2 小时",
+                "货车路程 = 80 × 2 = 160 千米；检验：200 + 160 = 360 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "相遇变式（换城市场景，求单方路程；'相遇时间算错'错因的变式战场）", "难度理由": "medium——速度和大数 + 相遇后求单方", "认知阶梯定位": "L3 变式——相遇模型换情境", "错因陷阱": "用 360 ÷ 80 求相遇时间（漏速度和）、相遇时用 100 × 2 当货车路程", "教学角色": "变式核心——相遇模型情境变式"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "小红先出发步行，每分钟走 60 米，走了 5 分钟后小明从同一地点出发去追，小明每分钟走 90 米。①小明出发时小红已经走了多少米（距离差）？②小明几分钟能追上小红？",
+            "expected_answer": "① 距离差 = 小红先走的路程 = 60 × 5 = 300（米）；② 速度差 = 90 − 60 = 30（米/分）；追及时间 = 距离差 ÷ 速度差 = 300 ÷ 30 = 10（分钟）。检验：10 分钟小明走 900 米，小红共走 60 × (5 + 10) = 900 米 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "先走后追",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "先把先走时间转成距离差：60 × 5 = 300 米（mastery'把先走时间转成距离差'取证）",
+                "速度差 = 90 − 60 = 30 米/分",
+                "追及时间 = 300 ÷ 30 = 10 分钟；检验：小明 900 米 = 小红 900 米 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "先走后追模型（先走时间 → 距离差，'先走时间没有转成距离差'错因的正面战场）", "难度理由": "medium——先做'时间 × 速度 = 距离差'转化再追及", "认知阶梯定位": "L3 变式——追及模型的关键转化", "错因陷阱": "把 5 分钟当距离差直接 5 ÷ 30（'先走时间没有转成距离差'）、漏加先走时间", "教学角色": "变式核心——先走后追标准形态"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "环形跑道一圈 400 米，小明和小红从同一点同时同向出发，小明每秒跑 6 米、小红每秒跑 4 米。①小明第一次追上小红时，小明比小红多跑了几米？②追上一次需要多少秒？（提示：同向出发，追上时快者比慢者多跑一整圈）",
+            "expected_answer": "① 同向环形追及：第一次追上时小明比小红多跑一圈 = 400 米；② 速度差 = 6 − 4 = 2（米/秒）；追及时间 = 400 ÷ 2 = 200（秒）。检验：200 秒小明跑 1200 米 = 3 圈，小红跑 800 米 = 2 圈，正好多一圈 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "环形追及",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "环形同向追及：追上时快者多跑一圈（'环形追及不知道一圈差'错因的正面）",
+                "速度差 = 6 − 4 = 2 米/秒",
+                "时间 = 400 ÷ 2 = 200 秒；检验：1200 − 800 = 400 ✓"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "环形追及迁移（controlled extension：一圈差 = 距离差，'环形追及不知道一圈差'错因的正面战场）", "难度理由": "hard——要自己发现'多跑一圈 = 400 米'再套速度差，'一圈差'是最大认知坎", "认知阶梯定位": "L4 迁移——追及模型 × 环形情境", "错因陷阱": "用 400 × 2 当距离（方向反）、把一圈当 400 ÷ (6 + 4)（用速度和——'速度和速度差混淆'）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——环形追及迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "小明和小红在一条直路上，小明从西头、小红从东头同时相向而行，这条路长 900 米。小明每分钟走 80 米、小红每分钟走 100 米。①几分钟后相遇？②相遇点离西头（小明出发处）多远？",
+            "expected_answer": "① 速度和 = 80 + 100 = 180（米/分）；相遇时间 = 900 ÷ 180 = 5（分钟）；② 相遇点离西头 = 小明走的路程 = 80 × 5 = 400（米）。检验：小红走 100 × 5 = 500 米，400 + 500 = 900 ✓，相遇点离西头 400 米。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相向相遇",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "速度和 = 80 + 100 = 180 米/分",
+                "相遇时间 = 900 ÷ 180 = 5 分钟",
+                "相遇点离西头 = 小明路程 = 80 × 5 = 400 米；检验：400 + 500 = 900 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "相遇 × 位置迁移（相遇点位置 = 一方路程，M-G7-EQ-WORD 相遇列方程前置）", "难度理由": "hard——相遇时间后再推理'相遇点离西头 = 小明走的路程'", "认知阶梯定位": "L4 迁移——相遇模型 × 位置几何化", "错因陷阱": "用 80 × 5 当离东头（方向反）、相遇点用全程 900 − 400 算成 500 又当成西头", "教学角色": "判定层 transfer 证据来源（C3 双角色）——相遇位置迁移"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "小明每分钟走 90 米、小红每分钟走 60 米，小明在小红前面 150 米处同向而行。①每分钟小明把距离拉开多少米？②5 分钟后两人相距多少米？",
+            "expected_answer": "① 速度差 = 90 − 60 = 30（米/分）；② 5 分钟多拉开 30 × 5 = 150 米，加上原来已领先的 150 米：相距 150 + 150 = 300（米）。检验：小明 90 × 5 = 450 米，小红 60 × 5 = 300 米，450 + 150 − 300 = 300 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "同向追及",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "同向：速度差 = 90 − 60 = 30 米/分",
+                "5 分钟新拉开 30 × 5 = 150 米",
+                "原来已领先 150 米，共相距 150 + 150 = 300 米；检验：450 + 150 − 300 = 300 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "同向距离差检测（已领先距离 + 新拉开距离，'距离差算错'错因的正面检测）", "难度理由": "easy 检测——速度差 + 乘法，两步", "认知阶梯定位": "L2 检测——同向距离差快速检测", "错因陷阱": "只算新拉开 150 米忘了原来领先（漏条件——'距离差算错'）", "教学角色": "掌握档快速检测——同向距离差探针"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "小红先出发，每分钟走 40 米；走了 10 分钟后，小明从同一地点出发以每分钟 90 米的速度去追。小明追上小红需要多少分钟？追上时离出发点多少米？",
+            "expected_answer": "距离差 = 40 × 10 = 400（米）；速度差 = 90 − 40 = 50（米/分）；追及时间 = 400 ÷ 50 = 8（分钟）；追上时离出发点 = 小明走的路程 = 90 × 8 = 720（米）。检验：小红共走 40 × (10 + 8) = 720 米 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "先走后追",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "距离差 = 先走的路程 = 40 × 10 = 400 米",
+                "速度差 = 90 − 40 = 50 米/分；追及时间 = 400 ÷ 50 = 8 分钟",
+                "追上时离出发点 = 90 × 8 = 720 米；检验：40 × 18 = 720 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "先走后追 hard 检测（距离差 + 追及时间 + 追上位置，'先走时间没有转成距离差'错因的检测战场）", "难度理由": "hard——三步建模，'40 × 10 转距离差'漏掉即全错", "认知阶梯定位": "L3 检测 hard——先走后追综合取证", "错因陷阱": "用 10 ÷ 50 当追及时间（把先走时间当距离差）、追上位置用 40 × 8", "教学角色": "检测 hard 档，判定层 hard 证据来源——先走后追"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "环形跑道一圈 300 米，小明和小红从同一点同时同向出发，小明每分钟跑 120 米、小红每分钟跑 90 米。小明第一次追上小红需要多少分钟？",
+            "expected_answer": "追上时小明比小红多跑一圈 = 300 米；速度差 = 120 − 90 = 30（米/分）；追及时间 = 300 ÷ 30 = 10（分钟）。检验：10 分钟小明跑 1200 米 = 4 圈，小红跑 900 米 = 3 圈，正好多一圈 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "环形追及",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "环形同向追及：一圈差 = 300 米（'环形追及不知道一圈差'复测）",
+                "速度差 = 120 − 90 = 30 米/分",
+                "时间 = 300 ÷ 30 = 10 分钟；检验：1200 − 900 = 300 ✓"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "环形追及复测（一圈差模型防退化复测）", "难度理由": "medium 复测——圈差识别 + 除法", "认知阶梯定位": "L3 复测——环形追及防退化", "错因陷阱": "用 300 ÷ (120 + 90)（用速度和——'速度和速度差混淆'）、圈差概念回生", "教学角色": "复测 medium——环形追及复测取证"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "甲、乙两地相距 540 千米，客车和货车同时从两地相向开出，客车每小时行 100 千米、货车每小时行 80 千米。①几小时后相遇？②相遇后客车继续开往乙地，还要多久才能到乙地？",
+            "expected_answer": "① 速度和 = 100 + 80 = 180（千米/时）；相遇时间 = 540 ÷ 180 = 3（小时）；② 相遇时客车行了 100 × 3 = 300 千米，离乙地还剩 540 − 300 = 240 千米；还需 240 ÷ 100 = 2.4（小时）。检验：3 + 2.4 = 5.4 小时，100 × 5.4 = 540 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "相遇后行程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "相遇时间 = 540 ÷ 180 = 3 小时",
+                "相遇时客车已行 100 × 3 = 300 千米，剩 540 − 300 = 240 千米",
+                "剩余时间 = 240 ÷ 100 = 2.4 小时；检验：100 × 5.4 = 540 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "相遇后继续行程复测（相遇点 → 剩余路程 → 剩余时间，多阶段行程 extension）", "难度理由": "hard——相遇后还要算剩余路程再求时间，四步建模", "认知阶梯定位": "L4 复测——相遇 × 多阶段行程最高阶复测", "错因陷阱": "相遇后用 540 ÷ 100 当剩余时间（漏减已行路程）、剩 240 算成 300", "教学角色": "复测 hard 档，判定层 hard 证据来源——多阶段行程"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小明追小红，小明每分钟走 90 米、小红每分钟走 70 米，开始时两人相距 40 米。小明列式 40 ÷ (90 + 70)，说几分钟追上。他错在哪里？（　）\nA. 追及应该用速度差：40 ÷ (90 − 70) = 2 分钟；他用速度和代替了速度差\nB. 没错，40 ÷ 160 就是追及时间\nC. 应该 40 ÷ 90\nD. 应该 (90 + 70) ÷ 40",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "同向追及",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "追及看速度差：每分钟追上 90 − 70 = 20 米",
+                "追及时间 = 距离差 ÷ 速度差 = 40 ÷ 20 = 2 分钟",
+                "小明用速度和（90 + 70）——'速度和速度差混淆'错因，选 A"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'速度和速度差混淆'错因的诊断（追及题用速度和的直接探针）", "难度理由": "easy——L1 判断并指出用差", "认知阶梯定位": "L1 诊断——'速度和速度差混淆'的一键探针", "错因陷阱": "选 B（接受速度和——'速度和速度差混淆'）、选 C/D（乱套公式）", "教学角色": "诊断题——'追及看速度差'的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小刚做追及题：'小红先出发每分钟走 60 米，走了 5 分钟后小明出发以每分钟 90 米去追。'他列式 5 ÷ (90 − 60)，说几分钟追上。他错在哪里？（　）\nA. 应先把先走的 5 分钟转成距离差：60 × 5 = 300 米，再 300 ÷ (90 − 60) = 10 分钟；他把'先走时间'当成了'距离差'\nB. 没错，5 ÷ 30 就是追及时间\nC. 应该 90 × 5 ÷ 60\nD. 应该 (90 − 60) ÷ 5",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "先走后追",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "追及先求距离差：小红先走 5 分钟，距离差 = 60 × 5 = 300 米",
+                "速度差 = 90 − 60 = 30 米/分；追及时间 = 300 ÷ 30 = 10 分钟",
+                "小刚用 5 ÷ 30，把先走时间当距离差（'先走时间没有转成距离差'错因），选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'先走时间没有转成距离差'错因的诊断（追及题头号错因的直接探针）", "难度理由": "medium——要指出'时间 ≠ 距离差'并完成两步重算", "认知阶梯定位": "L2 诊断——'先走时间转距离差'的直接探针", "错因陷阱": "选 B（接受 5 ÷ 30——'先走时间没有转成距离差'）、选 D（把差当被除数）", "教学角色": "诊断题——距离差意识的一键探针"}
+        },
+    ],
+
+    # ===== M-BRIDGE-PERCENT-MODEL 百分数应用模型（建模计算型：4 verified + 11 unverifiable） =====
+    # 节点契约：essence="百分数应用题仍是比较量、标准量、变化量的关系"；
+    # seed=折扣/增长率/正确率/利润率；common_mistakes=标准量找错/增长量与现量混淆/百分率带单位；
+    # diagnostic_probes=折扣/增长率/正确率各1题；mastery=能写出百分率公式/能找单位1；
+    # prereq=M-PRE-PERCENT、M-PRE-QUANTITY-RELATION；unlock=M-G7-EQ-WORD。
+    # authoring 原则（照 M-PRE-PERCENT 概念向样板）：折扣/增长率/利润率/浓度等应用题 unverifiable
+    # （百分率无法进 sympy 表达式，题干不嵌'计算：'算式）；仅把百分率写成小数形态的纯数值环节
+    # verified（'计算：<表达式>（<情境>），写出答案。'答案机算真对）；
+    # L1 真识别（找单位 1/谁÷谁）；hard 真难（分数×百分数双单位 1、加价再打折盈亏、浓度同倍不变）；
+    # 错因逐一布点："折扣价=原价×折扣忘了"（B1-I0 正面/B2-I1 verified/B3-I2 陷阱）、
+    # "增长后单位1变"（B3-I2/B4-I1/B5-I2 诊断）、"百分数模型与分数模型混"（B3-I1）；
+    # "标准量找错"（B1-I1/B2-I0/B5-I0）、"增长量与现量混淆/百分率带单位"（B2-I2/B5-I1 诊断）；
+    # 迁移布点：利润率（B2-I0/B3-I2）、浓度（B5-I0，M-G7-EQ-WORD 销售/浓度题 unlock 预告）。
+    "M-BRIDGE-PERCENT-MODEL": [
+        {
+            "slot": "B1-I0",
+            "prompt": "一件外套原价 200 元，打八折出售。①'八折'表示现价是原价的百分之几？②现价是多少元？（先想：谁是比较量、谁是标准量）",
+            "expected_answer": "① 八折 = 原价的 80%（现价是比较量，原价 200 元是标准量/单位 1）；② 现价 = 原价 × 折扣 = 200 × 0.8 = 160（元）。检验：160 ÷ 200 = 80% ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "折扣",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "折扣含义：打八折 = 按原价的 80% 出售",
+                "找单位 1：原价 200 元是标准量，现价是比较量",
+                "现价 = 200 × 0.8 = 160 元；检验：160 ÷ 200 = 80% ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "折扣标准例题（现价 = 原价 × 折扣 + 找单位 1，essence'比较量、标准量、变化量的关系'的演示载体）", "难度理由": "medium 锚点——折扣模型 + 单位 1 定位是节点基准", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌单位 1 定位与检验）", "教学角色": "讲本质用——'原价 × 折扣'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "'一件商品原价 120 元，涨价 20% 后现价是 144 元。'这里的单位 1（标准量）是（　）\nA. 原价 120 元——涨价 20% 是'在原价的基础上涨'\nB. 现价 144 元\nC. 20%\nD. 涨的钱 24 元",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "增长率",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "'涨价 20%'是'比原价涨 20%'，被比较的是原价",
+                "单位 1 = 原价 120 元（标准量）",
+                "现价 144 元是比较量，选 A（B/C/D——'标准量找错'错因）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "识别增长率中的单位 1（'涨价 20% 的基准是原价'）", "难度理由": "easy——单位 1 识别，无计算", "认知阶梯定位": "L1 识别正宗实现——找单位 1 的第一道判断", "错因陷阱": "把现价/百分率/增长量当单位 1——'标准量找错'", "教学角色": "L1 识别脚手架——增长率单位 1 识别"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "小华口算 25 道题，做对了 20 道。求'正确率是百分之几'，正确的算式是（　）\nA. 20 ÷ 25（做对的题数 ÷ 总题数）\nB. 25 ÷ 20\nC. 20 ÷ 5\nD. 5 ÷ 25",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "正确率",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "正确率 = 做对题数 ÷ 总题数（比较量 ÷ 标准量）",
+                "做对 20 道是比较量，总题数 25 道是标准量",
+                "20 ÷ 25 = 0.8 = 80%，选 A（B 谁除以谁反、C 用错题数、D 错题率）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "正确率算式识别（'谁 ÷ 谁'方向，diagnostic probe'正确率 1 题'素材）", "难度理由": "easy——算式四选一", "认知阶梯定位": "L1 识别——百分率'比较量 ÷ 标准量'判断", "错因陷阱": "选 B（标准量 ÷ 比较量）、选 C/D（用错题数——'谁除以谁反'）", "教学角色": "L1 识别脚手架——正确率算式探针"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "一个书包进价 50 元，售价 65 元。①利润是多少元？②利润率是多少？（利润率 = 利润 ÷ 进价 × 100%）",
+            "expected_answer": "① 利润 = 售价 − 进价 = 65 − 50 = 15（元）；② 利润率 = 15 ÷ 50 = 0.3 = 30%。检验：50 × 30% = 15 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "利润率",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "利润 = 售价 − 进价 = 65 − 50 = 15 元",
+                "利润率 = 利润 ÷ 进价 = 15 ÷ 50 = 30%",
+                "检验：进价 × 利润率 = 50 × 30% = 15 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "利润率套用（利润率 = 利润 ÷ 进价，'利润率'seed 的标准形态）", "难度理由": "easy 套用——先差再除两步", "认知阶梯定位": "L2 套用——利润率标准应用", "错因陷阱": "用售价当分母（15 ÷ 65——'标准量找错'）、利润算错", "教学角色": "L2 套用脚手架——利润率标准形态"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "计算：120 × 0.85（一件衣服原价 120 元，打八五折出售，求现价），写出答案。",
+            "expected_answer": "102",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "折扣",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "打八五折 = 按原价的 85% 出售，85% = 0.85",
+                "现价 = 原价 × 折扣 = 120 × 0.85",
+                "120 × 0.85 = 102（元）"
+            ],
+            "error_tags": ["calculation_or_symbol", "modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "折扣价计算（现价 = 原价 × 折扣，'折扣价=原价×折扣忘了'错因的核心形态，sympy 真验算 verified）", "难度理由": "medium——折扣率化小数一步 + 乘法", "认知阶梯定位": "L2 套用——折扣标准应用", "错因陷阱": "把折扣当减法（120 − 85）、85% 化错小数——'折扣价=原价×折扣忘了'", "教学角色": "折扣标准变式——'原价 × 折扣'定点套用（verified）"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "某果园去年收苹果 5 吨，今年比去年增产 20%。①今年比去年多收多少吨？②今年共收多少吨？",
+            "expected_answer": "① 增长量 = 去年产量 × 20% = 5 × 0.2 = 1（吨）；② 今年产量 = 5 + 1 = 6（吨），或 5 × (1 + 20%) = 5 × 1.2 = 6（吨）。检验：6 − 5 = 1，1 ÷ 5 = 20% ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "增长率",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "增长量 = 单位 1 × 增长率 = 5 × 20% = 1 吨",
+                "今年 = 去年 + 增长量 = 5 + 1 = 6 吨（也可 5 × 1.2）",
+                "检验：1 ÷ 5 = 20% ✓"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "增长率变式（增长量与现量两步，'增长量与现量混淆'错因的正面战场）", "难度理由": "medium——先求增长量再求现量，'增长量'与'现量'要分清", "认知阶梯定位": "L3 变式——增长率模型标准形态", "错因陷阱": "把增长量当现量（答 1 吨——'增长量与现量混淆'）、5 + 0.2 乱加", "教学角色": "变式核心——增长量/现量辨析"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "计算：150 × 1.1（一件商品原价 150 元，涨价 10% 后，求现价），写出答案。",
+            "expected_answer": "165",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "增长率",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "涨价 10%：现价 = 原价 × (1 + 10%) = 原价 × 110%",
+                "110% = 1.1",
+                "150 × 1.1 = 165（元）"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "增长率现价计算（现价 = 原价 × (1 + 增长率)，'(1 + 增长率)'模型的定点应用，sympy 真验算 verified）", "难度理由": "medium——(1 + 10%) = 110% = 1.1 的转化是增长题核心一步", "认知阶梯定位": "L3 变式——从折扣到增长的模型转换", "错因陷阱": "只乘增长率（150 × 10% = 15，把增长量当现价——'增长量与现量混淆'）", "教学角色": "增长率变式——'(1 + 增长率)'定点应用（verified）"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "一本书 200 页，第一天看了全书的 25%，第二天看了剩下页数的 1/3。①第一天看了多少页？②第二天看了多少页？③两天一共看了全书的几分之几？（提示：第二天剩下的页数是单位 1）",
+            "expected_answer": "① 第一天 200 × 25% = 50 页，剩下 200 − 50 = 150 页；② 第二天 150 × 1/3 = 50 页；③ 一共 50 + 50 = 100 页，占全书 100 ÷ 200 = 1/2。检验：剩下 150 − 50 = 100 页，100 + 100 = 200 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "分数百分数混合",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "第一天：200 × 25% = 50 页（单位 1 是全书）",
+                "第二天：剩下 150 页的 1/3 = 50 页（单位 1 变成剩下的 150 页）",
+                "共 100 页 = 全书的 1/2；检验：100 + 100 = 200 ✓"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "百分数模型 × 分数模型迁移（'百分数模型与分数模型混'错因的正面战场：第二天的单位 1 是剩下的页数）", "难度理由": "hard——两个单位 1 不同（全书 vs 剩下），还要做分数与百分数的混合运算", "认知阶梯定位": "L4 迁移——M-PRE-FRACTION-MEANING 前置 × 百分数模型", "错因陷阱": "第二天按全书算 200 × 1/3（'标准量找错'）、25% + 1/3 直接相加（单位 1 不同）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——百分数×分数模型迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "一件商品进价 120 元，先按进价加价 25% 标价，再打八折出售。①标价是多少元？②售价是多少元？③老板赚了还是亏了？（比较售价和进价）",
+            "expected_answer": "① 标价 = 120 × (1 + 25%) = 120 × 1.25 = 150（元）；② 售价 = 150 × 0.8 = 120（元）；③ 售价 120 元 = 进价 120 元，不赚不亏。检验：加价 25% 再打八折：1.25 × 0.8 = 1，正好回到进价 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "折扣",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "标价 = 进价 × (1 + 25%) = 120 × 1.25 = 150 元",
+                "售价 = 标价 × 0.8 = 150 × 0.8 = 120 元",
+                "120 = 120：不赚不亏；检验：1.25 × 0.8 = 1 ✓"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "利润率 × 折扣迁移（'增长后单位1变'错因的正面战场：加价后打折，两次单位 1 不同却恰好抵消）", "难度理由": "hard——两步单位 1 变化 + 判断盈亏，'加价 25% 再打八折回原价'是反直觉结论", "认知阶梯定位": "L4 迁移——利润率/折扣模型复合（M-G7-EQ-WORD 销售题 unlock 预告）", "错因陷阱": "标价后打八折按进价打（120 × 0.8 当售价——'折扣价=原价×折扣忘了'）、判断盈亏只看标价", "教学角色": "判定层 transfer 证据来源（C3 双角色）——折扣×利润率迁移"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "计算：40 × 0.2（求 40 的 20% 是多少），写出答案。",
+            "expected_answer": "8",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "求一个数的百分之几",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "求一个数的百分之几：一个数 × 百分率",
+                "20% = 0.2",
+                "40 × 0.2 = 8"
+            ],
+            "error_tags": ["calculation_or_symbol", "modeling_or_reading"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "求一个数的百分之几检测（一个数 × 百分率，sympy 真验算 verified）", "难度理由": "easy 检测——单步乘法", "认知阶梯定位": "L2 检测——'一个数 × 百分之几'快速检测", "错因陷阱": "把 20% 当 2（互化错）、用除法（40 ÷ 0.2）", "教学角色": "掌握档快速检测——'求一个数的百分之几'探针（verified）"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "计算：200 × 0.8 × 0.85（一件外套原价 200 元，先打八折，再在八折的基础上打八五折，求最后售价），写出答案。",
+            "expected_answer": "136",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "折扣",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "八折 = 0.8：200 × 0.8 = 160",
+                "再打八五折 = 0.85：160 × 0.85 = 136",
+                "136 ÷ 200 = 68%——两次折扣合起来相当于原价的 68%（0.8 × 0.85 = 0.68）"
+            ],
+            "error_tags": ["calculation_or_symbol", "modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "连续折扣检测（第二个折扣的单位 1 是折后价，'增长后单位1变'的数值形态，sympy 真验算 verified）", "难度理由": "hard——连续折扣第二个折扣基于折后价，两步口算易按原价重复打折", "认知阶梯定位": "L3 检测 hard——连续折扣综合检测", "错因陷阱": "两次都按原价（200 × 0.8 + 200 × 0.85）、把折扣相加（0.8 + 0.85）", "教学角色": "判定层 hard/verified 证据来源——连续折扣取证"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "全班 40 人，今天出勤 38 人。①出勤率是多少？（出勤率 = 出勤人数 ÷ 总人数 × 100%）②请假率是多少？出勤率和请假率加起来是多少？",
+            "expected_answer": "① 出勤率 = 38 ÷ 40 = 0.95 = 95%；② 请假率 = 2 ÷ 40 = 5%；95% + 5% = 100%。检验：38 + 2 = 40，95% + 5% = 100% ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "出勤率",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "出勤率 = 出勤人数 ÷ 总人数 = 38 ÷ 40 = 95%",
+                "请假率 = 2 ÷ 40 = 5%",
+                "出勤率 + 请假率 = 100%（全部人数只分这两类）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "出勤率复测（百分率公式换情境复测，mastery'能写出百分率公式'取证）", "难度理由": "medium 复测——两个百分率互补 = 100% 的推理", "认知阶梯定位": "L3 复测——百分率公式防退化", "错因陷阱": "用 40 ÷ 38（'谁除以谁反'）、出勤率 + 请假率算成 90%", "教学角色": "复测 medium——百分率公式复测"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "把 20 克盐溶入 180 克水中，盐水的浓度是多少？（浓度 = 溶质 ÷ 溶液 × 100%，溶液 = 盐 + 水）如果盐和水都加倍（40 克盐、360 克水），浓度会变吗？",
+            "expected_answer": "① 溶液 = 20 + 180 = 200（克）；浓度 = 20 ÷ 200 = 0.1 = 10%；② 加倍后：溶液 = 40 + 360 = 400 克，浓度 = 40 ÷ 400 = 10%，不变。检验：20:180 = 40:360（盐和水的比不变，浓度就不变）✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "浓度",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "溶液 = 盐 + 水 = 20 + 180 = 200 克",
+                "浓度 = 盐 ÷ 溶液 = 20 ÷ 200 = 10%",
+                "加倍后 40 ÷ 400 = 10%——盐和水按同样倍数加倍，浓度不变（比不变）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "浓度基础复测（浓度 = 溶质 ÷ 溶液 + 同倍加倍不变性，'标准量找错'错因的浓度形态）", "难度理由": "hard——新模型（溶液 = 盐 + 水）+ 同倍加倍浓度不变的推理", "认知阶梯定位": "L4 复测——百分率模型 × 浓度情境（M-G7-EQ-WORD 浓度题前置）", "错因陷阱": "用盐 ÷ 水（20 ÷ 180——'标准量找错'）、加倍后以为浓度也加倍", "教学角色": "复测 hard 档，判定层 hard 证据来源——浓度模型"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小明说：'一件商品原价 200 元，涨价 10% 后是 200 + 10 = 210 元。'他错在哪里？（　）\nA. 涨价 10% 是涨原价的 10%：200 × 10% = 20 元，现价应是 200 + 20 = 220 元；他把'10%'当成了'10 元'（百分率不能直接当具体量）\nB. 没错，210 元是对的\nC. 应该 200 × 10 = 2000\nD. 应该 200 − 10 = 190",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "增长率",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "涨价 10% = 涨原价的 10%：200 × 10% = 20 元",
+                "现价 = 200 + 20 = 220 元",
+                "小明把 10% 当成 10 元（'百分率带单位'/增长量算错错因），选 A"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'百分率带单位（把百分率当具体量）'错因的诊断（增长量计算的一键探针）", "难度理由": "easy——L1 判断", "认知阶梯定位": "L1 诊断——'百分率 ≠ 具体量'的一键探针", "错因陷阱": "选 B（接受 10% = 10 元——'百分率带单位'）、选 C（10% 当 10 倍）", "教学角色": "诊断题——百分率含义的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "一件商品原价 100 元，先涨价 20%，再降价 20%。小华说：'涨降正好抵消，最后回到原价 100 元。'他错在哪里？最后的价格是多少？（写出过程）",
+            "expected_answer": "错在第二次降价的单位 1 变了：涨价后 100 × (1 + 20%) = 120 元；降价 20% 是在 120 元的基础上降：120 × (1 − 20%) = 120 × 0.8 = 96 元。96 ≠ 100，最后是 96 元，比原价便宜 4 元。检验：100 → 120 → 96，1.2 × 0.8 = 0.96 ≠ 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "增长/降低",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "涨价 20%：100 × 1.2 = 120（单位 1 是原价 100）",
+                "降价 20%：120 × 0.8 = 96（单位 1 变成涨价后的 120）",
+                "96 < 100，便宜 4 元——'增长后单位1变'错因，不能直接抵消"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "'增长后单位1变'错因的诊断（先涨后降不能抵消，第二个百分率的单位 1 变了）", "难度理由": "medium——指出'抵消'错误并逐步重算，100 元基准让数字好算但结论反直觉", "认知阶梯定位": "L2 诊断——'增长后单位1变'的直接探针", "错因陷阱": "接受'回到原价'（把两次单位 1 都当原价——'增长后单位1变'）、第二次用 100 × 0.8", "教学角色": "诊断题——单位 1 变化的一键探针"}
+        },
+    ],
+
 
 }
 
