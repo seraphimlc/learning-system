@@ -411,7 +411,12 @@ def _pair_raw_to_items(
 def _enrich_metadata(
     item: dict[str, Any], node: dict[str, Any], graph: dict[str, Any] | None
 ) -> dict[str, Any]:
-    """§5 元数据派生: error_tags / rollback / secondary / estimated_minutes."""
+    """§5 元数据派生: error_tags / rollback / secondary / estimated_minutes.
+
+    v1.2: 选择题 (answer_format=choice 或 prompt 含 A./B./C./D. 选项行) 自动
+    派生 `interaction_schema` (single_choice + choices)——孩子端直接单选,
+    不再用文本框输入选项字母。选项 label 从 prompt 的 `A. xxx` 行解析。
+    """
     if not item.get("target_error_tags"):
         item["target_error_tags"] = derive_error_tags(item, node)
     if not item.get("rollback_candidates"):
@@ -426,7 +431,56 @@ def _enrich_metadata(
             str(item.get("purpose_role", "core")),
             str(item.get("kind", "")),
         )
+    _ensure_choice_interaction_schema(item)
     return item
+
+
+def _ensure_choice_interaction_schema(item: dict[str, Any]) -> None:
+    """选择题派生 single_choice interaction_schema（幂等：已有则不覆盖）."""
+    if item.get("interaction_schema") and isinstance(item.get("interaction_schema"), dict):
+        return
+    is_choice = str(item.get("answer_format") or "").strip() == "choice"
+    choices = _parse_choice_options(str(item.get("prompt") or ""))
+    if not is_choice and len(choices) < 2:
+        return
+    if len(choices) < 2:
+        return
+    item["interaction_schema"] = {
+        "schema_version": "2026-07-17.question-interaction.v2",
+        "type": "single_choice",
+        "response_capture": "existing_control",
+        "title": "我的选择",
+        "allow_explanation": True,
+        "requires_explanation": False,
+        "explanation_label": "我的答案",
+        "fields": [],
+        "choices": [
+            {"id": choice_id, "label": label}
+            for choice_id, label in choices
+        ],
+        "formula_label": None,
+        "placeholder": "",
+    }
+
+
+def _parse_choice_options(prompt: str) -> list[tuple[str, str]]:
+    """从 prompt 行解析 `A. 选项内容` / `A．选项内容` / `A、选项` 形式的选项.
+
+    返回 [(选项字母, 选项文本)]，仅保留至少 2 个有效选项的连续选项块。
+    """
+    parsed: list[tuple[str, str]] = []
+    for line in prompt.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = re.match(r"^([A-Z])\s*[.．、:：)）]\s*(.+)$", stripped)
+        if not match:
+            continue
+        choice_id = match.group(1)
+        label = match.group(2).strip()
+        if label:
+            parsed.append((choice_id, label))
+    return parsed
 
 
 def _ensure_design_rationale(
