@@ -556,6 +556,24 @@ def call_responses(
     )
 
 
+def _apply_openai_extra_headers(headers: dict[str, str]) -> None:
+    """Merge opt-in extra HTTP headers (e.g. gateway group routing) into a
+    model-call header dict. Read from OPENAI_EXTRA_HEADERS as JSON; a malformed
+    value is ignored so the runtime never fails closed on config noise."""
+    raw = os.environ.get("OPENAI_EXTRA_HEADERS", "").strip()
+    if not raw:
+        return
+    try:
+        extra = json.loads(raw)
+    except (TypeError, ValueError):
+        return
+    if not isinstance(extra, dict):
+        return
+    for key, value in extra.items():
+        if isinstance(key, str) and key and isinstance(value, str):
+            headers[key] = value
+
+
 def call_chat_completions(
     route: ModelRoute,
     payload: dict[str, Any],
@@ -611,6 +629,7 @@ def _call_http_json_with_wall_deadline(
             "Authorization": f"Bearer {route.api_key}",
             "Content-Type": "application/json",
         }
+        _apply_openai_extra_headers(headers)
         if provider_idempotency_key:
             headers["Idempotency-Key"] = _sha256_digest_text(
                 provider_idempotency_key,
