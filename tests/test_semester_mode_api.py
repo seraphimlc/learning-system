@@ -42,7 +42,13 @@ from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 from unittest import mock
 
-from learning_system import db, internal_agents, knowledge_map, server
+from learning_system import (
+    db,
+    goal_choice_service,
+    internal_agents,
+    knowledge_map,
+    server,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -63,6 +69,13 @@ def _iso_week_bounds(iso_week: str) -> tuple[datetime, datetime]:
     monday = monday_w1 + timedelta(weeks=week - 1)
     start = datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc)
     return start, start + timedelta(weeks=1)
+
+
+def _shift_iso_week(iso_week: str, delta: int) -> str:
+    start, _ = _iso_week_bounds(iso_week)
+    shifted = start + timedelta(weeks=delta)
+    iso_year, iso_week_num, _ = shifted.isocalendar()
+    return f"{iso_year:04d}-W{iso_week_num:02d}"
 
 
 def _seed_learner_status(conn, node_id: str, status_code: str, updated_at: str) -> None:
@@ -423,6 +436,233 @@ class SemesterModeAPITests(unittest.TestCase):
         self.assertIsInstance(body["weekly_letters"], list)
         self.assertEqual("template", body["narrative"]["source"])
         self.assertTrue(body["narrative"]["text"])
+
+    # ------------------------------------------------------------------
+    # 孩子面: 每周自选目标 (M5 动机层②, 有护栏的自主)
+    # ------------------------------------------------------------------
+
+    def test_goal_candidates_child_projection_is_name_handle_only(self):
+        """GET /api/goal-candidates: 只暴露 name/reason_label/node_handle,
+        绝不暴露 node_id/stage/priority/candidate_kind 等内部字段."""
+        response = self._request_json("GET", "/api/goal-candidates")
+        self.assertEqual(200, response["status"], response["raw"])
+        body = response["body"]
+        self.assertEqual("goal-candidates-child.v1", body["schema_version"])
+        self.assertEqual(_current_iso_week(), body["iso_week"])
+        self.assertTrue(body["candidates"])
+        for cand in body["candidates"]:
+            self.assertEqual({"name", "reason_label", "node_handle"}, set(cand.keys()))
+        # 默认种子无状态 → 无薄弱证据, 只有主线候选 (推进序第一个未掌握节点).
+        mainline = body["candidates"][0]
+        self.assertEqual("正数和负数", mainline["name"])
+        self.assertEqual("接下来该学这块", mainline["reason_label"])
+        # opaque handle 与本地 mint 一致 (孩子可回传, 服务端反解).
+        self.assertEqual(
+            self._node_handle(self.db_path, "M-G7-POS-NEG"),
+            mainline["node_handle"],
+        )
+        self._assert_child_safe(body)
+        serialized = json.dumps(body, ensure_ascii=False)
+        for internal in (
+            "node_id",
+            "stage",
+            "priority",
+            "candidate_kind",
+            "M-G7-",
+            "sequence_band",
+            "unlocks",
+            "status_code",
+        ):
+            self.assertNotIn(internal, serialized)
+
+    def test_goal_candidates_include_weakness_when_status_seeded(self):
+        """有 C/D 状态 → 薄弱候选排在首位, 文案是孩子可读的 '这块有点薄弱'."""
+        with closing(db.connect(self.db_path)) as conn:
+            with conn:
+                _seed_learner_status(conn, "M-BRIDGE-CLOCK-ANGLE", "C", db.now_iso())
+        response = self._request_json("GET", "/api/goal-candidates")
+        self.assertEqual(200, response["status"], response["raw"])
+        body = response["body"]
+        self.assertGreaterEqual(len(body["candidates"]), 2)
+        weakness = body["candidates"][0]
+        self.assertEqual("钟表角问题", weakness["name"])
+        self.assertEqual("这块有点薄弱", weakness["reason_label"])
+        self.assertEqual(
+            self._node_handle(self.db_path, "M-BRIDGE-CLOCK-ANGLE"),
+            weakness["node_handle"],
+        )
+        self._assert_child_safe(body)
+
+    def test_goal_choice_records_child_selection_child_safe(self):
+        """POST /api/goal-choice: 反解 handle → 落库 (当周, chosen_by=child),
+        响应 child-safe (名称列表 + 孩子措辞, 无内部 id/状态)."""
+        with closing(db.connect(self.db_path)) as conn:
+            with conn:
+                _seed_learner_status(conn, "M-BRIDGE-CLOCK-ANGLE", "C", db.now_iso())
+        candidates = self._request_json("GET", "/api/goal-candidates")["body"]["candidates"]
+        handles = [c["node_handle"] for c in candidates[:2]]
+        names = [c["name"] for c in candidates[:2]]
+
+        response = self._request_json(
+            "POST",
+            "/api/goal-choice",
+            {
+                "candidate_handles": handles,
+                "client_idempotency_key": "goal-choice-1",
+            },
+        )
+        self.assertEqual(200, response["status"], response["raw"])
+        body = response["body"]
+        self.assertEqual("goal-choice-child.v1", body["schema_version"])
+        self.assertEqual("recorded", body["status"])
+        self.assertIn("已选好下周目标", body["message"])
+        self.assertEqual(names, body["node_names"])
+        self.assertEqual("goal-choice-1", body["client_idempotency_key"])
+        self._assert_child_safe(body)
+        serialized = json.dumps(body, ensure_ascii=False)
+        for internal in (
+            "node_id",
+            "GC-",
+            "chosen_by",
+            "stage",
+            "priority",
+            "iso_week",
+            "created_at",
+            "updated_at",
+        ):
+            self.assertNotIn(internal, serialized)
+
+        with closing(db.connect(self.db_path)) as conn:
+            row = conn.execute("select * from weekly_goal_choices").fetchone()
+            self.assertIsNotNone(row)
+            record = dict(row)
+            self.assertEqual(_current_iso_week(), record["iso_week"])
+            self.assertEqual("child", record["chosen_by"])
+            node_ids = db.json_load(record["node_ids_json"], [])
+            self.assertEqual(len(handles), len(node_ids))
+            for node_id in node_ids:
+                self.assertIn(node_id, {"M-BRIDGE-CLOCK-ANGLE", "M-G7-POS-NEG"})
+
+    def test_goal_choice_rejects_unknown_handle_without_writing(self):
+        response = self._request_json(
+            "POST",
+            "/api/goal-choice",
+            {
+                "candidate_handles": ["kn51n." + "0" * 64],
+                "client_idempotency_key": "goal-choice-bad-handle",
+            },
+        )
+        self.assertEqual(409, response["status"], response["raw"])
+        self._assert_child_safe(response["body"])
+        with closing(db.connect(self.db_path)) as conn:
+            self.assertEqual(
+                0, conn.execute("select count(*) from weekly_goal_choices").fetchone()[0]
+            )
+
+    def test_goal_choice_rejects_blank_handle_without_writing(self):
+        response = self._request_json(
+            "POST",
+            "/api/goal-choice",
+            {
+                "candidate_handles": [""],
+                "client_idempotency_key": "goal-choice-blank-handle",
+            },
+        )
+        self.assertEqual(409, response["status"], response["raw"])
+        self._assert_child_safe(response["body"])
+        with closing(db.connect(self.db_path)) as conn:
+            self.assertEqual(
+                0, conn.execute("select count(*) from weekly_goal_choices").fetchone()[0]
+            )
+
+    def test_goal_choice_rejects_invalid_selection_without_writing(self):
+        for payload in (
+            {"candidate_handles": [], "client_idempotency_key": "k-empty"},
+            {"candidate_handles": ["h1", "h2", "h3"], "client_idempotency_key": "k-three"},
+            {"candidate_handles": "not-a-list", "client_idempotency_key": "k-notlist"},
+            {"candidate_handles": ["same", "same"], "client_idempotency_key": "k-dup"},
+        ):
+            response = self._request_json("POST", "/api/goal-choice", payload)
+            self.assertEqual(400, response["status"], response["raw"])
+            self._assert_child_safe(response["body"])
+        with closing(db.connect(self.db_path)) as conn:
+            self.assertEqual(
+                0, conn.execute("select count(*) from weekly_goal_choices").fetchone()[0]
+            )
+
+    # ------------------------------------------------------------------
+    # 家长面: 目标选择查看 (当前选择 + 历史)
+    # ------------------------------------------------------------------
+
+    def test_operator_goal_choice_requires_bearer_token(self):
+        response = self._request_json("GET", "/api/operator/goal-choice")
+        self.assertEqual(403, response["status"], response["raw"])
+
+    def test_operator_goal_choice_returns_current_and_history(self):
+        with closing(db.connect(self.db_path)) as conn:
+            with conn:
+                _seed_learner_status(conn, "M-BRIDGE-CLOCK-ANGLE", "C", db.now_iso())
+        candidates = self._request_json("GET", "/api/goal-candidates")["body"]["candidates"]
+        handles = [c["node_handle"] for c in candidates[:2]]
+        self._request_json(
+            "POST",
+            "/api/goal-choice",
+            {"candidate_handles": handles, "client_idempotency_key": "op-1"},
+        )
+
+        response = self._request_json(
+            "GET", "/api/operator/goal-choice", token=server.TEST_OPERATOR_TOKEN
+        )
+        self.assertEqual(200, response["status"], response["raw"])
+        body = response["body"]
+        self.assertEqual("operator-goal-choice.v1", body["schema_version"])
+        current = body["current"]
+        self.assertIsNotNone(current)
+        self.assertEqual(_current_iso_week(), current["iso_week"])
+        self.assertEqual("child", current["chosen_by"])
+        self.assertIn("GC-", current["id"])
+        self.assertEqual(2, len(current["node_ids"]))
+        self.assertEqual(2, len(current["nodes"]))
+        for node in current["nodes"]:
+            self.assertIn("node_id", node)  # 家长面是信任方, 可暴露内部标识
+            self.assertIn("name", node)
+        self.assertTrue(body["history"])
+        self.assertEqual(current["iso_week"], body["history"][0]["iso_week"])
+
+    def test_operator_goal_choice_other_week_record_not_current(self):
+        """别周: 过去周的选择不串到当前周 — 当前周 current=null, 历史可见;
+        指定 iso_week 可查别周记录."""
+        past_week = _shift_iso_week(_current_iso_week(), -2)
+        with closing(db.connect(self.db_path)) as conn:
+            goal_choice_service.record_goal_choice(
+                conn, iso_week=past_week, node_ids=["M-G7-POS-NEG"],
+                chosen_by="parent", commit=True,
+            )
+
+        response = self._request_json(
+            "GET", "/api/operator/goal-choice", token=server.TEST_OPERATOR_TOKEN
+        )
+        self.assertEqual(200, response["status"], response["raw"])
+        body = response["body"]
+        self.assertIsNone(body["current"])
+        weeks = [r["iso_week"] for r in body["history"]]
+        self.assertIn(past_week, weeks)
+
+        other = self._request_json(
+            "GET",
+            f"/api/operator/goal-choice?iso_week={past_week}",
+            token=server.TEST_OPERATOR_TOKEN,
+        )
+        self.assertEqual(200, other["status"], other["raw"])
+        self.assertEqual(past_week, other["body"]["current"]["iso_week"])
+
+    def test_operator_goal_choice_rejects_malformed_iso_week(self):
+        response = self._request_json(
+            "GET",
+            "/api/operator/goal-choice?iso_week=not-a-week",
+            token=server.TEST_OPERATOR_TOKEN,
+        )
+        self.assertEqual(400, response["status"], response["raw"])
 
     # ------------------------------------------------------------------
     # helpers

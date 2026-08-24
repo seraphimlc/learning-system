@@ -15,6 +15,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
+from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,7 @@ from . import (
     daily_runtime,
     db,
     evolution,
+    goal_choice_service,
     internal_agents,
     job_queue,
     knowledge_cards,
@@ -113,6 +115,14 @@ CHILD_DTO_FORBIDDEN_KEYS = {
 # (对齐 internal_agents.FORBIDDEN_CHILD_PATTERNS 语义).
 CHILD_LIGHTUP_SCHEMA_VERSION = "lightup-child.v1"
 CHILD_MANUAL_ERROR_SCHEMA_VERSION = "manual-error-child.v1"
+CHILD_GOAL_CANDIDATES_SCHEMA_VERSION = "goal-candidates-child.v1"
+CHILD_GOAL_CHOICE_SCHEMA_VERSION = "goal-choice-child.v1"
+OPERATOR_GOAL_CHOICE_SCHEMA_VERSION = "operator-goal-choice.v1"
+
+# 每周自选目标 (动机层②, 设计稿 §6.3.2): 候选 reason_label 是服务层已策展的
+# 孩子可读文案 (这块有点薄弱 / 学过但还不太牢 / 接下来该学这块), 直接透出;
+# node_id 只用于 mint opaque handle, 绝不出现在孩子面.
+GOAL_CHOICE_MESSAGE = "已选好下周目标。"
 
 # 孩子最小表单的错因词表 (设计稿 §3.1: 下拉词表对齐 CANONICAL_ERROR_TAGS):
 # key 是孩子可见标识; 原始 tag 属于 FORBIDDEN_CHILD_PATTERNS, 只留在服务层.
@@ -896,6 +906,28 @@ def _child_bootstrap(conn: sqlite3.Connection) -> dict:
     }
 
 
+def _node_handle_context(conn: sqlite3.Connection) -> tuple[bytes, str]:
+    """共享 handle 上下文: secret bytes + graph lineage (mint/resolve 同源)."""
+    secret_row = conn.execute(
+        "select value from system_meta where key = ?",
+        (knowledge_map.HANDLE_SECRET_KEY,),
+    ).fetchone()
+    secret = knowledge_map._secret_bytes(secret_row["value"] if secret_row else "")
+    ref_row = conn.execute(
+        "select value from system_meta where key = 'graph_ref'"
+    ).fetchone()
+    graph_ref = db.json_load(ref_row["value"], {}) if ref_row else {}
+    return secret, str(graph_ref.get("lineage") or "")
+
+
+def _node_handle_for(conn: sqlite3.Connection, node_id: str) -> str:
+    """Mint an opaque child node handle (mirrors `_resolve_node_handle` policy)."""
+    secret, lineage = _node_handle_context(conn)
+    return knowledge_map._opaque_handle(
+        secret, domain="node", graph_lineage=lineage, canonical_id=node_id
+    )
+
+
 def _resolve_node_handle(conn: sqlite3.Connection, handle: str) -> str:
     """Resolve an opaque child node handle to a graph node id.
 
@@ -908,19 +940,8 @@ def _resolve_node_handle(conn: sqlite3.Connection, handle: str) -> str:
     """
     if not handle:
         return ""
-    secret_row = conn.execute(
-        "select value from system_meta where key = ?",
-        (knowledge_map.HANDLE_SECRET_KEY,),
-    ).fetchone()
-    secret = knowledge_map._secret_bytes(secret_row["value"] if secret_row else "")
-    if len(secret) < 16:
-        return ""
-    ref_row = conn.execute(
-        "select value from system_meta where key = 'graph_ref'"
-    ).fetchone()
-    graph_ref = db.json_load(ref_row["value"], {}) if ref_row else {}
-    lineage = str(graph_ref.get("lineage") or "")
-    if not lineage:
+    secret, lineage = _node_handle_context(conn)
+    if len(secret) < 16 or not lineage:
         return ""
     for row in conn.execute("select id from graph_nodes"):
         candidate = knowledge_map._opaque_handle(
@@ -1001,6 +1022,50 @@ def _child_lightup_projection(snapshot: dict[str, Any]) -> dict[str, Any]:
             }
             for item in milestones
         ],
+    }
+
+
+def _current_iso_week() -> str:
+    """当前 UTC ISO 周键 (YYYY-Www), 与 goal_choice_service 默认口径一致."""
+    now = datetime.now(timezone.utc)
+    iso_year, iso_week, _ = now.isocalendar()
+    return f"{iso_year:04d}-W{iso_week:02d}"
+
+
+def _child_goal_candidates_projection(
+    *,
+    iso_week: str,
+    candidates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """每周自选目标候选的孩子面投影: 只暴露 名称 + 孩子可读理由 + opaque
+    handle (回传用), 绝不暴露 node_id/stage/priority/candidate_kind 等内部字段."""
+    return {
+        "schema_version": CHILD_GOAL_CANDIDATES_SCHEMA_VERSION,
+        "iso_week": iso_week,
+        "candidates": [
+            {
+                "name": str(cand.get("name") or ""),
+                "reason_label": str(cand.get("reason_label") or ""),
+                "node_handle": str(cand.get("node_handle") or ""),
+            }
+            for cand in candidates
+        ],
+    }
+
+
+def _child_goal_choice_projection(
+    *,
+    node_names: list[str],
+    message: str,
+    client_idempotency_key: str,
+) -> dict[str, Any]:
+    """孩子面目标选择响应: 名称列表 + 孩子可读确认文案, 不回内部 id/周键/状态."""
+    return {
+        "schema_version": CHILD_GOAL_CHOICE_SCHEMA_VERSION,
+        "status": "recorded",
+        "message": message,
+        "node_names": [str(name or "") for name in node_names],
+        "client_idempotency_key": client_idempotency_key,
     }
 
 
@@ -1157,6 +1222,44 @@ class LearningHandler(BaseHTTPRequestHandler):
             with closing(self._conn()) as conn:
                 snapshot = lightup_service.lightup_snapshot(conn)
                 self._send_json(_child_lightup_projection(snapshot))
+            return
+        if parsed.path == "/api/goal-candidates":
+            with closing(self._conn()) as conn:
+                week = _current_iso_week()
+                candidates = goal_choice_service.goal_candidates(
+                    conn, iso_week=week
+                )
+                self._send_json(
+                    _child_goal_candidates_projection(
+                        iso_week=week,
+                        candidates=[
+                            {
+                                "name": cand["name"],
+                                "reason_label": cand["reason_label"],
+                                "node_handle": _node_handle_for(conn, cand["node_id"]),
+                            }
+                            for cand in candidates
+                        ],
+                    )
+                )
+            return
+        if parsed.path == "/api/operator/goal-choice":
+            query = parse_qs(parsed.query)
+            week_param = str((query.get("iso_week") or [""])[0] or "")
+            with closing(self._conn()) as conn:
+                try:
+                    current = goal_choice_service.current_goal_choice(
+                        conn, iso_week=week_param or None
+                    )
+                    history = goal_choice_service.goal_choice_history(conn)
+                except ValueError as exc:
+                    self._send_error(400, str(exc))
+                    return
+                self._send_json({
+                    "schema_version": OPERATOR_GOAL_CHOICE_SCHEMA_VERSION,
+                    "current": current,
+                    "history": history,
+                })
             return
         if parsed.path == "/api/operator/biweekly-brief":
             query = parse_qs(parsed.query)
@@ -1811,6 +1914,70 @@ class LearningHandler(BaseHTTPRequestHandler):
                         node_name=node_name,
                         cause_label=CHILD_ERROR_TAG_OPTIONS[tag_key],
                         message="已经记下来了。接下来会安排一两道类似的题复习一下。",
+                        client_idempotency_key=idempotency_key,
+                    )
+                )
+                return
+            if parsed.path == "/api/goal-choice":
+                payload = self._read_json()
+                handles = payload.get("candidate_handles")
+                idempotency_key = str(payload.get("client_idempotency_key") or "")
+                if not isinstance(handles, list) or not (1 <= len(handles) <= 2):
+                    self._send_json(
+                        {
+                            "status": "invalid_choice",
+                            "message": "请选择 1 到 2 个目标。",
+                        },
+                        status=400,
+                    )
+                    return
+                if len(set(handles)) != len(handles):
+                    self._send_json(
+                        {
+                            "status": "invalid_choice",
+                            "message": "请选择不同的目标。",
+                        },
+                        status=400,
+                    )
+                    return
+                with closing(self._conn()) as conn:
+                    node_ids: list[str] = []
+                    for handle in handles:
+                        node_id = _resolve_node_handle(conn, str(handle or ""))
+                        if not node_id:
+                            # 未知/过期 handle → 409 (孩子面: 刷新候选, 不暴露内部原因).
+                            self._send_json(
+                                {
+                                    "status": "unknown_node",
+                                    "message": "目标好像变了，请刷新后再选一次。",
+                                },
+                                status=409,
+                            )
+                            return
+                        node_ids.append(node_id)
+                    try:
+                        goal_choice_service.record_goal_choice(
+                            conn,
+                            iso_week=_current_iso_week(),
+                            node_ids=node_ids,
+                            chosen_by="child",
+                            commit=True,
+                        )
+                    except ValueError:
+                        # 防御: 服务层原始错误可能含内部措辞, 孩子面一律降级为通用提示.
+                        self._send_json(
+                            {
+                                "status": "record_failed",
+                                "message": "这次没有选成功，请刷新后再试一次。",
+                            },
+                            status=409,
+                        )
+                        return
+                    node_names = [_node_display_name(conn, nid) for nid in node_ids]
+                self._send_json(
+                    _child_goal_choice_projection(
+                        node_names=node_names,
+                        message=GOAL_CHOICE_MESSAGE,
                         client_idempotency_key=idempotency_key,
                     )
                 )
