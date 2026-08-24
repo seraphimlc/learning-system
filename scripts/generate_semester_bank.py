@@ -5405,6 +5405,1180 @@ NODE_QUESTIONS: dict[str, list[dict[str, Any]]] = {
           }
         },
     ],
+
+    # ===== M-G7-EQUATION-CONCEPT 方程与一元一次方程概念（概念向：13 unverifiable + 2 verified） =====
+    "M-G7-EQUATION-CONCEPT": [
+        {
+            "slot": "B1-I0",
+            "prompt": "判断：x + 3 = 7 是不是方程？请说出你的根据。（提示：从'含未知数'和'等式'两个条件想）",
+            "expected_answer": "是。它含有未知数 x，又用等号连接两边（是等式），两个条件都满足，所以是方程。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "判断方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "方程的两个条件：①含未知数；②是等式（用等号连接两边）",
+                "x + 3 = 7 含有未知数 x ✓",
+                "x + 3 = 7 用等号连接两边，是等式 ✓",
+                "两个条件都满足 → 是方程"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "用'含未知数'和'等式'两条件判断方程（'判断方程'）",
+                "难度理由": "medium 锚点——两条件判定示范（essence'方程是含未知数的等式'取证）",
+                "认知阶梯定位": "标准例题（L2 套用基准线）",
+                "错因陷阱": "无（锚点题不埋陷阱；答案按两条件逐条核对，示范'缺一不可'）",
+                "教学角色": "讲本质用——'方程 = 含未知数 + 等式'双条件判定的演示载体"
+            }
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "下列式子中，是方程的是（　）\nA. 3x + 2\nB. 5 > 3\nC. x + 1 = 4\nD. 2 + 3",
+            "expected_answer": "C",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "判断方程",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "方程要同时满足：含未知数 + 是等式",
+                "A 含未知数但没有等号，是代数式，不是等式 ✗",
+                "B 是比大小的不等式 ✗",
+                "D 是算式，没有未知数 ✗",
+                "C 含未知数 x 且用等号连接，两个条件都满足，选 C"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "在混合式子中识别方程（'判断方程'，节点 #1 错因'把代数式当方程'）",
+                "难度理由": "easy——四选一识别，选项覆盖代数式/不等式/算式三种陷阱",
+                "认知阶梯定位": "L1 识别正宗实现",
+                "错因陷阱": "选 A（把代数式当方程——节点 #1 错因）、选 B（不等式当等式）、选 D（无未知数）",
+                "教学角色": "L1 识别脚手架——方程两条件的快速探针"
+            }
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "小刚说：'2x + 1 是方程，因为它含有未知数 x。' 他的说法对吗？（　）\nA. 对，含未知数就是方程\nB. 不对，2x + 1 没有等号，只是代数式，不是方程\nC. 对，含字母的式子都是方程\nD. 不对，方程里不能有数字",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "判断方程",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "方程的两个条件缺一不可：含未知数 + 是等式",
+                "2x + 1 含有未知数 x，但没有等号，不是等式",
+                "没有等号的含字母式子叫代数式，不是方程",
+                "选 B"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "辨析'含未知数 ≠ 方程'（'判断方程'，节点 #1 错因'把代数式当方程'的直接形态）",
+                "难度理由": "easy——单条件纠错判断",
+                "认知阶梯定位": "L1 识别",
+                "错因陷阱": "选 A/C（只看'含未知数'不看等号——'把代数式当方程'）",
+                "教学角色": "L1 识别——'条件缺一不可'的纠错脚手架"
+            }
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "用方程表示下面的等量关系：x 的 3 倍与 5 的和等于 20。",
+            "expected_answer": "3x + 5 = 20",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "根据等量关系列方程",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "'x 的 3 倍' → 3x",
+                "'与 5 的和' → 3x + 5",
+                "'等于 20' → 3x + 5 = 20"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "把文字等量关系写成方程（'根据等量关系列方程'，小学简易方程前置的七上化）",
+                "难度理由": "easy 套用——单句关系直译",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "写 3 + x + 5 = 20（'3 倍'翻错）、漏等号（写成代数式）",
+                "教学角色": "L2 套用脚手架——'等号 = 等于'的建立示范"
+            }
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "判断：x² + 2 = 6 是一元一次方程吗？请说出理由。",
+            "expected_answer": "不是。它只有一个未知数 x，也是等式，但 x 的最高次数是 2，不是 1，所以不是一元一次方程。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "判断一元一次方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "一元一次方程三条件：一个未知数 + 未知数次数都是 1 + 等式",
+                "x² + 2 = 6：只有一个未知数 x ✓",
+                "但 x 的最高次数是 2（x²），不满足'次数是 1' ✗",
+                "所以不是一元一次方程"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "用'一元''一次'判定方程类型（'判断一元一次方程'，节点 #2 错因'次数判断错'）",
+                "难度理由": "medium——需主动检查次数并组织理由",
+                "认知阶梯定位": "L2 套用（带理由）",
+                "错因陷阱": "只看'一个未知数'忽略次数、把 x² 当 x 的 1 次（次数判断错）",
+                "教学角色": "一元一次判定的标准套用——三条件逐条核对"
+            }
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "下列各式中，是一元一次方程的是（　）\nA. x + y = 3\nB. x² = 4\nC. 2x + 1\nD. 3 − x = 2",
+            "expected_answer": "D",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "判断一元一次方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "一元一次方程：一个未知数 + 未知数次数是 1 + 等式",
+                "A 有两个未知数 x、y（不是'一元'）✗",
+                "B 未知数次数是 2（不是'一次'）✗",
+                "C 没有等号，是代数式不是方程 ✗",
+                "D 一个未知数、次数 1、有等号 ✓，选 D"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "综合三条件判定一元一次方程（'判断一元一次方程'，节点 #2 错因'未知数个数/次数判断错'）",
+                "难度理由": "medium——三条件 × 四选项，每项对应一个具体错误",
+                "认知阶梯定位": "L3 变式（多条件组合判定）",
+                "错因陷阱": "选 A（'一元'看错——两个未知数）、选 B（'一次'看错——二次）、选 C（把代数式当方程）",
+                "教学角色": "L3 变式——三条件分解判定的定点探针"
+            }
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "小华说：'x = 2 是方程 x + 3 = 5 的解。' 他说的对吗？为什么？",
+            "expected_answer": "对。把 x = 2 代入方程左边：2 + 3 = 5，右边也是 5，左边 = 右边，所以 x = 2 是方程的解。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "方程的解",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "方程的解的定义：能使方程左右两边相等的未知数的值",
+                "代入检验：把 x = 2 代入左边 x + 3，得 2 + 3 = 5",
+                "右边 = 5，左边 = 右边 ✓",
+                "所以 x = 2 是方程 x + 3 = 5 的解，小华说得对"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "用代入检验判断一个数是否为方程的解（'方程的解'，节点 #3 错因'方程的解不代入检验'）",
+                "难度理由": "medium——先会检验再下结论，检验步骤即理由",
+                "认知阶梯定位": "L3 变式（从'给解'到'验解'）",
+                "错因陷阱": "不代入直接说'对'（凭感觉）、代入时 2 + 3 算错",
+                "教学角色": "方程的解核心题——检验习惯的正面示范"
+            }
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "妈妈买了 x 千克苹果，每千克 6 元，又买了 4 元的香蕉，一共花了 22 元。根据这些信息列一个方程。",
+            "expected_answer": "6x + 4 = 22",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "根据等量关系列方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "找等量关系：苹果的钱 + 香蕉的钱 = 一共花的钱",
+                "苹果的钱 = 单价 × 数量 = 6 × x = 6x（元）",
+                "列方程：6x + 4 = 22"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "实际情境中等量关系建模列方程（'根据等量关系列方程'×小学简易方程前置）",
+                "难度理由": "hard——先找等量关系再翻译，'一共 22 元'决定等号位置",
+                "认知阶梯定位": "L4 迁移——小学简易方程（根据等量关系列方程）的任务指定迁移方向",
+                "错因陷阱": "写 6 + x + 4 = 22（单价乘数量翻错）、漏香蕉 4 元、把 22 放左边",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——等量关系 → 方程"
+            }
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "下列 4 个式子：\n① x + y = 2　② x² = 9　③ 3x − 1 = 2　④ x + 1\n其中是一元一次方程的共有（　）\nA. 1 个\nB. 2 个\nC. 3 个\nD. 4 个",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "判断一元一次方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "① 有两个未知数（x、y），不是'一元' ✗",
+                "② 未知数次数是 2，不是'一次' ✗",
+                "③ 一个未知数、次数 1、有等号 ✓",
+                "④ 没有等号，是代数式，不是方程 ✗",
+                "只有 1 个，选 A"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "批量判定混合式子中的一元一次方程（'判断一元一次方程'×代数式前置）",
+                "难度理由": "hard——4 个式子分别套三条件再计数，任何一处误判都错",
+                "认知阶梯定位": "L4 迁移——代数式识别（前置）× 方程概念综合判定",
+                "错因陷阱": "把 ④（代数式）算进去、把 ②（二次）算进去、漏 ① 的二元性",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——概念综合应用"
+            }
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "检验 x = 4 是不是方程 x + 2 = 6 的解：把 x = 4 代入左边。计算：4 + 2",
+            "expected_answer": "6",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "方程的解",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "代入：x + 2 = 4 + 2",
+                "4 + 2 = 6",
+                "左边 = 6 = 右边，所以 x = 4 是方程 x + 2 = 6 的解"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "检验方程的解的代入计算环节（'方程的解'）",
+                "难度理由": "easy 检测——单步代入加法，需先识别'代入左边'",
+                "认知阶梯定位": "L2 检测",
+                "错因陷阱": "把 x = 4 代入成 4 × 2、4 + 2 算错（检验过程错）",
+                "教学角色": "掌握档快速检测（sympy 验算代入环节 verified，'是方程的解'结论已人工核对）"
+            }
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "下列关于 x 的方程中，是一元一次方程的是（　）\nA. x² = x + 1\nB. 2/x = 3\nC. x + 2 = 2x − 1\nD. x + y = 1",
+            "expected_answer": "C",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "判断一元一次方程",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "一元一次方程：一个未知数、未知数次数都是 1、等号两边都是整式",
+                "A 有 x²，次数是 2 ✗",
+                "B 的未知数 x 在分母里（2/x 不是整式）✗",
+                "D 有两个未知数 x、y ✗",
+                "C 一个未知数 x、次数 1、两边都是整式 ✓，选 C"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "判定含干扰形态的一元一次方程（'判断一元一次方程'，整式条件）",
+                "难度理由": "hard——三种干扰形态（二次/分式/二元）各对应一个错误判断",
+                "认知阶梯定位": "L3 检测 hard",
+                "错因陷阱": "选 B（忽略'整式'条件，把 x 在分母的式子当一元一次）、选 A（次数判断错）、选 D（一元判断错）",
+                "教学角色": "检测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "检验 x = 3 是不是方程 2x + 1 = 7 的解。代入左边计算：2 × 3 + 1",
+            "expected_answer": "7",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "方程的解",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "代入：2x + 1 = 2 × 3 + 1",
+                "2 × 3 + 1 = 6 + 1 = 7",
+                "左边 = 7 = 右边，所以 x = 3 是方程 2x + 1 = 7 的解"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "检验方程的解的乘加代入复测（'方程的解'，diagnostic probe 素材）",
+                "难度理由": "medium 复测——先乘后加两步代入，'方程的解不代入检验'错因的防复发",
+                "认知阶梯定位": "L3 复测",
+                "错因陷阱": "先加后乘（2 + 3 × 1 = 5）、2 × 3 算错",
+                "教学角色": "防'会背不会用'复测——检验流程的取证题（sympy 验算代入环节 verified）"
+            }
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "x = −1 是方程 3x + 2 = −1 的解吗？请检验并判断。",
+            "expected_answer": "是。检验：3 × (−1) + 2 = −3 + 2 = −1，左边 = 右边，所以 x = −1 是方程 3x + 2 = −1 的解。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "方程的解",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "代入检验：把 x = −1 代入左边 3x + 2",
+                "3 × (−1) + 2 = −3 + 2 = −1",
+                "右边也是 −1，左边 = 右边 ✓",
+                "所以 x = −1 是方程 3x + 2 = −1 的解"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "负数值代入检验方程的解（'方程的解'×负数运算）",
+                "难度理由": "hard——负数代入（3 × (−1)）与符号处理两处可错",
+                "认知阶梯定位": "L4 复测（负数混合）",
+                "错因陷阱": "3 × (−1) 写 3（负号丢失）、−3 + 2 写 −5（符号处理错）",
+                "教学角色": "复测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "下列各式中，是方程的是（　）\nA. 2x + 3\nB. 3 + 2 = 5\nC. x − 4 = 0\nD. x > 2",
+            "expected_answer": "C",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "判断方程",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "方程两条件：含未知数 + 是等式",
+                "A 含未知数但没有等号（代数式）✗",
+                "B 是等式但没有未知数 ✗（最容易漏）",
+                "D 是比大小的不等式 ✗",
+                "C 含未知数 x 且是等式 ✓，选 C"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "方程两条件的诊断（'判断方程'，diagnostic probe 素材）",
+                "难度理由": "easy 诊断——选项 B 专门测'等式但无未知数'这一易漏条件",
+                "认知阶梯定位": "L1 诊断",
+                "错因陷阱": "选 B（只看'等式'忘'含未知数'——条件缺一）、选 A（把代数式当方程）",
+                "教学角色": "诊断题——方程两条件一键探针"
+            }
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "判断 x = 3 是不是方程 2x + 4 = 10 的解。下面哪个检验过程是正确的？（　）\nA. 代入左边：2 × 3 + 4 = 10，左边 = 右边，是方程的解\nB. 代入左边：2 × 3 + 4 = 14，左边 ≠ 右边，不是方程的解\nC. 代入：2 + 3 + 4 = 9，不是方程的解\nD. 代入：3 × 2 − 4 = 2，不是方程的解",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "方程的解",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "检验方法：把 x = 3 代入方程左边，计算并与右边比",
+                "A：2 × 3 + 4 = 6 + 4 = 10，右边也是 10，左边 = 右边 ✓",
+                "B 算错（6 + 4 = 10 不是 14）；C 把 2x 当成 2 + x；D 符号抄错（应是 +4）",
+                "选 A"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "检验过程的正确性诊断（'方程的解'，节点 #3 错因'方程的解不代入检验'及代入错误的区分）",
+                "难度理由": "medium 诊断——四个选项覆盖代入算错/系数当加数/符号抄错三类错误",
+                "认知阶梯定位": "L2 诊断",
+                "错因陷阱": "选 B（2 × 3 + 4 算错）、选 C（2x 当 2 + x）、选 D（符号抄错）",
+                "教学角色": "诊断题——代入检验过程的错因分类探针"
+            }
+        },
+    ],
+
+    # ===== M-G7-EQUALITY-PROP 等式性质（概念+微计算：11 unverifiable + 4 verified） =====
+    "M-G7-EQUALITY-PROP": [
+        {
+            "slot": "B1-I0",
+            "prompt": "等式 x − 3 = 5。要在左边把 −3 消去、让 x 单独留下，应该两边同时做什么？做完后等式变成什么？",
+            "expected_answer": "两边同时加 3（等式性质 1：两边同加同一个数，等式仍成立），得到 x = 8。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "两边同加减",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "目标：让 x 单独留下。左边是 x − 3，要消去 −3",
+                "−3 的相反数是 +3，两边同时加 3（等式性质 1）",
+                "左边：x − 3 + 3 = x；右边：5 + 3 = 8",
+                "得到 x = 8"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "等式性质 1 的两边同加操作（'两边同加减'，essence'两边做同样的事'取证）",
+                "难度理由": "medium 锚点——'消去什么就做什么'的操作示范",
+                "认知阶梯定位": "标准例题（L2 套用基准线）",
+                "错因陷阱": "无（锚点题不埋陷阱；答案内嵌'两边同时'关键词示范）",
+                "教学角色": "讲本质用——天平平衡 → 两边同操作的演示载体"
+            }
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "等式性质 1 说的是（　）\nA. 等式两边同时加上或减去同一个数（或式子），等式仍成立\nB. 等式两边同时加上不同的数，等式仍成立\nC. 只给等式的一边加一个数，等式仍成立\nD. 等式两边同时乘不同的数，等式仍成立",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "等式性质识别",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 1：两边同时加上或减去同一个数（或式子），等式仍成立",
+                "A 与定义一致 ✓",
+                "B 错在'不同的数'、C 错在'只给一边'、D 错在'乘不同的数'",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别等式性质 1 的完整表述（'等式性质识别'，节点 #1 错因'只对一边操作'）",
+                "难度理由": "easy——规则识别，干扰项各对应一个性质误用",
+                "认知阶梯定位": "L1 识别正宗实现",
+                "错因陷阱": "选 B/D（'同一个数'记成'不同的数'）、选 C（只改一边——节点 #1 错因）",
+                "教学角色": "L1 识别脚手架——性质表述第一关"
+            }
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "判断：由等式 3x = 9，两边同时除以 3，得到 x = 3。这一步对吗？（　）\nA. 对。两边同时除以同一个数 3（3 ≠ 0），等式仍成立\nB. 错。应该两边同时加 3\nC. 对。两边同时减去 3\nD. 错。应该只给右边除以 3",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "两边同乘除",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "要把 x 的系数 3 化掉：3x 是 3 乘 x，应两边同时除以 3（等式性质 2）",
+                "3x ÷ 3 = x，9 ÷ 3 = 3，得到 x = 3",
+                "除数 3 ≠ 0，符合条件 ✓",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "判断两边同除操作的正确性（'两边同乘除'，性质 2 的除法版本）",
+                "难度理由": "easy——单步判断，选项覆盖加减除混淆与只改一边",
+                "认知阶梯定位": "L1 识别",
+                "错因陷阱": "选 B/C（加减乘除性质用混）、选 D（只对一边操作——节点 #1 错因）",
+                "教学角色": "L1 识别——同除操作的改写辨析"
+            }
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "等式 x + 5 = 12 两边同时减去 5。计算：12 − 5",
+            "expected_answer": "7",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "两边同加减",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 1：两边同时减去 5，等式仍成立",
+                "左边：x + 5 − 5 = x",
+                "右边：12 − 5 = 7，所以 x = 7"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "两边同减的应用计算（'两边同加减'）",
+                "难度理由": "easy 套用——识别'减 5'后做一步减法",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "算成 12 + 5 = 17（把减当加——'移项口诀代替理解'的苗头）",
+                "教学角色": "L2 套用脚手架（sympy 验算同减环节 verified）"
+            }
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "等式 3x = 12 两边同时除以 3，x 等于多少？计算：12 ÷ 3",
+            "expected_answer": "4",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "两边同乘除",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 2：两边同时除以 3（3 ≠ 0），等式仍成立",
+                "左边：3x ÷ 3 = x",
+                "右边：12 ÷ 3 = 4，所以 x = 4"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "两边同除的系数化为 1（'两边同乘除'）",
+                "难度理由": "medium——必须识别'除以 3'而非减 3，再算除法",
+                "认知阶梯定位": "L2 套用（除法版本）",
+                "错因陷阱": "算 12 − 3 = 9（同减代替同除）、12 ÷ 3 算错",
+                "教学角色": "性质 2 标准套用（sympy 验算同除环节 verified）"
+            }
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "由等式 x/4 = 8，两边同时乘 4，得到 x = 32。下面说法正确的是（　）\nA. 正确。依据是等式性质 2：两边同时乘同一个数，等式仍成立\nB. 正确。依据是等式性质 1：两边同时加同一个数\nC. 错误。应该两边同时除以 4\nD. 错误。应该只给右边乘 4",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "两边同乘除",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "x/4 表示 x ÷ 4，要消去 ÷4 应两边同时乘 4（乘除互逆）",
+                "等式性质 2：两边同时乘同一个数（4），等式仍成立",
+                "左边：x/4 × 4 = x；右边：8 × 4 = 32，得到 x = 32 ✓",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "分数形式等式的同乘变形（'两边同乘除'，乘除互逆）",
+                "难度理由": "medium——分数线隐含除法，需选对'乘 4'",
+                "认知阶梯定位": "L3 变式（从整系数转入分数系数）",
+                "错因陷阱": "选 B（性质用混）、选 C（除以 4 得 x/16）、选 D（只对一边操作）",
+                "教学角色": "性质 2 的分数变式——乘除互逆的辨析"
+            }
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "小明解方程 x + 3 = 7 时，第二步写成 x = 7 − 3。他说这是'移项'。移项和等式性质有关系吗？（　）\nA. 有关系。移项就是'两边同时减去 3'的简写，所以移项要变号\nB. 没关系。移项是另一种方法，和等式性质无关\nC. 有关系，但移项不用变号\nD. 没关系。移项只能用在乘法里",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "等式变形判断",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "x + 3 = 7 两边同时减去 3（等式性质 1）：x + 3 − 3 = 7 − 3，即 x = 7 − 3",
+                "所以'移项'（把 +3 移到右边变 −3）本质是两边同减 3 的压缩写法",
+                "移项必须变号，因为移的是'两边同时减'的结果",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "移项与等式性质 1 的关系（'等式变形判断'，节点 #3 错因'移项口诀代替理解'）",
+                "难度理由": "medium——需要把口诀'移项变号'还原成性质操作",
+                "认知阶梯定位": "L3 变式（口诀 → 原理的还原）",
+                "错因陷阱": "选 B（口诀与原理脱节——'移项口诀代替理解'）、选 C（不变号）",
+                "教学角色": "变式核心——'先两边同操作，再压缩成移项'教学策略的落实题"
+            }
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "天平左边放 2 个一样的苹果和 1 个 50 克的砝码，右边放 1 个苹果和 3 个 50 克的砝码，天平平衡（每个苹果重 x 克）。现在从两边同时拿走 1 个苹果和 1 个 50 克的砝码，天平还平衡吗？这时你能得到什么等式？",
+            "expected_answer": "还平衡。两边同时拿走同样的东西，相当于等式两边同时减去同一个量（x + 50）：2x + 50 = x + 150 变成 x = 100，即左边剩 1 个苹果，右边剩 2 个 50 克砝码（100 克），仍平衡。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "天平模型",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "先列天平等式：2x + 50 = x + 150（左边 2 苹果 + 50 克，右边 1 苹果 + 150 克）",
+                "两边同时拿走 1 个苹果和 1 个 50 克砝码 = 两边同时减去 (x + 50)（等式性质 1）",
+                "左边剩 1 个苹果（x 克），右边剩 2 个 50 克砝码（100 克）",
+                "天平仍平衡，得到 x = 100"
+            ],
+            "error_tags": ["concept_confusion", "visual_spatial"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "用天平模型理解'两边同时做同样的事'（'天平模型'，essence'等式像天平'取证）",
+                "难度理由": "hard——先列等式再执行同减操作，天平直觉 × 符号化两步",
+                "认知阶梯定位": "L4 迁移——天平模型/两边平衡直觉（任务指定迁移方向）",
+                "错因陷阱": "只回答'平衡'说不清等式（缺符号化）、拿走时只减苹果不减砝码（只对一边操作）",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——本质的直观化迁移"
+            }
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "小刚说：'由等式 4x = 2x，两边同时除以 2x，得到 4 = 2。' 这个变形错在哪里？（　）\nA. 因为由 4x = 2x 可知 x = 0，所以 2x = 0，等式两边不能同时除以 0\nB. 因为 4 ÷ 2x 算错了\nC. 因为等式两边不能同时除以同一个式子\nD. 这个变形没有错，4 = 2 是对的",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "等式变形判断",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "等式性质 2 有个条件：两边同除的数不能是 0",
+                "由 4x = 2x，两边同时减去 2x：2x = 0，所以 x = 0，2x = 0",
+                "两边同时除以 2x 就是除以 0，不合法",
+                "所以 4 = 2 的错误根源是'除以 0'，选 A"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "等式性质 2 的'除数不为 0'边界条件（'等式变形判断'，节点 #2 错因'除以含 0 可能性忽略'）",
+                "难度理由": "hard——受控拓展：需先推出 2x = 0 再判断除以 0，并识破'4 = 2 荒谬'信号",
+                "认知阶梯定位": "L4 迁移——代数式（含字母式子作除数）× 性质边界条件",
+                "错因陷阱": "选 B（找错原因）、选 D（把荒谬结果当真——'除以含 0 可能性忽略'）",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——性质适用条件的深层理解"
+            }
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "等式 x − 5 = 3 两边同时加 5。计算：3 + 5",
+            "expected_answer": "8",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "两边同加减",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 1：两边同时加 5，等式仍成立",
+                "左边：x − 5 + 5 = x",
+                "右边：3 + 5 = 8，所以 x = 8"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "两边同加的检测（'两边同加减'）",
+                "难度理由": "easy 检测——单步同加计算",
+                "认知阶梯定位": "L2 检测",
+                "错因陷阱": "算 3 − 5 = −2（把加当减——'移项口诀代替理解'的苗头）",
+                "教学角色": "掌握档快速检测（sympy 验算同加环节 verified）"
+            }
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "下面等式变形中，正确的是（　）\nA. 由 x − 2 = 6 得 x = 4（两边同时减 2）\nB. 由 x + 4 = 7 得 x = 11（两边同时加 4）\nC. 由 3x = 9 得 x = 3（两边同时除以 3）\nD. 由 2x = 6 得 x = 8（两边同时加 2）",
+            "expected_answer": "C",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "等式变形判断",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "A：x − 2 = 6 应两边同加 2 得 x = 8，同减 2 得 x = 4 是错的 ✗",
+                "B：x + 4 = 7 应两边同减 4 得 x = 3，同加 4 得 x = 11 是错的 ✗",
+                "C：3x = 9 两边同除 3 得 x = 3 ✓",
+                "D：2x = 6 应同除 2 得 x = 3，同加 2 得 x = 8 是错的 ✗",
+                "选 C"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "四路等式变形正误判定（'等式变形判断'，diagnostic probe'4 道等式变形判断'素材）",
+                "难度理由": "hard——四个变形逐一核对性质与结果，两处可错",
+                "认知阶梯定位": "L3 检测 hard",
+                "错因陷阱": "选 A（'消去 −2'误用同减）、选 B（同加代替同减）、选 D（方法错但结果碰巧对）",
+                "教学角色": "检测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "等式 −3x = 9 两边同时除以 −3。计算：9 ÷ (−3)",
+            "expected_answer": "−3",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "两边同乘除",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 2：两边同时除以 −3（−3 ≠ 0），等式仍成立",
+                "左边：−3x ÷ (−3) = x",
+                "右边：9 ÷ (−3) = −3，所以 x = −3"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "负系数等式的同除复测（'两边同乘除'，为 EQ-SOLVE 的负系数处理铺路）",
+                "难度理由": "medium 复测——负数除法符号处理，防'会背不会用'",
+                "认知阶梯定位": "L3 复测",
+                "错因陷阱": "算 9 ÷ 3 = 3（丢负号——'负系数处理错'的苗头）、(−3) 除法符号错",
+                "教学角色": "复测 medium——负系数处理取证（sympy 验算同除环节 verified）"
+            }
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "用等式性质把 2x + 3 = 11 变形成 x = 4。写出两步变形，并写出每一步的依据。",
+            "expected_answer": "第一步：两边同时减去 3（等式性质 1），得 2x = 8；第二步：两边同时除以 2（等式性质 2，2 ≠ 0），得 x = 4。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "等式变形应用",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "目标：让 x 单独留下。先处理常数项 3：两边同时减去 3（等式性质 1）",
+                "2x + 3 − 3 = 11 − 3，得 2x = 8",
+                "再处理系数 2：两边同时除以 2（等式性质 2，2 ≠ 0）",
+                "2x ÷ 2 = 8 ÷ 2，得 x = 4"
+            ],
+            "error_tags": ["process_habit", "concept_confusion"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "两步等式变形的完整流程与依据（'等式变形应用'，mastery'知道每步两边同操作'取证）",
+                "难度理由": "hard——两步操作 + 每步写依据，教学策略'每步写依据'的直接落实",
+                "认知阶梯定位": "L4 复测（解方程前夜）",
+                "错因陷阱": "只写一步、漏依据（'移项口诀代替理解'）、第二步把 11 直接除 2（漏先减 3）",
+                "教学角色": "复测 hard 档——EQ-SOLVE 解锁前的桥接证据"
+            }
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小刚把等式 x + 3 = 7 只给左边减去 3，写成 x = 7。他错在哪里？（　）\nA. 等式两边必须同时减同一个数，等式才仍成立；只改一边会破坏平衡\nB. 应该只给右边减 3\nC. 他没写'解'字\nD. 他没错，x = 7 是对的",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "等式性质识别",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 1 要求：两边同时加或减同一个数，等式才仍成立",
+                "只给左边减 3：x + 3 − 3 = x，右边还是 7，左边 ≠ 右边，等式被破坏",
+                "正确做法：两边同时减 3，x + 3 − 3 = 7 − 3，得 x = 4",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "诊断'只对一边操作'错误（'等式性质识别'，节点 #1 错因的直接形态）",
+                "难度理由": "easy 诊断——单步定位错误操作",
+                "认知阶梯定位": "L1 诊断",
+                "错因陷阱": "选 D（接受只改一边的结果）、选 B（换一边改）",
+                "教学角色": "诊断题——节点头号错因一键探针"
+            }
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "下面说法正确的是（　）\nA. 等式两边同时除以 0，等式仍成立\nB. 等式两边同时乘同一个数，等式不一定仍成立\nC. 等式两边同时乘同一个数，或除以同一个不为 0 的数，等式仍成立\nD. 等式两边同时除以同一个数（可以是 0），等式仍成立",
+            "expected_answer": "C",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "等式性质识别",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式性质 2：两边同时乘同一个数，或除以同一个不为 0 的数，等式仍成立",
+                "A 错：除以 0 无意义；B 错：同乘一定仍成立；D 错：除数不能是 0",
+                "C 与定义一致，选 C"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "性质 2 的'乘任意数、除非零数'边界诊断（'等式性质识别'，节点 #2 错因'除以含 0 可能性忽略'）",
+                "难度理由": "medium 诊断——区分'乘 0 可以、除 0 不可以'的对称性陷阱",
+                "认知阶梯定位": "L2 诊断",
+                "错因陷阱": "选 A/D（'除以含 0 可能性忽略'）、选 B（把'同乘'也当成有条件）",
+                "教学角色": "诊断题——性质 2 适用条件的分类探针"
+            }
+        },
+    ],
+
+    # ===== M-G7-EQ-SOLVE 解一元一次方程基础（计算向：12 unverifiable + 3 verified） =====
+    "M-G7-EQ-SOLVE": [
+        {
+            "slot": "B1-I0",
+            "prompt": "解方程：x + 3 = 7，写出每一步。（提示：目标是把 x 单独留下，用等式性质）",
+            "expected_answer": "x = 4（两边同时减去 3，得 x = 4；检验：4 + 3 = 7 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "一步方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "目标：让 x 单独留下。左边是 x + 3，先消去 +3",
+                "两边同时减去 3（等式性质 1）：x + 3 − 3 = 7 − 3",
+                "x = 4",
+                "检验：4 + 3 = 7，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "一步方程的标准解法流程（'一步方程'，essence'把未知数单独留下'取证）",
+                "难度理由": "medium 锚点——流程示范（解 + 检验两步习惯）",
+                "认知阶梯定位": "标准例题（L2 套用基准线）",
+                "错因陷阱": "无（锚点题不埋陷阱；答案内嵌检验步示范'能代回检验'习惯）",
+                "教学角色": "讲本质用——'目标导向 + 每步写依据'的演示载体"
+            }
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "解方程 x − 5 = 9，第一步应两边同时做什么？（　）\nA. 同时加 5\nB. 同时减 5\nC. 同时乘 5\nD. 同时除以 5",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "一步方程",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "要让 x 单独留下，左边是 x − 5，要消去 −5",
+                "−5 的相反数是 +5，两边同时加 5（等式性质 1）",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别一步方程的第一步操作（'一步方程'，'消去什么就做什么'）",
+                "难度理由": "easy——操作识别",
+                "认知阶梯定位": "L1 识别正宗实现",
+                "错因陷阱": "选 B（'减'字迷惑——两边同减 5 反而更糟）、选 C/D（加减乘除用混）",
+                "教学角色": "L1 识别脚手架——解方程第一步卡"
+            }
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "解方程 3x = 12，要把 x 的系数化为 1，两边应同时做什么？（　）\nA. 同时除以 3\nB. 同时减 3\nC. 同时乘 3\nD. 同时加 3",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "系数化为1",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "3x 表示 3 乘 x，要把系数 3 化掉，乘用除来消",
+                "两边同时除以 3（等式性质 2，3 ≠ 0）：3x ÷ 3 = x，12 ÷ 3 = 4",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别系数化为 1 的操作（'系数化为1'）",
+                "难度理由": "easy——操作识别",
+                "认知阶梯定位": "L1 识别",
+                "错因陷阱": "选 B（'系数化 1'误用减——'系数化 1 除错'的苗头）、选 C（乘 3 得 9x）",
+                "教学角色": "L1 识别——系数化 1 操作卡"
+            }
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "解方程 x − 4 = 10：两边同时加 4。计算：10 + 4",
+            "expected_answer": "14",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "一步方程",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两边同时加 4（等式性质 1）：x − 4 + 4 = 10 + 4",
+                "x = 14",
+                "检验：14 − 4 = 10 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "一步方程的同加套用（'一步方程'）",
+                "难度理由": "easy 套用——识别'加 4'后做一步加法",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "算 10 − 4 = 6（把'加 4'想成'减 4'——'移项不变号'的苗头）",
+                "教学角色": "L2 套用脚手架（sympy 验算同加环节 verified）"
+            }
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "解方程 −2x = 8，两边同时除以 −2。计算：8 ÷ (−2)",
+            "expected_answer": "−4",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "系数化为1",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两边同时除以 −2（等式性质 2，−2 ≠ 0）：−2x ÷ (−2) = x",
+                "8 ÷ (−2) = −4",
+                "所以 x = −4；检验：−2 × (−4) = 8 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "负系数方程的系数化 1（'系数化为1'，节点 #3 错因'负系数处理错'）",
+                "难度理由": "medium——负数除法符号处理",
+                "认知阶梯定位": "L2 套用（负系数版本）",
+                "错因陷阱": "算 8 ÷ 2 = 4（丢负号）、符号规则错（'负系数处理错'）",
+                "教学角色": "负系数处理标准套用（sympy 验算同除环节 verified）"
+            }
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "解方程：3x + 4 = 13（写出两步）",
+            "expected_answer": "x = 3（两边同时减 4 得 3x = 9，再两边同时除以 3 得 x = 3）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "两步方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "目标：让 x 单独留下。先处理常数项 4：两边同时减 4（等式性质 1）",
+                "3x + 4 − 4 = 13 − 4，得 3x = 9",
+                "再处理系数 3：两边同时除以 3（等式性质 2），得 x = 3",
+                "检验：3 × 3 + 4 = 13 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "两步方程的标准流程（'两步方程'，从一步到两步）",
+                "难度理由": "medium——先常数项后系数，两步顺序是关键",
+                "认知阶梯定位": "L3 变式（步数递增）",
+                "错因陷阱": "先除后减（顺序错）、13 − 4 或 9 ÷ 3 算错、漏检验",
+                "教学角色": "两步方程标准套用——'先移常数，再化系数'"
+            }
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "解方程：2x + 3 = x + 7（提示：把含 x 的项移到左边，常数移到右边，注意变号）",
+            "expected_answer": "x = 4（2x − x = 7 − 3，x = 4；检验：2 × 4 + 3 = 11，4 + 7 = 11 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "移项合并",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "移项：把右边的 x 移到左边变 −x，左边的 3 移到右边变 −3（移项 = 两边同减的简写，要变号）",
+                "2x − x = 7 − 3",
+                "合并同类项：x = 4",
+                "检验：2 × 4 + 3 = 11，4 + 7 = 11，左边 = 右边 ✓"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "移项 + 合并的方程（'移项合并'，节点 #1 错因'移项不变号'的核心战场）",
+                "难度理由": "medium——两处移项变号 + 合并",
+                "认知阶梯定位": "L3 变式（引入移项压缩写法）",
+                "错因陷阱": "2x + 3 = x + 7 移项忘变号（2x + x = 7 + 3 → 3x = 10 错）、常数项变号错",
+                "教学角色": "移项合并标准套用——'移项 = 两边同减，必须变号'"
+            }
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "小明解方程 x + 5 = 2x − 1 得到 x = 6。请检验他的解是否正确，写出检验过程。",
+            "expected_answer": "把 x = 6 代入左边：6 + 5 = 11；代入右边：2 × 6 − 1 = 11。左边 = 右边，所以 x = 6 是方程的解，小明解对了。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "移项合并",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "检验方法：把解代入方程两边，分别计算，看是否相等",
+                "左边：6 + 5 = 11",
+                "右边：2 × 6 − 1 = 12 − 1 = 11",
+                "左边 = 右边，所以 x = 6 是方程的解 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "解完方程的代入检验迁移（'移项合并'×SOLUTION-HABIT 桥梁）",
+                "难度理由": "hard——需分别算两边（含 2 × 6 − 1 两步），再作判断",
+                "认知阶梯定位": "L4 迁移——'代入检验'解题习惯（任务指定桥梁方向）",
+                "错因陷阱": "只代一边、2 × 6 − 1 算错、检验后不下结论（'不检验'错因的正面示范）",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——检验习惯落地"
+            }
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "解方程：x/2 − 1 = 3（提示：先把常数项处理掉，再处理分数系数）",
+            "expected_answer": "x = 8（两边同时加 1 得 x/2 = 4，再两边同时乘 2 得 x = 8）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "两步方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "先处理常数项：两边同时加 1（等式性质 1）：x/2 − 1 + 1 = 3 + 1，得 x/2 = 4",
+                "再处理分数系数：两边同时乘 2（等式性质 2）：x/2 × 2 = 4 × 2",
+                "x = 8",
+                "检验：8/2 − 1 = 4 − 1 = 3 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "含分数系数的两步方程（'两步方程'×有理数前置）",
+                "难度理由": "hard——分数系数（乘除互逆）与两步顺序叠加",
+                "认知阶梯定位": "L4 迁移——分数运算（RATIONAL-MIXED 前置）× 解方程",
+                "错因陷阱": "x/2 处理成减 2、两边乘 2 时只乘一边、4 × 2 算错",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——分数系数方程"
+            }
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "解方程 x + 7 = 15：两边同时减 7。计算：15 − 7",
+            "expected_answer": "8",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "一步方程",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两边同时减 7（等式性质 1）：x + 7 − 7 = 15 − 7",
+                "x = 8",
+                "检验：8 + 7 = 15 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "一步方程检测（'一步方程'）",
+                "难度理由": "easy 检测——单步同减计算",
+                "认知阶梯定位": "L2 检测",
+                "错因陷阱": "算 15 + 7 = 22（'移项不变号'的苗头）",
+                "教学角色": "掌握档快速检测（sympy 验算同减环节 verified）"
+            }
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "解方程：−2x + 5 = 11",
+            "expected_answer": "x = −3（两边同时减 5 得 −2x = 6，再两边同时除以 −2 得 x = −3）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "两步方程",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "先处理常数项：两边同时减 5（等式性质 1）：−2x + 5 − 5 = 11 − 5，得 −2x = 6",
+                "再处理系数：两边同时除以 −2（等式性质 2）：x = 6 ÷ (−2)",
+                "x = −3",
+                "检验：−2 × (−3) + 5 = 6 + 5 = 11 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "负系数两步方程检测（'两步方程'，diagnostic probe'含负系数'素材）",
+                "难度理由": "hard——同减 + 负系数化 1 两步，负号两处可丢",
+                "认知阶梯定位": "L3 检测 hard",
+                "错因陷阱": "6 ÷ (−2) 写 3（丢负号——'负系数处理错'）、11 − 5 算错",
+                "教学角色": "检测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "解方程：2x − 7 = 5（写出两步）",
+            "expected_answer": "x = 6（两边同时加 7 得 2x = 12，再两边同时除以 2 得 x = 6）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "两步方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "先处理常数项 −7：两边同时加 7（等式性质 1）：2x − 7 + 7 = 5 + 7，得 2x = 12",
+                "再处理系数：两边同时除以 2（等式性质 2）：x = 12 ÷ 2",
+                "x = 6",
+                "检验：2 × 6 − 7 = 12 − 7 = 5 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "两步方程复测（'两步方程'，防'会背不会用'）",
+                "难度理由": "medium 复测——负常数项同加 + 系数化 1",
+                "认知阶梯定位": "L3 复测",
+                "错因陷阱": "同加 7 写成同减 7、12 ÷ 2 算错",
+                "教学角色": "复测 medium——两步流程的防退化取证"
+            }
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "解方程：2x + 3 = x + 8，并检验你的解。",
+            "expected_answer": "x = 5（移项：2x − x = 8 − 3，x = 5；检验：2 × 5 + 3 = 13，5 + 8 = 13，左边 = 右边 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "移项合并",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "移项：2x + 3 = x + 8，把 x 移到左边变 −x，3 移到右边变 −3（移项要变号）",
+                "2x − x = 8 − 3",
+                "合并：x = 5",
+                "检验：2 × 5 + 3 = 13，5 + 8 = 13，左边 = 右边 ✓"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "移项合并 + 检验的综合复测（'移项合并'，mastery'能代回检验'取证）",
+                "难度理由": "hard——两处移项变号 + 合并 + 检验四步",
+                "认知阶梯定位": "L4 复测",
+                "错因陷阱": "移项不变号（2x + x = 8 + 3 → 3x = 11 错——节点 #1 错因）、漏检验",
+                "教学角色": "复测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小明解方程 x + 3 = 7 时，第二步写成 x = 7 + 3，得到 x = 10。他错在哪里？（　）\nA. 移项没变号：+3 移到右边应变成 −3，x = 7 − 3 = 4\nB. 他忘了写'解'字\nC. 应该两边同时乘 3\nD. 他没错，x = 10 是对的",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "移项合并",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "x + 3 = 7 移项：+3 移到右边变 −3（移项 = 两边同时减 3，要变号）",
+                "x = 7 − 3 = 4",
+                "小明的 x = 7 + 3 是移项不变号",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "诊断'移项不变号'错误（'移项合并'，节点 #1 错因的直接形态）",
+                "难度理由": "easy 诊断——单步定位变号错误",
+                "认知阶梯定位": "L1 诊断",
+                "错因陷阱": "选 D（接受错误结果）、选 B（把错误归因于格式）",
+                "教学角色": "诊断题——节点头号错因一键探针"
+            }
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "解方程：x/4 = 3（提示：分数线表示除以 4，要把 x 单独留下）",
+            "expected_answer": "x = 12（两边同时乘 4，x = 3 × 4 = 12）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "系数化为1",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "x/4 表示 x ÷ 4，要把 ÷4 消去，两边同时乘 4（等式性质 2，乘除互逆）",
+                "x/4 × 4 = 3 × 4",
+                "x = 12",
+                "检验：12/4 = 3 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "分数系数方程的系数化 1 诊断（'系数化为1'，diagnostic probe'含分数系数'素材）",
+                "难度理由": "medium 诊断——需识别'乘 4'而非除 4（乘除互逆）",
+                "认知阶梯定位": "L2 诊断",
+                "错因陷阱": "两边同除 4（得 x/16）、3 × 4 算错（'系数化 1 除错'）",
+                "教学角色": "诊断题——分数系数处理的算术探针"
+            }
+        },
+    ],
 }
 
 # ---------------------------------------------------------------------------
