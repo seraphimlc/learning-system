@@ -4131,6 +4131,1280 @@ NODE_QUESTIONS: dict[str, list[dict[str, Any]]] = {
             "design_rationale": {"考点": "由同类项求指数 + 说出标准（含隐系数 −1）", "难度理由": "medium 诊断——指数匹配 + 理由说明双要求", "认知阶梯定位": "L2 诊断（diagnostic probe'8 组项判断'的求指数变体）", "错因陷阱": "把系数 3 当 m、说不出'指数相同'的理由（mastery'能说出同类项标准'取证）", "教学角色": "诊断题——'会判断'与'能说标准'两档的区分题"},
         },
     ],
+    # # ===== M-G7-COMBINE-LIKE 合并同类项（计算向：3 verified + 12 unverifiable；难度 5 easy/6 medium/4 hard） =====
+    # # 节点契约：essence="合并同类项只合并系数，字母部分不变"；
+    # # seed=直接合并/多项式整理/含负系数；common_mistakes=字母指数也相加/符号漏掉/非同类项硬合并；
+    # # diagnostic_probes=6题合并同类项，含负系数；mastery=正确率≥85%、能解释为什么字母部分不变。
+    # # authoring 原则（琢玉教训）：代数式答案是符号答案（sympy 提取正则只认数字表达式）→ 诚实标
+    # # unverifiable（每题答案已人工+符号复核双算）；verified 只取'系数合并'纯算术环节（sympy 真验算）；
+    # # hard 真难（五项混合、双字母负系数、情境周长）；L1 真识别；同句式 ≤2；迁移=实际情境（周长）。
+    "M-G7-COMBINE-LIKE": [
+        {
+          "slot": "B1-I0",
+          "prompt": "合并同类项：3x + 5x。写出合并的过程，并解释：为什么结果里字母部分还是 x，而不是 x²？",
+          "expected_answer": "8x。3x + 5x = (3 + 5)x = 8x；3x 表示 3 个 x，5x 表示 5 个 x，一共 3 + 5 = 8 个 x，所以字母部分仍是 x。只有 x 与 x 相乘才会得到 x²，合并同类项只把系数相加，不把字母相乘",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "直接合并",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "合并同类项只合并系数：3x 的系数是 3，5x 的系数是 5",
+            "系数相加：3 + 5 = 8",
+            "字母部分 x 不变：3x + 5x = 8x",
+            "为什么不是 x²：x² 表示 x × x，合并同类项是'几个 x 加几个 x'，不是 x 与 x 相乘"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "合并同类项的本质：只合并系数、字母部分不变（'直接合并'）",
+            "难度理由": "medium 锚点——合并 + 解释双输出，演示本质而非背口诀",
+            "认知阶梯定位": "标准例题（L2 套用基准线）",
+            "错因陷阱": "无（锚点题不埋陷阱；'为什么不是 x²'内嵌头号错因'字母指数也相加'的预防性解释）",
+            "教学角色": "讲本质用——'3 个 x + 5 个 x = 8 个 x'苹果模型的演示载体"
+          }
+        },
+        {
+          "slot": "B1-I1",
+          "prompt": "合并同类项时，正确的做法是（　）\nA. 系数相加，字母部分不变\nB. 系数相加，字母部分也相加\nC. 系数相加，字母部分相乘\nD. 系数和字母都要相加",
+          "expected_answer": "A",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "直接合并",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "合并同类项的规则：系数相加，字母部分不变",
+            "选 A"
+          ],
+          "error_tags": [
+            "concept_confusion"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "识别合并同类项的规则（'直接合并'）",
+            "难度理由": "easy——规则识别无计算",
+            "认知阶梯定位": "L1 识别正宗实现（判断规则而非直接计算）",
+            "错因陷阱": "选 B/D（'字母指数也相加'错因）、选 C（把合并当乘法）",
+            "教学角色": "L1 识别脚手架——'只动系数、字母不动'规则第一关"
+          }
+        },
+        {
+          "slot": "B1-I2",
+          "prompt": "下面哪一组可以直接合并成一个项？（　）\nA. 3x 和 5y\nB. 2x² 和 3x\nC. −4a 和 7a\nD. x 和 x²",
+          "expected_answer": "C",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "直接合并",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "能合并的前提：是同类项（字母部分完全相同）",
+            "A 字母不同（x 与 y）；B、D 指数不同（x² 与 x）；C 字母部分都是 a，可以合并",
+            "选 C"
+          ],
+          "error_tags": [
+            "concept_confusion"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "识别'哪组能合并'（同类项才能合并，'直接合并'×LIKE-TERMS 前置）",
+            "难度理由": "easy——单步判断，但含指数/字母双干扰",
+            "认知阶梯定位": "L1 识别",
+            "错因陷阱": "把不同字母当可合并（A）、把 x² 与 x 当可合并（B/D，'字母指数也相加'的前置形态）",
+            "教学角色": "L1 识别——'合并前提是同类'的判断题"
+          }
+        },
+        {
+          "slot": "B2-I0",
+          "prompt": "合并同类项：4x + 6x 时，先把两个系数相加。计算：4 + 6",
+          "expected_answer": "10",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "直接合并",
+          "variant_level": "L2",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "合并同类项只合并系数：4x 的系数是 4，6x 的系数是 6",
+            "系数相加：4 + 6 = 10",
+            "字母部分 x 不变：4x + 6x = 10x（整式为符号答案，本环节只验算系数加法）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 3,
+          "design_rationale": {
+            "考点": "合并同类项的系数相加环节（'直接合并'）",
+            "难度理由": "easy 套用——单步系数加法，题干内嵌'字母部分不变'的提醒",
+            "认知阶梯定位": "L2 套用",
+            "错因陷阱": "把指数也相加得 10x²（'字母指数也相加'错因）、系数算错",
+            "教学角色": "L2 套用脚手架——'系数相加、字母不动'的分步训练（sympy 只验算纯算术环节，整式 10x 已人工核对）"
+          }
+        },
+        {
+          "slot": "B2-I1",
+          "prompt": "合并同类项：−3x + 7x，写出结果。",
+          "expected_answer": "4x",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "含负系数",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "把符号带进系数：−3 和 7",
+            "系数相加：−3 + 7 = 4",
+            "字母部分 x 不变：结果 4x"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "含负系数的直接合并（'含负系数'，diagnostic probe'含负系数'素材）",
+            "难度理由": "medium——符号带进系数是节点 #2 错因'符号漏掉'的核心形态",
+            "认知阶梯定位": "L2 套用（负系数版本）",
+            "错因陷阱": "把 −3 当 3 得 10x（'符号漏掉'）、−3 + 7 算成 −10（异号相加错）",
+            "教学角色": "含负系数标准套用"
+          }
+        },
+        {
+          "slot": "B2-I2",
+          "prompt": "合并同类项：2x + 3y + 5x − y",
+          "expected_answer": "7x + 2y",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "多项式整理",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "先找同类项：2x 与 5x 同类；3y 与 −y 同类",
+            "分别合并：2x + 5x = 7x；3y − y = 2y",
+            "不同类的项不能硬合并，结果 7x + 2y"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "多项合并（同类分别合并、不同类不合并，'多项式整理'）",
+            "难度理由": "medium——两组同类项 + 含负系数 y 项",
+            "认知阶梯定位": "L3 变式（从单项合并转入多项整理）",
+            "错因陷阱": "把 2x 与 3y 硬合并成 5xy（'非同类项硬合并'错因）、3y − y 写 4y（符号漏）",
+            "教学角色": "多项式整理核心变式"
+          }
+        },
+        {
+          "slot": "B3-I0",
+          "prompt": "合并同类项：4x² + 3x − 2x² + x",
+          "expected_answer": "2x² + 4x",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "多项式整理",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "找同类项：4x² 与 −2x² 同类；3x 与 x 同类",
+            "分别合并：4x² − 2x² = 2x²；3x + x = 4x",
+            "x² 与 x 不是同类不能合并，结果 2x² + 4x"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "含平方项的多项式整理（x² 与 x 不合并，'多项式整理'）",
+            "难度理由": "medium——不同指数项并存，'字母指数也相加'错因的直接战场",
+            "认知阶梯定位": "L3 变式",
+            "错因陷阱": "把 4x² 与 3x 合并（'字母指数也相加'）、−2x² 的负号漏掉",
+            "教学角色": "多项式整理核心变式——'x² 与 x 井水不犯河水'"
+          }
+        },
+        {
+          "slot": "B3-I1",
+          "prompt": "一个三角形的三条边分别是 2x cm、3x cm、4x cm。求这个三角形的周长，并写出列式和合并过程。",
+          "expected_answer": "周长 = 2x + 3x + 4x = 9x cm（系数 2 + 3 + 4 = 9，字母部分 x 不变）",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "直接合并",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "transfer",
+          "solution_steps": [
+            "周长 = 三边之和：2x + 3x + 4x",
+            "系数相加：2 + 3 + 4 = 9",
+            "字母部分不变：周长 = 9x cm"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "modeling_or_reading"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "把合并同类项用到实际情境的列式与化简（'直接合并'×周长建模）",
+            "难度理由": "hard——需自己列式再合并，系数相加与单位书写都要处理",
+            "认知阶梯定位": "L4 迁移——实际情境（周长/面积化简，任务指定迁移方向）",
+            "错因陷阱": "把 2x + 3x 当 5x²（'字母指数也相加'）、列式漏一项、漏写单位 cm",
+            "教学角色": "判定层 transfer 证据来源（C3 双角色）——实际情境中的合并"
+          }
+        },
+        {
+          "slot": "B3-I2",
+          "prompt": "合并同类项：3a²b − 2ab² + 5a²b + ab²",
+          "expected_answer": "8a²b − ab²",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "含负系数",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "transfer",
+          "solution_steps": [
+            "找同类项：3a²b 与 5a²b 同类；−2ab² 与 ab² 同类（ab² 的系数是 +1）",
+            "分别合并：3a²b + 5a²b = 8a²b；−2ab² + ab² = −ab²",
+            "a²b 与 ab² 不是同类不能合并，结果 8a²b − ab²"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "双字母 + 负系数的多项式整理（a²b 与 ab² 辨析，'含负系数'）",
+            "难度理由": "hard——双字母指数交叉、负系数、隐系数 +1 三处陷阱叠加（LIKE-TERMS 前置'x²y 与 xy² 不同类'的合并版）",
+            "认知阶梯定位": "L4 迁移——同类项识别 × 合并（LIKE-TERMS 前置）",
+            "错因陷阱": "把 a²b 与 ab² 硬合并（'非同类项硬合并'）、−2ab² + ab² 符号漏、漏 ab² 的隐系数 +1",
+            "教学角色": "判定层 transfer 证据来源（C3 双角色）"
+          }
+        },
+        {
+          "slot": "B4-I0",
+          "prompt": "合并同类项：7m + 3m。合并后 m 的系数是几？先算系数之和。计算：7 + 3",
+          "expected_answer": "10",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "直接合并",
+          "variant_level": "L2",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "合并同类项只合并系数：7 + 3 = 10",
+            "字母部分 m 不变",
+            "所以 7m + 3m = 10m，m 的系数是 10（整式为符号答案，本环节只验算系数加法）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 3,
+          "design_rationale": {
+            "考点": "合并的系数相加环节快速检测（'直接合并'）",
+            "难度理由": "easy 检测——单步系数加法，需先识别 7 和 3 是系数",
+            "认知阶梯定位": "L2 检测",
+            "错因陷阱": "系数算错、答成 10m 或 10m²（把字母部分也处理错，'字母指数也相加'）",
+            "教学角色": "掌握档快速检测（sympy 验算系数环节 verified，整式 10m 已人工核对）"
+          }
+        },
+        {
+          "slot": "B4-I1",
+          "prompt": "合并同类项：5x² − 2x + 3x − x² + 4",
+          "expected_answer": "4x² + x + 4",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "多项式整理",
+          "variant_level": "L3",
+          "difficulty": "hard",
+          "purpose_role": "core",
+          "solution_steps": [
+            "找同类项：5x² 与 −x² 同类；−2x 与 3x 同类；常数项 4 单独一类",
+            "分别合并：5x² − x² = 4x²；−2x + 3x = x；4 不变",
+            "结果 4x² + x + 4"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 6,
+          "design_rationale": {
+            "考点": "五项混合整理（x² / x / 常数三类，'多项式整理'，diagnostic probe'6 题合并同类项'素材）",
+            "难度理由": "hard——三类项并存 + 负系数 + 常数项，漏项、符号漏都是陷阱",
+            "认知阶梯定位": "L3 检测 hard",
+            "错因陷阱": "漏合并常数项 4、−2x + 3x 写 −x、把 5x² 与 −2x 硬合并",
+            "教学角色": "检测 hard 档，判定层 hard 证据来源"
+          }
+        },
+        {
+          "slot": "B4-I2",
+          "prompt": "小文说：'3x + 5y 合并后是 8xy，因为 3 加 5 等于 8。'这个说法对吗？为什么？",
+          "expected_answer": "不对。3x 和 5y 不是同类项（字母部分不同，一个含 x 一个含 y），不能合并；即使合并同类项，也只能系数相加、字母部分不变，绝不会出现 xy",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "直接合并",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "合并的前提是同类项：3x 与 5y 字母部分不同，不是同类项",
+            "不同类的项不能合并，只能照抄：3x + 5y",
+            "所以 3x + 5y ≠ 8xy（'3 加 5 等于 8'只适用同类项）"
+          ],
+          "error_tags": [
+            "concept_confusion"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "戳破'非同类项硬合并'的错误归纳（'直接合并'的论证形态）",
+            "难度理由": "medium 复测——需用'同类项标准'逐条反驳，mastery'能解释为什么字母部分不变'取证",
+            "认知阶梯定位": "L3 复测",
+            "错因陷阱": "认同 3x + 5y = 8xy（'非同类项硬合并'错因）、'3+5=8 所以能合并'的归纳",
+            "教学角色": "防'会背不会用'复测——合并前提的归因题"
+          }
+        },
+        {
+          "slot": "B5-I0",
+          "prompt": "合并同类项：2x²y − 3xy² + x²y + 5xy²",
+          "expected_answer": "3x²y + 2xy²",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "多项式整理",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "core",
+          "solution_steps": [
+            "找同类项：2x²y 与 x²y 同类（x²y 系数是 +1）；−3xy² 与 5xy² 同类",
+            "分别合并：2x²y + x²y = 3x²y；−3xy² + 5xy² = 2xy²",
+            "x²y 与 xy² 不是同类不能合并，结果 3x²y + 2xy²"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 6,
+          "design_rationale": {
+            "考点": "双字母项 + 负系数复测（'多项式整理'）",
+            "难度理由": "hard——x²y 与 xy² 两族并存、负系数合并、隐系数 +1，全节点最综合的合并题",
+            "认知阶梯定位": "L4 复测——防'会背不会用'",
+            "错因陷阱": "x²y 与 xy² 混合并（'字母指数也相加'）、−3xy² + 5xy² 符号错、漏 x²y 的隐系数 1",
+            "教学角色": "复测 hard 档，判定层 hard 证据来源"
+          }
+        },
+        {
+          "slot": "B5-I1",
+          "prompt": "下面哪个合并结果是正确的？（　）\nA. 3x + 2y = 5xy\nB. 3x + 2x = 5x\nC. 3x + 2x = 5x²\nD. 3x + 2x = 5",
+          "expected_answer": "B",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "直接合并",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "3x + 2x：系数 3 + 2 = 5，字母部分 x 不变 → 5x",
+            "A 是非同类项硬合并（x 与 y 不同类）；C 把指数相加；D 丢了字母部分",
+            "选 B"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "合并正误快速诊断（'直接合并'，diagnostic probe 素材）",
+            "难度理由": "easy 诊断——单步分档，但 A/C/D 覆盖三个头号错因",
+            "认知阶梯定位": "L1 诊断",
+            "错因陷阱": "选 A（'非同类项硬合并'）、选 C（'字母指数也相加'）、选 D（'符号漏掉/字母写丢'）",
+            "教学角色": "诊断题——三类错因一键探针"
+          }
+        },
+        {
+          "slot": "B5-I2",
+          "prompt": "合并同类项：−3a + 5a − a 时，把三个系数（带符号）相加。计算：(−3) + 5 + (−1)",
+          "expected_answer": "1",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "含负系数",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "把符号带进系数：−3、+5、−1（−a 的系数是 −1）",
+            "系数相加：(−3) + 5 + (−1) = 1",
+            "字母部分 a 不变：−3a + 5a − a = a（系数是 1 时省略不写）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "含负系数合并的系数环节诊断（'含负系数'，diagnostic probe'含负系数'素材）",
+            "难度理由": "medium——三系数异号求和，−a 的隐系数 −1 是核心陷阱",
+            "认知阶梯定位": "L2 诊断",
+            "错因陷阱": "−a 的系数漏 −1（算成 2）、(−3) + 5 忘带括号、结果写 1a 未化简",
+            "教学角色": "诊断题——负系数符号错因的探针（sympy 验算系数环节 verified，整式 a 已人工核对）"
+          }
+        },
+    ],
+    # # ===== M-G7-PARENTHESIS 去括号（计算向：3 verified + 12 unverifiable；难度 5 easy/6 medium/4 hard） =====
+    # # 节点契约：essence="括号前是正号不变，括号前是负号每一项都变号"；
+    # # seed=正号去括号/负号去括号/括号前有系数/多重括号；
+    # # common_mistakes=只变第一项/漏乘括号内某项/负号和系数同时出现就乱；
+    # # diagnostic_probes=6题去括号，含负号和括号前系数；mastery=正确率≥85%、能说出每一项如何变化。
+    # # authoring 原则（琢玉教训）：符号答案 → unverifiable 为主（人工+符号复核）；verified 取
+    # # '括号前系数×括号内项'数值环节（含分配律口算迁移 4×26，sympy 真验算）；多重括号从内向外；
+    # # hard 真难（分数系数、负号+系数同现）；L1 真识别；纠错复测防'只变第一项'模板反射。
+    "M-G7-PARENTHESIS": [
+        {
+          "slot": "B1-I0",
+          "prompt": "去括号：−(x + 3)。写出过程，并说明括号内每一项发生了什么变化。",
+          "expected_answer": "−x − 3。括号前是负号，去掉括号后括号内每一项都变号：x 变成 −x，+3 变成 −3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "负号去括号",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "看括号前的符号：这里是负号",
+            "负号去括号：括号内每一项都变号",
+            "x → −x，+3 → −3，结果 −x − 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "负号去括号的规则演示（'负号去括号'）",
+            "难度理由": "medium 锚点——去括号 + 变号解释双输出",
+            "认知阶梯定位": "标准例题（L2 套用基准线）",
+            "错因陷阱": "无（锚点题不埋陷阱；'每一项都变号'是头号错因'只变第一项'的预防）",
+            "教学角色": "讲本质用——'负号像反光镜，每项都翻面'的演示载体"
+          }
+        },
+        {
+          "slot": "B1-I1",
+          "prompt": "去括号时，如果括号前是负号，正确的是（　）\nA. 括号内每一项都变号\nB. 只把第一项变号\nC. 符号都不变\nD. 去掉括号，符号随便写",
+          "expected_answer": "A",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "负号去括号",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "括号前是负号：去掉括号后每一项都变号",
+            "选 A"
+          ],
+          "error_tags": [
+            "concept_confusion"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "识别负号去括号规则（'负号去括号'）",
+            "难度理由": "easy——规则识别无计算",
+            "认知阶梯定位": "L1 识别正宗实现",
+            "错因陷阱": "选 B（'只变第一项'错因）、选 C（忘变号）",
+            "教学角色": "L1 识别脚手架——负号去括号规则第一关"
+          }
+        },
+        {
+          "slot": "B1-I2",
+          "prompt": "下面哪个去括号的结果是正确的？（　）\nA. −(x + 2) = −x + 2\nB. −(x + 2) = −x − 2\nC. −(x + 2) = x − 2\nD. −(x + 2) = x + 2",
+          "expected_answer": "B",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "负号去括号",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "括号前是负号：每一项都变号",
+            "x → −x，+2 → −2，结果 −x − 2",
+            "选 B"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "判断负号去括号结果（'负号去括号'）",
+            "难度理由": "easy——四选一辨析",
+            "认知阶梯定位": "L1 识别",
+            "错因陷阱": "选 A（'只变第一项'错因）、选 C/D（符号规则记反）",
+            "教学角色": "L1 识别——去括号正误的辨析题"
+          }
+        },
+        {
+          "slot": "B2-I0",
+          "prompt": "去括号并化简：x + (2x + 3)",
+          "expected_answer": "3x + 3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "正号去括号",
+          "variant_level": "L2",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "括号前是正号：各项不变，直接去括号",
+            "x + 2x + 3",
+            "合并同类项：x + 2x = 3x，结果 3x + 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 3,
+          "design_rationale": {
+            "考点": "正号去括号（不变号）+ 合并（'正号去括号'，COMBINE-LIKE 支持性操作）",
+            "难度理由": "easy——去括号不变号 + 一步合并",
+            "认知阶梯定位": "L2 套用",
+            "错因陷阱": "正号却变号（写成 x − 2x + 3）、合并漏项",
+            "教学角色": "正号去括号标准套用——'正号不动'的基准示范"
+          }
+        },
+        {
+          "slot": "B2-I1",
+          "prompt": "去括号并化简：5x − (2x + 3)",
+          "expected_answer": "3x − 3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "负号去括号",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "括号前是负号：每一项都变号，−(2x + 3) = −2x − 3",
+            "原式 = 5x − 2x − 3",
+            "合并：5x − 2x = 3x，结果 3x − 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "负号去括号 + 合并两步（'负号去括号'）",
+            "难度理由": "medium——'减号后忘变号'的直接战场（常数项 3 要变 −3）",
+            "认知阶梯定位": "L2 套用（负号版本）",
+            "错因陷阱": "写 3x + 3（常数项忘变号，'只变第一项'）、5x − 2x 漏算",
+            "教学角色": "负号去括号标准套用——'括号前减号，括号里全翻面'"
+          }
+        },
+        {
+          "slot": "B2-I2",
+          "prompt": "去括号：3(2x + 1)，写出结果。",
+          "expected_answer": "6x + 3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "括号前有系数",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "括号前系数 3 要乘括号内每一项（乘法分配律）",
+            "3 × 2x = 6x，3 × 1 = 3",
+            "结果 6x + 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "括号前有系数的去括号（分配律，'括号前有系数'，M-PRE-DISTRIBUTIVE 前置）",
+            "难度理由": "medium——'漏乘括号内某项'错因的直接战场",
+            "认知阶梯定位": "L3 变式（从正负号转入系数分配）",
+            "错因陷阱": "只乘第一项得 6x + 1（'漏乘括号内某项'）、3 × 2x 写 5x（乘加混淆）",
+            "教学角色": "括号前有系数的核心变式"
+          }
+        },
+        {
+          "slot": "B3-I0",
+          "prompt": "去括号并化简：3x − (x − (2x + 1))",
+          "expected_answer": "4x + 1",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "多重括号",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "从最里面开始：−(2x + 1) = −2x − 1",
+            "中间层：x − (2x + 1) 变 x − 2x − 1 = −x − 1",
+            "最外层：3x − (−x − 1) = 3x + x + 1 = 4x + 1（减负变加）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "多重括号去括号（从内向外逐层，'多重括号'）",
+            "难度理由": "medium——三层括号逐层变号，'负号和系数同时出现就乱'的层级形态",
+            "认知阶梯定位": "L3 变式",
+            "错因陷阱": "外层去括号时内层符号看错（3x − (−x−1) 写 3x − x − 1）、只变第一项",
+            "教学角色": "多重括号的核心变式——'从里到外一层一层翻'"
+          }
+        },
+        {
+          "slot": "B3-I1",
+          "prompt": "用分配律口算：4 × 26 = 4 × (20 + 6) = 4 × 20 + 4 × 6。计算：4 × 26",
+          "expected_answer": "104",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "括号前有系数",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "transfer",
+          "solution_steps": [
+            "把 26 拆成 20 + 6：4 × 26 = 4 × (20 + 6)",
+            "分配律：4 × 20 + 4 × 6",
+            "4 × 20 = 80，4 × 6 = 24",
+            "80 + 24 = 104"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 6,
+          "design_rationale": {
+            "考点": "数字版分配律口算（去括号的数值对应物，'括号前有系数'×M-PRE-DISTRIBUTIVE 前置）",
+            "难度理由": "hard——需完成'拆数 → 分配 → 求和'三步，体现去括号与小学分配律的同一结构",
+            "认知阶梯定位": "L4 迁移——分配律（前置）数值形态 × 去括号规则",
+            "错因陷阱": "不分配只列竖式（模板反射）、分配时漏一项（漏 4 × 6）",
+            "教学角色": "判定层 transfer 证据来源（C3 双角色）——'去括号就是分配律'的数值示范（sympy 验算 verified）"
+          }
+        },
+        {
+          "slot": "B3-I2",
+          "prompt": "去括号并化简：−2(3x − 1) − (x + 2)",
+          "expected_answer": "−7x",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "括号前有系数",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "transfer",
+          "solution_steps": [
+            "第一组：−2(3x − 1) = −6x + 2（系数 −2 乘每一项，−2 × (−1) = +2）",
+            "第二组：−(x + 2) = −x − 2（负号全变号）",
+            "合并：−6x − x = −7x，2 − 2 = 0，结果 −7x"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "负号与系数同时出现的综合去括号（'括号前有系数'×'负号去括号'，节点 #3 错因'负号和系数同时出现就乱'的正面直击）",
+            "难度理由": "hard——两组括号两种规则 + 合并，三处符号陷阱",
+            "认知阶梯定位": "L4 迁移——两组括号规则联合应用",
+            "错因陷阱": "−2(3x − 1) 写 −6x − 1（漏乘 −1 的变号）、−(x + 2) 写 −x + 2（'只变第一项'）",
+            "教学角色": "判定层 transfer 证据来源（C3 双角色）——规则组合应用"
+          }
+        },
+        {
+          "slot": "B4-I0",
+          "prompt": "去括号：−(x + 5)。括号前系数是 −1，常数项 +5 要乘 −1。计算：(−1) × 5",
+          "expected_answer": "−5",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "负号去括号",
+          "variant_level": "L2",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "−(x + 5) = −x + (−1) × 5",
+            "常数项：(−1) × 5 = −5",
+            "所以 −(x + 5) = −x − 5（常数项由 +5 变 −5）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 3,
+          "design_rationale": {
+            "考点": "负号去括号中常数项的变号计算（'负号去括号'，diagnostic probe'含负号'素材）",
+            "难度理由": "easy 检测——单步'−1 × 常数项'，直接对应'只变第一项'错因的数值核心",
+            "认知阶梯定位": "L2 检测",
+            "错因陷阱": "(−1) × 5 写 5（忘变号）、写 −x + 5（'只变第一项'）",
+            "教学角色": "掌握档快速检测（sympy 验算常数项环节 verified，整式 −x − 5 已人工核对）"
+          }
+        },
+        {
+          "slot": "B4-I1",
+          "prompt": "去括号并化简：−(3x − 2) − 2(x + 1)",
+          "expected_answer": "−5x",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "括号前有系数",
+          "variant_level": "L3",
+          "difficulty": "hard",
+          "purpose_role": "core",
+          "solution_steps": [
+            "第一组：−(3x − 2) = −3x + 2（负号全变号，−2 → +2）",
+            "第二组：−2(x + 1) = −2x − 2（系数 −2 乘每一项）",
+            "合并：−3x − 2x = −5x，2 − 2 = 0，结果 −5x"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 6,
+          "design_rationale": {
+            "考点": "负号与系数并存的综合去括号（'括号前有系数'，节点 #3 错因的直接战场）",
+            "难度理由": "hard——两组括号两种规则 + 合并，三处符号陷阱",
+            "认知阶梯定位": "L3 检测 hard",
+            "错因陷阱": "−(3x − 2) 写 −3x − 2（忘给 −2 变号）、−2(x + 1) 只乘第一项写 −2x + 1、常数 2 − 2 漏算",
+            "教学角色": "检测 hard 档，判定层 hard 证据来源"
+          }
+        },
+        {
+          "slot": "B4-I2",
+          "prompt": "小美去括号：−(x + 3) 写成 −x + 3。她说：'x 变号了，3 不用变。'她的做法对吗？为什么？",
+          "expected_answer": "不对。括号前是负号，括号内每一项都要变号，+3 也要变成 −3，正确结果是 −x − 3；只给第一项变号是错的",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "负号去括号",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "规则：括号前是负号，每一项都变号",
+            "x → −x，+3 → −3，正确结果 −x − 3",
+            "小美只变了第一项（'只变第一项'错因）"
+          ],
+          "error_tags": [
+            "concept_confusion"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "戳破'只变第一项'的错误归纳（'负号去括号'的论证形态）",
+            "难度理由": "medium 复测——需用'每一项都变号'标准反驳，mastery'能说出每一项如何变化'取证",
+            "认知阶梯定位": "L3 复测",
+            "错因陷阱": "认同'x 变了 3 不用变'（节点 #1 错因'只变第一项'）",
+            "教学角色": "防'会背不会用'复测——去括号标准的归因题"
+          }
+        },
+        {
+          "slot": "B5-I0",
+          "prompt": "去括号并化简：1/2 (2x + 4) − 3(x − 1)",
+          "expected_answer": "−2x + 5",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "括号前有系数",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "core",
+          "solution_steps": [
+            "第一组：1/2(2x + 4) = x + 2（1/2 × 2x = x，1/2 × 4 = 2）",
+            "第二组：−3(x − 1) = −3x + 3（−3 × (−1) = +3）",
+            "合并：x − 3x = −2x，2 + 3 = 5，结果 −2x + 5"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "分数系数与负系数并存的综合去括号（'括号前有系数'）",
+            "难度理由": "hard——分数系数分配 + 负号分配 + 合并三步叠加",
+            "认知阶梯定位": "L4 复测——防'会背不会用'",
+            "错因陷阱": "1/2 × 2x 写 1x 忘约分、−3(x − 1) 写 −3x − 3（忘给 −1 变号）、合并符号错",
+            "教学角色": "复测 hard 档，判定层 hard 证据来源"
+          }
+        },
+        {
+          "slot": "B5-I1",
+          "prompt": "下面哪个去括号正确？（　）\nA. 3(x + 2) = 3x + 2\nB. 3(x + 2) = 3x + 6\nC. 3(x + 2) = x + 6\nD. 3(x + 2) = 3x + 5",
+          "expected_answer": "B",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "括号前有系数",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "系数 3 乘括号内每一项：3 × x = 3x，3 × 2 = 6",
+            "结果 3x + 6，选 B"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "括号前有系数的正误诊断（'括号前有系数'，diagnostic probe'含括号前系数'素材）",
+            "难度理由": "easy 诊断——单步分档",
+            "认知阶梯定位": "L1 诊断",
+            "错因陷阱": "选 A（'漏乘括号内某项'）、选 C（系数忘乘第一项）、选 D（乘加混淆）",
+            "教学角色": "诊断题——'漏乘某项'错因的一键探针"
+          }
+        },
+        {
+          "slot": "B5-I2",
+          "prompt": "去括号：−3(x + 2)。常数项部分：−3 乘括号内的 2。计算：(−3) × 2",
+          "expected_answer": "−6",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "括号前有系数",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "−3(x + 2) = −3x + (−3) × 2",
+            "常数项：(−3) × 2 = −6",
+            "所以 −3(x + 2) = −3x − 6（x 项系数 −3，常数项 −6）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "负系数分配中常数项的计算诊断（'括号前有系数'×负数乘法前置，diagnostic probe'含负号和括号前系数'素材）",
+            "难度理由": "medium——负系数乘常数项是'负号和系数同时出现就乱'错因的数值核心",
+            "认知阶梯定位": "L2 诊断",
+            "错因陷阱": "(−3) × 2 写 6（符号错）、漏乘常数项、只乘第一项",
+            "教学角色": "诊断题——负号与系数同现的算术探针（sympy 验算 verified，整式 −3x − 6 已人工核对）"
+          }
+        },
+    ],
+    # # ===== M-G7-POLY-ADD-SUB 整式加减（计算向：3 verified + 12 unverifiable；难度 5 easy/6 medium/4 hard） =====
+    # # 节点契约：essence="整式加减就是先去括号，再合并同类项"；
+    # # seed=整式加法/整式减法/先化简再求值/实际背景中的整式；
+    # # common_mistakes=减去多项式忘变号/同类项合并错/先求值后化简导致复杂；
+    # # diagnostic_probes=4题整式加减，1题先化简再求值；mastery=正确率≥80%、步骤固定：去括号→找同类→合并。
+    # # authoring 原则（琢玉教训）：符号答案 → unverifiable 为主（人工+符号复核）；verified 取
+    # # '化简后求值/系数合并'数值环节（sympy 真验算）；迁移=求值前化简（EXPR-VALUE 前置）+ A−B 字母整式；
+    # # 复测含纠错论证；L1 真识别流程；hard 真难（三项减法、周长列式+化简求值）。
+    "M-G7-POLY-ADD-SUB": [
+        {
+          "slot": "B1-I0",
+          "prompt": "计算：(3x + 2) + (2x + 1)。按步骤写：先去括号，再合并同类项。",
+          "expected_answer": "5x + 3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "整式加法",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "第一步 去括号：(3x + 2) + (2x + 1) = 3x + 2 + 2x + 1（括号前都是正号，各项不变）",
+            "第二步 合并同类项：3x + 2x = 5x，2 + 1 = 3",
+            "结果 5x + 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "整式加法的两步流程（去括号 → 合并，'整式加法'）",
+            "难度理由": "medium 锚点——流程示范（mastery'步骤固定：去括号→找同类→合并'取证）",
+            "认知阶梯定位": "标准例题（L2 套用基准线）",
+            "错因陷阱": "无（锚点题不埋陷阱；两步标题内嵌'步骤固定'习惯）",
+            "教学角色": "讲本质用——'整式加减 = 去括号 + 合并'的流程演示载体"
+          }
+        },
+        {
+          "slot": "B1-I1",
+          "prompt": "整式加减的计算顺序是（　）\nA. 先合并同类项，再去括号\nB. 先去括号，再合并同类项\nC. 直接代入数字算\nD. 先算乘除，再算加减",
+          "expected_answer": "B",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "整式加法",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "整式加减的标准流程：先去括号，再合并同类项",
+            "选 B（C 是求值，D 是有理数运算顺序，都不是整式加减流程）"
+          ],
+          "error_tags": [
+            "process_habit",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "识别整式加减的流程顺序（'整式加法'，mastery'步骤固定'取证）",
+            "难度理由": "easy——规则识别",
+            "认知阶梯定位": "L1 识别正宗实现",
+            "错因陷阱": "选 A（流程颠倒）、选 D（与运算顺序混淆）",
+            "教学角色": "L1 识别脚手架——流程卡第一关"
+          }
+        },
+        {
+          "slot": "B1-I2",
+          "prompt": "计算 (3x + 2) − (x + 1)，去括号后的第一步正确的是（　）\nA. 3x + 2 − x + 1\nB. 3x + 2 − x − 1\nC. 3x + 2 + x + 1\nD. 3x − 2 − x − 1",
+          "expected_answer": "B",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "整式减法",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "括号前是减号：括号内每一项都变号",
+            "(x + 1) → −x − 1",
+            "所以 3x + 2 − x − 1，选 B"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "识别整式减法去括号的正确形态（'整式减法'，节点 #1 错因'减去多项式忘变号'的直接形态）",
+            "难度理由": "easy——改写识别",
+            "认知阶梯定位": "L1 识别",
+            "错因陷阱": "选 A（'只变第一项'/忘变号）、选 C（减号当加号）",
+            "教学角色": "L1 识别——减法去括号的改写辨析"
+          }
+        },
+        {
+          "slot": "B2-I0",
+          "prompt": "计算：(2x + 3) + (x + 4)",
+          "expected_answer": "3x + 7",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "整式加法",
+          "variant_level": "L2",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "去括号（正号不变）：2x + 3 + x + 4",
+            "合并同类项：2x + x = 3x，3 + 4 = 7",
+            "结果 3x + 7"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 3,
+          "design_rationale": {
+            "考点": "整式加法标准套用（'整式加法'）",
+            "难度理由": "easy 套用——正号去括号 + 单类合并",
+            "认知阶梯定位": "L2 套用",
+            "错因陷阱": "2x + x 写 2x²（'同类项合并错'）、漏常数项 4",
+            "教学角色": "L2 套用脚手架"
+          }
+        },
+        {
+          "slot": "B2-I1",
+          "prompt": "计算：(5x + 3) − (2x + 1)",
+          "expected_answer": "3x + 2",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "整式减法",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "去括号：减号后每一项变号，−(2x + 1) = −2x − 1",
+            "原式 = 5x + 3 − 2x − 1",
+            "合并：5x − 2x = 3x，3 − 1 = 2，结果 3x + 2"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "整式减法标准套用（'整式减法'，节点 #1 错因'减去多项式忘变号'的核心战场）",
+            "难度理由": "medium——减号去括号 + 合并两步",
+            "认知阶梯定位": "L2 套用（减法版本）",
+            "错因陷阱": "写 3x + 4（常数项 1 忘变号，'减去多项式忘变号'）、5x − 2x 漏算",
+            "教学角色": "整式减法标准套用"
+          }
+        },
+        {
+          "slot": "B2-I2",
+          "prompt": "计算：(3x² + 2x) − (x² − x)",
+          "expected_answer": "2x² + 3x",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "整式减法",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "去括号：−(x² − x) = −x² + x（减号后全变号，−x → +x）",
+            "合并：3x² − x² = 2x²，2x + x = 3x",
+            "结果 2x² + 3x"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "含平方项的整式减法（'整式减法'）",
+            "难度理由": "medium——减号去括号 + x² 族合并",
+            "认知阶梯定位": "L3 变式（从一次项转入二次项）",
+            "错因陷阱": "−(x² − x) 写 −x² − x（忘给 −x 变号）、x² 与 x 合并错",
+            "教学角色": "整式减法的二次项变式"
+          }
+        },
+        {
+          "slot": "B3-I0",
+          "prompt": "一班收集废纸 (3x + 5) 千克，二班收集 (2x − 3) 千克，两个班一共收集了多少千克？",
+          "expected_answer": "5x + 2 千克",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "实际背景中的整式",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "列式：一共 = (3x + 5) + (2x − 3)",
+            "去括号（正号不变）：3x + 5 + 2x − 3",
+            "合并：3x + 2x = 5x，5 − 3 = 2，答案 5x + 2 千克"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "modeling_or_reading"
+          ],
+          "estimated_minutes": 4,
+          "design_rationale": {
+            "考点": "实际情境中的整式加法建模（'实际背景中的整式'）",
+            "难度理由": "medium——先列式再计算，含负常数项",
+            "认知阶梯定位": "L3 变式（换语境）",
+            "错因陷阱": "列式漏括号、5 − 3 写 8（'同类项合并错'）、漏写单位",
+            "教学角色": "实际背景的标准变式——'先列式，再按流程算'"
+          }
+        },
+        {
+          "slot": "B3-I1",
+          "prompt": "先化简再求值：当 x = −2 时，求 (3x + 2) + (x + 1) 的值。（提示：先合并化简，再代入）",
+          "expected_answer": "化简得 4x + 3；代入 x = −2：4 × (−2) + 3 = −5",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "先化简再求值",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "transfer",
+          "solution_steps": [
+            "先化简：(3x + 2) + (x + 1) = 4x + 3",
+            "再代入：x = −2 时，4x + 3 = 4 × (−2) + 3",
+            "4 × (−2) + 3 = −8 + 3 = −5"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "先化简再求值的完整流程（'先化简再求值'，EXPR-VALUE 前置迁移）",
+            "难度理由": "hard——化简 + 负数代入两步，'先求值后化简导致复杂'错因的正面示范",
+            "认知阶梯定位": "L4 迁移——代数式求值（前置）× 整式加减（任务指定迁移方向）",
+            "错因陷阱": "先代入后化简（失去化简意识）、化简错（4x + 3 漏 +1）、(−2) 代入不加括号",
+            "教学角色": "判定层 transfer 证据来源（C3 双角色）——求值前化简"
+          }
+        },
+        {
+          "slot": "B3-I2",
+          "prompt": "已知 A = 2x + 1，B = 3x − 2，求 A − B。",
+          "expected_answer": "−x + 3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "整式减法",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "transfer",
+          "solution_steps": [
+            "代入：A − B = (2x + 1) − (3x − 2)",
+            "去括号：−(3x − 2) = −3x + 2，原式 = 2x + 1 − 3x + 2",
+            "合并：2x − 3x = −x，1 + 2 = 3，结果 −x + 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "用字母表示整式的减法（'整式减法'×代数式前置）",
+            "难度理由": "hard——先正确代入 A、B（B 整体加括号）再减，负号分配两处",
+            "认知阶梯定位": "L4 迁移——用字母表示数（前置）× 整式减法",
+            "错因陷阱": "A − B 漏括号（2x + 1 − 3x − 2 = −x − 1，'减去多项式忘变号'）、1 + 2 符号错",
+            "教学角色": "判定层 transfer 证据来源（C3 双角色）"
+          }
+        },
+        {
+          "slot": "B4-I0",
+          "prompt": "整式 (6a + 2b) + (3a + b) 相加时，a 的系数相加。计算：6 + 3",
+          "expected_answer": "9",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "整式加法",
+          "variant_level": "L2",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "整式加法：先去括号（正号不变），再合并同类项",
+            "a 的系数：6 + 3 = 9，所以 a 项合并为 9a",
+            "完整结果：(6a + 2b) + (3a + b) = 9a + 3b（整式为符号答案，本环节只验算系数加法）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 3,
+          "design_rationale": {
+            "考点": "整式加法中系数的合并计算（'整式加法'）",
+            "难度理由": "easy 检测——单步系数加法，需先识别 a 的系数",
+            "认知阶梯定位": "L2 检测",
+            "错因陷阱": "6 + 3 算错、把 6a 与 3a 当 9a²（'同类项合并错'）",
+            "教学角色": "掌握档快速检测（sympy 验算系数环节 verified，整式 9a + 3b 已人工核对）"
+          }
+        },
+        {
+          "slot": "B4-I1",
+          "prompt": "计算：(4x² − 3x + 2) − (x² + 2x − 1)",
+          "expected_answer": "3x² − 5x + 3",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "整式减法",
+          "variant_level": "L3",
+          "difficulty": "hard",
+          "purpose_role": "core",
+          "solution_steps": [
+            "去括号：4x² − 3x + 2 − x² − 2x + 1（减号后全变号）",
+            "合并同类项：4x² − x² = 3x²；−3x − 2x = −5x；2 + 1 = 3",
+            "结果 3x² − 5x + 3"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 6,
+          "design_rationale": {
+            "考点": "三项整式的减法综合（'整式减法'，diagnostic probe'4 题整式加减'素材）",
+            "难度理由": "hard——三项去括号变号 + 三类项合并，'减去多项式忘变号'错因的最大覆盖",
+            "认知阶梯定位": "L3 检测 hard",
+            "错因陷阱": "−(x² + 2x − 1) 忘给 −1 变号（常数得 1 而非 3）、−3x − 2x 写 −x、漏项",
+            "教学角色": "检测 hard 档，判定层 hard 证据来源"
+          }
+        },
+        {
+          "slot": "B4-I2",
+          "prompt": "先化简再求值：化简 (2x + 3) − (x − 1) 得 x + 4。当 x = 3 时，计算：3 + 4",
+          "expected_answer": "7",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "先化简再求值",
+          "variant_level": "L3",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "验证化简： (2x + 3) − (x − 1) = 2x + 3 − x + 1 = x + 4 ✓",
+            "代入 x = 3：x + 4 = 3 + 4",
+            "3 + 4 = 7"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "先化简再求值的求值环节复测（'先化简再求值'，diagnostic probe'1 题先化简再求值'素材）",
+            "难度理由": "medium 复测——化简验证 + 代入计算，'先求值后化简'错因的防复发",
+            "认知阶梯定位": "L3 复测",
+            "错因陷阱": "先代入后化简（(2×3+3)−(3−1) = 7 也对但失去化简意识）、x + 4 代入错",
+            "教学角色": "防'会背不会用'复测——化简-求值流程的取证题（sympy 验算求值环节 verified）"
+          }
+        },
+        {
+          "slot": "B5-I0",
+          "prompt": "一个长方形的长是 (3x + 2) cm，宽是 (x + 1) cm。先列式求周长并化简，再求 x = 2 时的周长。",
+          "expected_answer": "周长 = 2(3x + 2) + 2(x + 1) = 8x + 6 cm；当 x = 2 时，周长 = 8 × 2 + 6 = 22 cm",
+          "answer_format": "text",
+          "verification_intent": "unverifiable",
+          "question_type": "实际背景中的整式",
+          "variant_level": "L4",
+          "difficulty": "hard",
+          "purpose_role": "core",
+          "solution_steps": [
+            "列式：周长 = 2(3x + 2) + 2(x + 1)",
+            "化简：6x + 4 + 2x + 2 = 8x + 6",
+            "代入 x = 2：8 × 2 + 6 = 16 + 6 = 22 cm"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "modeling_or_reading"
+          ],
+          "estimated_minutes": 7,
+          "design_rationale": {
+            "考点": "实际背景中的整式加减 + 化简求值综合（'实际背景中的整式'）",
+            "难度理由": "hard——列式、系数分配、合并、代入四步，'实际背景中的整式'种子题型的完整形态",
+            "认知阶梯定位": "L4 复测——防'会背不会用'",
+            "错因陷阱": "周长公式漏乘 2、−/＋ 分配错、代入后计算错、漏写单位",
+            "教学角色": "复测 hard 档，判定层 hard 证据来源"
+          }
+        },
+        {
+          "slot": "B5-I1",
+          "prompt": "下面哪个整式加减的结果是正确的？（　）\nA. (3x + 2) + (x + 1) = 4x + 2\nB. (3x + 2) + (x + 1) = 4x + 3\nC. (3x + 2) + (x + 1) = 3x² + 3\nD. (3x + 2) + (x + 1) = 3x + 3",
+          "expected_answer": "B",
+          "answer_format": "choice",
+          "verification_intent": "unverifiable",
+          "question_type": "整式加法",
+          "variant_level": "L1",
+          "difficulty": "easy",
+          "purpose_role": "core",
+          "solution_steps": [
+            "去括号（正号不变）：3x + 2 + x + 1",
+            "合并：3x + x = 4x，2 + 1 = 3，结果 4x + 3",
+            "选 B"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "calculation_or_symbol"
+          ],
+          "estimated_minutes": 2,
+          "design_rationale": {
+            "考点": "整式加法正误快速诊断（'整式加法'，diagnostic probe 素材）",
+            "难度理由": "easy 诊断——单步分档，但 A/C/D 覆盖常见合并错",
+            "认知阶梯定位": "L1 诊断",
+            "错因陷阱": "选 A（漏常数项 1）、选 C（'同类项合并错'，3x + x 当 3x²）、选 D（漏 x 系数）",
+            "教学角色": "诊断题——整式加法错因一键探针"
+          }
+        },
+        {
+          "slot": "B5-I2",
+          "prompt": "整式 (5x + 3) − (2x + 1) 中，去括号后 x 的系数是 5 和 −2（减号后要变号），它们相加。计算：5 + (−2)",
+          "expected_answer": "3",
+          "answer_format": "decimal",
+          "verification_intent": "verified",
+          "question_type": "整式减法",
+          "variant_level": "L2",
+          "difficulty": "medium",
+          "purpose_role": "core",
+          "solution_steps": [
+            "去括号：5x + 3 − 2x − 1（减号后每一项变号）",
+            "x 的系数：5 + (−2) = 3；常数项：3 + (−1) = 2",
+            "完整结果：(5x + 3) − (2x + 1) = 3x + 2（整式为符号答案，本环节只验算系数环节）"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "estimated_minutes": 5,
+          "design_rationale": {
+            "考点": "整式减法去括号后系数的计算诊断（'整式减法'，节点 #1 错因'减去多项式忘变号'的数值核心）",
+            "难度理由": "medium——必须把减号后的系数记为 −2 再相加",
+            "认知阶梯定位": "L2 诊断",
+            "错因陷阱": "写 5 + 2 = 7（忘变号，'减去多项式忘变号'）、5 + (−2) 符号错",
+            "教学角色": "诊断题——减法变号的算术探针（sympy 验算系数环节 verified，整式 3x + 2 已人工核对）"
+          }
+        },
+    ],
 }
 
 # ---------------------------------------------------------------------------
