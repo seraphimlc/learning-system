@@ -14527,8 +14527,912 @@ NODE_QUESTIONS: dict[str, list[dict[str, Any]]] = {
         },
     ],
 
+    # ===== M-BRIDGE-PROPORTION-MODEL 比例应用与对应量表（建模计算型：2 verified + 13 unverifiable） =====
+    # 节点契约：essence="比例题不是套公式，关键是找出两组对应量，并保持对应关系不乱"；
+    # seed=按比例分配/比例尺/正比例关系初步/用表格整理对应量；common_mistakes=对应量写串行/比值方向反了/
+    # 比例尺单位没统一/把比例关系当加减关系；diagnostic_probes=1道按比例分配、1道比例尺、1题只要求填写对应量表；
+    # mastery=能画出对应量表/能解释为什么两个比相等/比例尺题能先统一单位；
+    # prereq=M-PRE-RATIO-PROP、M-PRE-QUANTITY-RELATION；unlock=M-G7-EQ-WORD。
+    # authoring 原则（照 M-BRIDGE-MOTION-BASIC 建模样板）：正比例/反比例/按比例分配/比例尺/对应量表题
+    # unverifiable（建模与量纲换算无法进 sympy 表达式）；仅纯数值环节 verified
+    # （"计算：<表达式>（<情境>），写出答案。"答案机算真对）；
+    # L1 真识别（正比例判断/反比例方向/总份数第一步）；hard 真难（比例与方程对照、比例尺单位统一、差比问题）；
+    # 错因逐一布点："正反比例混"（B1-I2/B4-I1）、"按比例分配忘乘总份数"（B4-I0/B4-I2/B5-I1 诊断）、
+    # "比例尺单位不统一"（B3-I2/B5-I2 诊断）、"对应量写串行"（B1-I1/B3-I1）、"把比例关系当加减关系"（B3-I0）、
+    # "比值方向反了"（B1-I1/B2-I0 verified 陷阱）；
+    # 迁移布点：反比例（B2-I2 verified/B3-I0 变式，controlled extension"反比例直观体验"）、
+    # 比例×方程对照（B3-I1，controlled extension）、比例尺×长度单位换算（B3-I2）。
+    "M-BRIDGE-PROPORTION-MODEL": [
+        {
+            "slot": "B1-I0",
+            "prompt": "买苹果，3 千克要 24 元。先填对应量表（重量/总价），再想：每千克的价钱一定，买 5 千克要多少元？",
+            "expected_answer": "对应量表：重量（千克）3、5；总价（元）24、？。每千克 24 ÷ 3 = 8（元），比值一定；5 千克：8 × 5 = 40（元）。检验：24:3 = 40:5，比值都是 8 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "正比例关系初步",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两组对应量：重量 3 千克 ↔ 总价 24 元；重量 5 千克 ↔ 总价 ? 元",
+                "每千克价钱 = 24 ÷ 3 = 8 元（比值一定，对应关系不乱）",
+                "5 千克：8 × 5 = 40 元；检验：24:3 = 40:5 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "正比例标准例题（对应量表 + 比值一定，essence'找出两组对应量，保持对应关系不乱'的演示载体）", "难度理由": "medium 锚点——对应量表 + 比值一定是节点基准难度", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌对应量表与检验）", "教学角色": "讲本质用——'对应量表 + 比值一定'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "每千克苹果 8 元，买 2 千克要 16 元。下面哪一组（数量，总价）和这组成正比例（总价 ÷ 数量 = 每千克 8 元）？（　）\nA. （4 千克，32 元）\nB. （4 千克，24 元）\nC. （3 千克，18 元）\nD. （2 千克，8 元）",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "正比例关系初步",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "正比例：总价 ÷ 数量 必须始终等于每千克 8 元（比值一定）",
+                "A：32 ÷ 4 = 8 ✓；B：24 ÷ 4 = 6 ✗；C：18 ÷ 3 = 6 ✗；D：8 ÷ 2 = 4 ✗",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "正比例识别（两组对应量比值都一定，'对应量写串行'错因的第一道判断）", "难度理由": "easy——四选一比比值，无计算负担", "认知阶梯定位": "L1 识别正宗实现——'比值一定'的判断", "错因陷阱": "选 C（18 ÷ 3 = 6 只放大数量没按比值放大——'对应量写串行'/'比值方向反了'）、选 D（单价变了）", "教学角色": "L1 识别脚手架——'比值一定'第一关"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "做同一批零件（工作总量一定），每天做的个数越多，需要的天数越（　）\nA. 少——每天做得多，同样的总量就用更少的天数（乘积一定）\nB. 多\nC. 不变\nD. 有时多有时少",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "反比例直观体验",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "工作总量 = 每天做的个数 × 天数（积一定）",
+                "每天做的个数变大，天数变小",
+                "选 A（B 把反比例当正比例——'正反比例混'错因的直观形态）"
+            ],
+            "error_tags": ["concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "反比例直观体验（积一定：一个量变大另一个变小，controlled extension'反比例直观体验'的实现）", "难度理由": "easy——方向判断，无计算", "认知阶梯定位": "L1 识别——反比例方向判断", "错因陷阱": "选 B（以为都成正比——'正反比例混'）", "教学角色": "L1 识别脚手架——反比例方向探针"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "计算：24 ÷ 3（买 3 千克苹果共 24 元，每千克多少元），写出答案。",
+            "expected_answer": "8",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "正比例关系初步",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "每千克价钱 = 总价 ÷ 重量",
+                "24 ÷ 3 = 8（元）",
+                "24:3 的比值是 8（比值方向：前项总价 ÷ 后项重量）"
+            ],
+            "error_tags": ["calculation_or_symbol", "modeling_or_reading"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "正比例数值环节（每份量 = 总量 ÷ 份数，sympy 真验算 verified）", "难度理由": "easy——单步除法", "认知阶梯定位": "L2 套用——正比例比值数值落地", "错因陷阱": "3 ÷ 24（把前项后项颠倒——'比值方向反了'）", "教学角色": "正比例数值定点套用（verified）"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "一辆汽车 2 小时行了 140 千米，照这样的速度（速度一定），5 小时能行多少千米？先列对应量表再算。",
+            "expected_answer": "对应量表：时间（小时）2、5；路程（千米）140、？。速度 = 140 ÷ 2 = 70（千米/时）；5 小时：70 × 5 = 350（千米）。检验：140:2 = 350:5，比值都是 70 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "正比例关系初步",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "对应量表：时间 2 小时 ↔ 路程 140 千米；时间 5 小时 ↔ 路程 ?",
+                "速度 = 140 ÷ 2 = 70（千米/时），比值一定",
+                "5 小时路程 = 70 × 5 = 350（千米）；检验：140:2 = 350:5 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "正比例套用（对应量表求未知，速度一定 = 比值一定）", "难度理由": "medium——先列对应量表再求比值再乘，三步", "认知阶梯定位": "L2 套用——对应量表正比例标准形态", "错因陷阱": "对应量写串行（把 140 对应 5 小时）、140 ÷ 5 当速度（'对应量写串行'）", "教学角色": "L2 套用——对应量表标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "计算：12 × 10 ÷ 15（修一条路，每天修 12 米要 10 天；每天修 15 米要几天？工作总量一定），写出答案。",
+            "expected_answer": "8",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "反比例直观体验",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "工作总量 = 12 × 10 = 120 米（积一定，反比例）",
+                "天数 = 总量 ÷ 每天修的量 = 120 ÷ 15",
+                "120 ÷ 15 = 8（天）"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "反比例数值环节（积一定：总量 ÷ 新效率，sympy 真验算 verified，'反比例直观体验'的数值落地）", "难度理由": "medium——先求积再除，两步；把正比例公式套进来即错", "认知阶梯定位": "L3 变式——从正比例切到反比例", "错因陷阱": "用 12 ÷ 15 或 10 ÷ 15（把正比例'比值'套到反比例——'正反比例混'）", "教学角色": "反比例数值定点套用（verified）"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "下表是买练习本的总价表（每本 4 元）。先填完整，再回答：买 7 本要多少元？\n本数：2　4　6　7\n总价：8　16　□　□",
+            "expected_answer": "本数 6 → 总价 24（6 × 4）；本数 7 → 总价 28（7 × 4）。总价 ÷ 本数 始终 = 4（比值一定）。检验：8:2 = 16:4 = 24:6 = 28:7 = 4 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "用表格整理对应量",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "对应量表：总价 = 本数 × 4（每本 4 元，比值一定）",
+                "6 本 → 6 × 4 = 24；7 本 → 7 × 4 = 28",
+                "检验：8:2 = 16:4 = 24:6 = 28:7 = 4 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "用表格整理对应量（diagnostic probe'1 题只要求填写对应量表'素材，mastery'能画出对应量表'取证）", "难度理由": "medium——填两格 + 保持比值一定", "认知阶梯定位": "L3 变式——对应量表的完整填写", "错因陷阱": "按加减填（8、16 后写 24、32——'把比例关系当加减关系'）、漏填 28", "教学角色": "变式核心——对应量表填写（判定层 medium 证据）"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "3 千克苹果 24 元，买 5 千克要多少元？①用比例式解（设 5 千克要 x 元，列 24:3 = x:5）；②再用'先求单价'的方程解。两种方法的结果一样吗？",
+            "expected_answer": "① 24:3 = x:5，内项之积 = 外项之积：3x = 24 × 5 = 120，x = 40（元）；② 单价 = 24 ÷ 3 = 8（元），x = 8 × 5 = 40（元）；两种方法结果一样，都靠'单价一定'。检验：24:3 = 40:5 = 8 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "正比例关系初步",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "方法①：比例式 24:3 = x:5，外项 24、5，内项 3、x",
+                "3x = 24 × 5 = 120，x = 40",
+                "方法②：单价 24 ÷ 3 = 8，x = 8 × 5 = 40——两种解法殊途同归（controlled extension'比例与方程两种解法对照'）"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "比例与方程两种解法对照（controlled extension；比例式 × 简易方程前置迁移，mastery'能解释为什么两个比相等'取证）", "难度理由": "hard——比例式内外项 + 方程求解 + 双解法对照，三处可错", "认知阶梯定位": "L4 迁移——M-PRE-RATIO-PROP 比例性质 × M-PRE-EQUATION-BASIC 前置", "错因陷阱": "比例式列反（24:5 = 3:x——'对应量写串行'）、外项内项定错（'比例内项外项积相等用错'前置回退）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——比例式 × 方程对照"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "一幅地图的比例尺是 1:500000。图上 A、B 两地相距 6 厘米，实际距离是多少千米？（提示：先统一单位，再按比例尺列比例式）",
+            "expected_answer": "比例式：1:500000 = 6:x，x = 6 × 500000 = 3,000,000（厘米）；3,000,000 厘米 = 30 千米。检验：30 千米 = 3,000,000 厘米，6 : 3,000,000 = 1:500000 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "比例尺",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "比例尺 1:500000：图上 1 厘米 = 实际 500000 厘米",
+                "实际 = 6 × 500000 = 3,000,000 厘米（先得厘米）",
+                "单位统一：3,000,000 厘米 = 30 千米（mastery'比例尺题能先统一单位'取证）"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "比例尺求实际距离（比例式 + 长度单位换算，diagnostic probe'1 道比例尺'素材）", "难度理由": "hard——比例式 + 厘米化千米两步，单位不换即全错", "认知阶梯定位": "L4 迁移——M-PRE-UNIT-CONVERSION 前置 × 比例尺", "错因陷阱": "算出 3,000,000 就答'3,000,000 千米'（'比例尺单位没统一'）、比例式方向列反", "教学角色": "判定层 transfer 证据来源（C3 双角色）——比例尺 × 单位换算"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "把 30 个橘子按 2:3 分给甲、乙两个班，第一步应该先算（　）\nA. 总份数 2 + 3 = 5 份\nB. 直接 30 × 2\nC. 30 − 2\nD. 30 ÷ 2",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "按比例分配",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "按比例分配：第一步先算总份数 = 2 + 3 = 5 份",
+                "再算每份 = 30 ÷ 5 = 6 个",
+                "选 A（B 直接把总数乘前项——'按比例分配忘乘总份数'错因的源头）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "按比例分配第一步识别（总份数 = 各部分份数之和）", "难度理由": "easy——步骤识别，无计算", "认知阶梯定位": "L2 检测——按比例分配步骤快速检测", "错因陷阱": "选 B（直接用总数乘比的前项——'按比例分配忘乘总份数'）、选 D", "教学角色": "掌握档快速检测——'先总份数'探针"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "下面哪一组量成反比例关系（乘积一定）？（　）\nA. 速度一定时，时间越长，路程越多（正比例）\nB. 路程一定时，速度越快，用的时间越少（反比例）\nC. 单价一定时，数量越多，总价越多（正比例）\nD. 年龄增长时，身高也增长（不成比例）",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "正反比例辨析",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "反比例 = 乘积一定（一个变大另一个变小）",
+                "B：路程 = 速度 × 时间，路程一定 → 积一定，反比例 ✓",
+                "A/C 是比值一定（正比例），D 只是关联不构成比例，选 B"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "正反比例关系辨析（比值一定 vs 积一定，'正反比例混'错因的正面战场）", "难度理由": "hard——四个情境逐一判断比例类型，还需排除'关联当比例'", "认知阶梯定位": "L3 检测 hard——正反比例判定取证", "错因陷阱": "选 A/C（把正比例当反比例——'正反比例混'）、选 D（把年龄与身高的关联当比例）", "教学角色": "检测 hard 档，判定层 hard 证据来源——正反比例辨析"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "把一根长 120 厘米的木条，按 2:3:5 截成三段，每段各长多少厘米？（先算总份数）",
+            "expected_answer": "总份数 2 + 3 + 5 = 10 份；每份 = 120 ÷ 10 = 12（厘米）；三段分别 12 × 2 = 24 厘米、12 × 3 = 36 厘米、12 × 5 = 60 厘米。检验：24 + 36 + 60 = 120 ✓，24:36:60 = 2:3:5 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "按比例分配",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "总份数 = 2 + 3 + 5 = 10 份",
+                "每份 = 120 ÷ 10 = 12 厘米",
+                "三段：12 × 2 = 24、12 × 3 = 36、12 × 5 = 60（检验：和 = 120 ✓）"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "按比例分配复测（三部分，总份数 10，diagnostic probe'1 道按比例分配'素材）", "难度理由": "medium 复测——总份数 → 每份 → 三段三步", "认知阶梯定位": "L3 复测——按比例分配防退化", "错因陷阱": "直接用 120 × 2、120 × 3、120 × 5（漏总份数——'按比例分配忘乘总份数'）、份数和算错", "教学角色": "复测 medium——三部分按比例分配复测"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "甲、乙两班人数的比是 5:4，甲班比乙班多 8 人。①多出的 8 人对应几份？②两个班各有多少人？（先想：份数与人数怎么对应）",
+            "expected_answer": "① 甲 5 份、乙 4 份，甲比乙多 5 − 4 = 1 份，8 人对应 1 份；② 每份 8 人：甲 8 × 5 = 40 人，乙 8 × 4 = 32 人。检验：40 − 32 = 8 ✓，40:32 = 5:4 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "按比例分配",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "份数差 = 5 − 4 = 1 份，对应人数差 8 人（差 ↔ 份数 对应）",
+                "每份 = 8 ÷ 1 = 8 人",
+                "甲 8 × 5 = 40、乙 8 × 4 = 32；检验：40 − 32 = 8 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "按比例分配最高阶复测（差对应份数，'对应量写串行'错因的深水区）", "难度理由": "hard——要自己发现'差 8 人对应 1 份'再展开，两处可错", "认知阶梯定位": "L4 复测——按比例分配 × 差量对应", "错因陷阱": "把 8 当总数直接按 5:4 分（8 ÷ 9 份——对应关系错乱）、份数差算错", "教学角色": "复测 hard 档，判定层 hard 证据来源——差比问题"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小丽把 40 个糖果按 3:5 分给甲、乙两队，她直接算：甲队 40 × 3 = 120（个）。她错在哪里？（　）\nA. 应该先算总份数 3 + 5 = 8，再算每份 40 ÷ 8 = 5（个），甲队应是 5 × 3 = 15（个）\nB. 没错，120 个是对的\nC. 应该 40 × 5\nD. 应该 40 − 3",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "按比例分配",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "按比例分配先算总份数 3 + 5 = 8 份",
+                "每份 = 40 ÷ 8 = 5 个，甲队 = 5 × 3 = 15 个",
+                "小丽漏了'先除以总份数'（'按比例分配忘乘总份数'错因），选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'按比例分配忘乘总份数'错因的诊断（一键探针）", "难度理由": "easy——L1 判断并指出正确第一步", "认知阶梯定位": "L1 诊断——'先总份数'意识的一键探针", "错因陷阱": "选 B（接受 40 × 3——'按比例分配忘乘总份数'）、选 C（40 × 5 同样漏总份数）", "教学角色": "诊断题——按比例分配'先总份数'的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小华画地图：图上 3 厘米表示实际 60 千米。他写：'比例尺 = 3 : 60 = 1 : 20。'他错在哪里？正确的比例尺是多少？",
+            "expected_answer": "错在单位不统一：3 厘米不能直接和 60 千米相比。60 千米 = 6,000,000 厘米；比例尺 = 3 : 6,000,000 = 1 : 2,000,000。检验：图上 1 厘米 = 实际 2,000,000 厘米 = 20 千米，3 厘米 = 60 千米 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "比例尺",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "比例尺的前后项必须是同一单位（都化成厘米）",
+                "60 千米 = 6,000,000 厘米",
+                "比例尺 = 3 : 6,000,000 = 1 : 2,000,000（'比例尺单位没统一'错因诊断）"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'比例尺单位没统一'错因的诊断（比例尺前后项同单位）", "难度理由": "medium——指出单位错误 + 完成换算化简两步", "认知阶梯定位": "L2 诊断——比例尺单位统一意识的一键探针", "错因陷阱": "接受 3:60（不换算——'比例尺单位没统一'）、前后项颠倒写 2,000,000:1", "教学角色": "诊断题——比例尺单位统一的一键探针"}
+        },
+    ],
+
+    # ===== M-BRIDGE-CLOCK-ANGLE 钟表角问题（图形计算型：2 verified + 13 unverifiable；P2 受控拓展） =====
+    # 节点契约：essence="分针和时针在圆周上运动，本质是角度版环形追及"；
+    # seed=整点初始角/领先落后角/夹角两个答案/重合或成直线；common_mistakes=不知道分针6°/分、时针0.5°/分/
+    # 把夹角和方向角混淆/漏掉第二个答案；diagnostic_probes=1道落后角、1道夹角（要求写相对速度）；
+    # mastery=能算初始角度/能列角度差方程/能说明是否有两个答案；prereq=M-PRE-ANGLE-BASIC、M-BRIDGE-MOTION-CHASE；
+    # unlock=M-G7-ANGLE-CALC。
+    # authoring 原则（照 M-PRE-ANGLE-BASIC 图形样板）：读钟面/判断/建模题 unverifiable（图形无法进 sympy）；
+    # 仅纯数值环节 verified（"计算：<表达式>（<情境>），写出答案。"答案机算真对）；
+    # L1 真识别（角速度识别/每大格 30°）；hard 真难（追及重合、夹角两个答案）；
+    # 错因逐一布点："只算分针角度"（B1-I1/B2-I2 verified 陷阱/B3-I1/B4-I2）、
+    # "时针不动（漏时针位移）"（B2-I1 正面/B4-I1/B5-I0/B5-I1 诊断）、"夹角取大角还是小角"（B3-I0/B5-I2 诊断）、
+    # "不知道分针6°/分、时针0.5°/分"（B1-I1/B4-I2）、"漏掉第二个答案"（B3-I0/B3-I2）；
+    # 迁移布点：追及思想（B3-I1/B3-I2，M-BRIDGE-MOTION-CHASE 前置 × 钟面，essence 直接实现）。
+    "M-BRIDGE-CLOCK-ANGLE": [
+        {
+            "slot": "B1-I0",
+            "prompt": "钟面一圈是 360°，平均分成 12 大格。先算出每大格多少度，再求 3 点整时，时针和分针的夹角是多少度。",
+            "expected_answer": "每大格 = 360 ÷ 12 = 30°；3 点整时针指向 3、分针指向 12，相距 3 大格；夹角 = 3 × 30° = 90°。检验：90° ÷ 30° = 3 大格 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "整点初始角",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "钟面圆周化：一圈 360° 分成 12 大格，每大格 360 ÷ 12 = 30°",
+                "3 点整：时针指 3、分针指 12，相距 3 大格",
+                "夹角 = 3 × 30° = 90°；检验：90 ÷ 30 = 3 大格 ✓"
+            ],
+            "error_tags": ["visual_spatial", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "整点初始角标准例题（钟面圆周化 + 数大格，essence'把钟面变成 360° 圆周'的演示载体，mastery'能算初始角度'）", "难度理由": "medium 锚点——圆周化 + 数格 + 乘法是节点基准难度", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌每大格推导与检验）", "教学角色": "讲本质用——'钟面圆周化'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "分针每分钟转多少度？时针每分钟转多少度？（　）\nA. 分针每分钟 6°，时针每分钟 0.5°\nB. 分针每分钟 30°，时针每分钟 6°\nC. 两针一样快\nD. 分针每分钟 0.5°，时针每分钟 6°",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "角速度识别",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "分针 1 小时转一圈 360°，每分钟 360 ÷ 60 = 6°",
+                "时针 1 小时走 1 大格 30°，每分钟 30 ÷ 60 = 0.5°",
+                "选 A（B/D 把大格当每分钟、两针速度弄反——'不知道分针6°/分、时针0.5°/分'）"
+            ],
+            "error_tags": ["concept_confusion", "visual_spatial"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "分针/时针角速度识别（6°/分 与 0.5°/分，'不知道分针6°/分、时针0.5°/分'错因的直接识别）", "难度理由": "easy——角速度记忆判断", "认知阶梯定位": "L1 识别正宗实现——两针角速度第一关", "错因陷阱": "选 B/D（把 30° 大格当分针每分钟、两针速度弄反）、选 C", "教学角色": "L1 识别脚手架——两针角速度探针"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "钟面上相邻两个数字之间（1 大格）的角是多少度？（　）\nA. 30°\nB. 60°\nC. 45°\nD. 90°",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "整点初始角",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "一圈 360° 平均分成 12 大格",
+                "每大格 = 360 ÷ 12 = 30°",
+                "选 A"
+            ],
+            "error_tags": ["concept_confusion", "visual_spatial"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "每大格 30° 识别（整点角计算的底层单位）", "难度理由": "easy——L1 单位识别", "认知阶梯定位": "L1 识别——每大格 30° 判断", "错因陷阱": "选 B（把 6 小时制当 60 度）、选 D（把直角当大格）", "教学角色": "L1 识别脚手架——每大格 30° 探针"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "2 点整时，时针指向 2、分针指向 12。两针的夹角是多少度？（每大格 30°）",
+            "expected_answer": "2 点整两针相距 2 大格；夹角 = 2 × 30° = 60°。检验：60° ÷ 30° = 2 大格 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "整点初始角",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "2 点整：时针指 2、分针指 12，相距 2 大格",
+                "夹角 = 2 × 30° = 60°",
+                "检验：60 ÷ 30 = 2 大格 ✓"
+            ],
+            "error_tags": ["visual_spatial", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "整点初始角套用（数大格 × 30°）", "难度理由": "easy 套用——单步乘法", "认知阶梯定位": "L2 套用——整点角标准应用", "错因陷阱": "数格错（把 2 点当 3 大格——'把夹角和方向角混淆'）、每大格度数错", "教学角色": "L2 套用脚手架——整点角标准形态"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "3:30 时，分针指向 6，时针走了半小时，正好在 3 和 4 的正中间。求 3:30 时两针的夹角。（提示：先确定时针在哪个位置）",
+            "expected_answer": "时针位置：3:30 时针离 12 是 3.5 大格 = 3.5 × 30° = 105°；分针指向 6 = 180°；夹角 = 180° − 105° = 75°。检验：从 3 到 6 是 90°，时针已走半格 15°，90° − 15° = 75° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "某时刻夹角",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "3:30 时针走了半小时，在 3 和 4 正中间：离 12 是 3.5 大格",
+                "时针 3.5 × 30° = 105°，分针指 6 = 180°",
+                "夹角 = 180 − 105 = 75°（'时针不动（漏时针位移）'错因的正面战场）"
+            ],
+            "error_tags": ["visual_spatial", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "某时刻夹角（时针位移半步，'时针不动（漏时针位移）'错因的正面战场）", "难度理由": "medium——先定时针半格位置再减，漏半格即错", "认知阶梯定位": "L2 套用——含时针位移的标准形态", "错因陷阱": "把 3:30 时针当正指 3（得 90°——'时针不动（漏时针位移）'）、3.5 大格算错", "教学角色": "变式核心——时针位移标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "计算：90 − 60 + 5（3:00 时两针夹角 90°，分针落后；3:00 到 3:10 分针走了 60°、时针走了 5°，3:10 时夹角是多少），写出答案。",
+            "expected_answer": "35",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "领先落后角",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "分针每分钟 6°：10 分钟走 60°（追近时针）",
+                "时针每分钟 0.5°：10 分钟走 5°（同时前进）",
+                "夹角 = 90 − 60 + 5 = 35°（先减分针追近、再加时针前进）"
+            ],
+            "error_tags": ["calculation_or_symbol", "visual_spatial"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "领先/落后角数值环节（相对速度思想：分针追近 60°、时针前进 5°，diagnostic probe'1 道落后角'素材，sympy 真验算 verified）", "难度理由": "medium——先减后加两步，漏时针 5° 即错", "认知阶梯定位": "L3 变式——从静态夹角到动态落后角", "错因陷阱": "90 − 60 就停（漏时针位移——'只算分针角度'）", "教学角色": "落后角数值定点（verified）——相对速度铺路"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "5:00 时两针夹角（小角）是 150°。①另一个角（大角）是多少度？②两个角合起来是多少度？",
+            "expected_answer": "① 大角 = 360° − 150° = 210°；② 两个角合起来 = 360°（正好一圈）。检验：150° + 210° = 360° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "夹角两个答案",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两针把钟面分成大小两个角，合起来是一圈 360°",
+                "大角 = 360 − 150 = 210°",
+                "检验：150 + 210 = 360 ✓（'夹角取大角还是小角'错因的正面战场）"
+            ],
+            "error_tags": ["visual_spatial", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "夹角取大角还是小角（大角 = 360° − 小角，'夹角取大角还是小角'错因正面 + '夹角两个答案'seed 铺路）", "难度理由": "medium——补角推理 + 360° 一圈观念", "认知阶梯定位": "L3 变式——从单角到双角互补", "错因陷阱": "把 150° 当唯一答案（漏 210°——'漏掉第二个答案'）、360 − 150 算错", "教学角色": "变式核心——大角/小角辨析"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "2:00 时，分针在 12、时针在 2，分针落后时针 60°。分针每分钟转 6°，时针每分钟转 0.5°（相对速度 5.5°/分）。①分针追上时针需要多少分钟？（追及路程 ÷ 相对速度）②追上时大约是几点几分？",
+            "expected_answer": "① 追及时间 = 追及路程 ÷ 相对速度 = 60 ÷ 5.5 = 600 ÷ 55 = 120/11 ≈ 10 又 10/11（分钟）；② 2 点 10 又 10/11 分，约 2:10:55。检验：分针走 6 × 120/11 = 720/11 度，时针走 0.5 × 120/11 = 60/11 度，时针初始 60°，60 + 60/11 = 720/11 = 分针角度 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "重合追及",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "角度版追及：相对速度 = 6 − 0.5 = 5.5（°/分）",
+                "追及时间 = 追及路程 60° ÷ 相对速度 5.5 = 120/11 ≈ 10 又 10/11 分钟",
+                "时刻 2:10 又 10/11 分；检验：分针 720/11° = 时针 60 + 60/11° ✓"
+            ],
+            "error_tags": ["visual_spatial", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "追及思想求重合（角度版环形追及，essence 的直接实现；M-BRIDGE-MOTION-CHASE 前置迁移）", "难度理由": "hard——相对速度 + 追及时间 + 时刻换算三处可错，且答案带分数", "认知阶梯定位": "L4 迁移——追及模型 × 钟面（diagnostic probe'要求写相对速度'素材）", "错因陷阱": "用 60 ÷ 6（漏时针也在走——'只算分针角度'）、相对速度算成 6 + 0.5（方向和）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——追及 × 钟面"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "3:00 时两针夹角正好是 90°。之后分针追时针，夹角先变小又变大。在 3 点与 4 点之间，两针夹角第二次成 90° 是什么时刻？（提示：先写相对速度，再列 5.5t = 180）",
+            "expected_answer": "相对速度 = 6 − 0.5 = 5.5（°/分）；第二次成 90° 时，分针比时针多走 180°（先追平 90° 再超出 90°）：5.5t = 180，t = 180 ÷ 5.5 = 360/11 ≈ 32 又 8/11（分钟），即约 3:32:44。检验：分针 6 × 360/11 = 2160/11 度，时针 90 + 0.5 × 360/11 = 90 + 180/11 = 1170/11 度，差 = 990/11 = 90° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "夹角两个答案",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "相对速度 = 5.5°/分；第二次 90° 需分针比时针多走 180°",
+                "列角度差方程：5.5t = 180，t = 360/11 ≈ 32 又 8/11 分钟",
+                "时刻约 3:32:44；检验：两针角度差 = 90° ✓"
+            ],
+            "error_tags": ["visual_spatial", "concept_confusion"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "夹角两个答案（列角度差方程，mastery'能列角度差方程''能说明是否有两个答案'取证；'漏掉第二个答案'错因正面）", "难度理由": "hard——先想'第二次 90° 对应多走 180°'再列方程，抽象度最高", "认知阶梯定位": "L4 迁移——追及方程 × 夹角双解（'夹角两个答案'seed 的最高形态）", "错因陷阱": "只答第一次 90°（3:00——'漏掉第二个答案'）、相对速度用 6（漏时针——'只算分针角度'）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——角度差方程"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "计算：30 × 5（每大格 30°，5 点整两针相距 5 大格的夹角），写出答案。",
+            "expected_answer": "150",
+            "answer_format": "expression",
+            "verification_intent": "verified",
+            "question_type": "整点初始角",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "5 点整两针相距 5 大格",
+                "夹角 = 5 × 30° = 150°",
+                "150° 是钝角（90° < 150° < 180°）"
+            ],
+            "error_tags": ["calculation_or_symbol", "visual_spatial"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "整点夹角数值环节（数大格 × 30°，sympy 真验算 verified）", "难度理由": "easy 检测——单步乘法", "认知阶梯定位": "L2 检测——整点角数值快速检测", "错因陷阱": "数格错（把 5 点当 4 或 6 大格）、每大格度数错", "教学角色": "整点角数值定点（verified）——掌握档快速检测"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "4:30 时，分针指向 6，时针在 4 和 5 的正中间。求 4:30 时两针的夹角。",
+            "expected_answer": "时针位置：4:30 时针离 12 是 4.5 大格 = 4.5 × 30° = 135°；分针指向 6 = 180°；夹角 = 180° − 135° = 45°。检验：从 4 到 6 是 60°，时针已走半格 15°，60° − 15° = 45° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "某时刻夹角",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "4:30 时针在 4 和 5 正中间：离 12 是 4.5 大格 = 135°",
+                "分针指 6 = 180°",
+                "夹角 = 180 − 135 = 45°（'时针不动（漏时针位移）'错因的检测形态）"
+            ],
+            "error_tags": ["visual_spatial", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "某时刻夹角检测（时针位移半步 + 减半格，'时针不动（漏时针位移）'错因检测）", "难度理由": "hard——4.5 大格换算 + 减法方向，两处可错", "认知阶梯定位": "L3 检测 hard——时针位移取证", "错因陷阱": "把 4:30 时针当正指 4（得 60°——'时针不动'）、4.5 大格算成 4 大格", "教学角色": "检测 hard 档，判定层 hard 证据来源——时针位移检测"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "从 3:15 到 3:40（经过 25 分钟），①分针走了多少度？②时针走了多少度？（分针每分钟 6°、时针每分钟 0.5°）",
+            "expected_answer": "① 分针：25 × 6 = 150°；② 时针：25 × 0.5 = 12.5°。检验：分针走 25 小格（每小格 6°），时针走 25 个半度 = 12.5° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "角度位移",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "分针角度 = 时间 × 6° = 25 × 6 = 150°",
+                "时针角度 = 时间 × 0.5° = 25 × 0.5 = 12.5°",
+                "检验：25 分钟 = 25 小格，分针每小格 6° ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "visual_spatial"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "分针/时针角速度复测（两针各自角速度的位移应用，mastery'能算初始角度'的位移形态）", "难度理由": "medium 复测——两针各乘各的角速度，漏一个即错", "认知阶梯定位": "L3 复测——两针角速度防退化", "错因陷阱": "两针都用 6°（漏时针 0.5°——'只算分针角度'）、25 × 0.5 算错", "教学角色": "复测 medium——两针角速度复测"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "9:30 时，分针指向 6，时针在 9 和 10 的正中间。求 9:30 时两针的夹角。（先想：时针离 12 几大格？分针离 12 几大格？）",
+            "expected_answer": "时针位置：9:30 时针离 12 是 9.5 大格 = 9.5 × 30° = 285°；分针指向 6 = 180°；夹角 = 285° − 180° = 105°。检验：从 6 到 9 是 90°，时针已走半格 15°，90° + 15° = 105° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "某时刻夹角",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "9:30 时针在 9 和 10 正中间：离 12 是 9.5 大格 = 285°",
+                "分针指 6 = 180°",
+                "夹角 = 285 − 180 = 105°（'时针不动'与'大角小角'复合错因的复测）"
+            ],
+            "error_tags": ["visual_spatial", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "某时刻夹角最高阶复测（半格方向 + 减法方向都藏坑，'时针不动（漏时针位移）''夹角取大角还是小角'复合）", "难度理由": "hard——9.5 大格换算 + 大数减小数方向，两处可错", "认知阶梯定位": "L4 复测——钟表角最高阶复测", "错因陷阱": "把 9:30 时针当正指 9（得 90°——'时针不动'）、285 − 180 算成 95", "教学角色": "复测 hard 档，判定层 hard 证据来源——9:30 夹角"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小刚说：'3:30 时，时针正好指着 3，所以夹角是 90°。'他错在哪里？（　）\nA. 3:30 时时针已经走了半小时，在 3 和 4 的正中间，夹角应是 75°\nB. 没错，就是 90°\nC. 应该把 3:30 当 4:30 算\nD. 夹角应该是 180°",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "某时刻夹角",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "3:30 时时针走了半小时，在 3 和 4 正中间（离 12 是 3.5 大格）",
+                "时针 105°、分针 180°，夹角 = 180 − 105 = 75°",
+                "小刚漏了时针位移（'时针不动（漏时针位移）'错因），选 A"
+            ],
+            "error_tags": ["visual_spatial", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'时针不动（漏时针位移）'错因的诊断（一键探针）", "难度理由": "easy——L1 判断并指出时针位置", "认知阶梯定位": "L1 诊断——时针位移意识的一键探针", "错因陷阱": "选 B（接受'时针指 3'——'时针不动（漏时针位移）'）、选 D", "教学角色": "诊断题——时针位移的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小丽算 5:00 的夹角，得到 150°，她说：'两个角都是 150°，因为两针离得一样远。'她错在哪里？另一个角是多少度？",
+            "expected_answer": "错在'两个角一样'：两针把钟面分成大小两个角，小角 150°（5 大格），另一个角 = 360° − 150° = 210°（7 大格），不是 150°。检验：150° + 210° = 360° ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "夹角两个答案",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两针把 360° 一圈分成两个角",
+                "大角 = 360 − 150 = 210°（7 大格 × 30°）",
+                "150° + 210° = 360° ✓（'夹角取大角还是小角'错因诊断）"
+            ],
+            "error_tags": ["visual_spatial", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'夹角取大角还是小角'错因的诊断（大角 = 360° − 小角）", "难度理由": "medium——指出'两个角一样'的错误 + 补角计算", "认知阶梯定位": "L2 诊断——大角/小角意识的一键探针", "错因陷阱": "接受'两个角都是 150°'（'夹角取大角还是小角'迷思）、360 − 150 算错", "教学角色": "诊断题——大角/小角的一键探针"}
+        },
+    ],
+
+    # ===== M-BRIDGE-WORK-RATE 工程问题（建模计算型：2 verified + 13 unverifiable；P2 受控拓展） =====
+    # 节点契约：essence="工程问题把工作总量看成1，合作就是效率相加"；
+    # seed=单独完成/合作完成/先后合作；common_mistakes=工作效率不会表示/合作效率没相加/单位1理解弱；
+    # diagnostic_probes=1道单独+合作基础题；mastery=能把效率写成1/天数/能列出合作等量关系；
+    # prereq=M-PRE-FRACTION-MEANING、M-PRE-QUANTITY-RELATION；unlock=M-G7-EQ-WORD。
+    # authoring 原则（照 M-BRIDGE-MOTION-BASIC 建模样板）：工程建模/判断/诊断题 unverifiable
+    # （'单位 1'与分数效率无法进 sympy 表达式，题干不嵌"计算："算式）；
+    # 仅纯数值环节 verified（"计算：<表达式>（<情境>），写出答案。"答案机算真对）；
+    # L1 真识别（效率=1/天数/效率→天数/合作时间判断）；hard 真难（合作后单独、注水迁移、效率倒推）；
+    # 错因逐一布点："效率算反"（B1-I1/B1-I2/B5-I2 诊断）、"合作时间=单干时间之和（错）"（B2-I1/B2-I2/B4-I2/B5-I1 诊断）、
+    # "合作效率没相加"（B2-I0 verified 陷阱/B3-I1）、"工作量不设单位1"（B1-I0 正面/B3-I0/B4-I1）；
+    # 迁移布点：注水问题（B3-I2，工程模型换情境）、合作×单独复合（B3-I1）、效率倒推（B5-I0）。
+    "M-BRIDGE-WORK-RATE": [
+        {
+            "slot": "B1-I0",
+            "prompt": "一项工程，甲队单独 6 天完成。①把这项工程看成'1'，甲队每天完成几分之几？②乙队单独 4 天完成，乙队每天完成几分之几？（用'每天完成几分之一'表示工作效率）",
+            "expected_answer": "① 甲队效率 = 1 ÷ 6 = 1/6；② 乙队效率 = 1 ÷ 4 = 1/4。检验：1/6 × 6 = 1（6 天正好完成整项工程）✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "单独完成",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "工作总量看成 1（essence'把工作总量看成 1'的演示载体）",
+                "效率 = 工作量 ÷ 天数 = 1 ÷ 天数：甲 1/6、乙 1/4",
+                "检验：1/6 × 6 = 1、1/4 × 4 = 1 ✓（'工作量不设单位1'错因的正面示范）"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "工程问题标准例题（单位 1 + 效率 = 1/天数，essence'把工作总量看成 1'的演示载体，mastery'能把效率写成1/天数'）", "难度理由": "medium 锚点——单位 1 化 + 分数效率是节点基准难度", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌'每天完成几分之一'与检验）", "教学角色": "讲本质用——'单位 1 + 效率 = 1/天数'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "甲单独做一项工程要 4 天完成，他每天完成这项工程的（　）\nA. 1/4\nB. 4\nC. 1/2\nD. 4/1",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "工作效率",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "效率表示'每天完成几分之一'：效率 = 1 ÷ 天数",
+                "4 天完成 → 每天 1/4",
+                "选 A（B/D 把天数当效率——'效率算反'/'工作效率不会表示'）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "工作效率表示识别（效率 = 1 ÷ 天数，'工作效率不会表示'错因的直接识别）", "难度理由": "easy——效率写法四选一", "认知阶梯定位": "L1 识别正宗实现——'效率 = 1/天数'第一关", "错因陷阱": "选 B（把天数 4 当效率——'效率算反'）、选 D", "教学角色": "L1 识别脚手架——'效率 = 1/天数'探针"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "甲每天完成一项工程的 1/6，甲单独完成这项工程需要（　）天。\nA. 6\nB. 1/6\nC. 3\nD. 12",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "单独完成",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "每天 1/6，6 个 1/6 正好凑成 1（整项工程）",
+                "天数 = 1 ÷ 效率 = 1 ÷ (1/6) = 6",
+                "选 A（B 把效率当天数——'效率算反'、D 把 1/6 当 1/12）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "从效率反推天数（天数 = 1 ÷ 效率，'效率算反'错因的逆向识别）", "难度理由": "easy——效率与天数互推", "认知阶梯定位": "L1 识别——效率 ↔ 天数互推探针", "错因陷阱": "选 B（把效率 1/6 当天数——'效率算反'）、选 D", "教学角色": "L1 识别——效率与天数互推"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "计算：1/8 + 1/8（甲、乙两人每天各完成工程的 1/8，两人合作一天完成几分之几），写出答案。",
+            "expected_answer": "1/4",
+            "answer_format": "fraction",
+            "verification_intent": "verified",
+            "question_type": "合作完成",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作一天效率 = 甲效率 + 乙效率（essence'合作就是效率相加'的定点应用）",
+                "1/8 + 1/8 = 2/8",
+                "2/8 约分 = 1/4"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "合作效率相加数值环节（'合作就是效率相加'essence 的定点应用，sympy 真验算 verified）", "难度理由": "easy——同分母分数加法 + 约分", "认知阶梯定位": "L2 套用——合作效率标准形态", "错因陷阱": "只写 1/8（漏加乙——'合作效率没相加'）、2/8 不约分", "教学角色": "合作效率定点（verified）——'效率相加'数值落地"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "一项工程，甲单独 6 天完成，乙单独 6 天完成。两人合作，几天完成？（先算合作效率）",
+            "expected_answer": "合作效率 = 1/6 + 1/6 = 1/3；合作时间 = 1 ÷ (1/3) = 3（天）。检验：3 × 1/6 + 3 × 1/6 = 1/2 + 1/2 = 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作效率 = 1/6 + 1/6 = 1/3（效率相加）",
+                "合作时间 = 1 ÷ (1/3) = 3 天",
+                "检验：两人各做 3 天正好完成 ✓（'合作时间=单干时间之和（错）'错因的正面战场）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "合作时间基础（合作效率相加 → 1 ÷ 合作效率，'合作时间=单干时间之和（错）'错因正面）", "难度理由": "medium——效率相加 + 倒数的两步，'6+6=12'是最大陷阱", "认知阶梯定位": "L2 套用——合作时间标准形态", "错因陷阱": "6 + 6 = 12 天（'合作时间=单干时间之和（错）'）、效率写成 6", "教学角色": "变式核心——合作时间标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "一项工程，甲单独 6 天完成，乙单独 12 天完成。两人合作，几天完成？（先算合作效率，再求时间）",
+            "expected_answer": "合作效率 = 1/6 + 1/12 = 2/12 + 1/12 = 3/12 = 1/4；合作时间 = 1 ÷ (1/4) = 4（天）。检验：4 × 1/6 + 4 × 1/12 = 2/3 + 1/3 = 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作效率 = 1/6 + 1/12，通分 = 2/12 + 1/12 = 3/12 = 1/4",
+                "合作时间 = 1 ÷ (1/4) = 4 天",
+                "检验：4 × 1/6 + 4 × 1/12 = 2/3 + 1/3 = 1 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "合作时间变式（异分母效率相加 + 求时间，'合作效率没相加'变式形态）", "难度理由": "medium——通分 + 倒数两步，异分母易错", "认知阶梯定位": "L3 变式——从同分母到异分母合作", "错因陷阱": "6 + 12 = 18 天（'合作时间=单干时间之和（错）'）、1/6 + 1/12 通分错", "教学角色": "变式核心——异分母合作时间"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "一项工程，甲单独 10 天完成，乙单独 15 天完成。甲先做 5 天，剩下的由甲、乙合作完成，还需要几天？（先算甲做了多少，再算剩下多少）",
+            "expected_answer": "甲 5 天完成 5 × 1/10 = 1/2；剩下 1 − 1/2 = 1/2；合作效率 = 1/10 + 1/15 = 3/30 + 2/30 = 5/30 = 1/6；还需 (1/2) ÷ (1/6) = 3（天）。检验：3 × (1/10 + 1/15) = 3 × 1/6 = 1/2 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "先后合作",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "甲先做 5 天：5 × 1/10 = 1/2（工作量 = 效率 × 天数）",
+                "剩下 1 − 1/2 = 1/2；合作效率 = 1/10 + 1/15 = 1/6",
+                "还需 (1/2) ÷ (1/6) = 3 天；检验：3 × 1/6 = 1/2 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "先后合作（先做部分 + 剩余 ÷ 合作效率，'先后合作'seed 的标准形态，'工作量不设单位1'错因正面）", "难度理由": "medium——先做量 + 剩余 + 合作效率三步，漏'剩下'即错", "认知阶梯定位": "L3 变式——从纯合作到先后合作", "错因陷阱": "用 15 − 5 当剩余天数（把天数直接减）、甲 5 天完成量算错（'工作量不设单位1'）", "教学角色": "变式核心——先后合作模型"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "一条公路，甲队单独 10 天修完，乙队单独 15 天修完。两队合修 3 天后，剩下的由甲队单独修，还需要几天？",
+            "expected_answer": "合修 3 天完成 3 × (1/10 + 1/15) = 3 × 1/6 = 1/2；剩下 1 − 1/2 = 1/2；甲队效率 1/10；还需 (1/2) ÷ (1/10) = 5（天）。检验：3 × 1/6 + 5 × 1/10 = 1/2 + 1/2 = 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "合作 3 天完成 3 × (1/10 + 1/15) = 3 × 1/6 = 1/2",
+                "剩下 1/2 由甲队单独修（甲效率 1/10）",
+                "还需 (1/2) ÷ (1/10) = 5 天；检验：3 × 1/6 + 5 × 1/10 = 1 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "工程模型迁移（合作部分 + 单独完成复合，'合作效率没相加''工作量不设单位1'复合迁移）", "难度理由": "hard——合作完成量 + 剩余 + 单独时间三步，'10 − 3 = 7'是最大陷阱", "认知阶梯定位": "L4 迁移——合作 × 单独的复合模型", "错因陷阱": "10 − 3 = 7 天（把天数直接减——合作时间 ≠ 单干时间）、合作 3 天完成量算错", "教学角色": "判定层 transfer 证据来源（C3 双角色）——合作 × 单独迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "一个空水池，单开甲管 6 小时注满，单开乙管 4 小时注满。两管同时开，几小时注满？（提示：把'注满一池水'看成 1）",
+            "expected_answer": "甲管效率 = 1/6，乙管效率 = 1/4；合作效率 = 1/6 + 1/4 = 2/12 + 3/12 = 5/12；注满时间 = 1 ÷ (5/12) = 12/5 = 2.4（小时）。检验：2.4 × 1/6 + 2.4 × 1/4 = 0.4 + 0.6 = 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "把'注满一池水'看成 1（同一单位 1 模型）",
+                "合作效率 = 1/6 + 1/4 = 5/12（效率相加）",
+                "注满时间 = 1 ÷ (5/12) = 12/5 = 2.4 小时；检验：2.4 × 5/12 = 1 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "工程模型迁移到注水问题（同一'单位 1 + 效率相加'模型换情境，M-G7-EQ-WORD 前置）", "难度理由": "hard——换情境识别同一模型 + 异分母通分 + 倒数，三处可错", "认知阶梯定位": "L4 迁移——工程模型 × 注水情境", "错因陷阱": "6 + 4 = 10 小时（'合作时间=单干时间之和（错）'）、把'注满一池'当 2 份工作", "教学角色": "判定层 transfer 证据来源（C3 双角色）——工程模型迁移"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "计算：1/6 × 2（甲每天完成工程的 1/6，甲做 2 天完成几分之几），写出答案。",
+            "expected_answer": "1/3",
+            "answer_format": "fraction",
+            "verification_intent": "verified",
+            "question_type": "单独完成",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "工作量 = 效率 × 天数",
+                "1/6 × 2 = 2/6",
+                "2/6 约分 = 1/3"
+            ],
+            "error_tags": ["calculation_or_symbol", "modeling_or_reading"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "工作量 = 效率 × 天数数值环节（正比例思维在工程模型中的落地，sympy 真验算 verified）", "难度理由": "easy——同分母分数乘法 + 约分", "认知阶梯定位": "L2 检测——工作量数值快速检测", "错因陷阱": "1/6 + 2（把乘当加）、2/6 不约分", "教学角色": "工作量数值定点（verified）——掌握档快速检测"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "一项工程，甲单独 4 天完成，乙单独 6 天完成。两人合作完成这项工程的 5/6，需要几天？",
+            "expected_answer": "合作效率 = 1/4 + 1/6 = 3/12 + 2/12 = 5/12；完成 5/6 需要 (5/6) ÷ (5/12) = 2（天）。检验：2 × 5/12 = 10/12 = 5/6 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作效率 = 1/4 + 1/6 = 5/12",
+                "完成 5/6 的时间 = (5/6) ÷ (5/12)",
+                "(5/6) × (12/5) = 2 天；检验：2 × 5/12 = 5/6 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "部分工作量检测（求'完成 5/6'的时间，'工作量不设单位1'错因的检测形态）", "难度理由": "hard——工作量不是 1 而是 5/6，'÷ 5/12 再 × 5/6'易漏；答 12/5 即错", "认知阶梯定位": "L3 检测 hard——部分工作量取证", "错因陷阱": "求完整工程时间（1 ÷ 5/12 = 12/5，答非所问——'工作量不设单位1'）、合作效率通分错", "教学角色": "检测 hard 档，判定层 hard 证据来源——部分工作量"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "一项工程，甲单独 9 天完成，乙单独 18 天完成。两人合作，几天完成？",
+            "expected_answer": "合作效率 = 1/9 + 1/18 = 2/18 + 1/18 = 3/18 = 1/6；合作时间 = 1 ÷ (1/6) = 6（天）。检验：6 × 1/9 + 6 × 1/18 = 2/3 + 1/3 = 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作效率 = 1/9 + 1/18 = 3/18 = 1/6",
+                "合作时间 = 1 ÷ (1/6) = 6 天",
+                "检验：6 × 1/9 + 6 × 1/18 = 2/3 + 1/3 = 1 ✓（mastery'能列出合作等量关系'取证）"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "合作时间复测（mastery'能列出合作等量关系'的复测取证）", "难度理由": "medium 复测——通分 + 倒数两步", "认知阶梯定位": "L3 复测——合作等量关系防退化", "错因陷阱": "9 + 18 = 27 天（'合作时间=单干时间之和（错）'）、1/9 + 1/18 通分错", "教学角色": "复测 medium——合作等量关系复测"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "一项工程，甲、乙合作 12 天完成；甲单独 20 天完成。乙单独做需要多少天？（先算合作效率和甲的效率，再算乙的效率）",
+            "expected_answer": "合作效率 = 1/12；甲效率 = 1/20；乙效率 = 1/12 − 1/20 = 5/60 − 3/60 = 2/60 = 1/30；乙单独 = 1 ÷ (1/30) = 30（天）。检验：12 × (1/20 + 1/30) = 12 × 1/12 = 1 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "单独完成",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作效率 = 1/12，甲效率 = 1/20",
+                "乙效率 = 合作效率 − 甲效率 = 1/12 − 1/20 = 1/30",
+                "乙单独 = 1 ÷ (1/30) = 30 天；检验：12 × (1/20 + 1/30) = 1 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "倒推单独效率最高阶复测（合作效率 − 甲效率 = 乙效率，'合作效率没相加'的逆向形态）", "难度理由": "hard——减法方向 + 通分 + 倒数，'20 − 12 = 8'是最大陷阱", "认知阶梯定位": "L4 复测——效率倒推的最高阶复测", "错因陷阱": "20 − 12 = 8 天（把天数直接减——'效率算反'）、1/12 − 1/20 通分错", "教学角色": "复测 hard 档，判定层 hard 证据来源——效率倒推"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小华说：'甲 6 天完成、乙 6 天完成同一项工程，两人合作就是 6 + 6 = 12 天。'他说得对吗？（　）\nA. 不对——合作效率 = 1/6 + 1/6 = 1/3，合作只要 3 天\nB. 对，合作就是 12 天\nC. 不对，应该是 6 天\nD. 不对，应该是 24 天",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "合作完成",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "合作时间不是单干时间相加：合作效率 = 1/6 + 1/6 = 1/3",
+                "合作时间 = 1 ÷ (1/3) = 3 天",
+                "小华把 6 + 6 当合作时间（'合作时间=单干时间之和（错）'错因），选 A"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'合作时间=单干时间之和（错）'错因的诊断（一键探针）", "难度理由": "easy——L1 判断并给出合作时间", "认知阶梯定位": "L1 诊断——合作时间意识的一键探针", "错因陷阱": "选 B（接受 6 + 6 = 12——'合作时间=单干时间之和（错）'）、选 D", "教学角色": "诊断题——合作时间的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小华说：'甲 6 天完成一项工程，所以甲的效率是 6。'他错在哪里？正确的效率是多少？（先想：效率表示'每天完成几分之一'）",
+            "expected_answer": "错在把'天数'当'效率'：工作总量是 1，效率 = 1 ÷ 天数 = 1/6（每天完成工程的六分之一），不是 6。检验：1/6 × 6 = 1（6 天完成整项工程）✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "工作效率",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "效率表示'每天完成几分之一'：效率 = 1 ÷ 天数",
+                "6 天完成 → 效率 = 1/6，不是 6",
+                "检验：1/6 × 6 = 1 ✓（'效率算反'/'工作效率不会表示'错因诊断）"
+            ],
+            "error_tags": ["concept_confusion", "modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'效率算反'错因的诊断（效率 = 1/天数 而非天数）", "难度理由": "medium——指出'效率 = 6'的错误 + 重新表达效率", "认知阶梯定位": "L2 诊断——'效率 = 1/天数'意识的一键探针", "错因陷阱": "接受'效率 = 6'（'效率算反'）、把 1/6 与 6 混为一谈（'工作效率不会表示'）", "教学角色": "诊断题——效率表示的一键探针"}
+        },
+    ],
 
 }
+
 
 # ---------------------------------------------------------------------------
 # 节点注册表（从图谱读 56 节点 + 生成顺序）
