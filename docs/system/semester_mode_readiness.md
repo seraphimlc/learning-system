@@ -70,6 +70,15 @@
 
 每道题自带生成逻辑（design_rationale 五要素：考点/难度理由/认知阶梯/错因陷阱/教学角色）——"不为做题而做题，每题有背后逻辑"（用户要求，已落地）
 
+## 新学期题目库（2026-08-24 完成）
+
+- **56 节点全量完成：840 题**（每节点 15 题，契约矩阵 B1-I0..B5-I2）
+- 难度分层：easy 279 / medium 343 / hard 218（33/41/26%，诚实标定）
+- 质量三闸门全过：sympy 正确性（173 verified 全验算、0 mismatch）+ 琢玉教研审查（逐批，偏题/琐碎/难度虚高/模板反射全修订）+ 契约校验（56/56 valid、trivial 0）
+- 每题带 design_rationale 五要素生成逻辑；transfer 题每节点 2（A 档双角色全覆盖）
+- 再生成：`python3 scripts/generate_semester_bank.py --all --review`（幂等）；全库审计：`scripts/audit_question_bank_answers.py --db data/question_banks/math/semester_bank_v1.sqlite`
+- 注：sqlite 库 gitignored（可再生），脚本为真源
+
 ## 待 visuals 落定项（当前刻意未动）
 
 1. **UI 前端接线**：孩子最小表单（错题录入/目标选择）、周信网页呈现——API 已全部就绪，前端直接调；默认决策已定（孩子最小表单、网页页面）
