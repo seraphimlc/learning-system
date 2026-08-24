@@ -12730,6 +12730,906 @@ NODE_QUESTIONS: dict[str, list[dict[str, Any]]] = {
         },
     ],
 
+    # ===== M-BRIDGE-SOLUTION-HABIT 解题步骤与检验习惯（习惯/过程型：15 unverifiable） =====
+    # 节点契约：essence="数学不是只要答案，稳定得分靠步骤、单位、符号和检验"；
+    # seed=计算过程改错/方程代回检验/应用题设列解答规范/单位与答句检查；
+    # common_mistakes=会做但跳步丢分/答案无单位/解方程不代回/符号书写混乱/草稿无法复查；
+    # diagnostic_probes=给1道计算错解让孩子找错误/给1道方程要求代回检验/观察草稿是否能复盘；
+    # mastery=能保留关键步骤/能主动做代回或估算检验/应用题答句有单位且符合题意；
+    # prereq=无；unlock=M-G7-RATIONAL-MIXED、M-G7-EQ-SOLVE、M-G7-EQ-WORD、M-G7-ANGLE-CALC。
+    # authoring 原则：全部 unverifiable（习惯/过程/检验类，题干不嵌显式算式）；
+    # L1 真识别（识别跳步/单位缺失/检验做法）；hard 真难（两处错因改错、估算×检验复合、完整设列解答+检验）；
+    # 错因逐一布点："跳步丢分"（B1-I1/B2-I1）、"答案无单位"（B1-I2）、"解方程不代回"（B2-I0/B2-I2/B4-I0/B4-I2/B5-I1）、
+    # "符号书写混乱"（B2-I1/B4-I1）、"草稿无法复查"（B5-I2）；
+    # 检验习惯迁移：估算合理性（B3-I1）、应用题全流程（B1-I0/B3-I0/B3-I2/B5-I0）。
+    "M-BRIDGE-SOLUTION-HABIT": [
+        {
+            "slot": "B1-I0",
+            "prompt": "一本练习册和一支钢笔一共 15 元，练习册比钢笔便宜 5 元。设钢笔 x 元，按'设、列、解、检验、答'五步写出完整解答，答句要带单位。",
+            "expected_answer": "设钢笔 x 元，则练习册 (x − 5) 元；等量关系：钢笔的钱 + 练习册的钱 = 15；列方程 x + (x − 5) = 15；解得 2x = 20，x = 10；练习册 10 − 5 = 5（元）。检验：10 + 5 = 15 ✓，10 − 5 = 5 ✓，符合题意。答：钢笔 10 元，练习册 5 元。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "应用题设列解答规范",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设钢笔 x 元，练习册比钢笔便宜 5 元，则练习册 (x − 5) 元",
+                "找等量关系：钢笔的钱 + 练习册的钱 = 一共的 15 元",
+                "列方程：x + (x − 5) = 15，合并 2x − 5 = 15，2x = 20，x = 10；练习册 10 − 5 = 5（元）",
+                "检验：10 + 5 = 15，10 − 5 = 5，符合题意 ✓；答：钢笔 10 元，练习册 5 元（答句带单位）"
+            ],
+            "error_tags": ["process_habit", "modeling_or_reading"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "应用题'设列解答'全流程规范（含代回检验与带单位答句，essence'稳定得分靠步骤、单位、符号和检验'的演示载体）", "难度理由": "medium 锚点——完整流程示范（设 x → 和差关系 → 解 → 检验 → 答句）", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌检验步示范自查习惯）", "教学角色": "讲本质用——'设列解答+检验+单位'全流程的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "解方程 3x + 4 = 19 时，小明的过程是：3x + 4 = 19 → 3x = 15 → x = 5。他的过程少写了哪一步？（　）\nA. 从 3x = 15 到 x = 5，要写出'两边同时除以 3'这一步（跳步）\nB. 没少，口算出来的不用写\nC. 少了'两边同时加 4'这一步\nD. 少了'把 x = 5 代入'这一步，其他都齐了",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "计算过程改错",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "解方程每一步都要有依据：3x = 15 到 x = 5 是'两边同时除以 3'",
+                "小明直接写出结果，跳过了关键步骤（'会做但跳步丢分'错因）",
+                "选 A"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "识别解题过程中的跳步（'计算过程改错'，'会做但跳步丢分'错因的直接形态）", "难度理由": "easy——四选一识别缺失步骤", "认知阶梯定位": "L1 识别正宗实现——判断哪一步不能跳", "错因陷阱": "选 B（接受跳步——'会做但跳步丢分'）、选 C（把'除以 3'当成'加 4'）", "教学角色": "L1 识别脚手架——'保留关键步骤'的第一道判断"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "小明算出菜地的面积是 300，他写的答句是'菜地面积是 300'。最需要补的是什么？（　）\nA. 单位——面积要写'平方米'这样的单位，答句应写'菜地面积是 300 平方米'\nB. 把 300 改成 400\nC. 换一种方法再算一遍\nD. 什么都不用补，300 就是答案",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "单位与答句检查",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "答句要回答题目问的量，并带上正确的单位",
+                "面积有单位：平方米/平方分米等，'300'没有单位信息不完整",
+                "应写'菜地面积是 300 平方米'，选 A（'答案无单位'错因）"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "答句必须带单位（'单位与答句检查'，'答案无单位'错因的直接形态）", "难度理由": "easy——单位缺失识别", "认知阶梯定位": "L1 识别——单位完整性的判断", "错因陷阱": "选 C（用'重算'代替'补单位'——答句意识缺失）、选 D（接受无单位答案）", "教学角色": "L1 识别脚手架——'答句有单位'的第一道判断"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "用代回检验判断：x = 6 是不是方程 4x − 5 = 19 的解？写出检验过程。",
+            "expected_answer": "是。检验：把 x = 6 代入方程左边 4x − 5：4 × 6 − 5 = 24 − 5 = 19，等于方程右边的 19 ✓。所以 x = 6 是方程 4x − 5 = 19 的解。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "方程代回检验",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "代回检验：把 x 的值代入原方程的左边",
+                "4 × 6 − 5 = 24 − 5 = 19",
+                "左边 19 = 右边 19，两边相等，所以 x = 6 是方程的解 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "方程代回检验的标准做法（'方程代回检验'，'解方程不代回'错因的正面纠正）", "难度理由": "easy 套用——代入求值 + 两边比较", "认知阶梯定位": "L2 套用——检验流程的标准应用", "错因陷阱": "只算一边不比较、代入算错（24 − 5 = 19 计算错）", "教学角色": "L2 套用脚手架——'检验 = 代回 + 比两边'的标准流程"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "小刚解方程 2x + 6 = 14，他写：'2x + 6 = 14，所以 2x = 14 + 6 = 20，x = 10。'他错在哪里？（　）\nA. 移项变号错：6 移到右边要变 −6，正确是 2x = 14 − 6 = 8，x = 4\nB. 没错，x = 10 就是答案\nC. 应该先算 2x = 14 × 6\nD. 应该把 2 移到右边变成 x = 14 + 6",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "计算过程改错",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等式的性质：两边同时减去 6，2x = 14 − 6 = 8（移项要变号）",
+                "小刚把 +6 移到右边没变号，得了 2x = 20（符号书写/移项混乱）",
+                "x = 8 ÷ 2 = 4，选 A"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "找计算过程中的移项变号错误（'计算过程改错'，'符号书写混乱'错因的战场）", "难度理由": "medium——定位错误 + 正确移项两步", "认知阶梯定位": "L2 套用——过程纠错的直接应用", "错因陷阱": "选 B（接受错误过程——'会做但跳步丢分'）、选 C/D（把移项当乘除）", "教学角色": "过程纠错变式——移项变号规范的标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "小华解应用题：设苹果有 x 千克，列方程 3x + 2 = 20，解得 x = 6。下面哪个检验过程是完整的？（　）\nA. 把 x = 6 代回原方程：3 × 6 + 2 = 20 ✓，并检查 6 千克是否符合题意'苹果的 3 倍多 2 千克'\nB. 只看 x = 6 像正确答案就行\nC. 把 3x + 2 = 20 再抄一遍\nD. 检验就是把方程两边交换位置",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "方程代回检验",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "检验第一步：代回原方程，3 × 6 + 2 = 18 + 2 = 20 ✓",
+                "检验第二步：检查答案是否符合题意（6 千克的 3 倍多 2 = 20）",
+                "两步都过才算检验完整，选 A"
+            ],
+            "error_tags": ["process_habit", "modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "应用题方程的完整检验（代回 + 符合题意，'方程代回检验'×审题前置）", "难度理由": "medium——代回与原题双重检查的识别", "认知阶梯定位": "L3 变式——从纯方程检验升级到应用题检验", "错因陷阱": "选 C（抄题当检验——'解方程不代回'）、选 D（不理解检验含义）", "教学角色": "检验习惯变式——'检验要看是否符合题意'的规范"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "把下面 5 个步骤按'设、列、解、检验、答'的正确顺序排列：① 答：科技书 15 本 ② 检验：15 × 3 = 45 ✓ ③ 设科技书有 x 本 ④ 3x = 45，x = 15 ⑤ 列方程 3x = 45（故事书是科技书的 3 倍）。",
+            "expected_answer": "③ → ⑤ → ④ → ② → ①，即：设 → 列 → 解 → 检验 → 答",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "应用题设列解答规范",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "解题规范顺序：先设未知数（③），再列方程（⑤）",
+                "然后解方程（④），解完代回检验（②）",
+                "最后写答句（①）；所以 ③ → ⑤ → ④ → ② → ①"
+            ],
+            "error_tags": ["process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "应用题五步流程的顺序规范（'应用题设列解答规范'，'会做但跳步丢分'的结构化纠正）", "难度理由": "medium——步骤排序需理解每步的作用", "认知阶梯定位": "L3 变式——从'看懂流程'到'排对流程'", "错因陷阱": "把检验放最前（不懂检验在解之后）、漏答句（'答案无单位/无答句'）", "教学角色": "流程规范变式——五步顺序的结构化训练"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "小丽算 29 × 31，得到 890。先做估算检查：30 × 30 = 900，而 29 × 31 应该比 900 小一点。她的答案 890 合理吗？正确的积是多少？（先估算判断，再精确计算）",
+            "expected_answer": "890 不合理。估算：29 × 31 ≈ 30 × 30 = 900，且 29 × 31 = (30 − 1) × (30 + 1) = 900 − 1 = 899。890 比 899 少 9，说明算错了。正确积是 899。再检验：30 × 31 = 930，930 − 31 = 899 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "估算合理性检查",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "估算检查：29 × 31 接近 30 × 30 = 900",
+                "精确：29 × 31 = (30 − 1) × (30 + 1) = 900 − 1 = 899（平方差）",
+                "890 ≠ 899，说明小丽算错了；正确积 899；用 30 × 31 − 31 = 899 复核 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "用估算检查计算结果的合理性（mastery'能主动做代回或估算检验'取证，估算前置运用）", "难度理由": "hard——估算判断 + 平方差精算 + 复核三步", "认知阶梯定位": "L4 迁移——估算（M-PRE-NUMBER-SENSE）迁移到检验习惯", "错因陷阱": "只看'接近 900'就认为 890 合理（估算只粗不细）、平方差展开错", "教学角色": "判定层 transfer 证据来源（C3 双角色）——估算×检验习惯迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "图书角有故事书和科技书共 90 本，故事书比科技书多 30 本。设科技书 x 本，按'设、列、解、检验、答'完整解答，并说明检验为什么能证明答案正确。",
+            "expected_answer": "设科技书 x 本，则故事书 (x + 30) 本；等量关系：科技书 + 故事书 = 90；列方程 x + (x + 30) = 90；解得 2x = 60，x = 30；故事书 30 + 30 = 60（本）。检验：把 x = 30 代回：30 + 60 = 90 ✓，且 60 − 30 = 30 ✓，两个条件（共 90 本、多 30 本）都满足，所以答案正确。答：科技书 30 本，故事书 60 本。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "应用题设列解答规范",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "设科技书 x 本，故事书比科技书多 30 本，则故事书 (x + 30) 本",
+                "等量关系：科技书 + 故事书 = 90，列方程 x + (x + 30) = 90",
+                "2x = 60，x = 30；故事书 30 + 30 = 60（本）",
+                "检验：代回得 30 + 60 = 90 ✓、60 − 30 = 30 ✓，两个已知条件都满足；答：科技书 30 本，故事书 60 本"
+            ],
+            "error_tags": ["process_habit", "modeling_or_reading"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "和差应用题的完整设列解答 + 双重检验（'应用题设列解答规范'×和差模型前置）", "难度理由": "hard——设列解答全流程 + 说明检验依据（两个条件都验）", "认知阶梯定位": "L4 迁移——和差模型（M-PRE-QUANTITY-RELATION）迁移到规范流程", "错因陷阱": "检验只验一个条件（漏'多 30 本'）、答句漏单位", "教学角色": "判定层 transfer 证据来源（C3 双角色）——全流程规范迁移"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "解完方程得到 x = 4，下面哪个做法是'检验'？（　）\nA. 把 x = 4 代回原方程，看左右两边是否相等\nB. 把方程再抄一遍\nC. 看看同桌的答案是不是 4\nD. 直接写答句，不检查",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "方程代回检验",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "检验 = 把解代回原方程，比较两边",
+                "两边相等 → 解正确；不相等 → 解错了要重算",
+                "选 A"
+            ],
+            "error_tags": ["process_habit"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'检验'动作的识别（'方程代回检验'，'解方程不代回'错因的检测探针）", "难度理由": "easy 检测——动作辨认", "认知阶梯定位": "L2 检测——掌握档快速检测", "错因陷阱": "选 B（抄题当检验）、选 D（不检验——'解方程不代回'）", "教学角色": "掌握档快速检测——检验习惯一键探针"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "小红的解答有两处问题。题一：4 + 6 × 3，她写'4 + 6 × 3 = 10 × 3 = 30'。题二：解方程 2(x + 1) = 10，她写'x + 1 = 20，x = 19'。请分别指出两处错误并改正。",
+            "expected_answer": "题一错：运算顺序错，应先乘后加：4 + 6 × 3 = 4 + 18 = 22，她先算了加法。题二错：等式性质用反，两边应同时除以 2：x + 1 = 5，x = 4，她乘了 2。改正：题一 = 22，题二 x = 4。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "计算过程改错",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "题一：先乘除后加减，4 + 6 × 3 = 4 + 18 = 22，她先加后乘（运算顺序错）",
+                "题二：2(x + 1) = 10 两边同时除以 2 → x + 1 = 5 → x = 4，她乘了 2（解方程依据错）",
+                "两处都要找出并改正：22 与 x = 4"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "多步过程改错（运算顺序 + 等式性质两处错因，'计算过程改错'检测 hard 档）", "难度理由": "hard——两处独立错误要分别定位改正", "认知阶梯定位": "L3 检测 hard——过程纠错综合检测", "错因陷阱": "只找出一处错误（漏第二处）、把 x + 1 = 20 当对（'符号书写混乱'）", "教学角色": "判定层 hard 证据来源——两处错因的过程纠错取证"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "分别用代回检验判断：x = 5 和 x = 4 是不是方程 3x − 7 = 8 的解？写出检验过程。",
+            "expected_answer": "x = 5：代入左边 3x − 7：3 × 5 − 7 = 15 − 7 = 8，等于右边 8 ✓，是方程的解。x = 4：代入左边：3 × 4 − 7 = 12 − 7 = 5，不等于 8 ✗，不是方程的解。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "方程代回检验",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "检验 x = 5：3 × 5 − 7 = 15 − 7 = 8 = 右边 ✓，是解",
+                "检验 x = 4：3 × 4 − 7 = 12 − 7 = 5 ≠ 8 ✗，不是解",
+                "代回检验能区分真假解，防止'算出答案就交'"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "代回检验复测（一真一假解的判别，'方程代回检验'防退化）", "难度理由": "medium 复测——两次代入比较", "认知阶梯定位": "L3 复测——检验习惯的防遗忘复测", "错因陷阱": "只验一个解（漏 x = 4）、15 − 7 算错", "教学角色": "复测 medium——代回检验防退化取证"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "果园里桃树的棵数是梨树的 3 倍，桃树比梨树多 40 棵。设梨树 x 棵，完整写出'设、列、解、检验、答'。提示：先估算——40 棵是梨树的 2 倍，梨树大约是 20 棵，用这个估算检验你的答案。",
+            "expected_answer": "设梨树 x 棵，则桃树 3x 棵；等量关系：桃树 − 梨树 = 40；列方程 3x − x = 40；解得 2x = 40，x = 20；桃树 3 × 20 = 60（棵）。估算检验：40 是梨树的 2 倍 → 梨树 = 40 ÷ 2 = 20 棵，与结果一致 ✓；再代回：60 − 20 = 40 ✓，60 = 3 × 20 ✓。答：梨树 20 棵，桃树 60 棵。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "应用题设列解答规范",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设梨树 x 棵，桃树是梨树的 3 倍即 3x 棵",
+                "等量关系：桃树 − 梨树 = 40，列方程 3x − x = 40",
+                "2x = 40，x = 20；桃树 3 × 20 = 60（棵）",
+                "估算检验：40 棵 = 梨树的 2 倍 → 梨树 20 棵，与结果一致；代回：60 − 20 = 40、60 = 3 × 20 ✓；答：梨树 20 棵，桃树 60 棵"
+            ],
+            "error_tags": ["process_habit", "modeling_or_reading"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "差倍应用题的完整流程 + 估算合理性检验（mastery'代回或估算检验''答句有单位'复合取证）", "难度理由": "hard——设列解答 + 估算检验 + 代回检验三重要求", "认知阶梯定位": "L4 复测——习惯规范的最高阶复测", "错因陷阱": "列 x − 3x（关系反）、只代回不估算（漏提示要求）、答句漏单位", "教学角色": "复测 hard 档——判定层 hard 证据来源，全流程规范复测"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小刚解完方程从不代回检验，他说：'我算的肯定对，检验浪费时间。'老师为什么坚持要他检验？（　）\nA. 检验能发现移项变号、计算这类自己没发现的错误，是最后一道安全网\nB. 检验能多拿分，跟发现错误没有关系\nC. 只有成绩差的孩子才需要检验\nD. 检验就是把答案抄一遍给老师看",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "方程代回检验",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "解方程时容易在移项变号、计算上出错，而且自己往往发现不了",
+                "检验 = 代回原方程比两边，能抓住这些错误（'解方程不代回'错因）",
+                "选 A"
+            ],
+            "error_tags": ["process_habit"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'解方程不代回'错因的诊断（为什么要检验）", "难度理由": "easy——L1 判断，无计算", "认知阶梯定位": "L1 诊断——节点 #3 错因的一键探针", "错因陷阱": "把检验当'形式/抄写'（选 D）、认为检验无意义（'解方程不代回'）", "教学角色": "诊断题——检验习惯的价值探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小华做计算题时草稿很乱：数字东写一个、箭头西画一个，答案写对了。老师让他讲每一步怎么来的，他讲不出来。问题出在哪里？（　）\nA. 草稿乱、关键步骤没保留，答案对也没法复查；错了也找不到出错点\nB. 他不够聪明\nC. 草稿写整齐会算得更慢\nD. 没有问题，答案对就行",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "过程复盘",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "解题要保留关键步骤，草稿才能复查（'草稿无法复查'错因）",
+                "答案对但过程不可复盘，错了无法定位、老师也无法判断你真会",
+                "选 A"
+            ],
+            "error_tags": ["process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'草稿无法复查'错因的诊断（过程可复盘的价值）", "难度理由": "medium——判断'为什么保留步骤'而非只看答案", "认知阶梯定位": "L2 诊断——'草稿无法复查'的直接探针", "错因陷阱": "选 D（只认答案——'会做但跳步丢分'）、把问题归因于聪明程度", "教学角色": "诊断题——'过程可复盘'习惯的一键探针"}
+        },
+    ],
+
+    # ===== M-BRIDGE-WORD-PROBLEM-READING 应用题审题流程（审题型：15 unverifiable） =====
+    # 节点契约：essence="应用题先读关系，再列式；不是看到数字就算"；
+    # seed=圈关键词/找已知未知/写等量关系；common_mistakes=漏条件/问题看反/关键词机械套公式；
+    # diagnostic_probes=给2道应用题，只要求标已知、未知、等量关系；
+    # mastery=能在不计算时说出解题路径/能区分信息和问题；
+    # prereq=M-PRE-QUANTITY-RELATION；unlock=M-G7-EQ-WORD、M-BRIDGE-MOTION-CHASE。
+    # authoring 原则：全部 unverifiable（审题类，题干不嵌显式算式）；
+    # L1 真识别（圈关键词/区分已知与问题/漏条件判断）；hard 真难（表格整理+等量关系+解题路径、
+    # 机械套公式诊断、综合审题）；错因逐一布点："漏条件"（B3-I0/B5-I1）、"问题看反"（B3-I2/B5-I2）、
+    # "关键词机械套公式"（B3-I2 诊断）、"把无关信息当条件"（B2-I2/B4-I2）、条件充分性（B3-I0/B4-I1/B5-I1）。
+    "M-BRIDGE-WORD-PROBLEM-READING": [
+        {
+            "slot": "B1-I0",
+            "prompt": "图书馆上午借出 26 本书，下午又借出 18 本，还剩 56 本。按'圈关键词 → 标已知未知 → 写等量关系'三步审题（不计算），写出：①关键词语句 ②已知条件 ③问题 ④等量关系。",
+            "expected_answer": "① 关键词：'借出''还剩'（借出的和剩下的合起来是原来的本数）② 已知：上午借出 26 本、下午借出 18 本、还剩 56 本；未知：原来有多少本 ③ 问题：图书馆原来有多少本书 ④ 等量关系：原来的本数 − 借出的本数 = 剩下的本数，即 原来的 − (26 + 18) = 56",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "写等量关系",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "圈关键词：'借出''还剩'提示总量与部分的关系（原来的 − 借出的 = 剩下的）",
+                "标已知：上午 26、下午 18、还剩 56；未知：原来有多少本（题目问题）",
+                "写等量关系：原来的 − (26 + 18) = 56——先读关系再列式，不急着算"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "审题三步流程（圈关键词→标已知未知→写等量关系，essence'先读关系，再列式'的演示载体）", "难度理由": "medium 锚点——完整审题流程示范，不计算", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌三步审题示范）", "教学角色": "讲本质用——'不计算先审题'流程的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "读题：'一辆汽车 3 小时行驶 240 千米，照这样的速度，5 小时能行驶多少千米？'最先该圈出的关系是（　）\nA. '3 小时行驶 240 千米'——用它先求出每小时行多少千米\nB. '5 小时'——直接写 5\nC. '汽车'——跟汽车有关\nD. '行驶'——把数字都圈出来",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "圈关键词",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "圈关键词要找'数量关系'而不是孤立的词",
+                "'3 小时行驶 240 千米'是求速度（每小时行多少千米）的关键关系",
+                "先求速度再算 5 小时路程，选 A"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "圈出承载数量关系的语句（'圈关键词'，'关键词机械套公式'错因的反向训练）", "难度理由": "easy——关系句识别", "认知阶梯定位": "L1 识别正宗实现——找到'关系'而非'名词'", "错因陷阱": "选 D（把名词数字全圈上——不会找关系）、选 B（只盯问题里的数字）", "教学角色": "L1 识别脚手架——'关键词=数量关系'的第一道判断"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "题目：'果园有苹果树 45 棵，梨树比苹果树多 12 棵，梨树有多少棵？'下面说法正确的是（　）\nA. 已知：苹果树 45 棵、梨树比苹果树多 12 棵；问题：梨树有多少棵\nB. 已知：梨树有多少棵；问题：苹果树 45 棵\nC. 已知：苹果树 45 棵；问题：梨树比苹果树多多少棵\nD. 已知：梨树比苹果树多 12 棵；问题：一共有多少棵",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "找已知未知",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "已知 = 题目直接告诉我们的条件：45 棵、多 12 棵",
+                "问题 = 题目要我们求的：梨树有多少棵",
+                "选 A（B 把已知问题颠倒、C 把问题当'多多少'、D 把问题当'一共'）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "区分已知条件与问题（'找已知未知'，'问题看反'错因的直接形态）", "难度理由": "easy——已知/问题归类", "认知阶梯定位": "L1 识别——信息与问题的区分", "错因陷阱": "选 B（把要求的当已知——'问题看反'）、选 C（问题找错对象）", "教学角色": "L1 识别脚手架——'区分信息和问题'的第一道判断"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "题目：'一根绳子长 80 米，用去 35 米，还剩多少米？'不计算，标出这道题的已知条件、未知量和问题。",
+            "expected_answer": "已知条件：绳子总长 80 米、用去 35 米；未知量：还剩多少米（可设还剩 x 米）；问题：还剩多少米",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "找已知未知",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "找已知：绳子总长 80 米、用去 35 米（题目直接给的）",
+                "找未知：还剩多少米——这正是问题要求的东西",
+                "问题：还剩多少米（未知量 = 问题所求）"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "标已知/未知/问题的直接套用（'找已知未知'标准应用）", "难度理由": "easy——三步标注", "认知阶梯定位": "L2 套用——审题标注的标准应用", "错因陷阱": "漏标一个已知（'漏条件'错因雏形）、把问题当已知", "教学角色": "L2 套用脚手架——信息标注的标准流程"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "题目：'哥哥有 36 元，比弟弟的 2 倍少 4 元，弟弟有多少元？'不计算，写出这道题的等量关系。",
+            "expected_answer": "弟弟的钱 × 2 − 4 = 哥哥的 36 元（弟弟的 2 倍少 4 元就是哥哥的钱）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "写等量关系",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "读关系：'比弟弟的 2 倍少 4 元'→ 哥哥的钱 = 弟弟的钱 × 2 − 4",
+                "弟弟的钱是未知，先设弟弟 x 元：2x − 4 = 36",
+                "等量关系：弟弟的钱 × 2 − 4 = 36"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'倍少'复合关系的等量关系提炼（'写等量关系'，'数量关系提炼不出'错因的正面训练）", "难度理由": "medium——'2 倍少 4'的方向翻译", "认知阶梯定位": "L2 套用——复合关系写等量关系", "错因陷阱": "写成 2x + 4 = 36（'少 4'读反——数量关系方向错）、漏掉 2 倍", "教学角色": "等量关系套用——'比…的几倍少…'的标准翻译"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "题目：'小红买铅笔花了 15 元，买笔记本比买铅笔多花 8 元，其中一支铅笔是蓝色的、另一支是红色的。小红买笔记本花了多少钱？'哪个信息是无关的、解题用不到？（　）\nA. 铅笔是蓝色和红色的\nB. 买铅笔花了 15 元\nC. 买笔记本比买铅笔多花 8 元\nD. 小红",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "找已知未知",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "审题要区分'有用信息'和'无关信息'（mastery'能区分信息和问题'）",
+                "铅笔颜色不影响价格，是无关信息",
+                "要用的是 15 元和'多花 8 元'，选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "忽略无关信息（'找已知未知'变式，'把无关信息当条件'错因的正面纠正）", "难度理由": "medium——要在干扰信息里挑出无关项", "认知阶梯定位": "L3 变式——信息筛选", "错因陷阱": "把'蓝色红色'当条件用（'把无关信息当条件'）、漏用关键信息", "教学角色": "信息筛选变式——无关信息识别"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "题目：'小明买苹果和香蕉一共花了 30 元，苹果花了多少元？'这道题能解吗？（　）\nA. 不能解：只知道'一共 30 元'，还缺'香蕉花了多少元'（或苹果与香蕉的关系）这个条件\nB. 能解：30 元就是苹果的钱\nC. 能解：30 ÷ 2 = 15 元\nD. 能解：苹果一定比香蕉贵",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "条件充分性判断",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "列式需要'总量 = 部分 + 部分'：苹果 + 香蕉 = 30",
+                "只给了总量 30，香蕉的钱（或两者关系）缺失，条件不充分",
+                "漏条件时不能硬算，选 A（'漏条件'错因）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "条件充分性判断（'漏条件'错因的直接形态——缺条件时能识别不能硬算）", "难度理由": "medium——判断'能不能解'而非计算", "认知阶梯定位": "L3 变式——条件完整性检查", "错因陷阱": "选 C（30 ÷ 2 瞎猜——'漏条件还硬算'）、选 B（把总量当部分）", "教学角色": "条件检查变式——'漏条件'错因的识别训练"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "题目：'学校买来足球和篮球共 45 个，足球比篮球多 15 个，足球有多少个？'先用表格整理已知、未知和关系，再写出等量关系，最后说出解题路径（第一步做什么、第二步做什么）。不计算最终答案。",
+            "expected_answer": "表格：已知 足球 + 篮球 = 45（和）、足球 − 篮球 = 15（差）；未知 足球个数。等量关系：足球 + 篮球 = 45，足球 − 篮球 = 15。解题路径：① 这是'和差模型'，先求大数：足球 = (和 + 差) ÷ 2；② 列式 (45 + 15) ÷ 2；③ 检验：算出的足球 + 篮球 = 45 且差 = 15。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "写等量关系",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "表格整理：两数和 45、两数差 15、未知是大数（足球）",
+                "等量关系：足球 + 篮球 = 45；足球 − 篮球 = 15（和差双关系）",
+                "解题路径：① 用和差模型：大数 = (和 + 差) ÷ 2 ② 代入 (45 + 15) ÷ 2 ③ 检验两个关系都满足"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "表格整理 + 双等量关系 + 解题路径（mastery'能在不计算时说出解题路径'取证，和差模型前置运用）", "难度理由": "hard——表格化、双关系提炼、路径规划三层次", "认知阶梯定位": "L4 迁移——M-PRE-QUANTITY-RELATION 前置运用 + 和差模型预告", "错因陷阱": "只写一个关系（漏差关系）、路径只有计算没有检验步", "教学角色": "判定层 transfer 证据来源（C3 双角色）——审题全流程迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "小刚看到'一共'就用加法、看到'还剩'就用减法。题目：'一根绳子剪成两段，第一段 24 米，第二段比第一段短 5 米，两段一共多长？'小刚直接算 24 − 5 = 19，说'一共 19 米'。他错在哪里？正确思路是什么？（只审题，说出步骤）",
+            "expected_answer": "小刚把'第二段比第一段短 5 米'当成最后一步就停了，漏掉了问题问的是'两段一共多长'。正确思路：① 先求第二段：24 − 5 = 19（米）；② 问题问'一共'，把两段加起来：24 + 19 = 43（米）。'一共'要放在最后一步用，不能看到'比…短'就只算一步。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "圈关键词",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "审题先看问题：问'两段一共多长'，是两步问题",
+                "第一步：求第二段 24 − 5 = 19（米）",
+                "第二步：'一共' = 24 + 19 = 43（米）；小刚漏了第二步（'关键词机械套公式'错因）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "'关键词机械套公式'错因诊断（看到关键词就停，漏掉问题全貌）", "难度理由": "hard——识别机械套用的错误并补全两步审题", "认知阶梯定位": "L4 迁移——两步关系审题（QUANTITY-RELATION 前置）的套公式诊断", "错因陷阱": "只做 24 − 5（套'比…短'公式漏'一共'）、认为 19 就是答案（'问题看反'）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——机械套公式诊断迁移"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "题目：'一支钢笔 12 元，比一支铅笔贵 9 元，一支铅笔多少元？'这道题的问题是（　）\nA. 一支铅笔多少元\nB. 一支钢笔多少元\nC. 钢笔比铅笔贵多少元\nD. 钢笔和铅笔一共多少元",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "找已知未知",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "题目最后一句'一支铅笔多少元'就是问题",
+                "已知：钢笔 12 元、钢笔比铅笔贵 9 元",
+                "选 A"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "问题识别的快速检测（'找已知未知'掌握档检测）", "难度理由": "easy 检测——问题定位", "认知阶梯定位": "L2 检测——掌握档快速检测", "错因陷阱": "选 C（把已知的'贵 9 元'当问题——'问题看反'）、选 D（编造'一共'问题）", "教学角色": "掌握档快速检测——问题识别一键探针"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "下面两道题，哪道条件不够、不能直接解？（　）\n甲题：'图书角有故事书 60 本，科技书比故事书少 15 本，科技书有多少本？'\n乙题：'图书角有故事书和科技书共 60 本，科技书有多少本？'\nA. 甲题缺条件，乙题够\nB. 乙题缺条件（只知总数，不知两书的差或倍数关系），甲题够\nC. 两题都够\nD. 两题都缺条件",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "条件充分性判断",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "甲题：故事书 60、科技书比故事书少 15 → 60 − 15，条件够",
+                "乙题：只知共 60，不知道科技书与故事书的关系（差/倍）→ 缺条件",
+                "选 B（'漏条件'识别）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "条件充分性对比检测（'漏条件'错因的 hard 检测档）", "难度理由": "hard——两题对比判断哪题缺条件", "认知阶梯定位": "L3 检测 hard——条件完整性的判别取证", "错因陷阱": "选 A（把'共 60'当够——'漏条件'）、选 C（两题都硬算）", "教学角色": "检测 hard 档，判定层 hard 证据来源——条件充分性判别"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "题目：'一辆公交车上有 42 人，到站后下去 15 人、上来 8 人（其中 3 人带着行李），现在车上有多少人？'不计算，写出：①哪个信息是无关的 ②等量关系。",
+            "expected_answer": "① 无关信息：'其中 3 人带着行李'——带不带行李不影响人数 ② 等量关系：原来的 42 人 − 下去的 15 人 + 上来的 8 人 = 现在的人数，即 42 − 15 + 8 = 现在人数",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "写等量关系",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "筛选信息：'3 人带行李'与人数无关，删掉",
+                "找关系：车上人数变化 = 下去减少 + 上来增加",
+                "等量关系：42 − 15 + 8 = 现在人数（先读关系再列式）"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "无关信息筛选 + 变化型等量关系（'写等量关系'复测，'把无关信息当条件'错因复测）", "难度理由": "medium 复测——筛选 + 两步变化关系", "认知阶梯定位": "L3 复测——信息筛选与关系提炼防退化", "错因陷阱": "把'3 人带行李'写进关系（'把无关信息当条件'）、增减方向写反", "教学角色": "复测 medium——无关信息与变化关系复测"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "题目：'果园里桃树和梨树共 120 棵，桃树是梨树的 3 倍少 20 棵，梨树有多少棵？'不计算，完成：①圈出关键词 ②标出已知和未知 ③写出等量关系 ④说出解题路径。",
+            "expected_answer": "① 关键词：'共 120 棵''3 倍少 20 棵' ② 已知：桃树 + 梨树 = 120、桃树 = 梨树的 3 倍 − 20；未知：梨树棵数（设梨树 x 棵）③ 等量关系：x + (3x − 20) = 120 ④ 解题路径：设梨树 x 棵 → 桃树 3x − 20 棵 → 列方程 x + (3x − 20) = 120 → 4x = 140 → x = 35 → 检验：35 + (3 × 35 − 20) = 120 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "写等量关系",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "圈关键词：'共''3 倍少 20 棵'提示和与倍差两个关系",
+                "标已知未知：和 120、倍差关系；未知梨树 x 棵",
+                "等量关系：x + (3x − 20) = 120",
+                "解题路径：设 x → 表示桃树 → 列方程 → 求解 → 代回检验（先说出路径再动笔）"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "综合审题四步复测（关键词/已知未知/等量关系/解题路径，mastery 双标准取证）", "难度理由": "hard——复合'3 倍少 20'关系的完整审题", "认知阶梯定位": "L4 复测——审题流程的最高阶复测", "错因陷阱": "漏'少 20'（'漏条件'）、把'共'写成差、只说计算不说路径", "教学角色": "复测 hard 档——判定层 hard 证据来源，综合审题复测"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小丽做题：'小明买了 3 支铅笔和 1 个笔记本，一共花了多少钱？'她想了想说：'不能算，因为不知道铅笔和笔记本的单价。'小丽的判断（　）\nA. 对：题目漏掉了单价条件，条件不足不能列式\nB. 不对：应该猜一个价格算\nC. 不对：3 + 1 = 4 元\nD. 对：但可以直接写 3x",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "条件充分性判断",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "总价 = 单价 × 数量，单价未知就无法算总价",
+                "题目确实漏条件（'漏条件'错因），不能硬算",
+                "选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'漏条件'错因的诊断（能识别条件不足）", "难度理由": "easy——L1 判断", "认知阶梯定位": "L1 诊断——'漏条件'的一键探针", "错因陷阱": "选 C（3 + 1 硬算——'漏条件还硬算'）、选 D（设 x 也缺数据）", "教学角色": "诊断题——条件意识的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "题目：'哥哥有 30 本书，比弟弟多 8 本，弟弟有多少本？'小明列式 30 + 8 = 38，说'弟弟有 38 本'。他错在哪里？（　）\nA. '哥哥比弟弟多 8 本'说明弟弟少，应 30 − 8 = 22 本；他把'多'的方向看反了\nB. 没错，30 + 8 = 38 是对的\nC. 应该用除法：30 ÷ 8\nD. 应该把 30 和 8 相乘",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "找已知未知",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "读关系：'哥哥比弟弟多 8 本'→ 哥哥 = 弟弟 + 8，所以弟弟 = 30 − 8",
+                "小明把'多'当成弟弟多（'问题看反'/关系方向错）",
+                "弟弟 22 本，选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'问题看反/关系方向反'错因的诊断（多/少方向）", "难度理由": "medium——定位方向错误并改正", "认知阶梯定位": "L2 诊断——'问题看反'的直接探针", "错因陷阱": "选 B（接受错误结果——'数量关系提炼不出'）、选 C/D（乱套运算）", "教学角色": "诊断题——'多/少方向'审题的一键探针"}
+        },
+    ],
+
+    # ===== M-BRIDGE-SUM-DIFF-MULTIPLE 和差倍模型（建模计算型：15 unverifiable） =====
+    # 节点契约：essence="和差倍题本质是把两个量转成同一个'一倍量'"；
+    # seed=和差/和倍/差倍/年龄差不变；common_mistakes=倍数关系写反/没有设一倍量/年龄差不变没抓住；
+    # diagnostic_probes=和差/和倍/差倍各1题；mastery=能画线段图/能用算术或方程两种方式解释；
+    # prereq=M-PRE-QUANTITY-RELATION、M-PRE-FRACTION-MEANING；unlock=M-G7-EQ-WORD。
+    # authoring 原则：全部 unverifiable（建模类，题干不嵌显式算式）；
+    # L1 真识别（一倍量识别/和差方向/设份数）；hard 真难（年龄差不变、周长×和倍、差倍复合、三量复合）；
+    # 错因逐一布点："没有设一倍量"（B1-I1/B5-I1 诊断）、"倍数关系写反"（B1-I2 方向/B5-I2 诊断）、
+    # "年龄差不变没抓住"（B3-I0 引入/B3-I1 迁移）；线段图辅助（B1-I0/B3-I2/B4-I2）。
+    "M-BRIDGE-SUM-DIFF-MULTIPLE": [
+        {
+            "slot": "B1-I0",
+            "prompt": "甲筐苹果是乙筐的 2 倍，两筐共 90 千克。①画线段图（乙筐 1 段、甲筐 2 段）②把乙筐看作 1 份，用算术方法求两筐各多少千克。",
+            "expected_answer": "线段图：乙筐画 1 段，甲筐画 2 段，共 3 段对应 90 千克。乙筐（1 份）：90 ÷ 3 = 30（千克）；甲筐（2 份）：30 × 2 = 60（千克）。检验：30 + 60 = 90 ✓，60 = 30 × 2 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设一倍量：乙筐是 1 份（一倍量），甲筐是 2 份，共 3 份",
+                "画线段图：3 段共 90 千克，每段 = 90 ÷ 3 = 30（千克）",
+                "乙筐 30 千克，甲筐 30 × 2 = 60 千克；检验：30 + 60 = 90、60 = 2 × 30 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 5,
+            "design_rationale": {"考点": "和倍模型标准例题（设一倍量 + 线段图，essence'把两个量转成同一个一倍量'的演示载体）", "难度理由": "medium 锚点——'设 1 份'思想 + 线段图示范", "认知阶梯定位": "标准例题（L2 套用基准线）", "错因陷阱": "无（锚点题不埋陷阱；答案内嵌线段图与检验示范）", "教学角色": "讲本质用——'一倍量 + 线段图'的演示载体"}
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "题目：'甲数是乙数的 3 倍，两数的和是 48。'这里的'一倍量'（1 份）是（　）\nA. 乙数——把乙数看作 1 份，甲数是 3 份\nB. 甲数——把甲数看作 1 份\nC. 两数的和 48\nD. 甲数比乙数多的部分",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "'甲数是乙数的 3 倍'：乙数是被比较的量，作 1 份（一倍量）",
+                "甲数 = 乙数 × 3，是 3 份",
+                "选 A（'没有设一倍量'错因的反向训练）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "识别一倍量（'和倍'，'没有设一倍量'错因的直接形态）", "难度理由": "easy——倍关系里谁作 1 份", "认知阶梯定位": "L1 识别正宗实现——'谁是一倍量'的判断", "错因陷阱": "选 B（把'甲是乙的 3 倍'当甲作 1 份——'倍数关系写反'）、选 C（把和当份数）", "教学角色": "L1 识别脚手架——一倍量的第一道判断"}
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "题目：'小明和小红一共有 40 元，小明比小红多 6 元。'下面哪个说法正确？（　）\nA. 设小红 x 元，则小明 (x + 6) 元，等量关系：x + (x + 6) = 40\nB. 小明 = 小红 − 6，两人共 40\nC. 40 ÷ 2 = 20，两人各 20 元\nD. 小明比小红多，所以小明 = 小红 − 6",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "和差",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "'小明比小红多 6 元'：小明 = 小红 + 6（方向：多的一方要加）",
+                "设小红 x 元，小明 (x + 6) 元；共 40：x + (x + 6) = 40",
+                "选 A（B/D 把'多'写成减——'和差关系反'）"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "和差模型中'多/少'方向的识别（'和差'，'和差关系反'错因的直接形态）", "难度理由": "easy——和差方向判断", "认知阶梯定位": "L1 识别——'多的一方 = 少的一方 + 差'", "错因陷阱": "选 B/D（'多'写成减——'和差关系反'）、选 C（忽略差）", "教学角色": "L1 识别脚手架——和差方向的第一道判断"}
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "甲数是乙数的 3 倍，两数的和是 48。把乙数看作 1 份，用算术方法求甲、乙两数。",
+            "expected_answer": "乙数 1 份、甲数 3 份，共 4 份对应 48。乙数：48 ÷ 4 = 12；甲数：12 × 3 = 36。检验：12 + 36 = 48 ✓，36 = 12 × 3 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设一倍量：乙数 1 份、甲数 3 份，共 4 份",
+                "每份 = 48 ÷ 4 = 12（乙数）",
+                "甲数 = 12 × 3 = 36；检验：12 + 36 = 48、36 = 3 × 12 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "和倍模型直接套用（'和倍'，'设一倍量'标准应用）", "难度理由": "easy 套用——单模型份数计算", "认知阶梯定位": "L2 套用——和倍模型标准应用", "错因陷阱": "48 ÷ 3（把'3 倍'当总份数——'没有设一倍量'）、漏检验", "教学角色": "L2 套用脚手架——和倍'份数除法'的标准形态"}
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "桃树是梨树的 3 倍，桃树比梨树多 24 棵。把梨树看作 1 份，用算术方法求梨树和桃树各多少棵。",
+            "expected_answer": "梨树 1 份、桃树 3 份，桃树比梨树多 2 份，2 份对应 24 棵。梨树：24 ÷ 2 = 12（棵）；桃树：12 × 3 = 36（棵）。检验：36 − 12 = 24 ✓，36 = 12 × 3 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "差倍",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设一倍量：梨树 1 份、桃树 3 份，差 2 份",
+                "2 份对应 24 棵：每份 = 24 ÷ 2 = 12（梨树）",
+                "桃树 = 12 × 3 = 36 棵；检验：36 − 12 = 24、36 = 3 × 12 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "差倍模型标准应用（'差倍'，差对应份数）", "难度理由": "medium——从和倍切到差倍（差对应份数）", "认知阶梯定位": "L2 套用——差倍模型标准应用", "错因陷阱": "24 ÷ 3（把'3 倍'当差份数——'没有设一倍量'）、差方向反", "教学角色": "差倍套用——'差 = 份数差 × 每份'的标准形态"}
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "两筐苹果共 56 千克，甲筐比乙筐多 12 千克。用算术方法（和 + 差）÷ 2 求两筐各多少千克。",
+            "expected_answer": "甲筐（大数）：(和 + 差) ÷ 2 = (56 + 12) ÷ 2 = 68 ÷ 2 = 34（千克）；乙筐：56 − 34 = 22（千克），或 (56 − 12) ÷ 2 = 22（千克）。检验：34 + 22 = 56 ✓，34 − 22 = 12 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和差",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "和差模型公式：大数 = (和 + 差) ÷ 2",
+                "甲筐 = (56 + 12) ÷ 2 = 34（千克）",
+                "乙筐 = 56 − 34 = 22（千克）；检验：34 + 22 = 56、34 − 22 = 12 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "和差模型标准应用（'和差'，(和±差)÷2 公式）", "难度理由": "medium——公式理解 + 两步计算", "认知阶梯定位": "L3 变式——从倍关系切换到差关系模型", "错因陷阱": "(56 − 12) ÷ 2 当大数（'和差关系反'）、68 ÷ 2 算错", "教学角色": "和差套用——大数小数的标准求法"}
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "爸爸比小明大 28 岁，爸爸的年龄是小明的 3 倍。小明和爸爸各多少岁？（提示：28 岁对应小明年龄的几倍？）",
+            "expected_answer": "小明 1 份、爸爸 3 份，爸爸比小明多 2 份，2 份对应 28 岁。小明：28 ÷ 2 = 14（岁）；爸爸：14 × 3 = 42（岁）。检验：42 − 14 = 28 ✓，42 = 14 × 3 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "差倍",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "年龄问题先抓住：年龄差固定（这里直接用 28 岁）",
+                "小明 1 份、爸爸 3 份，多 2 份对应 28 岁：每份 14 岁（小明）",
+                "爸爸 14 × 3 = 42 岁；检验：42 − 14 = 28、42 = 3 × 14 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "差倍模型在年龄情境的应用（'差倍'，为'年龄差不变'做铺垫）", "难度理由": "medium——换年龄情境的差倍", "认知阶梯定位": "L3 变式——差倍模型换情境", "错因陷阱": "28 ÷ 3（把 3 倍当差份数——'没有设一倍量'）、年龄差当和用", "教学角色": "情境变式——差倍在年龄问题中的标准形态"}
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "小明今年 8 岁，爸爸今年 36 岁。几年后爸爸的年龄正好是小明的 3 倍？（用方程解，并说明'年龄差不变'是怎么用的）",
+            "expected_answer": "年龄差不变：36 − 8 = 28（岁）。设 x 年后爸爸年龄是小明的 3 倍：那时小明 (8 + x) 岁、爸爸 (36 + x) 岁；列方程 36 + x = 3(8 + x)；展开 36 + x = 24 + 3x；移项 2x = 12，x = 6。检验：6 年后小明 14 岁、爸爸 42 岁，42 = 14 × 3 ✓。答：6 年后。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "年龄差不变",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "年龄差不变：无论过几年，爸爸都比小明大 36 − 8 = 28 岁",
+                "设 x 年后：小明 (8 + x) 岁、爸爸 (36 + x) 岁",
+                "列方程 36 + x = 3(8 + x)：36 + x = 24 + 3x，2x = 12，x = 6",
+                "检验：6 年后 14 岁与 42 岁，42 = 3 × 14 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "年龄差不变模型（'年龄差不变'，'年龄差不变没抓住'错因的正面战场，M-G7-EQ-WORD 列方程预告）", "难度理由": "hard——差不变 × 列方程 × 展开求解三处可错", "认知阶梯定位": "L4 迁移——差倍模型迁移到'几年后'的时间问题", "错因陷阱": "把年龄差当可变（直接用 36 − 8 = 3 份）、3(8 + x) 展开漏乘、移项变号错", "教学角色": "判定层 transfer 证据来源（C3 双角色）——年龄差不变迁移"}
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "一块长方形菜地的周长是 48 米，长是宽的 2 倍。先画线段图表示'宽 1 份、长 2 份'，再求这块菜地的长和宽。",
+            "expected_answer": "周长 = (长 + 宽) × 2，所以长 + 宽 = 48 ÷ 2 = 24（米）。线段图：宽 1 段、长 2 段，共 3 段对应 24 米。宽：24 ÷ 3 = 8（米）；长：8 × 2 = 16（米）。检验：周长 = (16 + 8) × 2 = 48 ✓，16 = 8 × 2 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "先把周长转成'长 + 宽'：48 ÷ 2 = 24（米）",
+                "线段图：宽 1 段、长 2 段共 3 段对应 24 米：宽 = 24 ÷ 3 = 8（米）",
+                "长 = 8 × 2 = 16（米）；检验：(16 + 8) × 2 = 48、16 = 2 × 8 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {"考点": "周长公式 × 和倍模型（'和倍'，长方形周长前置运用 + 线段图）", "难度理由": "hard——要先做'周长→长宽和'的转化再套和倍", "认知阶梯定位": "L4 迁移——几何周长（M-PRE-GEO-AREA-VOLUME 前置）× 和倍模型", "错因陷阱": "把 48 直接当'长 + 宽'（漏除以 2）、48 ÷ 3（把周长当 3 份）", "教学角色": "判定层 transfer 证据来源（C3 双角色）——周长×和倍迁移"}
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "学校买来篮球和足球共 60 个，篮球是足球的 2 倍。把足球看作 1 份，求足球和篮球各多少个。",
+            "expected_answer": "足球 1 份、篮球 2 份，共 3 份对应 60 个。足球：60 ÷ 3 = 20（个）；篮球：20 × 2 = 40（个）。检验：20 + 40 = 60 ✓，40 = 20 × 2 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设一倍量：足球 1 份、篮球 2 份，共 3 份",
+                "每份 = 60 ÷ 3 = 20（足球）",
+                "篮球 = 20 × 2 = 40（个）；检验：20 + 40 = 60、40 = 2 × 20 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 3,
+            "design_rationale": {"考点": "和倍模型检测（'和倍'掌握档快速检测）", "难度理由": "easy 检测——和倍标准形态", "认知阶梯定位": "L2 检测——和倍模型防退化检测", "错因陷阱": "60 ÷ 2（把'2 倍'当份数——'没有设一倍量'）、漏检验", "教学角色": "掌握档快速检测——和倍模型一键探针"}
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "甲数比乙数多 25，甲数比乙数的 2 倍多 5。求甲、乙两数。（用方程或算术）",
+            "expected_answer": "设乙数为 x，甲数 = 2x + 5；又甲数 − 乙数 = 25，所以 (2x + 5) − x = 25；x + 5 = 25，x = 20；甲数 = 2 × 20 + 5 = 45。检验：45 − 20 = 25 ✓，45 = 2 × 20 + 5 ✓。答：乙数 20，甲数 45。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "差倍",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设乙数为 x（一倍量），甲数 = 2x + 5（'2 倍多 5'）",
+                "差关系：甲 − 乙 = 25 → (2x + 5) − x = 25 → x + 5 = 25 → x = 20",
+                "甲数 = 2 × 20 + 5 = 45；检验：45 − 20 = 25、45 = 2 × 20 + 5 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {"考点": "差倍复合模型检测（'差倍' hard 档：'倍多'复合 × 差关系）", "难度理由": "hard——'2 倍多 5'翻译 + 差关系合并解方程", "认知阶梯定位": "L3 检测 hard——差倍复合取证", "错因陷阱": "列 2x − x = 25 漏'多 5'（'漏条件'）、'2 倍多 5'列反成 2x − 5", "教学角色": "检测 hard 档，判定层 hard 证据来源——差倍复合取证"}
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "两堆货物共 70 吨，第一堆比第二堆多 10 吨。画线段图（第二堆 1 段，第一堆 1 段再多 10 吨），求两堆各多少吨。",
+            "expected_answer": "线段图：第二堆 1 段、第一堆 1 段再多 10 吨，两段共 70 吨。先从总数去掉多的 10 吨：(70 − 10) ÷ 2 = 30（吨）→ 第二堆；第一堆：30 + 10 = 40（吨）。检验：40 + 30 = 70 ✓，40 − 30 = 10 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和差",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "画线段图：第二堆 1 段，第一堆 1 段 + 10 吨，两段共 70 吨",
+                "去掉多的 10 吨：70 − 10 = 60 是第二堆的 2 倍 → 第二堆 60 ÷ 2 = 30（吨）",
+                "第一堆 30 + 10 = 40（吨）；检验：40 + 30 = 70、40 − 30 = 10 ✓"
+            ],
+            "error_tags": ["modeling_or_reading"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "和差模型线段图复测（'和差'，mastery'能画线段图'取证）", "难度理由": "medium 复测——线段图 + 减差 ÷ 2", "认知阶梯定位": "L3 复测——线段图工具防退化", "错因陷阱": "(70 + 10) ÷ 2 当第二堆（大数小数搞反——'和差关系反'）、漏减差", "教学角色": "复测 medium——线段图和差复测"}
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "甲数是乙数的 2 倍，乙数比丙数多 4，三个数的和是 84。求甲、乙、丙三个数。（提示：把丙数看作 1 份）",
+            "expected_answer": "设丙数为 x，乙数 = x + 4，甲数 = 2(x + 4)；三数和：x + (x + 4) + 2(x + 4) = 84；合并：x + x + 4 + 2x + 8 = 84；4x + 12 = 84；4x = 72，x = 18。丙 18，乙 22，甲 44。检验：18 + 22 + 44 = 84 ✓，甲 44 = 2 × 22 ✓，乙 − 丙 = 4 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设一倍量：丙 x，乙 x + 4，甲 2(x + 4)",
+                "列和：x + (x + 4) + 2(x + 4) = 84 → 4x + 12 = 84 → x = 18",
+                "丙 18、乙 22、甲 44；检验：和 84、甲 = 2 乙、乙 − 丙 = 4 全满足 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {"考点": "三量和倍复合复测（'和倍'最高阶：三量 × 倍差复合）", "难度理由": "hard——设 1 份 + 两重关系符号化 + 展开求解", "认知阶梯定位": "L4 复测——和倍模型的最高阶复测", "错因陷阱": "设错一倍量（把乙当 1 份——'没有设一倍量'）、2(x + 4) 展开漏乘、4x = 72 算错", "教学角色": "复测 hard 档——判定层 hard 证据来源，三量和倍复测"}
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "小刚算和倍题：'甲是乙的 3 倍，两数和是 48。'他直接写 48 ÷ 3 = 16，说'乙是 16'。他错在哪里？（　）\nA. 没把乙数设成 1 份：乙 1 份 + 甲 3 份 = 4 份对应 48，乙应是 48 ÷ 4 = 12\nB. 没错，48 ÷ 3 = 16 就是乙\nC. 应该 48 × 3\nD. 应该 48 − 3 = 45",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "和倍题先设一倍量：乙 1 份、甲 3 份，共 4 份",
+                "小刚用 48 ÷ 3，把'3 倍'当成总份数，漏了乙自己那份（'没有设一倍量'）",
+                "正确：48 ÷ 4 = 12（乙），选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {"考点": "'没有设一倍量'错因的诊断（'和倍'头号错因的一键探针）", "难度理由": "easy——L1 判断", "认知阶梯定位": "L1 诊断——'没有设一倍量'的直接探针", "错因陷阱": "选 B（接受 48 ÷ 3——'没有设一倍量'）、选 C/D（乱套运算）", "教学角色": "诊断题——'设一倍量'意识的一键探针"}
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小丽说：'甲是乙的 3 倍，所以乙 = 甲 × 3。'她这样写对吗？如果不对，正确的关系是什么？（说明并举例验证）",
+            "expected_answer": "不对，倍数关系写反了。'甲是乙的 3 倍'表示甲 = 乙 × 3（乙是 1 份、甲是 3 份），所以乙 = 甲 ÷ 3。举例：设乙 = 10，则甲 = 30；验证 甲 ÷ 3 = 30 ÷ 3 = 10 = 乙 ✓。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和倍",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "'甲是乙的 3 倍'：甲 = 乙 × 3（一倍量是乙）",
+                "小丽写成乙 = 甲 × 3，方向反了（'倍数关系写反'错因）",
+                "正确：乙 = 甲 ÷ 3；举例验证：乙 = 10 → 甲 = 30 → 30 ÷ 3 = 10 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {"考点": "'倍数关系写反'错因的诊断（'和倍'，方向与举例验证）", "难度理由": "medium——指出反写并改正、举例验证", "认知阶梯定位": "L2 诊断——'倍数关系写反'的直接探针", "错因陷阱": "认为'对'（接受乙 = 甲 × 3——'倍数关系写反'）、举例验证错", "教学角色": "诊断题——倍关系方向的一键探针"}
+        },
+    ],
+
 
 }
 
