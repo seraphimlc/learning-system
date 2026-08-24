@@ -6579,6 +6579,1166 @@ NODE_QUESTIONS: dict[str, list[dict[str, Any]]] = {
             }
         },
     ],
+
+    # ===== M-G7-EQ-PAREN 含括号方程（计算向：13 unverifiable + 2 verified） =====
+    "M-G7-EQ-PAREN": [
+        {
+            "slot": "B1-I0",
+            "prompt": "解方程：3(x + 2) = 15，写出每一步。（提示：先去括号，再按基础方程流程解）",
+            "expected_answer": "x = 3（去括号：3x + 6 = 15；两边同时减 6：3x = 9；两边同时除以 3：x = 3；检验：3 × (3 + 2) = 3 × 5 = 15 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "先处理括号：3 要乘括号里的每一项，3(x + 2) = 3x + 6",
+                "3x + 6 = 15，两边同时减 6（等式性质 1）：3x = 9",
+                "两边同时除以 3（等式性质 2）：x = 3",
+                "检验：3 × (3 + 2) = 3 × 5 = 15，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "去括号 + 基础方程全流程（'含括号方程'，essence'先正确去括号，再按基础方程流程解'取证）",
+                "难度理由": "medium 锚点——完整流程示范（去括号 → 移项 → 系数化 1 → 检验）",
+                "认知阶梯定位": "标准例题（L2 套用基准线）",
+                "错因陷阱": "无（锚点题不埋陷阱；答案内嵌检验步示范'能代回检验'习惯）",
+                "教学角色": "讲本质用——'去括号与解方程分两阶段'教学策略的演示载体"
+            }
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "解方程 2(x + 3) = 10，第一步去括号。下面哪个是正确的？（　）\nA. 2x + 3 = 10（只乘了第一项）\nB. 2x + 6 = 10（每一项都乘 2）\nC. x + 6 = 10（系数 2 丢了）\nD. 2x + 3x = 10（把每一项都再乘个 x）",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去括号",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号规则：括号前的数要乘括号里的每一项",
+                "2(x + 3) = 2 × x + 2 × 3 = 2x + 6",
+                "选 B"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别去括号的正确结果（'去括号'，括号前系数要乘每一项）",
+                "难度理由": "easy——去括号单步识别，选项覆盖漏乘/丢系数/乱乘",
+                "认知阶梯定位": "L1 识别正宗实现",
+                "错因陷阱": "选 A（只乘第一项——'去括号漏乘'）、选 C（丢系数）、选 D（把 x 也乘）",
+                "教学角色": "L1 识别脚手架——'去括号漏乘'头号错因探针"
+            }
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "去括号：−(x − 3)。下面哪个是正确的？（　）\nA. −x − 3（−3 没变号）\nB. −x + 3（负号乘进去，−3 变 +3）\nC. x − 3（丢了负号）\nD. x + 3",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去括号",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "括号前是负号，去掉括号时每一项都要变号",
+                "−(x − 3) = −x + 3（−x 不变符号，−3 变 +3）",
+                "选 B"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "括号前是负号的去括号变号（'去括号'，'负号变号漏项'错因的直接形态）",
+                "难度理由": "easy——单步变号识别",
+                "认知阶梯定位": "L1 识别",
+                "错因陷阱": "选 A（−3 没变号——'负号变号漏项'）、选 C/D（丢负号）",
+                "教学角色": "L1 识别——负号去括号的变号规则探针"
+            }
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "解方程 4(x + 2) = 20，先去括号得 4x + 8 = 20，再两边同时减去 8。计算：20 − 8",
+            "expected_answer": "12",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "含括号方程",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号：4(x + 2) = 4x + 8，方程变成 4x + 8 = 20",
+                "两边同时减去 8（等式性质 1）：4x + 8 − 8 = 20 − 8",
+                "20 − 8 = 12，所以 4x = 12"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "去括号后的同减计算环节（'含括号方程'）",
+                "难度理由": "easy 套用——识别'去括号得 4x + 8'后做一步减法",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "算 20 + 8 = 28（同加代替同减——'移项不变号'的苗头）",
+                "教学角色": "L2 套用脚手架（sympy 验算同减环节 verified）"
+            }
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "解方程：5(x − 1) = 20（写出两步：先去括号，再解）",
+            "expected_answer": "x = 5（去括号：5x − 5 = 20；两边同时加 5：5x = 25；两边同时除以 5：x = 5；检验：5 × (5 − 1) = 5 × 4 = 20 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号：5 乘括号里每一项，5(x − 1) = 5x − 5，方程变成 5x − 5 = 20",
+                "两边同时加 5（等式性质 1）：5x = 25",
+                "两边同时除以 5（等式性质 2）：x = 5",
+                "检验：5 × (5 − 1) = 5 × 4 = 20，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "括号前系数的去括号 + 解方程（'含括号方程'）",
+                "难度理由": "medium——去括号（5 乘每一项）与两步解方程",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "去括号漏乘（写 5x − 1）、25 − 5 算错、漏检验",
+                "教学角色": "L2 套用——去括号系数处理的标准应用"
+            }
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "解方程：2(3x − 1) = 10",
+            "expected_answer": "x = 2（去括号：6x − 2 = 10；两边同时加 2：6x = 12；两边同时除以 6：x = 2；检验：2 × (3 × 2 − 1) = 2 × 5 = 10 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号：2 乘括号里每一项，2(3x − 1) = 6x − 2，方程变成 6x − 2 = 10",
+                "两边同时加 2（等式性质 1）：6x = 12",
+                "两边同时除以 6（等式性质 2）：x = 2",
+                "检验：2 × (3 × 2 − 1) = 2 × 5 = 10，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "括号内含 x 项与常数的去括号（'含括号方程'，'去括号漏乘'的变式）",
+                "难度理由": "medium——2 乘 (3x − 1) 需同时处理系数与负常数",
+                "认知阶梯定位": "L3 变式（括号内更复杂）",
+                "错因陷阱": "写 6x − 1（漏乘 −1——'去括号漏乘'）、10 + 2 算错",
+                "教学角色": "变式核心——系数 × 括号内两项"
+            }
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "解方程：3(x + 2) = 2(x + 5)（两边都有括号）",
+            "expected_answer": "x = 4（去括号：3x + 6 = 2x + 10；移项：3x − 2x = 10 − 6；合并：x = 4；检验：3 × (4 + 2) = 18，2 × (4 + 5) = 18，左边 = 右边 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两边分别去括号：3(x + 2) = 3x + 6，2(x + 5) = 2x + 10",
+                "3x + 6 = 2x + 10，移项（两边同减 2x、同减 6 的简写，要变号）：3x − 2x = 10 − 6",
+                "合并：x = 4",
+                "检验：3 × 6 = 18，2 × 9 = 18，左边 = 右边 ✓"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "两边都有括号的方程（'含括号方程'，seed type'两边都有括号'）",
+                "难度理由": "medium——两边分别去括号 + 移项两处变号",
+                "认知阶梯定位": "L3 变式",
+                "错因陷阱": "只去一边括号、移项不变号（写 2x + 3x = 10 + 6——'移项再错一次'）",
+                "教学角色": "变式核心——'两边都有括号'标准形态"
+            }
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "解方程：2(x + 3) + 3(x − 1) = 18（提示：先去括号，再合并同类项）",
+            "expected_answer": "x = 3（去括号：2x + 6 + 3x − 3 = 18；合并同类项：5x + 3 = 18；两边同时减 3：5x = 15；两边同时除以 5：x = 3；检验：2 × 6 + 3 × 2 = 12 + 6 = 18 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "两处去括号：2(x + 3) = 2x + 6，3(x − 1) = 3x − 3",
+                "2x + 6 + 3x − 3 = 18，合并同类项（2x + 3x = 5x，6 − 3 = 3）：5x + 3 = 18",
+                "两边同时减 3：5x = 15；两边同时除以 5：x = 3",
+                "检验：2 × (3 + 3) + 3 × (3 − 1) = 12 + 6 = 18，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "去括号 × 合并同类项混合（'含括号方程'×合并同类项前置）",
+                "难度理由": "hard——两处去括号 + 合并同类项 + 移项四步",
+                "认知阶梯定位": "L4 迁移——去括号（PARENTHESIS 前置）× 合并同类项",
+                "错因陷阱": "去括号漏乘（2x + 6 写 2x + 3）、合并 2x + 3x 算错、常数 6 − 3 处理错",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——去括号与合并的综合"
+            }
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "小明解方程 2(x − 1) = 8，得到 x = 5。请检验他的解是否正确，写出检验过程。",
+            "expected_answer": "正确。把 x = 5 代入左边：2 × (5 − 1) = 2 × 4 = 8；右边也是 8。左边 = 右边，所以 x = 5 是方程 2(x − 1) = 8 的解，小明解对了。",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "检验方法：把解代入方程，分别计算两边，看是否相等",
+                "代入左边：2 × (5 − 1)，先算括号内：5 − 1 = 4，再乘：2 × 4 = 8",
+                "右边 = 8，左边 = 右边 ✓",
+                "所以 x = 5 是方程的解，小明解对了"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "代入检验 × 含括号方程（'含括号方程'×检验习惯桥接）",
+                "难度理由": "hard——需先算括号内再乘（2 × (5 − 1)）并作判断",
+                "认知阶梯定位": "L4 迁移——'代入检验'解题习惯",
+                "错因陷阱": "只代一边、先乘后减（写 2 × 5 − 1 = 9）、检验后不下结论（'不检验'错因的正面示范）",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——检验习惯落地"
+            }
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "解方程 3(x + 1) = 12，先去括号得 3x + 3 = 12，再两边同时减去 3。计算：12 − 3",
+            "expected_answer": "9",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "含括号方程",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号：3(x + 1) = 3x + 3，方程变成 3x + 3 = 12",
+                "两边同时减去 3（等式性质 1）：3x + 3 − 3 = 12 − 3",
+                "12 − 3 = 9，所以 3x = 9"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "去括号方程的同减检测（'含括号方程'）",
+                "难度理由": "easy 检测——单步同减计算",
+                "认知阶梯定位": "L2 检测",
+                "错因陷阱": "算 12 + 3 = 15（同加代替同减——'移项不变号'的苗头）",
+                "教学角色": "掌握档快速检测（sympy 验算同减环节 verified）"
+            }
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "解方程：2(x + 3) = 3x + 4（全流程：去括号、移项、合并、系数化为 1）",
+            "expected_answer": "x = 2（去括号：2x + 6 = 3x + 4；移项：2x − 3x = 4 − 6，得 −x = −2；系数化为 1：x = 2；检验：2 × (2 + 3) = 10，3 × 2 + 4 = 10，左边 = 右边 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号：2(x + 3) = 2x + 6，得 2x + 6 = 3x + 4",
+                "移项（要变号）：2x − 3x = 4 − 6，合并得 −x = −2",
+                "系数化为 1：两边同时除以 −1，x = 2",
+                "检验：2 × (2 + 3) = 10，3 × 2 + 4 = 10，左边 = 右边 ✓"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "去括号 + 移项 + 合并 + 系数化 1 全流程（'含括号方程'，diagnostic probe'4 道含括号方程'素材）",
+                "难度理由": "hard——两处移项变号（2x − 3x、4 − 6）+ −x 化 1 的符号",
+                "认知阶梯定位": "L3 检测 hard",
+                "错因陷阱": "移项不变号（写 2x + 3x = 4 + 6）、−x = −2 化 1 时符号错",
+                "教学角色": "检测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "小明解方程 2(x − 3) = 10：\n① 去括号得 2x − 3 = 10\n② 移项得 2x = 13\n③ 得 x = 6.5\n他哪一步做错了？（　）\nA. ① 去括号错了：2 要乘括号里的每一项，应为 2x − 6 = 10\nB. ② 移项错了\nC. ③ 系数化 1 错了\nD. 他没做错",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去括号规则：括号前的数乘括号里每一项",
+                "2(x − 3) = 2 × x + 2 × (−3) = 2x − 6",
+                "小明写成 2x − 3，漏乘了 −3（只乘了第一项）",
+                "选 A；正确解为 2x − 6 = 10，2x = 16，x = 8"
+            ],
+            "error_tags": ["concept_confusion", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "去括号漏乘的错因复测（'含括号方程'，'去括号漏乘'直接形态）",
+                "难度理由": "medium 复测——定位第一步错误并说出正确去括号",
+                "认知阶梯定位": "L3 复测",
+                "错因陷阱": "选 B/C（被后续步骤带偏）、选 D（接受错误去括号）",
+                "教学角色": "防'会背不会用'复测——头号错因的定点取证"
+            }
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "解方程并检验：2(x − 3) + 5 = 3(x + 1) − 2",
+            "expected_answer": "x = −2（去括号：2x − 6 + 5 = 3x + 3 − 2；合并：2x − 1 = 3x + 1；移项：2x − 3x = 1 + 1，得 −x = 2；系数化为 1：x = −2；检验：2 × (−2 − 3) + 5 = −5，3 × (−2 + 1) − 2 = −5，左边 = 右边 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含括号方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两边分别去括号：2(x − 3) + 5 = 2x − 6 + 5，3(x + 1) − 2 = 3x + 3 − 2",
+                "合并常数：2x − 1 = 3x + 1",
+                "移项（要变号）：2x − 3x = 1 + 1，得 −x = 2，系数化为 1：x = −2",
+                "检验：2 × (−5) + 5 = −10 + 5 = −5，3 × (−1) − 2 = −3 − 2 = −5，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 8,
+            "design_rationale": {
+                "考点": "两边括号 + 合并 + 负解 + 检验的综合复测（'含括号方程'，mastery'去括号正确率≥90%'取证）",
+                "难度理由": "hard——两边去括号、常数合并（−6 + 5、3 − 2）、移项、负解、检验五处可错",
+                "认知阶梯定位": "L4 复测",
+                "错因陷阱": "去括号变号漏项（2x − 6 + 5 写 2x − 11）、移项不变号、检验代错",
+                "教学角色": "复测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "去括号：3 − (x + 2)。下面哪个是正确的？（　）\nA. 3 − x − 2（负号乘进去，x 变 −x，2 变 −2）\nB. 3 − x + 2（2 没变号）\nC. 3 + x − 2（x 没变号）\nD. 3 − x",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去括号",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "括号前是负号，去掉括号时括号里每一项都变号",
+                "3 − (x + 2) = 3 − x − 2（x 变 −x，2 变 −2）",
+                "选 A"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "括号前负号的去括号诊断（'去括号'，'负号变号漏项'错因的直接探针）",
+                "难度理由": "easy 诊断——单步变号分档",
+                "认知阶梯定位": "L1 诊断",
+                "错因陷阱": "选 B（+2 没变号——'负号变号漏项'）、选 C（x 没变号）、选 D（漏掉 2）",
+                "教学角色": "诊断题——负号去括号一键探针"
+            }
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "去括号：−2(x − 3)。下面哪个是正确的？（　）\nA. −2x − 6（−3 没变号）\nB. −2x + 6（系数乘每一项，−3 变 +3）\nC. 2x + 6（丢了负号）\nD. −2x − 3（只乘了第一项）",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去括号",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "括号前是 −2：既要把 −2 乘每一项（系数），又要变号（负号）",
+                "−2(x − 3) = −2 × x + (−2) × (−3) = −2x + 6",
+                "选 B"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "负号 + 系数双规则的去括号诊断（'去括号'，'负号变号漏项'×'去括号漏乘'复合）",
+                "难度理由": "medium 诊断——负号与系数两规则叠加",
+                "认知阶梯定位": "L2 诊断",
+                "错因陷阱": "选 A（−3 没变号——'负号变号漏项'）、选 C（丢负号）、选 D（只乘第一项——'去括号漏乘'）",
+                "教学角色": "诊断题——复合规则的错因分类探针"
+            }
+        },
+    ],
+
+    # ===== M-G7-EQ-DENOM 含分母方程（计算向：13 unverifiable + 2 verified） =====
+    "M-G7-EQ-DENOM": [
+        {
+            "slot": "B1-I0",
+            "prompt": "解方程：x/2 + 1 = 3（提示：先去分母，两边同时乘 2）",
+            "expected_answer": "x = 4（去分母：两边同时乘 2，得 x + 2 = 6；两边同时减 2：x = 4；检验：4/2 + 1 = 2 + 1 = 3 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 2（等式性质 2），x/2 × 2 = x，1 × 2 = 2，3 × 2 = 6",
+                "x + 2 = 6，两边同时减 2（等式性质 1）：x = 4",
+                "检验：4/2 + 1 = 2 + 1 = 3，左边 = 右边 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "去分母解方程全流程（'含分母方程'，essence'每一项都乘最小公倍数'取证）",
+                "难度理由": "medium 锚点——去分母（×2）→ 同减 → 检验完整流程",
+                "认知阶梯定位": "标准例题（L2 套用基准线）",
+                "错因陷阱": "无（锚点题不埋陷阱；示范'两边同乘'与检验步）",
+                "教学角色": "讲本质用——'分数方程变整数方程'的演示载体"
+            }
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "解方程 x/3 + 2 = 5，第一步去分母，应两边同时乘几？（　）\nA. 2\nB. 3（分母是 3，乘 3 才能消去分母）\nC. 5\nD. 6",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去分母",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母的目的：消去分母，把分数方程变整数方程",
+                "只有 x/3 有分母 3，两边同时乘 3 即可消去",
+                "选 B"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别去分母的乘数（'去分母'，分母是几就乘几）",
+                "难度理由": "easy——单分母识别",
+                "认知阶梯定位": "L1 识别正宗实现",
+                "错因陷阱": "选 A（把常数 2 当分母）、选 C（把右边 5 当分母）、选 D（乱乘）",
+                "教学角色": "L1 识别脚手架——去分母第一关"
+            }
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "解方程 x/2 + x/3 = 5，去分母应两边同时乘几？（　）\nA. 2\nB. 3\nC. 5\nD. 6（2 和 3 的最小公倍数）",
+            "expected_answer": "D",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去分母",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "两个分母是 2 和 3，要乘它们的公倍数才能同时消去",
+                "最小公倍数：2 和 3 互质，最小公倍数是 2 × 3 = 6",
+                "选 D"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "找最简公分母（'去分母'，LCM 识别——'最小公倍数找错'错因的正面探针）",
+                "难度理由": "easy——两分母最小公倍数",
+                "认知阶梯定位": "L1 识别",
+                "错因陷阱": "选 A/B（只取一个分母）、选 C（把常数 5 当公倍数）",
+                "教学角色": "L1 识别——公分母识别"
+            }
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "解方程 (x + 1)/2 = 4，去分母：两边同时乘 2，得 x + 1 = 8。计算：2 × 4",
+            "expected_answer": "8",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "去分母",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 2（等式性质 2），分子 (x + 1) 整体保留",
+                "左边：(x + 1)/2 × 2 = x + 1；右边：4 × 2 = 8",
+                "2 × 4 = 8，所以 x + 1 = 8"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "去分母的乘法环节（'去分母'，分子整体乘——括号保护）",
+                "难度理由": "easy 套用——识别'乘 2'后做一步乘法",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "算 4 ÷ 2 = 2（除代替乘）、2 × 4 算错",
+                "教学角色": "L2 套用脚手架（sympy 验算同乘环节 verified）"
+            }
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "解方程：x/3 + 1 = 4（先去分母，再解）",
+            "expected_answer": "x = 9（去分母：两边同时乘 3，得 x + 3 = 12；两边同时减 3：x = 9；检验：9/3 + 1 = 3 + 1 = 4 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 3（每一项都乘）：x/3 × 3 = x，1 × 3 = 3，4 × 3 = 12",
+                "x + 3 = 12，两边同时减 3：x = 9",
+                "检验：9/3 + 1 = 3 + 1 = 4，左边 = 右边 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "去分母 + 解方程（'含分母方程'）",
+                "难度理由": "medium——去分母（×3 不漏常数项）+ 两步解",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "漏乘常数 1（写 x + 1 = 12——'漏乘没有分母的项'）、12 − 3 算错",
+                "教学角色": "L2 套用——去分母的标准应用"
+            }
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "解方程：(x + 1)/2 + 3 = 6（提示：去分母时每一项都要乘 2）",
+            "expected_answer": "x = 5（去分母：两边同时乘 2，得 x + 1 + 6 = 12；合并：x + 7 = 12；两边同时减 7：x = 5；检验：(5 + 1)/2 + 3 = 3 + 3 = 6 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 2，分子 (x + 1) 整体乘、常数 3 也要乘 2：x + 1 + 6 = 12",
+                "合并：x + 7 = 12，两边同时减 7：x = 5",
+                "检验：(5 + 1)/2 + 3 = 3 + 3 = 6，左边 = 右边 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "分子是多项式的去分母（'含分母方程'，'去分母后括号漏加'错因的直接形态）",
+                "难度理由": "medium——(x + 1) 整体乘 + 常数项也要乘（×2 不漏项）",
+                "认知阶梯定位": "L3 变式",
+                "错因陷阱": "漏乘常数 3（写 x + 1 + 3 = 12——'漏乘没有分母的项'）、x + 7 合并错",
+                "教学角色": "变式核心——'每一项都乘'的关键题"
+            }
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "解方程：x/3 + x/6 = 3（分母不同，先找最小公倍数）",
+            "expected_answer": "x = 6（找公分母：2 和 6 的最小公倍数是 6；去分母：两边同时乘 6，得 2x + x = 18；合并：3x = 18；两边同时除以 3：x = 6；检验：6/3 + 6/6 = 2 + 1 = 3 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "找公分母：3 和 6 的最小公倍数是 6",
+                "去分母：两边同时乘 6，x/3 × 6 = 2x，x/6 × 6 = x，3 × 6 = 18，得 2x + x = 18",
+                "合并：3x = 18，两边同时除以 3：x = 6",
+                "检验：6/3 + 6/6 = 2 + 1 = 3，左边 = 右边 ✓"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "异分母方程找公分母 + 去分母（'含分母方程'，'最小公倍数找错'错因的战场）",
+                "难度理由": "medium——最小公倍数（3、6）识别 + 每一项乘 6",
+                "认知阶梯定位": "L3 变式",
+                "错因陷阱": "公分母取 3 漏乘（写 x + x = 18）、2x + x 合并错",
+                "教学角色": "变式核心——公分母与不漏项的整合"
+            }
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "解方程：(x + 1)/2 = (x − 1)/3（提示：先找最小公倍数去分母，分子要加括号）",
+            "expected_answer": "x = −5（去分母：两边同时乘 6（2 和 3 的最小公倍数），3(x + 1) = 2(x − 1)；去括号：3x + 3 = 2x − 2；移项：3x − 2x = −2 − 3，x = −5；检验：(−5 + 1)/2 = −2，(−5 − 1)/3 = −2，左边 = 右边 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "找公分母：2 和 3 的最小公倍数是 6，两边同时乘 6",
+                "分子是多项式要加括号：3(x + 1) = 2(x − 1)（(x+1)/2 × 6 = 3(x+1)，(x−1)/3 × 6 = 2(x−1)）",
+                "去括号：3x + 3 = 2x − 2；移项（要变号）：3x − 2x = −2 − 3，x = −5",
+                "检验：(−5 + 1)/2 = −2，(−5 − 1)/3 = −2，左边 = 右边 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {
+                "考点": "去分母 × 去括号 × 分数运算混合（'含分母方程'×分数运算前置）",
+                "难度理由": "hard——最小公倍数（2、3）、分子加括号、去括号变号、负解四层",
+                "认知阶梯定位": "L4 迁移——分数通分（FRACTION-OPS 前置）× 去分母",
+                "错因陷阱": "去分母后分子不加括号（写 2x + 1 = 2x − 1）、去括号变号错、−2 − 3 算错",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——分数的分母处理全链"
+            }
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "解方程：(x + 1)/0.3 = 10（分母是小数 0.3，去分母两边同时乘 0.3）",
+            "expected_answer": "x = 2（去分母：两边同时乘 0.3，得 x + 1 = 10 × 0.3 = 3；两边同时减 1：x = 2；检验：(2 + 1)/0.3 = 3 ÷ 0.3 = 10 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "分母是小数 0.3，去分母就两边同时乘 0.3",
+                "左边：(x + 1)/0.3 × 0.3 = x + 1；右边：10 × 0.3 = 3，得 x + 1 = 3",
+                "两边同时减 1：x = 2",
+                "检验：(2 + 1)/0.3 = 3 ÷ 0.3 = 10，左边 = 右边 ✓"
+            ],
+            "error_tags": ["calculation_or_symbol", "concept_confusion"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "分母是小数方程的转化（'含分母方程'，分母小数与分数小数互化）",
+                "难度理由": "hard——小数分母（乘 0.3）与小数除法检验（3 ÷ 0.3）",
+                "认知阶梯定位": "L4 迁移——分数与小数互化（FRACTION-OPS 前置）",
+                "错因陷阱": "10 × 0.3 算错、3 ÷ 0.3 当 1（小数除法错）",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——小数分母处理"
+            }
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "解方程 (x − 2)/4 = 3，去分母：两边同时乘 4，得 x − 2 = 12。计算：3 × 4",
+            "expected_answer": "12",
+            "answer_format": "decimal",
+            "verification_intent": "verified",
+            "question_type": "去分母",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 4（等式性质 2），分子 (x − 2) 整体保留",
+                "左边：(x − 2)/4 × 4 = x − 2；右边：3 × 4 = 12",
+                "3 × 4 = 12，所以 x − 2 = 12"
+            ],
+            "error_tags": ["calculation_or_symbol", "process_habit"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "去分母的乘法检测（'去分母'）",
+                "难度理由": "easy 检测——单步同乘计算",
+                "认知阶梯定位": "L2 检测",
+                "错因陷阱": "算 3 ÷ 4（除代替乘）、3 × 4 算错",
+                "教学角色": "掌握档快速检测（sympy 验算同乘环节 verified）"
+            }
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "解方程：x/2 + x/3 = 5（注意：去分母时每一项都要乘 6）",
+            "expected_answer": "x = 6（找公分母：2 和 3 的最小公倍数是 6；去分母：两边同时乘 6，得 3x + 2x = 30；合并：5x = 30；两边同时除以 5：x = 6；检验：6/2 + 6/3 = 3 + 2 = 5 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "找公分母：2 和 3 的最小公倍数是 6",
+                "去分母：两边同时乘 6（每一项都乘），x/2 × 6 = 3x，x/3 × 6 = 2x，5 × 6 = 30，得 3x + 2x = 30",
+                "合并：5x = 30，两边同时除以 5：x = 6",
+                "检验：6/2 + 6/3 = 3 + 2 = 5，左边 = 右边 ✓"
+            ],
+            "error_tags": ["process_habit", "concept_confusion"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "异分母 + 不漏项的去分母检测（'含分母方程'，diagnostic probe'3 道含分母方程'素材）",
+                "难度理由": "hard——最小公倍数（2、3）+ 右边常数 5 也要乘 6（漏乘陷阱）",
+                "认知阶梯定位": "L3 检测 hard",
+                "错因陷阱": "漏乘右边 5（写 3x + 2x = 5——'漏乘没有分母的项'）、30 ÷ 5 算错",
+                "教学角色": "检测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "小明解方程 (x + 1)/2 + 3 = 5：\n① 去分母：x + 1 + 3 = 10\n② 合并：x + 4 = 10\n③ 得 x = 6\n他哪一步做错了？（　）\nA. ① 去分母错了：3 没有分母也要乘 2，应为 x + 1 + 6 = 10\nB. ② 合并错了\nC. ③ 系数化 1 错了\nD. 他没做错",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 2，每一项都要乘（包括没有分母的常数 3）",
+                "正确：x + 1 + 6 = 10（(x+1)/2 × 2 = x+1，3 × 2 = 6，5 × 2 = 10）",
+                "小明漏乘 3（写 x + 1 + 3），所以 ① 错",
+                "选 A；正确解为 x + 7 = 10，x = 3"
+            ],
+            "error_tags": ["process_habit", "concept_confusion"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "去分母漏乘常数项的错因复测（'含分母方程'，'漏乘没有分母的项'直接形态）",
+                "难度理由": "medium 复测——定位去分母步骤的错误",
+                "认知阶梯定位": "L3 复测",
+                "错因陷阱": "选 B/C（被后续步骤带偏）、选 D（接受漏乘结果）",
+                "教学角色": "防'会背不会用'复测——漏乘错因定点取证"
+            }
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "解方程并检验：(x + 1)/2 − (x − 1)/4 = 2",
+            "expected_answer": "x = 5（去分母：两边同时乘 4，2(x + 1) − (x − 1) = 8——分子要加括号；去括号：2x + 2 − x + 1 = 8；合并：x + 3 = 8；两边同时减 3：x = 5；检验：(5 + 1)/2 − (5 − 1)/4 = 3 − 1 = 2 ✓）",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "含分母方程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "找公分母：2 和 4 的最小公倍数是 4，两边同时乘 4，分子整体加括号",
+                "(x + 1)/2 × 4 = 2(x + 1)，(x − 1)/4 × 4 = (x − 1)，2 × 4 = 8，得 2(x + 1) − (x − 1) = 8",
+                "去括号（负号变号）：2x + 2 − x + 1 = 8，合并：x + 3 = 8，x = 5",
+                "检验：(5 + 1)/2 − (5 − 1)/4 = 3 − 1 = 2，左边 = 右边 ✓"
+            ],
+            "error_tags": ["process_habit", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {
+                "考点": "去分母 + 括号保护 + 去括号变号 + 检验综合复测（'含分母方程'，mastery'每一项都乘不漏项'取证）",
+                "难度理由": "hard——×4 去分母、2(x + 1) − (x − 1) 的括号与变号、合并、检验五处可错",
+                "认知阶梯定位": "L4 复测",
+                "错因陷阱": "去分母只乘带分母的项、−(x − 1) 变号漏（写 2x + 2 − x − 1）、检验算错",
+                "教学角色": "复测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "解方程 x/2 + 3 = 7，第一步去分母，下面哪个说法正确？（　）\nA. 乘 2 得 x + 3 = 7（3 不用乘）\nB. 乘 2 得 x + 6 = 14（每一项都乘 2）\nC. 乘 3 得 x/2 + 9 = 21\nD. 不用乘，直接移项",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去分母",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 2，每一项都要乘（包括没有分母的 3 和 7）",
+                "x/2 × 2 = x，3 × 2 = 6，7 × 2 = 14，得 x + 6 = 14",
+                "选 B"
+            ],
+            "error_tags": ["concept_confusion", "process_habit"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "去分母'每一项都乘'的诊断（'去分母'，'漏乘没有分母的项'直接探针）",
+                "难度理由": "easy 诊断——单步分档",
+                "认知阶梯定位": "L1 诊断",
+                "错因陷阱": "选 A（漏乘常数 3——'漏乘没有分母的项'）、选 C（乘到分子里）、选 D（不去分母）",
+                "教学角色": "诊断题——漏乘错因一键探针"
+            }
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "解方程 (x − 1)/3 + 2 = 4，第一步去分母，下面哪个是正确的？（　）\nA. x − 1 + 2 = 12（2 没乘 3）\nB. x − 1 + 6 = 12（每一项都乘 3，分子 (x − 1) 整体保留）\nC. 3x − 3 + 6 = 12（把 3 乘进分子里）\nD. x − 2 + 6 = 12（分子符号处理错）",
+            "expected_answer": "B",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "去分母",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "去分母：两边同时乘 3，每一项都乘；分子 (x − 1) 是整体，乘 3 后仍是 (x − 1)",
+                "(x − 1)/3 × 3 = x − 1，2 × 3 = 6，4 × 3 = 12，得 x − 1 + 6 = 12",
+                "选 B"
+            ],
+            "error_tags": ["process_habit", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "去分母正确步骤诊断（'去分母'，'去分母后括号漏加'的正面形态）",
+                "难度理由": "medium 诊断——分子整体乘 + 常数项不漏乘双规则",
+                "认知阶梯定位": "L2 诊断",
+                "错因陷阱": "选 A（漏乘常数 2）、选 C（把 3 乘进分子——括号漏加）、选 D（分子符号处理错）",
+                "教学角色": "诊断题——去分母双规则的错因分类探针"
+            }
+        },
+    ],
+
+    # ===== M-G7-EQ-WORD 一元一次方程应用题（综合型：15 unverifiable） =====
+    "M-G7-EQ-WORD": [
+        {
+            "slot": "B1-I0",
+            "prompt": "妈妈买苹果和香蕉共花了 40 元，苹果比香蕉贵 10 元。设香蕉 x 元，列方程并求解，并检验你的答案。",
+            "expected_answer": "香蕉 15 元，苹果 25 元。设香蕉 x 元，则苹果 (x + 10) 元；等量关系：香蕉的钱 + 苹果的钱 = 40；列方程 x + (x + 10) = 40；解得 2x = 30，x = 15；苹果 15 + 10 = 25（元）。检验：25 + 15 = 40，25 − 15 = 10，符合题意 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设香蕉 x 元，苹果比香蕉贵 10 元，则苹果 (x + 10) 元",
+                "找等量关系：香蕉的钱 + 苹果的钱 = 一共的 40 元",
+                "列方程：x + (x + 10) = 40，去括号合并：2x + 10 = 40，2x = 30，x = 15",
+                "答：香蕉 15 元，苹果 15 + 10 = 25 元；检验：25 + 15 = 40，25 − 15 = 10，符合题意 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "和差模型应用题完整流程：设、列、解、验、答（'和差倍'，essence'设未知数→找等量关系→解方程→检验'取证）",
+                "难度理由": "medium 锚点——完整流程示范（设 x → 和差关系 → 解 → 检验 → 答句）",
+                "认知阶梯定位": "标准例题（L2 套用基准线）",
+                "错因陷阱": "无（锚点题不埋陷阱；答案内嵌设列解答四步示范）",
+                "教学角色": "讲本质用——'设列解答'全流程的演示载体"
+            }
+        },
+        {
+            "slot": "B1-I1",
+            "prompt": "一本书小明第一天看了 x 页，第二天看的页数是第一天的 2 倍，两天一共看了 60 页。下面哪个等量关系是正确的？（　）\nA. 第一天页数 + 第二天页数 = 60，即 x + 2x = 60\nB. 第二天页数 − 第一天页数 = 60\nC. 第一天页数 × 第二天页数 = 60\nD. 第一天页数 = 60",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "审题：'一共看了 60 页'说明两天看的页数相加等于 60",
+                "第一天 x 页，第二天是第一天的 2 倍即 2x 页",
+                "等量关系：x + 2x = 60，选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别应用题等量关系（'和差倍'，审题流程前置：先找'一共'关系）",
+                "难度理由": "easy——等量关系识别，选项覆盖加减乘误用",
+                "认知阶梯定位": "L1 识别正宗实现",
+                "错因陷阱": "选 B（'一共'想成差）、选 C（倍数误用乘）、选 D（漏第二天）",
+                "教学角色": "L1 识别脚手架——等量关系第一关"
+            }
+        },
+        {
+            "slot": "B1-I2",
+            "prompt": "哥哥有 30 元，比弟弟的 2 倍少 4 元。设弟弟有 x 元，下面哪个方程是正确的？（　）\nA. 2x − 4 = 30（弟弟的 2 倍少 4 就是哥哥的 30 元）\nB. 2x + 4 = 30（把'少 4'读成'多 4'）\nC. 2x = 30（漏掉 4）\nD. x − 4 = 30",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设弟弟 x 元，弟弟的 2 倍是 2x 元",
+                "'比弟弟的 2 倍少 4 元'：哥哥的 30 元 = 2x − 4",
+                "列方程：2x − 4 = 30，选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "识别正确方程（设未知数 → 翻译'2 倍少 4'，'和差倍'，'数量关系列反'错因的直接形态）",
+                "难度理由": "easy——四选一识别，'少 4'的方向是核心",
+                "认知阶梯定位": "L1 识别",
+                "错因陷阱": "选 B（'少'读成'多'——数量关系列反）、选 C（漏 4）",
+                "教学角色": "L1 识别——倍差关系的翻译探针"
+            }
+        },
+        {
+            "slot": "B2-I0",
+            "prompt": "学校图书角有 45 本故事书，是科技书的 3 倍。设科技书有 x 本，列方程并求解。",
+            "expected_answer": "3x = 45，x = 15。答：科技书有 15 本。检验：15 × 3 = 45 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设科技书 x 本，故事书是科技书的 3 倍即 3x 本",
+                "等量关系：故事书本数 = 45，列方程 3x = 45",
+                "两边同时除以 3：x = 15；答：科技书 15 本；检验：15 × 3 = 45 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "直接倍关系列方程并求解（'和差倍'）",
+                "难度理由": "easy 套用——单步倍关系列式",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "列 45 = x/3（方向反）、45 ÷ 3 算错",
+                "教学角色": "L2 套用脚手架——'谁是谁的几倍'翻译"
+            }
+        },
+        {
+            "slot": "B2-I1",
+            "prompt": "一件商品打八折后售价 96 元。设原价为 x 元，列方程并求解。",
+            "expected_answer": "0.8x = 96，x = 120。答：原价 120 元。检验：120 × 0.8 = 96 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "销售/打折",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "八折 = 原价的 80% = 0.8 倍",
+                "设原价 x 元，等量关系：原价 × 0.8 = 售价 96，列方程 0.8x = 96",
+                "两边同时除以 0.8：x = 96 ÷ 0.8 = 120；答：原价 120 元；检验：120 × 0.8 = 96 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "折扣百分数模型列方程（'销售/打折'×百分数模型前置）",
+                "难度理由": "medium——八折 = 0.8 的转化 + 列方程",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": "八折当 8（列 8x = 96）、96 ÷ 0.8 算错",
+                "教学角色": "L2 套用——折扣百分数模型标准应用"
+            }
+        },
+        {
+            "slot": "B2-I2",
+            "prompt": "把 45 名学生分成甲、乙两组参加植树，甲组人数是乙组的 2 倍少 6 人。设乙组有 x 人，列方程并求解。",
+            "expected_answer": "乙组 17 人，甲组 28 人。设乙组 x 人，则甲组 (2x − 6) 人；等量关系：甲组 + 乙组 = 45；列方程 x + (2x − 6) = 45；解得 3x = 51，x = 17；甲组 2 × 17 − 6 = 28（人）。检验：17 + 28 = 45，28 = 2 × 17 − 6 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "配套/调配",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设乙组 x 人，甲组人数是乙组的 2 倍少 6 人，即 (2x − 6) 人",
+                "等量关系：甲组 + 乙组 = 45，列方程 x + (2x − 6) = 45",
+                "去括号合并：3x − 6 = 45，3x = 51，x = 17；甲组 2 × 17 − 6 = 28（人）",
+                "答：乙组 17 人，甲组 28 人；检验：17 + 28 = 45，28 = 2 × 17 − 6 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "调配（分组）模型的倍差关系（'配套/调配'，'数量关系列反'错因的战场）",
+                "难度理由": "medium——'2 倍少 6'的翻译 + 总和等量关系",
+                "认知阶梯定位": "L3 变式",
+                "错因陷阱": "写 x + (2x + 6) = 45（'少 6'列反）、3x − 6 移项错",
+                "教学角色": "变式核心——调配模型的标准形态"
+            }
+        },
+        {
+            "slot": "B3-I0",
+            "prompt": "某车间有 22 名工人生产零件，每人每天可生产甲种零件 1200 个或乙种零件 2000 个。甲、乙两种零件按 1 个甲配 2 个乙的比例配套，设生产甲种零件的工人有 x 人，列方程并求解。",
+            "expected_answer": "生产甲种零件 10 人，生产乙种零件 12 人。设生产甲种零件 x 人，则生产乙种零件 (22 − x) 人；每天甲零件 1200x 个，乙零件 2000(22 − x) 个；配套比例 1 甲配 2 乙，即乙的个数 = 2 × 甲的个数；列方程 2000(22 − x) = 2 × 1200x；解得 44000 − 2000x = 2400x，4400x = 44000，x = 10；乙组 22 − 10 = 12（人）。检验：甲 10 × 1200 = 12000 个，乙 12 × 2000 = 24000 个，24000 = 2 × 12000 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "配套/调配",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设生产甲种零件 x 人，则生产乙种零件 (22 − x) 人",
+                "每天产量：甲 1200x 个，乙 2000(22 − x) 个",
+                "配套 1 甲配 2 乙：乙的个数 = 2 × 甲的个数，列方程 2000(22 − x) = 2 × 1200x",
+                "去括号：44000 − 2000x = 2400x，4400x = 44000，x = 10；答：生产甲种零件 10 人、乙种 12 人；检验：12000 与 24000 满足 1:2 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "配套比例模型（1 甲配 2 乙 → 乙数 = 2 × 甲数，'配套/调配'）",
+                "难度理由": "medium——设 x 人产甲 + 比例关系的符号化",
+                "认知阶梯定位": "L3 变式",
+                "错因陷阱": "比例列反（1200x = 2 × 2000(22 − x)）、漏'22 − x'",
+                "教学角色": "变式核心——配套模型的比例翻译"
+            }
+        },
+        {
+            "slot": "B3-I1",
+            "prompt": "甲、乙两地相距 540 千米，一辆客车和一辆货车同时从两地出发相向而行，客车的速度是货车的 2 倍，4 小时后两车相遇。货车每小时行多少千米？（列方程解答并检验）",
+            "expected_answer": "货车每小时行 45 千米。设货车每小时行 x 千米，则客车每小时行 2x 千米；等量关系：货车 4 小时的路程 + 客车 4 小时的路程 = 540；列方程 4x + 4 × 2x = 540；解得 12x = 540，x = 45；答：货车每小时行 45 千米，客车每小时行 90 千米。检验：4 × 45 + 4 × 90 = 180 + 360 = 540 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "行程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "设货车每小时行 x 千米，客车速度是货车的 2 倍，即 2x 千米/时",
+                "找等量关系：两车 4 小时的路程和 = 540（相向而行相遇）",
+                "列方程：4x + 4 × 2x = 540，合并 12x = 540，x = 45；客车 2 × 45 = 90（千米/时）",
+                "答：货车每小时行 45 千米；检验：4 × 45 + 4 × 90 = 180 + 360 = 540 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {
+                "考点": "行程相遇模型 + 倍数关系的多步建模（'行程'×行程模型前置）",
+                "难度理由": "hard——设 x、速度倍数、路程和、含括号方程、检验五步",
+                "认知阶梯定位": "L4 迁移——行程模型（MOTION-BASIC 前置）的相遇形态",
+                "错因陷阱": "等量关系写错（路程差代替路程和）、4(x + 2x) 展开错、12x = 540 算错",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——行程模型的综合应用"
+            }
+        },
+        {
+            "slot": "B3-I2",
+            "prompt": "某商品标价 150 元，按标价的八折出售仍可获利 20 元。设进价为 x 元，列方程并求解。",
+            "expected_answer": "进价 100 元。设进价为 x 元；先算售价：150 × 0.8 = 120（元）；等量关系：售价 − 进价 = 利润，120 − x = 20；解得 x = 100。答：进价为 100 元。检验：120 − 100 = 20 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "销售/打折",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "transfer",
+            "solution_steps": [
+                "设进价为 x 元",
+                "先算售价：按标价 150 元打八折，150 × 0.8 = 120（元）",
+                "等量关系：售价 − 进价 = 利润，120 − x = 20",
+                "解得 x = 100；答：进价为 100 元；检验：120 − 100 = 20 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 7,
+            "design_rationale": {
+                "考点": "折扣 + 利润模型（'销售/打折'×百分数模型前置）",
+                "难度理由": "hard——先算售价（折扣）再列利润关系，两步建模",
+                "认知阶梯定位": "L4 迁移——百分数模型（PERCENT-MODEL 前置）的销售形态",
+                "错因陷阱": "把利润当售价（列 x = 20）、八折计算错（150 × 0.8 = 120 算错）",
+                "教学角色": "判定层 transfer 证据来源（C3 双角色）——折扣利润综合"
+            }
+        },
+        {
+            "slot": "B4-I0",
+            "prompt": "食堂运来 50 千克大米，吃了 x 千克后还剩 18 千克。列方程并求解。",
+            "expected_answer": "x = 32，吃了 32 千克。列方程：50 − x = 18；解得 x = 50 − 18 = 32。答：吃了 32 千克。检验：50 − 32 = 18 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L2",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "等量关系：运来的 − 吃了的 = 剩下的，50 − x = 18",
+                "移项：x = 50 − 18 = 32",
+                "答：吃了 32 千克；检验：50 − 32 = 18 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 3,
+            "design_rationale": {
+                "考点": "简单差值模型列方程并求解（'和差倍'，mastery'能完整写出设列解答'取证）",
+                "难度理由": "easy 检测——单步差关系",
+                "认知阶梯定位": "L2 检测",
+                "错因陷阱": "列 x − 18 = 50（剩余方向反）、50 − 18 算错",
+                "教学角色": "掌握档快速检测——设列解答流程探针"
+            }
+        },
+        {
+            "slot": "B4-I1",
+            "prompt": "一辆汽车从甲城开往乙城，前 2 小时每小时行 60 千米，后 3 小时每小时行 x 千米，全程共 330 千米。列方程解答并检验。",
+            "expected_answer": "后 3 小时每小时行 70 千米。设后 3 小时每小时行 x 千米；等量关系：前段路程 + 后段路程 = 全程，2 × 60 + 3x = 330；解得 120 + 3x = 330，3x = 210，x = 70。答：后 3 小时每小时行 70 千米。检验：2 × 60 + 3 × 70 = 120 + 210 = 330 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "行程",
+            "variant_level": "L3",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设后 3 小时每小时行 x 千米",
+                "前段路程：2 × 60 = 120（千米）；后段路程：3x（千米）",
+                "等量关系：前段 + 后段 = 全程，120 + 3x = 330",
+                "3x = 210，x = 70；答：后 3 小时每小时行 70 千米；检验：120 + 210 = 330 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 6,
+            "design_rationale": {
+                "考点": "行程分段建模 + 检验（'行程'×行程模型前置，diagnostic probe'写设列解答'素材）",
+                "难度理由": "hard——前段 + 后段 = 全程的等量关系 + 三步解 + 检验",
+                "认知阶梯定位": "L3 检测 hard",
+                "错因陷阱": "漏前段（列 3x = 330）、330 − 120 算错、不检验",
+                "教学角色": "检测 hard 档，判定层 hard 证据来源"
+            }
+        },
+        {
+            "slot": "B4-I2",
+            "prompt": "爸爸今年 40 岁，恰好比儿子年龄的 4 倍多 8 岁。儿子今年多少岁？（列方程解答并检验）",
+            "expected_answer": "儿子 8 岁。设儿子今年 x 岁；等量关系：儿子年龄的 4 倍多 8 = 爸爸的 40 岁，4x + 8 = 40；解得 4x = 32，x = 8。答：儿子今年 8 岁。检验：4 × 8 + 8 = 40 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L3",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设儿子今年 x 岁，儿子的 4 倍是 4x 岁",
+                "等量关系：4 倍多 8 = 爸爸年龄，4x + 8 = 40",
+                "4x = 32，x = 8；答：儿子今年 8 岁；检验：4 × 8 + 8 = 40 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 5,
+            "design_rationale": {
+                "考点": "年龄差倍模型的复测（'和差倍'，防'会背不会用'）",
+                "难度理由": "medium 复测——'4 倍多 8'的翻译 + 解 + 检验",
+                "认知阶梯定位": "L3 复测",
+                "错因陷阱": "写 4x − 8 = 40（'多 8'列反）、40 − 8 算错",
+                "教学角色": "复测 medium——倍差关系防退化取证"
+            }
+        },
+        {
+            "slot": "B5-I0",
+            "prompt": "小明从家步行去学校，去时速度是 60 米/分，回家时速度是 40 米/分，来回一共用了 50 分钟。小明家到学校的路程是多少米？（列方程解答并检验）",
+            "expected_answer": "家到学校 1200 米。设路程为 x 米；去时时间 x/60 分钟，回时时间 x/40 分钟；等量关系：去时时间 + 回时时间 = 50，x/60 + x/40 = 50；去分母：两边同时乘 120，得 2x + 3x = 6000；5x = 6000，x = 1200。答：家到学校 1200 米。检验：1200 ÷ 60 + 1200 ÷ 40 = 20 + 30 = 50 ✓",
+            "answer_format": "text",
+            "verification_intent": "unverifiable",
+            "question_type": "行程",
+            "variant_level": "L4",
+            "difficulty": "hard",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设路程为 x 米；时间 = 路程 ÷ 速度，去时时间 x/60 分，回时时间 x/40 分",
+                "等量关系：去时时间 + 回时时间 = 总时间 50，列方程 x/60 + x/40 = 50",
+                "去分母：60 和 40 的最小公倍数是 120，两边乘 120：2x + 3x = 6000，5x = 6000，x = 1200",
+                "答：家到学校 1200 米；检验：1200 ÷ 60 + 1200 ÷ 40 = 20 + 30 = 50 ✓"
+            ],
+            "error_tags": ["modeling_or_reading", "calculation_or_symbol"],
+            "estimated_minutes": 8,
+            "design_rationale": {
+                "考点": "往返行程 + 分数方程的综合复测（'行程'×去分母前置，'单位不统一'错因的正面战场）",
+                "难度理由": "hard——时间 = 路程 ÷ 速度、去分母（×120）、单位一致性三处可错",
+                "认知阶梯定位": "L4 复测",
+                "错因陷阱": "把 50 分钟当小时（单位不统一）、x/60 + x/40 去分母漏乘、6000 ÷ 5 算错",
+                "教学角色": "复测 hard 档，判定层 hard 证据来源——应用题 + 分数方程综合"
+            }
+        },
+        {
+            "slot": "B5-I1",
+            "prompt": "解完方程得到 x = 6，题目问的是'苹果有多少千克'。下面哪个答句是对的？（　）\nA. 苹果有 6 千克\nB. 苹果有 6 个\nC. 答：6\nD. 不用答，x = 6 就是答案",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "审题建模",
+            "variant_level": "L1",
+            "difficulty": "easy",
+            "purpose_role": "core",
+            "solution_steps": [
+                "应用题最后要把 x 的值翻译回问题里的量，并带上单位",
+                "题目问'苹果有多少千克'，单位是千克，所以答'苹果有 6 千克'",
+                "选 A"
+            ],
+            "error_tags": ["modeling_or_reading", "process_habit"],
+            "estimated_minutes": 2,
+            "design_rationale": {
+                "考点": "答句规范的诊断（'审题建模'，'单位与答句缺失'错因的直接探针）",
+                "难度理由": "easy 诊断——答句选择分档",
+                "认知阶梯定位": "L1 诊断",
+                "错因陷阱": "选 B（单位错——'单位与答句缺失'）、选 C/D（漏单位或漏答句）",
+                "教学角色": "诊断题——答句规范一键探针"
+            }
+        },
+        {
+            "slot": "B5-I2",
+            "prompt": "小刚解应用题：'甲数是乙数的 3 倍多 2，甲数是 20，求乙数。'他设乙数为 x，列的方程是 3x − 2 = 20。他错在哪里？（　）\nA. 等量关系列反了：'乙数的 3 倍多 2'应写成 3x + 2，正确方程是 3x + 2 = 20\nB. 设未知数设错了：应该设甲数为 x\nC. 他没有错，3x − 2 = 20 是对的\nD. 应该列方程 2x + 3 = 20（把'3 倍'和'多 2'写反了）",
+            "expected_answer": "A",
+            "answer_format": "choice",
+            "verification_intent": "unverifiable",
+            "question_type": "和差倍",
+            "variant_level": "L2",
+            "difficulty": "medium",
+            "purpose_role": "core",
+            "solution_steps": [
+                "设乙数为 x，乙数的 3 倍是 3x，'多 2'要加 2，即 3x + 2",
+                "等量关系：乙数的 3 倍多 2 = 甲数 20，正确方程 3x + 2 = 20",
+                "小刚写 3x − 2 = 20 把'多 2'列成了'少 2'（数量关系列反）",
+                "选 A；正确解：3x = 18，x = 6"
+            ],
+            "error_tags": ["modeling_or_reading", "concept_confusion"],
+            "estimated_minutes": 4,
+            "design_rationale": {
+                "考点": "等量关系列反的诊断（'和差倍'，'等量关系找错/数量关系列反'错因的直接形态）",
+                "难度理由": "medium 诊断——定位方程错误并改正",
+                "认知阶梯定位": "L2 诊断",
+                "错因陷阱": "选 C（接受错误方程）、选 B（设未知数归因错）、选 D（倍数与加数互换）",
+                "教学角色": "诊断题——节点头号错因'等量关系找错'探针"
+            }
+        },
+    ],
 }
 
 # ---------------------------------------------------------------------------
