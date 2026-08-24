@@ -516,8 +516,7 @@
   box-shadow: 0 0 0 3px rgba(47, 111, 94, .2);
   background: var(--kv-green-soft);
 }
-.knowledge-node-button.is-recommended::after {
-  content: "建议看看";
+.knowledge-node-recommendation {
   display: block;
   grid-column: 2;
   margin-top: 3px;

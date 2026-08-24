@@ -3,6 +3,7 @@
 
   const SCENE_TYPES = Object.freeze([
     "number_line",
+    "number_line_reference_frame_diagnostic",
     "cube_net",
     "orthographic_view",
     "simple_geometry",
@@ -44,28 +45,118 @@
   }
 
   function numberLine(visual) {
-    const { root, svg } = visualRoot(visual, "0 0 720 220");
+    const { root, svg } = visualRoot(visual, "0 0 400 150");
     const { axis, ticks, points } = visual.scene;
-    const left = 60;
-    const right = 660;
-    const y = 108;
+    const left = 26;
+    const right = 374;
+    const y = 70;
     const span = axis.max - axis.min;
-    const xFor = (value) => left + ((value - axis.min) / span) * (right - left);
+    const xFor = (value) => {
+      const ratio = (value - axis.min) / span;
+      return axis.direction === "right"
+        ? left + ratio * (right - left)
+        : right - ratio * (right - left);
+    };
     svg.append(svgElement("line", { x1: left, y1: y, x2: right, y2: y, class: "qv-axis" }));
-    const arrowX = axis.direction === "right" ? right : left;
     const arrow = axis.direction === "right"
       ? `${right - 14},${y - 8} ${right},${y} ${right - 14},${y + 8}`
       : `${left + 14},${y - 8} ${left},${y} ${left + 14},${y + 8}`;
     svg.append(svgElement("polyline", { points: arrow, class: "qv-axis-arrow" }));
     for (const tick of ticks) {
       const x = xFor(tick.value);
-      svg.append(svgElement("line", { x1: x, y1: y - 9, x2: x, y2: y + 9, class: "qv-tick" }));
-      svg.append(svgText(tick.label, { x, y: y + 34, class: "qv-label", "text-anchor": "middle" }));
+      svg.append(svgElement("line", {
+        x1: x,
+        y1: y - 9,
+        x2: x,
+        y2: y + 9,
+        class: "qv-tick",
+        "data-qv-tick-value": tick.value,
+      }));
+      if (tick.label) {
+        svg.append(svgText(tick.label, {
+          x,
+          y: y + 34,
+          class: "qv-label qv-tick-label",
+          "text-anchor": "middle",
+        }));
+      }
     }
     for (const point of points) {
       const x = xFor(point.value);
-      svg.append(svgElement("circle", { cx: x, cy: y, r: 9, class: "qv-point" }));
-      svg.append(svgText(point.label, { x, y: y - 22, class: "qv-point-label", "text-anchor": "middle" }));
+      svg.append(svgElement("circle", {
+        cx: x,
+        cy: y,
+        r: 9,
+        class: "qv-point",
+        "data-qv-point-key": point.key,
+      }));
+      svg.append(svgText(point.label, {
+        x,
+        y: y - 22,
+        class: "qv-point-label",
+        "text-anchor": "middle",
+        "data-qv-point-label-key": point.key,
+      }));
+    }
+    return root;
+  }
+
+  function numberLineReferenceFrameDiagnostic(visual) {
+    const { root, svg } = visualRoot(visual, "0 0 400 150");
+    root.classList.add("question-visual-number_line");
+    root.setAttribute("data-qv-scene-type", visual.scene_type);
+    const { ticks } = visual.scene;
+    const left = 26;
+    const right = 374;
+    const y = 70;
+    const xFor = (position) => left + (position / 100) * (right - left);
+
+    svg.append(svgElement("line", {
+      x1: left,
+      y1: y,
+      x2: right,
+      y2: y,
+      class: "qv-axis",
+    }));
+    if (visual.scene.direction_marker_visible) {
+      svg.append(svgElement("polyline", {
+        points: `${right - 14},${y - 8} ${right},${y} ${right - 14},${y + 8}`,
+        class: "qv-axis-arrow",
+      }));
+    }
+    for (const tick of ticks) {
+      const x = xFor(tick.position);
+      svg.append(svgElement("line", {
+        x1: x,
+        y1: y - 9,
+        x2: x,
+        y2: y + 9,
+        class: "qv-tick",
+        "data-qv-tick-id": tick.id,
+        "data-qv-scale-index": tick.scale_index,
+        "data-qv-position": tick.position,
+      }));
+      if (tick.point_label) {
+        svg.append(svgText(tick.point_label, {
+          x,
+          y: y - 22,
+          class: "qv-point-label",
+          "text-anchor": "middle",
+          "data-qv-point-label-for": tick.id,
+        }));
+      }
+      const isOrigin = tick.id === visual.scene.origin_tick_id;
+      if (tick.value_label && (!isOrigin || visual.scene.origin_label_visible)) {
+        const attributes = {
+          x,
+          y: y + 34,
+          class: "qv-label qv-tick-label",
+          "text-anchor": "middle",
+          "data-qv-value-label-for": tick.id,
+        };
+        if (isOrigin) attributes["data-qv-origin-label"] = "true";
+        svg.append(svgText(tick.value_label, attributes));
+      }
     }
     return root;
   }
@@ -202,6 +293,7 @@
     clear(host);
     const renderers = {
       number_line: numberLine,
+      number_line_reference_frame_diagnostic: numberLineReferenceFrameDiagnostic,
       cube_net: cubeNet,
       orthographic_view: orthographicView,
       simple_geometry: simpleGeometry,

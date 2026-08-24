@@ -2,7 +2,6 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 760px;
-  min-height: 180px;
   margin: 14px auto;
   padding: 12px;
   overflow: hidden;
@@ -10,6 +9,11 @@
   border-radius: 8px;
   background: #fbfcfa;
   color: #17201b;
+}
+
+.question-visual-number_line svg {
+  max-width: 560px;
+  margin: 0 auto;
 }
 
 .question-visual svg {
@@ -72,6 +76,7 @@
   font-size: 18px;
   font-weight: 700;
 }
+.qv-point-label { font-size: 19px; }
 .qv-view-label { font-size: 20px; }
 
 .question-visual-error {
@@ -86,7 +91,6 @@
 
 @media (max-width: 480px) {
   .question-visual {
-    min-height: 140px;
     padding: 8px;
   }
   .qv-label,

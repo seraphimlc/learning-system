@@ -983,6 +983,12 @@
     stateLabel.className = "knowledge-node-state";
     stateLabel.textContent = node.learning_state_label || "还没有留下学习记录";
     button.append(stateLabel);
+    if (node.recommended && node.recommendation_label) {
+      const recommendation = document.createElement("span");
+      recommendation.className = "knowledge-node-recommendation";
+      recommendation.textContent = node.recommendation_label;
+      button.append(recommendation);
+    }
     button.setAttribute(
       "aria-label",
       `${node.name}，状态：${node.learning_state_label || "还没有留下学习记录"}`

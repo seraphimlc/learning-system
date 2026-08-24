@@ -460,8 +460,13 @@ function normalizeInteractionSchema(schema) {
   if (!schema || typeof schema !== "object") return null;
   const type = String(schema.type || "short_text");
   if (!["short_text", "fill_blank", "single_choice", "multi_choice", "formula_input"].includes(type)) return null;
+  const responseCapture = schema.response_capture == null
+    ? "existing_control"
+    : String(schema.response_capture);
+  if (!["existing_control", "bound_visual_choice", "paper_photo"].includes(responseCapture)) return null;
   return {
     type,
+    response_capture: responseCapture,
     title: String(schema.title || ""),
     schema_version: String(schema.schema_version || ""),
     allow_explanation: schema.allow_explanation !== false,
@@ -487,11 +492,96 @@ function normalizeInteractionSchema(schema) {
         .map((choice) => ({
           id: String(choice.id),
           label: String(choice.label),
+          visual_entity_id: choice.visual_entity_id == null
+            ? null
+            : String(choice.visual_entity_id),
         }))
       : [],
     formula_label: String(schema.formula_label || ""),
     placeholder: String(schema.placeholder || ""),
   };
+}
+
+function boundVisualChoiceContract(step = state.data?.current_step) {
+  const schema = normalizeInteractionSchema(step?.interaction_schema);
+  if (!schema || schema.response_capture !== "bound_visual_choice") {
+    return { bound: false, valid: true, bindings: new Map(), visualReference: null };
+  }
+  if (schema.type !== "single_choice") {
+    return { bound: true, valid: false, bindings: new Map(), visualReference: null };
+  }
+
+  const visual = step?.question_visual;
+  const points = Array.isArray(visual?.scene?.points) ? visual.scene.points : [];
+  const pointCounts = new Map();
+  points.forEach((point) => {
+    const key = typeof point?.key === "string" ? point.key : "";
+    if (key) pointCounts.set(key, (pointCounts.get(key) || 0) + 1);
+  });
+  const bindings = new Map();
+  const seenChoiceIds = new Set();
+  const seenVisualEntityIds = new Set();
+  let valid = Boolean(
+    visual
+    && String(step?.child_surface_projection_sha256 || "").trim()
+    && String(visual.scene_type || "").trim()
+    && String(visual.long_description || visual.alt_text || "").trim()
+  );
+  schema.choices.forEach((choice) => {
+    const choiceId = String(choice.id || "").trim();
+    const visualEntityId = typeof choice.visual_entity_id === "string"
+      ? choice.visual_entity_id
+      : "";
+    if (
+      !choiceId
+      || seenChoiceIds.has(choiceId)
+      || !visualEntityId
+      || seenVisualEntityIds.has(visualEntityId)
+      || pointCounts.get(visualEntityId) !== 1
+    ) {
+      valid = false;
+      return;
+    }
+    seenChoiceIds.add(choiceId);
+    seenVisualEntityIds.add(visualEntityId);
+    bindings.set(choiceId, visualEntityId);
+  });
+  if (bindings.size !== schema.choices.length || !schema.choices.length) valid = false;
+  return {
+    bound: true,
+    valid,
+    bindings,
+    visualReference: valid
+      ? {
+        child_surface_projection_sha256: String(step.child_surface_projection_sha256),
+        scene_type: String(visual.scene_type),
+        summary: String(visual.long_description || visual.alt_text),
+      }
+      : null,
+  };
+}
+
+function visualAssociationId(choiceId, visualEntityId) {
+  const source = `${String(choiceId)}:${String(visualEntityId)}`;
+  const token = Array.from(source)
+    .map((character) => character.codePointAt(0).toString(16))
+    .join("-");
+  return `choiceVisualAssociation-${token}`;
+}
+
+function visualPointDomId(key) {
+  const token = Array.from(String(key || ""))
+    .map((character) => character.codePointAt(0).toString(16))
+    .join("-");
+  return `questionVisualPoint-${token}`;
+}
+
+function visualPointLabel(visualEntityId, step = state.data?.current_step) {
+  const points = Array.isArray(step?.question_visual?.scene?.points)
+    ? step.question_visual.scene.points
+    : [];
+  const point = points.find((item) => String(item?.key || "") === String(visualEntityId || ""));
+  return String(point?.label || visualEntityId || "");
 }
 
 function canonicalSegmentsHtml(segments, expectedSource) {
@@ -540,14 +630,30 @@ function renderInteractionAnswerControls(schema, rendering = null) {
   if (normalized.type === "single_choice" || normalized.type === "multi_choice") {
     const inputType = normalized.type === "single_choice" ? "radio" : "checkbox";
     const name = "interaction-choice-current";
+    const boundVisualChoice = normalized.response_capture === "bound_visual_choice";
     return `
       <fieldset class="interaction-card" data-interaction-kind="${escapeAttr(normalized.type)}">
         <legend class="interaction-title">${canonicalInlineHtml(rendering?.title, normalized.title || "选择答案") ?? escapeHtml(normalized.title || "选择答案")}</legend>
         <div class="interaction-choices">
           ${normalized.choices.map((choice) => `
-            <label class="interaction-choice">
-              <input type="${inputType}" name="${escapeAttr(name)}" value="${escapeAttr(choice.id)}" data-interaction-choice="${escapeAttr(choice.id)}">
+            <label class="interaction-choice" ${boundVisualChoice ? "data-bound-visual-choice" : ""}>
+              <input
+                type="${inputType}"
+                name="${escapeAttr(name)}"
+                value="${escapeAttr(choice.id)}"
+                data-interaction-choice="${escapeAttr(choice.id)}"
+                ${boundVisualChoice ? `
+                  data-visual-entity-id="${escapeAttr(choice.visual_entity_id)}"
+                  aria-controls="${escapeAttr(visualPointDomId(choice.visual_entity_id))}"
+                  aria-describedby="${escapeAttr(visualAssociationId(choice.id, choice.visual_entity_id))}"
+                ` : ""}
+              >
               <span>${canonicalInlineHtml(rendering?.choices?.find((entry) => entry.id === choice.id)?.label, choice.label) ?? escapeHtml(choice.label)}</span>
+              ${boundVisualChoice ? `
+                <span class="visually-hidden-file" id="${escapeAttr(visualAssociationId(choice.id, choice.visual_entity_id))}">
+                  对应题面图中的点 ${escapeHtml(visualPointLabel(choice.visual_entity_id))}
+                </span>
+              ` : ""}
             </label>
           `).join("")}
         </div>
@@ -587,21 +693,36 @@ function collectInteractionResponse(schema, explanationText = "") {
   const response = {
     schema_version: normalized.schema_version,
     type: normalized.type,
+    response_capture: normalized.response_capture,
     values: {},
     selected_choices: [],
     formula: "",
     explanation_text: String(explanationText || "").trim(),
   };
   if (normalized.type === "fill_blank") {
+    response.provided_field_ids = [];
+    response.missing_field_ids = [];
     normalized.fields.forEach((field) => {
       const value = document.querySelector(`[data-interaction-field="${CSS.escape(field.id)}"]`)?.value.trim() || "";
-      if (value) response.values[field.id] = value;
+      if (value) {
+        response.values[field.id] = value;
+        response.provided_field_ids.push(field.id);
+      } else {
+        response.missing_field_ids.push(field.id);
+      }
     });
+    response.is_complete = Boolean(normalized.fields.length) && response.missing_field_ids.length === 0;
   } else if (normalized.type === "single_choice" || normalized.type === "multi_choice") {
     const checked = [...document.querySelectorAll("[data-interaction-choice]:checked")];
     checked.forEach((input) => {
       if (normalized.choices.some((item) => item.id === input.value)) response.selected_choices.push(input.value);
     });
+    const binding = boundVisualChoiceContract();
+    if (normalized.type === "single_choice" && binding.bound && binding.valid && response.selected_choices.length === 1) {
+      response.choice_id = response.selected_choices[0];
+      response.visual_entity_id = binding.bindings.get(response.choice_id);
+      response.visual_reference = binding.visualReference;
+    }
   } else if (normalized.type === "formula_input") {
     response.formula = document.querySelector("[data-interaction-formula]")?.value.trim() || "";
   }
@@ -1111,6 +1232,15 @@ function v3AllowedResponseModes(step, { teachingOnly = false, clarify = false } 
   return modes;
 }
 
+function isPhotoPrimaryStep(step, allowedModes = null) {
+  if (String(step?.answer_input_mode || "") === "photo") return true;
+  const modes = allowedModes || v3AllowedResponseModes(step || {});
+  return modes.has("photo")
+    && !modes.has("text")
+    && !modes.has("text_photo")
+    && !modes.has("clarification");
+}
+
 function currentStepInputKey(step = state.data?.current_step) {
   if (!step) return "";
   return `${String(step.step_handle || "")}:${Number(step.position || 0)}`;
@@ -1236,12 +1366,12 @@ function resetMultimodalForStep(step) {
   redrawHandwritingCanvas();
 }
 
-function inputModeAvailability(normalizedInteraction, allowText, showForm) {
+function inputModeAvailability(normalizedInteraction, allowText, showForm, photoRequired = false) {
   const type = normalizedInteraction?.type || (allowText ? "short_text" : "");
   return {
-    typed: Boolean(showForm),
-    handwriting: Boolean(showForm && ["formula_input", "short_text"].includes(type)),
-    voice: Boolean(showForm && type === "short_text" && voiceInputSupported()),
+    typed: Boolean(showForm && !photoRequired),
+    handwriting: Boolean(showForm && !photoRequired && ["formula_input", "short_text"].includes(type)),
+    voice: Boolean(showForm && !photoRequired && type === "short_text" && voiceInputSupported()),
   };
 }
 
@@ -1286,9 +1416,9 @@ function renderRecognitionState() {
   renderRecognitionBusyControls();
 }
 
-function applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm }) {
+function applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm, photoRequired = false }) {
   const input = state.multimodalInput;
-  const availability = inputModeAvailability(normalizedInteraction, allowText, showForm);
+  const availability = inputModeAvailability(normalizedInteraction, allowText, showForm, photoRequired);
   if (!availability[input.mode]) input.mode = "typed";
   const modePanel = $("answerInputModePanel");
   const alternativeCount = Number(availability.handwriting) + Number(availability.voice);
@@ -1304,16 +1434,18 @@ function applyAnswerInputModeVisibility({ normalizedInteraction, allowText, show
   const textarea = $("childAnswerRaw");
   const interactionPanel = $("interactionAnswerPanel");
   const isShortText = normalizedInteraction?.type === "short_text" || (!normalizedInteraction && allowText);
-  const allowExplanation = normalizedInteraction
-    ? (isShortText || normalizedInteraction.allow_explanation)
-    : allowText;
-  const showTypedSurface = input.mode === "typed";
+  const allowExplanation = !photoRequired && (normalizedInteraction
+    ? (isShortText || normalizedInteraction.requires_explanation)
+    : allowText);
+  const showTypedSurface = !photoRequired && input.mode === "typed";
   const showExplanationSurface = allowExplanation && (
     showTypedSurface
     || (input.mode === "handwriting" && normalizedInteraction?.type === "formula_input" && normalizedInteraction.requires_explanation)
   );
   if (interactionPanel) {
-    interactionPanel.hidden = !normalizedInteraction || (!showTypedSurface && normalizedInteraction.type === "formula_input");
+    interactionPanel.hidden = photoRequired
+      || !normalizedInteraction
+      || (!showTypedSurface && normalizedInteraction.type === "formula_input");
   }
   if (answerLabel) answerLabel.hidden = !showExplanationSurface;
   if (textarea) textarea.hidden = !showExplanationSurface;
@@ -1345,7 +1477,13 @@ function setAnswerInputMode(mode) {
   const normalizedInteraction = normalizeInteractionSchema(step?.interaction_schema);
   const allowedModes = v3AllowedResponseModes(step || {});
   const allowText = allowedModes.has("text") || allowedModes.has("text_photo") || allowedModes.has("clarification");
-  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm: !$("childAttemptForm").hidden });
+  const photoRequired = isPhotoPrimaryStep(step, allowedModes);
+  applyAnswerInputModeVisibility({
+    normalizedInteraction,
+    allowText,
+    showForm: !$("childAttemptForm").hidden,
+    photoRequired,
+  });
   if (mode === "handwriting") {
     redrawHandwritingCanvas();
     $("handwritingCanvas").focus({ preventScroll: true });
@@ -1354,7 +1492,16 @@ function setAnswerInputMode(mode) {
   }
 }
 
-function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel, placeholder, interactionSchema, interactionRendering }) {
+function setV3AttemptFormControls({
+  showForm,
+  allowText,
+  allowPhoto,
+  photoRequired,
+  submitLabel,
+  placeholder,
+  interactionSchema,
+  interactionRendering,
+}) {
   const form = $("childAttemptForm");
   const answerLabel = document.querySelector('label[for="childAnswerRaw"]');
   const textarea = $("childAnswerRaw");
@@ -1364,21 +1511,21 @@ function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel
   const normalizedInteraction = normalizeInteractionSchema(interactionSchema);
   resetMultimodalForStep(state.data?.current_step || null);
   const isShortText = normalizedInteraction?.type === "short_text";
-  const allowExplanationText = normalizedInteraction
-    ? (isShortText || normalizedInteraction.allow_explanation)
-    : allowText;
+  const allowExplanationText = !photoRequired && (normalizedInteraction
+    ? (isShortText || normalizedInteraction.requires_explanation)
+    : allowText);
   form.hidden = !showForm;
   if (answerLabel) {
     answerLabel.hidden = !allowExplanationText;
     answerLabel.textContent = normalizedInteraction
       ? (isShortText
         ? (normalizedInteraction.title || "我的答案")
-        : `${normalizedInteraction.explanation_label}${normalizedInteraction.requires_explanation ? "（必填）" : "（可选）"}`)
+        : `${normalizedInteraction.explanation_label}（必填）`)
       : "我的答案和步骤";
   }
   textarea.hidden = !allowExplanationText;
   const explanationRequired = Boolean(
-    normalizedInteraction
+    !photoRequired && normalizedInteraction
     && !isShortText
     && normalizedInteraction.requires_explanation
   );
@@ -1396,54 +1543,129 @@ function setV3AttemptFormControls({ showForm, allowText, allowPhoto, submitLabel
       ? (normalizedInteraction.answer_placeholder || (
         isShortText
           ? "按你平时的方式写下答案"
-          : normalizedInteraction.requires_explanation
-            ? "请写一句理由"
-            : "可以补一句理由或检查方法"
+          : "请写一句理由"
       ))
       : (placeholder || "写关键步骤、答案；如果卡住，就写卡在哪一步");
   }
   if (interactionPanel) {
     interactionPanel.innerHTML = normalizedInteraction ? renderInteractionAnswerControls(normalizedInteraction, interactionRendering) : "";
-    interactionPanel.hidden = !normalizedInteraction;
+    interactionPanel.hidden = photoRequired || !normalizedInteraction;
   }
   if (photoField) photoField.hidden = !allowPhoto;
+  const photoInput = $("childAnswerPhoto");
+  const requirePhotoNow = Boolean(showForm && allowPhoto && photoRequired);
+  if (photoInput) {
+    photoInput.required = requirePhotoNow;
+    photoInput.setAttribute("aria-required", requirePhotoNow ? "true" : "false");
+    photoInput.setAttribute("aria-invalid", "false");
+    photoInput.setCustomValidity("");
+  }
+  $("childAnswerPhotoLabel").textContent = photoRequired ? "拍纸面答案（必答）" : "需要时拍纸面答案";
+  $("childAnswerPhotoHint").textContent = photoRequired
+    ? "必答：请拍下完整、清楚的纸面作答"
+    : "可选：需要时补一张纸面过程";
+  $("childAnswerPhotoMeta").textContent = photoRequired
+    ? "照片就是本题答案，保存前请确认清楚完整。"
+    : "照片会和本题作答一起保存，由系统分析。";
   if (!allowPhoto) clearChildPhoto();
   if (stuckPanel && !showForm) {
     stuckPanel.hidden = true;
     stuckPanel.innerHTML = "";
   }
   $("childSubmitBtn").textContent = submitLabel || "保存";
-  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm });
+  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm, photoRequired });
 }
 
-function setQuestionVisualAnswerEnabled(enabled) {
+function setQuestionVisualStepActionsEnabled(enabled) {
   const form = $("childAttemptForm");
-  if (!form) return;
-  form.querySelectorAll("button, input, textarea, select").forEach((control) => {
+  form?.querySelectorAll("button, input, textarea, select").forEach((control) => {
+    control.disabled = !enabled;
+  });
+  document.querySelectorAll("[data-v3-continue-step], [data-v3-continue-stuck]").forEach((control) => {
     control.disabled = !enabled;
   });
 }
 
+function syncBoundVisualChoiceSelection() {
+  const binding = boundVisualChoiceContract();
+  if (!binding.bound || !binding.valid) return;
+  const host = document.querySelector("[data-question-visual-host]");
+  const selectedInput = document.querySelector("[data-interaction-choice][data-visual-entity-id]:checked");
+  const selectedEntityId = selectedInput?.dataset.visualEntityId || null;
+  host?.querySelectorAll("[data-qv-point-key]").forEach((point) => {
+    const selected = selectedEntityId !== null && point.dataset.qvPointKey === selectedEntityId;
+    point.setAttribute("data-qv-selected", selected ? "true" : "false");
+    point.style.fill = selected ? "#ffd45c" : "";
+    point.style.stroke = selected ? "#7a3f00" : "";
+    point.style.strokeWidth = selected ? "6" : "";
+  });
+  host?.querySelectorAll("[data-qv-point-label-key]").forEach((label) => {
+    const selected = selectedEntityId !== null && label.dataset.qvPointLabelKey === selectedEntityId;
+    label.style.fill = selected ? "#7a3f00" : "";
+    label.style.fontWeight = selected ? "800" : "";
+  });
+  document.querySelectorAll(".interaction-choice[data-bound-visual-choice]").forEach((label) => {
+    const input = label.querySelector("[data-interaction-choice]");
+    const selected = Boolean(input?.checked);
+    label.classList.toggle("is-selected", selected);
+    label.style.outline = selected ? "3px solid #b85c00" : "";
+    label.style.outlineOffset = selected ? "2px" : "";
+  });
+}
+
+function annotateRenderedVisualPoints(host, visual) {
+  const scenePoints = Array.isArray(visual?.scene?.points) ? visual.scene.points : [];
+  const renderedPoints = [...host.querySelectorAll(".qv-point, .qv-geometry-point")];
+  if (renderedPoints.length !== scenePoints.length) {
+    throw new Error("question visual points do not match the rendered scene");
+  }
+  renderedPoints.forEach((point, index) => {
+    const key = String(scenePoints[index]?.key || "");
+    point.id = visualPointDomId(key);
+    point.dataset.qvPointKey = key;
+    point.setAttribute("data-qv-selected", "false");
+  });
+  const existingLabels = [...host.querySelectorAll("[data-qv-point-label-key]")];
+  if (existingLabels.length === scenePoints.length) return;
+  const geometryLabels = [...host.querySelectorAll(".question-visual-simple_geometry .qv-label")];
+  if (geometryLabels.length === scenePoints.length) {
+    geometryLabels.forEach((label, index) => {
+      label.dataset.qvPointLabelKey = String(scenePoints[index]?.key || "");
+    });
+  }
+}
+
 function renderQuestionVisualForStep(step) {
   const visual = step?.question_visual || null;
-  state.questionVisualReady = !visual;
-  if (!visual) return;
-
   const host = document.querySelector("[data-question-visual-host]");
   const error = document.querySelector("[data-question-visual-error]");
+  const binding = boundVisualChoiceContract(step);
+  state.questionVisualReady = !visual && !binding.bound;
+  if (!visual && !binding.bound) return;
   try {
+    if (!visual) throw new Error("bound visual choice requires a current question visual");
+    if (binding.bound && !binding.valid) {
+      throw new Error("bound visual choice does not match current visual points");
+    }
     if (!host || !window.QuestionVisualRenderer?.render) {
       throw new Error("question visual renderer is unavailable");
     }
     window.QuestionVisualRenderer.render(host, visual);
+    if (binding.bound) annotateRenderedVisualPoints(host, visual);
     state.questionVisualReady = true;
     if (error) error.hidden = true;
-    setQuestionVisualAnswerEnabled(true);
+    setQuestionVisualStepActionsEnabled(true);
+    syncBoundVisualChoiceSelection();
   } catch (_error) {
     if (host) host.replaceChildren();
-    if (error) error.hidden = false;
+    if (error) {
+      error.textContent = binding.bound
+        ? "这道题的选项和题面图没有对应好，请刷新页面后再作答。"
+        : "题面图未加载，请刷新页面后再作答。";
+      error.hidden = false;
+    }
     state.questionVisualReady = false;
-    setQuestionVisualAnswerEnabled(false);
+    setQuestionVisualStepActionsEnabled(false);
   }
 }
 
@@ -1551,6 +1773,10 @@ function renderV3SummaryState() {
   clearReviewPoll();
   const message = v3Message();
   const summary = state.data?.summary || {};
+  const nextAction = summary.next_action || message.body || "休息一下。";
+  const summaryGuidance = nextAction.includes("知识目录")
+    ? nextAction
+    : `${nextAction} 想继续时，可以回到知识目录选择下一个知识点。`;
   const summaryRows = [
     ["已确认", summary.what_went_well || ""],
     ["还要练", summary.keep_working_on || ""],
@@ -1567,7 +1793,7 @@ function renderV3SummaryState() {
   $("childTaskContent").hidden = true;
   $("childAttemptForm").hidden = true;
   $("childHandoffTitle").textContent = summary.title || message.title || "今天先到这里";
-  $("childHandoffText").textContent = summary.next_action || message.body || "休息一下。";
+  $("childHandoffText").textContent = summaryGuidance;
   $("childReviewPoints").innerHTML = summaryRows.length ? `
     <div class="review-points-title">今日总结</div>
     ${summaryRows.map(([title, text]) => `
@@ -1578,8 +1804,8 @@ function renderV3SummaryState() {
     `).join("")}
   ` : "";
   renderCoachPoints(null);
-  $("startNextRoundBtn").textContent = message.action_label || "完成今天学习";
-  $("startNextRoundBtn").hidden = true;
+  $("startNextRoundBtn").textContent = "回到知识目录";
+  $("startNextRoundBtn").hidden = false;
   $("v3SecondaryActionBtn").hidden = true;
   renderErrorPanel();
   focusV3HandoffOnce("summary");
@@ -1622,6 +1848,7 @@ function renderV3CurrentStep() {
   const allowedModes = v3AllowedResponseModes(step, { teachingOnly: isTeachingOnly, clarify: isClarify });
   const allowText = allowedModes.has("text") || allowedModes.has("text_photo") || allowedModes.has("clarification");
   const allowPhoto = allowedModes.has("photo") || allowedModes.has("text_photo") || allowedModes.has("clarification");
+  const photoRequired = isPhotoPrimaryStep(step, allowedModes);
   const allowStuck = (allowedModes.has("stuck") || isClarify) && step.stuck_enabled !== false;
   const allowContinue = allowedModes.has("continue") || isTeachingOnly;
   const promptLabel = isAssessmentFeedback ? "解析" : (isTeachingOnly ? "讲解" : (isClarify ? "请补清楚" : "题目"));
@@ -1630,6 +1857,7 @@ function renderV3CurrentStep() {
   const teachingSectionsHtml = isTeachingOnly && !isAssessmentFeedback ? renderV5TeachingSections(step) : "";
   const knowledgeCardHtml = isTeachingOnly && !isAssessmentFeedback ? renderKnowledgeCardComponents(step) : "";
   const assessmentFeedbackHtml = isTeachingOnly ? renderV51AssessmentFeedback(step.assessment_feedback) : "";
+  const visualChoiceContract = boundVisualChoiceContract(step);
   const activeStuckPrompts = isClarify
     ? [...stuckPrompts, ["无法补充，先记为待判断", "我现在无法补充得更清楚，先记为待判断。"]]
     : stuckPrompts;
@@ -1642,7 +1870,7 @@ function renderV3CurrentStep() {
     $("childProgressText").textContent = `第 ${groupCurrent} 题 · 最多 ${groupMaximum} 题`;
     $("childPendingText").textContent = groupMaximum === 1
       ? "这题做完就看解析"
-      : (groupCurrent < groupMaximum ? `做完第 ${groupMaximum} 题一起看` : "做完这题一起看");
+      : (groupCurrent < groupMaximum ? "做完这题，再决定继续还是看解析" : "做完这题一起看");
     $("childProgressBar").style.width = `${Math.round(((groupCurrent - 1) / groupMaximum) * 100)}%`;
   } else {
     $("childProgressText").textContent = "当前步骤";
@@ -1659,7 +1887,7 @@ function renderV3CurrentStep() {
           <span class="question-block-label">${escapeHtml(promptLabel)}</span>
           <div class="child-prompt" data-child-prompt data-projection-sha256="${escapeAttr(step.child_surface_projection_sha256 || "")}">${promptHtml}</div>
         </div>
-        ${step.question_visual ? `
+        ${step.question_visual || visualChoiceContract.bound ? `
           <div data-question-visual-host></div>
           <p class="question-visual-error" data-question-visual-error role="alert" hidden>
             题面图未加载，请刷新页面后再作答。
@@ -1682,6 +1910,7 @@ function renderV3CurrentStep() {
     showForm: !allowContinue && (allowText || allowPhoto || allowStuck || Boolean(interactionSchema)),
     allowText,
     allowPhoto,
+    photoRequired,
     submitLabel: isClarify ? "保存补充" : "保存",
     placeholder: isClarify
       ? "把刚才没看清的关键步骤、最后答案补清楚；也可以重新拍一张清楚照片"
@@ -1773,6 +2002,9 @@ function renderV3ChildState() {
 }
 
 function bindV3CurrentStepControls() {
+  document.querySelectorAll("[data-interaction-choice][data-visual-entity-id]").forEach((input) => {
+    input.addEventListener("change", syncBoundVisualChoiceSelection);
+  });
   document.querySelectorAll("[data-v3-stuck-prompt]").forEach((button) => {
     button.addEventListener("click", async () => {
       const text = button.dataset.v3StuckPrompt || "";
@@ -2619,7 +2851,8 @@ function clearChildPhoto() {
 }
 
 async function handleChildPhotoChange(event) {
-  const file = event.currentTarget.files?.[0];
+  const inputElement = event.currentTarget;
+  const file = inputElement.files?.[0];
   if (!file) {
     clearChildPhoto();
     return;
@@ -2646,6 +2879,13 @@ async function handleChildPhotoChange(event) {
     clearErrorPanel(CHILD_UI_STATES.UPLOAD_ERROR);
     state.pendingEvidence.photoDataUrl = dataUrl;
     state.pendingEvidence.photoName = file.name || "answer-photo";
+    inputElement.setAttribute("aria-invalid", "false");
+    inputElement.setCustomValidity("");
+    const attemptError = $("childAttemptError");
+    if (attemptError && isPhotoPrimaryStep(state.data?.current_step || null)) {
+      attemptError.textContent = "";
+      attemptError.hidden = true;
+    }
     $("childPhotoThumb").src = dataUrl;
     $("childPhotoName").textContent = state.pendingEvidence.photoName;
     $("childPhotoPreview").hidden = false;
@@ -2745,6 +2985,26 @@ async function submitV3CurrentStep() {
     toast("题面图还没有加载好，请刷新页面后再试");
     return;
   }
+  const answerField = $("childAnswerRaw");
+  const photoField = $("childAnswerPhoto");
+  const attemptError = $("childAttemptError");
+  const allowedModes = v3AllowedResponseModes(step);
+  const photoRequired = isPhotoPrimaryStep(step, allowedModes);
+  if (photoRequired && !state.pendingEvidence.photoDataUrl && !state.v3Stuck) {
+    const message = "请先拍下这道题完整、清楚的纸面作答";
+    photoField.required = true;
+    photoField.setAttribute("aria-required", "true");
+    photoField.setAttribute("aria-invalid", "true");
+    photoField.setCustomValidity(message);
+    if (attemptError) {
+      attemptError.textContent = message;
+      attemptError.hidden = false;
+    }
+    photoField.focus({ preventScroll: true });
+    return;
+  }
+  photoField.setAttribute("aria-invalid", "false");
+  photoField.setCustomValidity("");
   let recognitionSubmission = null;
   if (!state.v3Stuck) {
     try {
@@ -2757,8 +3017,6 @@ async function submitV3CurrentStep() {
     }
   }
   const freeText = $("childAnswerRaw").value.trim();
-  const answerField = $("childAnswerRaw");
-  const attemptError = $("childAttemptError");
   const normalizedInteraction = normalizeInteractionSchema(step.interaction_schema);
   if (
     normalizedInteraction?.requires_explanation
@@ -2863,6 +3121,10 @@ async function continueV3CurrentStep(stuck = false) {
     toast("当前步骤还没准备好");
     return;
   }
+  if (step.question_visual && !state.questionVisualReady) {
+    toast("题面图还没有加载好，请刷新页面后再试");
+    return;
+  }
   state.v3ContinueStuck = Boolean(stuck);
   const buttons = document.querySelectorAll("[data-v3-continue-step], [data-v3-continue-stuck]");
   buttons.forEach((button) => { button.disabled = true; });
@@ -2959,7 +3221,13 @@ $("cancelRecognitionBtn").addEventListener("click", () => {
   const normalizedInteraction = normalizeInteractionSchema(step?.interaction_schema);
   const allowedModes = v3AllowedResponseModes(step || {});
   const allowText = allowedModes.has("text") || allowedModes.has("text_photo") || allowedModes.has("clarification");
-  applyAnswerInputModeVisibility({ normalizedInteraction, allowText, showForm: !$("childAttemptForm").hidden });
+  const photoRequired = isPhotoPrimaryStep(step, allowedModes);
+  applyAnswerInputModeVisibility({
+    normalizedInteraction,
+    allowText,
+    showForm: !$("childAttemptForm").hidden,
+    photoRequired,
+  });
   $("childAnswerRaw")?.focus({ preventScroll: true });
   toast("已取消本次识别");
 });
@@ -3136,6 +3404,14 @@ async function handleStartNextRoundClick(event) {
 
 async function handleV3PrimaryAction() {
   const childState = state.data?.child_state || "";
+  if (childState === "summary") {
+    try {
+      await loadKnowledgeHome({ rememberSurface: true });
+    } catch {
+      setPrimarySurface("map_home");
+    }
+    return;
+  }
   if (childState === "choose_review" || childState === "start_resume") {
     await startV3ReviewFlow();
     return;

@@ -105,17 +105,17 @@
             <p id="childAttemptError" class="attempt-error" role="alert" aria-live="assertive" hidden></p>
 
             <div class="photo-field">
-              <label for="childAnswerPhoto">拍纸面答案</label>
+              <label id="childAnswerPhotoLabel" for="childAnswerPhoto">拍纸面答案</label>
               <div class="photo-input-row">
                 <input id="childAnswerPhoto" class="visually-hidden-file" type="file" accept="image/*" capture="environment">
                 <label class="photo-picker" for="childAnswerPhoto">拍照或选择图片</label>
-                <span class="photo-hint">可选：拍纸面步骤</span>
+                <span id="childAnswerPhotoHint" class="photo-hint">可选：需要时补一张纸面过程</span>
               </div>
               <div class="photo-preview" id="childPhotoPreview" hidden>
                 <img id="childPhotoThumb" alt="纸面答案预览">
                 <div>
                   <span id="childPhotoName" class="row-title"></span>
-                  <span class="row-meta">照片会和文字答案一起保存，由系统分析。</span>
+                  <span id="childAnswerPhotoMeta" class="row-meta">照片会和本题作答一起保存，由系统分析。</span>
                   <button id="removeChildPhoto" type="button">移除照片</button>
                 </div>
               </div>
