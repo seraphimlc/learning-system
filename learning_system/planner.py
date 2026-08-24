@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
 import json
 import re
 import sqlite3
@@ -8,7 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from . import db, mastery_bridge, mastery_rules, question_bank
+from . import db, goal_choice_service, mastery_bridge, mastery_rules, question_bank
 from .trace_back import ordered_prerequisite_candidates
 
 
@@ -992,6 +993,43 @@ def _current_mastered_node_ids(conn: sqlite3.Connection) -> set[str]:
     }
 
 
+def _iso_week_for_timestamp(timestamp: str) -> str:
+    """ISO week key (``YYYY-Www``) that contains ``timestamp``.
+
+    Same key shape as goal_choice_service's weekly keys; used to map the
+    plan's ``now`` onto the weekly goal choice the planner honors (objective ②
+    linkage). Accepts date-only and full ISO-8601 timestamps.
+    """
+    parsed = datetime.fromisoformat(timestamp)
+    iso_year, iso_week, _ = parsed.isocalendar()
+    return f"{iso_year:04d}-W{iso_week:02d}"
+
+
+def _current_goal_node_ids(
+    conn: sqlite3.Connection,
+    *,
+    iso_week: str | None = None,
+) -> list[str]:
+    """Weekly goal choice node ids for ``iso_week`` (objective ② linkage).
+
+    Degrades to ``[]`` (no goal nodes) instead of raising so the linkage can
+    never break plan generation: a missing record, a malformed week key, or a
+    non-list ``node_ids`` payload all mean "no goal nodes".
+    """
+    if not iso_week:
+        return []
+    try:
+        choice = goal_choice_service.current_goal_choice(conn, iso_week=iso_week)
+    except ValueError:
+        return []
+    if not isinstance(choice, dict):
+        return []
+    node_ids = choice.get("node_ids")
+    if not isinstance(node_ids, list):
+        return []
+    return [str(node_id) for node_id in node_ids if str(node_id).strip()]
+
+
 def _core_learn_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     placeholders = ",".join("?" for _ in CORE_LEARN_PATH)
     order_case = " ".join(f"when ? then {index}" for index, node_id in enumerate(CORE_LEARN_PATH))
@@ -1336,6 +1374,7 @@ def generate_next_plan(
     *,
     commit: bool = True,
     now: str | None = None,
+    iso_week: str | None = None,
 ) -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     scheduled_node_ids: set[str] = set()
@@ -1439,6 +1478,43 @@ def generate_next_plan(
             )
             if len(tasks) >= LEARNING_ROUND_TASK_COUNT:
                 break
+
+    if len(tasks) < LEARNING_ROUND_TASK_COUNT:
+        goal_week = iso_week or ""
+        if not goal_week:
+            try:
+                goal_week = _iso_week_for_timestamp(now)
+            except ValueError:
+                goal_week = ""
+        goal_node_ids = _current_goal_node_ids(conn, iso_week=goal_week)
+        if goal_node_ids:
+            # 目标联动 (M2.5 motivation follow-up objective ②): 当周有目标选择时,
+            # 尚未掌握的目标节点进入主线 (learn) 任务并优先于通用主线填充。
+            # 不硬塞: 已掌握 (A) 尊重状态; 已阻塞 (D) 由回查 (rollback) 阶段处理,
+            # 直接教被阻塞节点违反回查语义; 已在 scheduled_node_ids 的
+            # (弱档/待确认阶段已排) 不重复。既有调度 (retest 门控、回查、B 档、
+            # 图片挑战强化/封顶) 不动, 目标是增量。
+            status_rows = db.current_learner_node_status_rows(conn, status_codes=("A", "D"))
+            skip_node_ids = {row["node_id"] for row in status_rows}
+            for node_id in goal_node_ids:
+                if len(tasks) >= LEARNING_ROUND_TASK_COUNT:
+                    break
+                if node_id in scheduled_node_ids or node_id in skip_node_ids:
+                    continue
+                if not conn.execute("select 1 from graph_nodes where id = ? limit 1", (node_id,)).fetchone():
+                    continue
+                _append_task(
+                    conn,
+                    tasks,
+                    scheduled_node_ids,
+                    scheduled_question_ids,
+                    scheduled_round_signatures,
+                    node_id,
+                    "learn",
+                    "Child-selected weekly goal.",
+                    node_id,
+                    planning_signal=_empty_signal(node_id),
+                )
 
     if len(tasks) < LEARNING_ROUND_TASK_COUNT:
         for row in _core_learn_rows(conn):
