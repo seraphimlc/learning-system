@@ -334,6 +334,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
           difficulty text not null default 'medium',
           purpose_role text not null default 'core',
           answer_verification text not null default 'pending',
+          design_rationale_json text not null default '{}',
           prompt text not null,
           answer_format text not null,
           expected_answer text not null,
@@ -1383,6 +1384,12 @@ def init_schema(conn: sqlite3.Connection) -> None:
         "question_items",
         "answer_verification",
         "text not null default 'pending'",
+    )
+    _ensure_column(
+        conn,
+        "question_items",
+        "design_rationale_json",
+        "text not null default '{}'",
     )
     conn.execute(
         "create index if not exists idx_questions_production_category "

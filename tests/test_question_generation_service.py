@@ -1,12 +1,15 @@
-"""Question generation & verification pipeline core tests (objective ③).
+"""Question generation & verification pipeline core tests (objective ③ + ①).
 
 Contract under test: `learning_system/question_generation_service.py` per
 docs/design/specs/2026-08-20-question-bank-contract.md (§3 每节点矩阵、
-§4 校验门禁、§5 元数据派生、§6 生成管线) + 图谱 question_generation 契约.
+§4 校验门禁与难度底线、§5 元数据派生、§6 生成管线含教研审查门禁,
+v1.1) + 图谱 question_generation 契约.
 
 The generator is injected (`generate_fn`); tests use fakes that produce real
 sympy-checkable prompts, so the verification gate runs against the real
-`learning_system.answer_verification.verify_expected_answer`.
+`learning_system.answer_verification.verify_expected_answer`. The pedagogy
+reviewer is injected (`reviewer_fn`) — objective ① builds the injectable gate
+infrastructure only; the real 琢玉 LLM review lands in a parallel task.
 
 Run: python3 -m unittest tests.test_question_generation_service -v
 """
@@ -478,7 +481,20 @@ def insert_question_row(
     difficulty: str = "medium",
     purpose_role: str = "core",
     answer_verification: str = "verified",
+    prompt: str = "计算：3 + 5 的结果",
+    design_rationale: str | None = None,
 ) -> None:
+    """Insert a minimal question_items row for contract validation tests.
+
+    `design_rationale` is raw JSON text; default derives a compliant rationale
+    from question_type/kind (考点 = question_type). Pass "{}" explicitly to
+    simulate a row that skipped the rationale gate.
+    """
+    if design_rationale is None:
+        design_rationale = json.dumps(
+            {"考点": question_type, "教学角色": kind, "认知阶梯定位": "L2"},
+            ensure_ascii=False,
+        )
     conn.execute(
         """
         insert into question_items(
@@ -487,13 +503,14 @@ def insert_question_row(
           expected_answer, rubric_json, solution_steps_json, error_tags_json,
           rollback_candidate_node_ids_json, rollback_candidate_relations_json,
           estimated_minutes, parent_observation, source_json, raw_json,
-          difficulty, purpose_role, answer_verification
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          difficulty, purpose_role, answer_verification, design_rationale_json
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             question_id, QUESTION_ITEM_VERSION, "graph_generated", node_id, "[]",
-            kind, question_type, "L2", "", "题干", "text", "答案", "[]", "[]", "[]",
+            kind, question_type, "L2", "", prompt, "text", "答案", "[]", "[]", "[]",
             "[]", "[]", 3, "", "{}", "{}", difficulty, purpose_role, answer_verification,
+            design_rationale,
         ),
     )
     conn.commit()
@@ -533,6 +550,48 @@ class ValidateNodeBankContractTestCase(unittest.TestCase):
         self.assertTrue(report["checks"]["transfer_ok"])
         self.assertTrue(report["checks"]["difficulty_distribution_ok"])
         self.assertTrue(report["checks"]["no_mismatch"])
+        self.assertTrue(report["checks"]["design_rationale_ok"])
+        self.assertEqual([], report["trivial_warnings"])
+
+    def test_design_rationale_missing_fails(self):
+        seed_compliant_bank(self.conn)
+        insert_question_row(self.conn, "nord", design_rationale="{}")
+        report = qg.validate_node_bank_contract(self.conn, "N-CALC")
+        self.assertFalse(report["valid"])
+        self.assertFalse(report["checks"]["design_rationale_ok"])
+        self.assertTrue(
+            any("design_rationale" in error or "设计理由" in error for error in report["errors"])
+        )
+
+    def test_design_rationale_without_knowledge_point_fails(self):
+        seed_compliant_bank(self.conn)
+        insert_question_row(
+            self.conn, "nokp",
+            design_rationale='{"难度理由": "中等", "教学角色": "标准例题"}',
+        )
+        report = qg.validate_node_bank_contract(self.conn, "N-CALC")
+        self.assertFalse(report["valid"])
+        self.assertFalse(report["checks"]["design_rationale_ok"])
+        self.assertTrue(
+            any("design_rationale" in error or "设计理由" in error for error in report["errors"])
+        )
+
+    def test_trivial_prompt_warns_but_does_not_invalidate(self):
+        """琐碎题检测是启发式警告 (不硬拒); 去留由教研审查门禁决定."""
+        seed_compliant_bank(self.conn)
+        insert_question_row(self.conn, "triv", prompt="1+1=？")
+        report = qg.validate_node_bank_contract(self.conn, "N-CALC")
+        self.assertTrue(report["valid"])  # 警告不使契约失效
+        self.assertEqual(1, report["trivial_question_count"])
+        self.assertTrue(any(w["question_id"] == "triv" for w in report["trivial_warnings"]))
+        self.assertTrue(all(w["severity"] == "warning" for w in report["trivial_warnings"]))
+
+    def test_reasoning_prompt_not_flagged_trivial(self):
+        seed_compliant_bank(self.conn)
+        insert_question_row(self.conn, "rea", prompt="计算：3.2 + 1.7 的结果是多少？")
+        report = qg.validate_node_bank_contract(self.conn, "N-CALC")
+        self.assertEqual(0, report["trivial_question_count"])
+        self.assertEqual([], report["trivial_warnings"])
 
     def test_single_question_type_family_fails(self):
         for i in range(4):
@@ -576,6 +635,161 @@ class ValidateNodeBankContractTestCase(unittest.TestCase):
         report = qg.validate_node_bank_contract(self.conn, "N-CALC")
         self.assertFalse(report["valid"])
         self.assertEqual(0, report["question_count"])
+
+
+# ---------------------------------------------------------------------------
+# 教研审查门禁 (reviewer_fn 注入, §6 管线 v1.1)
+# ---------------------------------------------------------------------------
+
+
+class ReviewGateTestCase(unittest.TestCase):
+    """reviewer_fn 注入式教研审查: 通过→入库; 拒绝→重出(带 review_feedback)
+    一次→仍拒→该批丢弃 (计数); None → 跳过 (向后兼容)."""
+
+    def setUp(self):
+        self.conn = make_conn()
+        self.addCleanup(self.conn.close)
+
+    def test_reviewer_approves_all_questions_ingested(self):
+        seen_batches: list[int] = []
+        seen_questions: list[list[dict]] = []
+
+        def reviewer(batch_spec: dict, questions: list[dict]) -> dict:
+            seen_batches.append(batch_spec["batch_index"])
+            seen_questions.append(questions)
+            return {"approved": True, "issues": []}
+
+        result = qg.generate_node_bank(
+            self.conn, "N-CALC", generate_fn=fake_correct, reviewer_fn=reviewer
+        )
+        self.assertEqual(15, result["ingested"])
+        self.assertEqual(0, result["review_discarded"])
+        self.assertEqual(0, result["review_retries"])
+        self.assertEqual(5, len(seen_batches))
+        # 每批 3 题, 审查可见 design_rationale (五要素含考点)
+        for questions in seen_questions:
+            self.assertEqual(3, len(questions))
+            for question in questions:
+                rationale = question["design_rationale"]
+                self.assertEqual(
+                    {"考点", "难度理由", "认知阶梯定位", "错因陷阱", "教学角色"},
+                    set(rationale),
+                )
+                self.assertTrue(rationale["考点"])
+
+    def test_review_reject_then_approve_regenerates_batch_with_feedback(self):
+        calls: list[dict] = []
+
+        def generate(batch_spec: dict) -> list[dict]:
+            calls.append(batch_spec)
+            return fake_correct(batch_spec)
+
+        def reviewer(batch_spec: dict, questions: list[dict]) -> dict:
+            if batch_spec["batch_index"] == 2 and not batch_spec.get("review_retry"):
+                return {
+                    "approved": False,
+                    "issues": [{"question_index": 1, "severity": "warning", "issue": "难度偏低, 建议加干扰"}],
+                }
+            return {"approved": True, "issues": []}
+
+        result = qg.generate_node_bank(
+            self.conn, "N-CALC", generate_fn=generate, reviewer_fn=reviewer
+        )
+        self.assertEqual(15, result["ingested"])
+        self.assertEqual(0, result["review_discarded"])
+        self.assertEqual(1, result["review_retries"])
+        retry_specs = [spec for spec in calls if spec.get("review_retry")]
+        self.assertEqual(1, len(retry_specs))
+        self.assertEqual(2, retry_specs[0]["batch_index"])
+        self.assertTrue(retry_specs[0]["review_feedback"])
+        self.assertEqual("warning", retry_specs[0]["review_feedback"][0]["severity"])
+        self.assertEqual(1, retry_specs[0]["review_feedback"][0]["question_index"])
+        ids = {row["id"] for row in self.conn.execute(
+            "select id from question_items where node_id = 'N-CALC'")}
+        self.assertIn("Q-N-CALC-B2-I0", ids)
+
+    def test_review_reject_then_still_reject_discards_batch(self):
+        def reviewer(batch_spec: dict, questions: list[dict]) -> dict:
+            if batch_spec["batch_index"] == 1:
+                return {
+                    "approved": False,
+                    "issues": [{"question_index": 0, "severity": "error", "issue": "琐碎题: 一眼答案"}],
+                }
+            return {"approved": True, "issues": []}
+
+        result = qg.generate_node_bank(
+            self.conn, "N-CALC", generate_fn=fake_correct, reviewer_fn=reviewer
+        )
+        self.assertEqual(3, result["review_discarded"])
+        self.assertEqual(1, result["review_retries"])
+        self.assertEqual(12, result["ingested"])
+        self.assertEqual(15, result["generated"])  # 丢弃的题仍计入 generated
+        ids = {row["id"] for row in self.conn.execute(
+            "select id from question_items where node_id = 'N-CALC'")}
+        for item_index in range(3):
+            self.assertNotIn(f"Q-N-CALC-B1-I{item_index}", ids)
+        self.assertIn("Q-N-CALC-B2-I0", ids)
+
+    def test_no_reviewer_skips_gate(self):
+        result = qg.generate_node_bank(self.conn, "N-CALC", generate_fn=fake_correct)
+        self.assertEqual(15, result["ingested"])
+        self.assertEqual(0, result["review_retries"])
+        self.assertEqual(0, result["review_discarded"])
+        self.assertIn("review_discarded", result)
+
+
+# ---------------------------------------------------------------------------
+# design_rationale 五要素 (§2 v1.1)
+# ---------------------------------------------------------------------------
+
+
+class DesignRationaleTestCase(unittest.TestCase):
+    """raw 提供 design_rationale → 原样入库; 缺省 → 从批规格派生最小 rationale."""
+
+    def setUp(self):
+        self.conn = make_conn()
+        self.addCleanup(self.conn.close)
+
+    def test_raw_design_rationale_written_to_db(self):
+        def generate(batch_spec: dict) -> list[dict]:
+            out = fake_correct(batch_spec)
+            out[0]["design_rationale"] = {
+                "考点": "小数加减",
+                "难度理由": "两步运算, 中等",
+                "认知阶梯定位": "L2 套用",
+                "错因陷阱": ["calculation_or_symbol"],
+                "教学角色": "标准例题",
+            }
+            return out
+
+        qg.generate_node_bank(self.conn, "N-CALC", generate_fn=generate)
+        row = self.conn.execute(
+            "select design_rationale_json from question_items where id = 'Q-N-CALC-B1-I0'"
+        ).fetchone()
+        rationale = json.loads(row["design_rationale_json"])
+        self.assertEqual("小数加减", rationale["考点"])
+        self.assertEqual("L2 套用", rationale["认知阶梯定位"])
+        self.assertEqual(["calculation_or_symbol"], rationale["错因陷阱"])
+
+    def test_missing_design_rationale_derived_from_batch_spec(self):
+        qg.generate_node_bank(self.conn, "N-CALC", generate_fn=fake_correct)
+        row = self.conn.execute(
+            "select design_rationale_json from question_items where id = 'Q-N-CALC-B1-I0'"
+        ).fetchone()
+        rationale = json.loads(row["design_rationale_json"])
+        self.assertEqual(
+            {"考点", "难度理由", "认知阶梯定位", "错因陷阱", "教学角色"},
+            set(rationale),
+        )
+        self.assertTrue(rationale["考点"])   # 考点 = seed_question_type
+        self.assertTrue(rationale["教学角色"])  # 角色 = 批规格 matrix_label/kind
+        # 15 题全部有 design_rationale
+        rows = self.conn.execute(
+            "select design_rationale_json from question_items where node_id = 'N-CALC'"
+        ).fetchall()
+        self.assertEqual(15, len(rows))
+        for row in rows:
+            self.assertTrue(json.loads(row["design_rationale_json"])["考点"])
 
 
 if __name__ == "__main__":

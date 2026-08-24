@@ -1,16 +1,18 @@
-"""question_items 生题契约 3 列 schema 测试 (objective ②).
+"""question_items 生题契约 4 列 schema 测试 (objective ③ + ①).
 
-Contract under test: `learning_system/db.py` `init_schema` — the 3 columns
+Contract under test: `learning_system/db.py` `init_schema` — the 4 columns
 裁定ed by docs/design/specs/2026-08-20-question-bank-contract.md §2
-(question_items 字段扩展, 方案 A):
+(question_items 字段扩展, 方案 A; v1.1 加 design_rationale_json):
 
 - `difficulty` — text NOT NULL default 'medium' (easy/medium/hard, planner 挑选用,
   与 variant_level 认知阶梯正交)
 - `purpose_role` — text NOT NULL default 'core' (core/transfer, A 档判定 C3 依赖)
 - `answer_verification` — text NOT NULL default 'pending'
   (verified/mismatch/unverifiable/pending, sympy 校验门禁状态)
+- `design_rationale_json` — text NOT NULL default '{}' (设计理由五要素,
+  质量门禁 objective ①: 考点/难度理由/认知阶梯定位/错因陷阱/教学角色)
 
-迁移模式: 新库在建表语句直接含 3 列; 旧库走 `init_schema` 内的
+迁移模式: 新库在建表语句直接含 4 列; 旧库走 `init_schema` 内的
 `_ensure_column` 迁移补列 (照 production_category 先例, db.py:1360 起).
 
 枚举约束决策: **不加 CHECK** — 照既有 question_items 枚举列先例
@@ -32,9 +34,10 @@ NEW_COLUMNS = {
     "difficulty": ("'medium'", "TEXT"),
     "purpose_role": ("'core'", "TEXT"),
     "answer_verification": ("'pending'", "TEXT"),
+    "design_rationale_json": ("'{}'", "TEXT"),
 }
 
-# 契约 §2 之前的 question_items 建表形状 (2026-08-20 前, 无 3 新列) —
+# 契约 §2 之前的 question_items 建表形状 (2026-08-20 前, 无 4 新列) —
 # 迁移测试用它模拟真实旧库, 再跑 init_schema 走 _ensure_column 补列路径.
 OLD_QUESTION_ITEMS_DDL = """
 create table if not exists question_items (
@@ -148,13 +151,13 @@ def insert_question(
 
 
 class NewDatabaseQuestionContractTestCase(unittest.TestCase):
-    """新库 (init_schema 直建): 3 列在, NOT NULL, 默认值正确."""
+    """新库 (init_schema 直建): 4 列在, NOT NULL, 默认值正确."""
 
     def setUp(self):
         self.conn = make_conn()
         self.addCleanup(self.conn.close)
 
-    def test_three_contract_columns_exist(self):
+    def test_contract_columns_exist(self):
         cols = column_info(self.conn, "question_items")
         for name, (_default, col_type) in NEW_COLUMNS.items():
             self.assertIn(name, cols, f"missing column: {name}")
@@ -171,12 +174,13 @@ class NewDatabaseQuestionContractTestCase(unittest.TestCase):
         seed_node(self.conn)
         insert_question(self.conn, question_id="q1")
         row = self.conn.execute(
-            "select difficulty, purpose_role, answer_verification "
+            "select difficulty, purpose_role, answer_verification, design_rationale_json "
             "from question_items where id = 'q1'"
         ).fetchone()
         self.assertEqual("medium", row["difficulty"])
         self.assertEqual("core", row["purpose_role"])
         self.assertEqual("pending", row["answer_verification"])
+        self.assertEqual("{}", row["design_rationale_json"])
 
     def test_explicit_values_round_trip(self):
         seed_node(self.conn)
@@ -186,17 +190,19 @@ class NewDatabaseQuestionContractTestCase(unittest.TestCase):
             difficulty="hard",
             purpose_role="transfer",
             answer_verification="verified",
+            design_rationale_json='{"考点": "小数加减"}',
         )
         row = self.conn.execute(
-            "select difficulty, purpose_role, answer_verification "
+            "select difficulty, purpose_role, answer_verification, design_rationale_json "
             "from question_items where id = 'q1'"
         ).fetchone()
         self.assertEqual("hard", row["difficulty"])
         self.assertEqual("transfer", row["purpose_role"])
         self.assertEqual("verified", row["answer_verification"])
+        self.assertEqual('{"考点": "小数加减"}', row["design_rationale_json"])
 
     def test_db_layer_accepts_out_of_domain_enum_value(self):
-        """固化解决策: 3 列不加 CHECK, 枚举由应用层保证.
+        """固化解决策: 4 列不加 CHECK, 枚举由应用层保证.
 
         照既有 question_items 枚举列先例 (kind/variant_level/question_type 均为
         裸 text not null 无 CHECK), difficulty='x' 这类域外值在 DB 层不被拒绝;
@@ -218,7 +224,7 @@ class NewDatabaseQuestionContractTestCase(unittest.TestCase):
 
 
 class LegacyDatabaseMigrationTestCase(unittest.TestCase):
-    """旧库迁移: 先建无 3 列的表, 再跑 init_schema → _ensure_column 补列."""
+    """旧库迁移: 先建无 4 列的表, 再跑 init_schema → _ensure_column 补列."""
 
     def _make_legacy_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(":memory:")
@@ -232,10 +238,10 @@ class LegacyDatabaseMigrationTestCase(unittest.TestCase):
         insert_question(conn, question_id="legacy1")
         return conn
 
-    def test_migration_adds_three_columns_with_defaults(self):
+    def test_migration_adds_contract_columns_with_defaults(self):
         conn = self._make_legacy_conn()
         self.addCleanup(conn.close)
-        # 迁移前: 3 列不存在.
+        # 迁移前: 4 列不存在.
         before = column_info(conn, "question_items")
         for name in NEW_COLUMNS:
             self.assertNotIn(name, before, f"fixture 不应含新列: {name}")
@@ -262,28 +268,29 @@ class LegacyDatabaseMigrationTestCase(unittest.TestCase):
         conn = self._make_legacy_conn()
         self.addCleanup(conn.close)
         db.init_schema(conn)
-        # 旧行: 迁移后读取旧数据, 3 列应落默认值 (SQLite 旧行补默认).
+        # 旧行: 迁移后读取旧数据, 4 列应落默认值 (SQLite 旧行补默认).
         legacy = conn.execute(
-            "select difficulty, purpose_role, answer_verification "
+            "select difficulty, purpose_role, answer_verification, design_rationale_json "
             "from question_items where id = 'legacy1'"
         ).fetchone()
-        self.assertEqual(("medium", "core", "pending"), tuple(legacy))
-        # 新行: 不指定 3 列 → 默认值; 指定 → 显式值.
+        self.assertEqual(("medium", "core", "pending", "{}"), tuple(legacy))
+        # 新行: 不指定 4 列 → 默认值; 指定 → 显式值.
         insert_question(conn, question_id="q2")
         insert_question(
             conn, question_id="q3",
             difficulty="hard", purpose_role="transfer", answer_verification="verified",
+            design_rationale_json='{"考点": "小数加减"}',
         )
         q2 = conn.execute(
-            "select difficulty, purpose_role, answer_verification "
+            "select difficulty, purpose_role, answer_verification, design_rationale_json "
             "from question_items where id = 'q2'"
         ).fetchone()
         q3 = conn.execute(
-            "select difficulty, purpose_role, answer_verification "
+            "select difficulty, purpose_role, answer_verification, design_rationale_json "
             "from question_items where id = 'q3'"
         ).fetchone()
-        self.assertEqual(("medium", "core", "pending"), tuple(q2))
-        self.assertEqual(("hard", "transfer", "verified"), tuple(q3))
+        self.assertEqual(("medium", "core", "pending", "{}"), tuple(q2))
+        self.assertEqual(("hard", "transfer", "verified", '{"考点": "小数加减"}'), tuple(q3))
 
 
 if __name__ == "__main__":
