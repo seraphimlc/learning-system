@@ -1,11 +1,17 @@
-"""首批试点真实题库测试（objective ④）。
+"""首批试点真实题库测试（objective ④ + ③ 琢玉审查修订）。
 
 验证 `scripts/pilot_generate_semester_bank.py` 生成的 2 节点真实题库：
 1. 真实题目经 `generate_node_bank` 管线入库（sympy 门禁 + 元数据派生）；
 2. 每题入库字段完整（difficulty/purpose_role/answer_verification 等）；
 3. `validate_node_bank_contract` 两节点 valid（≥2 指纹 / ≥1 transfer /
-   难度分布 / 无 mismatch）；
-4. 学期链路用真实题跑通：真实题库 → 选 2-3 道计算题 → 孩子作答（模拟
+   难度分布 / 无 mismatch / design_rationale 全齐）+ trivial 抽检为零；
+4. 琢玉审查修订质量属性（objective ③，依据
+   `docs/qa/pilot_bank_pedagogy_review.md` 的 P0/P1/P2）：
+   - P0：POS-NEG 零槽位为概念判断题（无算术题）；答案形式明确；除数小数覆盖；
+   - P1：6 道 hard 虚高题诚实降 medium；POS-NEG transfer 为真迁移；
+   - P2：L1 识别题真识别；question_type 标签一致；error_tags 贴切；
+     design_rationale 五要素每题全齐；
+5. 学期链路用真实题跑通：真实题库 → 选 2-3 道计算题 → 孩子作答（模拟
    正确/错误答案）→ 判定层 judge_v51_evaluation → 落 learner_node_status。
 
 不依赖已提交的 sqlite（*.sqlite 按仓库惯例被 gitignore）：测试自行用
@@ -17,6 +23,7 @@ Run: python3 -m unittest tests.test_pilot_bank -v
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import tempfile
 import unittest
@@ -35,11 +42,12 @@ from scripts import pilot_generate_semester_bank as pilot  # noqa: E402
 DAY1 = date(2026, 8, 24)
 DAY2 = date(2026, 8, 25)
 
-# 链路测试选用的 3 道真实计算题（均来自题库、sympy 已 verified）
+# 链路测试选用的 3 道真实计算题（均来自题库、sympy 已 verified；
+# B4-I0 琢玉修订后为 5.3 − 1.8，仍是可机检计算题）
 CHAIN_QUESTION_IDS = (
     "Q-M-PRE-DECIMAL-OPS-B1-I0",  # 计算：3.2 + 1.7 = 4.9
     "Q-M-PRE-DECIMAL-OPS-B2-I1",  # 计算：1.2 × 3.5 = 4.2
-    "Q-M-PRE-DECIMAL-OPS-B4-I0",  # 计算：7.3 + 2.7 = 10
+    "Q-M-PRE-DECIMAL-OPS-B4-I0",  # 计算：5.3 − 1.8 = 3.5
 )
 
 
@@ -154,13 +162,21 @@ class PilotBankBuildTestCase(unittest.TestCase):
         decimal = results["M-PRE-DECIMAL-OPS"]
         pos_neg = results["M-G7-POS-NEG"]
         self.assertEqual(15, decimal["generated"])
-        self.assertEqual(15, decimal["verified"])
+        self.assertEqual(13, decimal["verified"])
+        self.assertEqual(2, decimal["unverifiable"])
         self.assertEqual(0, decimal["mismatch_discarded"])
         self.assertEqual(15, decimal["ingested"])
         self.assertEqual(15, pos_neg["generated"])
-        self.assertEqual(3, pos_neg["verified"])
+        self.assertEqual(0, pos_neg["verified"])
+        self.assertEqual(15, pos_neg["unverifiable"])
         self.assertEqual(0, pos_neg["mismatch_discarded"])
         self.assertEqual(15, pos_neg["ingested"])
+
+    def test_quality_gate_passes(self):
+        # 第三闸门（审查意见规则门禁）：琢玉 P0/P1/P2 整库断言全过
+        quality = self.build["quality"]
+        self.assertTrue(quality["ok"], f"质量门禁未通过: {quality['errors']}")
+        self.assertEqual([], quality["errors"])
 
     def test_both_nodes_have_15_real_questions(self):
         for node_id in pilot.PILOT_NODE_IDS:
@@ -215,12 +231,14 @@ class PilotBankBuildTestCase(unittest.TestCase):
 
     def test_verification_ratio(self):
         decimal_rows = self._rows("M-PRE-DECIMAL-OPS")
-        self.assertEqual(15, sum(1 for r in decimal_rows if r["answer_verification"] == "verified"))
+        self.assertEqual(13, sum(1 for r in decimal_rows if r["answer_verification"] == "verified"))
+        self.assertEqual(2, sum(1 for r in decimal_rows if r["answer_verification"] == "unverifiable"))
         pos_neg_rows = self._rows("M-G7-POS-NEG")
         verified = sum(1 for r in pos_neg_rows if r["answer_verification"] == "verified")
         unverifiable = sum(1 for r in pos_neg_rows if r["answer_verification"] == "unverifiable")
-        self.assertEqual(3, verified)
-        self.assertEqual(12, unverifiable)
+        # 琢玉 P0#1：概念节点以 unverifiable 为主，不为实现门禁演示配算术题
+        self.assertEqual(0, verified)
+        self.assertEqual(15, unverifiable)
 
     def test_contract_valid_for_both_nodes(self):
         for node_id in pilot.PILOT_NODE_IDS:
@@ -234,12 +252,161 @@ class PilotBankBuildTestCase(unittest.TestCase):
             self.assertTrue(report["checks"]["transfer_ok"])
             self.assertTrue(report["checks"]["difficulty_distribution_ok"])
             self.assertTrue(report["checks"]["no_mismatch"])
+            # 琢玉 P0/P2：无琐碎题抽检警告（契约 §4 难度底线）
+            self.assertEqual(0, report["trivial_question_count"], f"{node_id}: {report['trivial_warnings']}")
 
     def test_rerun_is_idempotent(self):
         # 同一路径重跑：题 ID 确定性 + upsert 覆盖 → 仍各 15 题
         pilot.build_bank(self.bank_path)
         for node_id in pilot.PILOT_NODE_IDS:
             self.assertEqual(15, len(self._rows(node_id)), node_id)
+
+
+class PilotReviewComplianceTestCase(unittest.TestCase):
+    """琢玉审查修订质量属性（objective ③，docs/qa/pilot_bank_pedagogy_review.md P0/P1/P2）。
+
+    这些断言在 `check_pilot_quality` 之外独立直接查库，验证修订真实落库。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmpdir = tempfile.TemporaryDirectory()
+        cls.bank_path = Path(cls._tmpdir.name) / "semester_bank_v1.sqlite"
+        cls.build = pilot.build_bank(cls.bank_path)
+        cls.conn = db.connect(cls.bank_path)
+        cls.conn.row_factory = sqlite3.Row
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.conn.close()
+        cls._tmpdir.cleanup()
+
+    def _rows(self, node_id: str) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "select * from question_items where node_id = ?", (node_id,)
+        ).fetchall()
+
+    def _row(self, question_id: str) -> sqlite3.Row:
+        return self.conn.execute(
+            "select * from question_items where id = ?", (question_id,)
+        ).fetchone()
+
+    # ---- P0#1：零槽位概念判断，POS-NEG 无算术题 ----
+    def test_pos_neg_zero_slots_are_concept_judgment(self):
+        for question_id in pilot.ZERO_SLOT_QUESTION_IDS:
+            row = self._row(question_id)
+            self.assertIsNotNone(row, question_id)
+            self.assertEqual("choice", row["answer_format"], question_id)
+            self.assertNotIn("计算", str(row["prompt"]), question_id)
+            # 必须经过概念判断而非算术：题干含"零的意义"类追问
+            self.assertTrue(
+                re.search(r"0℃|最小的数|海拔 0 米", str(row["prompt"])),
+                f"{question_id} 未落到'零的意义'概念判断: {row['prompt']}",
+            )
+
+    def test_pos_neg_has_no_arithmetic_questions(self):
+        for row in self._rows("M-G7-POS-NEG"):
+            self.assertIn(
+                row["answer_format"], {"choice", "text"},
+                f"{row['id']} 概念节点不应出现算术题（P0#1）",
+            )
+
+    # ---- P0#2：答案形式明确 ----
+    def test_answer_form_annotated(self):
+        b2i2 = self._row("Q-M-PRE-DECIMAL-OPS-B2-I2")
+        self.assertIn("用小数表示", str(b2i2["prompt"]))
+        b4i2 = self._row("Q-M-PRE-DECIMAL-OPS-B4-I2")
+        self.assertIn("用分数表示", str(b4i2["prompt"]))
+
+    # ---- P0#3：除数小数覆盖 + 移动小数点解释 ----
+    def test_decimal_divisor_decimal_coverage(self):
+        divisor_decimal = [
+            r for r in self._rows("M-PRE-DECIMAL-OPS")
+            if re.search(r"÷\s*0\.", str(r["prompt"]))
+        ]
+        self.assertTrue(divisor_decimal, "DECIMAL 缺'除数是小数'覆盖（P0#3）")
+        b2i0 = self._row("Q-M-PRE-DECIMAL-OPS-B2-I0")
+        steps = str(b2i0["solution_steps_json"])
+        self.assertRegex(steps, r"同时")
+        self.assertRegex(steps, r"商不变|扩大")
+        self.assertEqual("verified", b2i0["answer_verification"])
+        self.assertEqual("medium", b2i0["difficulty"])
+
+    # ---- P1#4：难度诚实 ----
+    def test_difficulty_honest(self):
+        for question_id in pilot.DOWNGRADED_QUESTION_IDS:
+            row = self._row(question_id)
+            self.assertIsNotNone(row, question_id)
+            self.assertEqual("medium", row["difficulty"], f"{question_id} 应诚实降 medium")
+        for node_id in pilot.PILOT_NODE_IDS:
+            hard_ids = {r["id"] for r in self._rows(node_id) if r["difficulty"] == "hard"}
+            self.assertEqual(pilot.HARD_BENCHMARK_IDS[node_id], hard_ids, node_id)
+
+    # ---- P1#5：transfer 真迁移 ----
+    def test_transfer_questions_are_true_transfer(self):
+        b3i1 = self._row("Q-M-G7-POS-NEG-B3-I1")
+        self.assertEqual("transfer", b3i1["purpose_role"])
+        self.assertIn("负数有", str(b3i1["prompt"]))  # 负数识别×有理数分类（前后知识混合）
+        # 两个节点的 transfer 题均诚实标 medium（非 hard 注水）
+        for question_id in ("Q-M-G7-POS-NEG-B3-I1", "Q-M-G7-POS-NEG-B3-I2",
+                            "Q-M-PRE-DECIMAL-OPS-B3-I1", "Q-M-PRE-DECIMAL-OPS-B3-I2"):
+            self.assertEqual("transfer", self._row(question_id)["purpose_role"], question_id)
+            self.assertEqual("medium", self._row(question_id)["difficulty"], question_id)
+
+    # ---- P2#8：question_type 标签与内容一致 ----
+    def test_question_type_consistent(self):
+        expectations = {
+            "Q-M-G7-POS-NEG-B1-I0": "用正负数表示",
+            "Q-M-G7-POS-NEG-B1-I1": "相反意义量",
+            "Q-M-G7-POS-NEG-B1-I2": "零的意义",
+            "Q-M-G7-POS-NEG-B4-I1": "相反意义量",
+            "Q-M-G7-POS-NEG-B5-I0": "用正负数表示",
+            "Q-M-PRE-DECIMAL-OPS-B1-I1": "小数加减",
+            "Q-M-PRE-DECIMAL-OPS-B2-I0": "小数乘除",
+        }
+        for question_id, expected_type in expectations.items():
+            row = self._row(question_id)
+            self.assertEqual(expected_type, row["question_type"], question_id)
+
+    # ---- P2#9：error_tags 贴切 ----
+    def test_error_tags_fit(self):
+        no_spatial = (
+            "Q-M-G7-POS-NEG-B1-I0",  # 温度题
+            "Q-M-G7-POS-NEG-B2-I1",  # 收支题
+            "Q-M-G7-POS-NEG-B4-I1",  # 收支辨析题
+        )
+        keep_spatial = (
+            "Q-M-G7-POS-NEG-B2-I0",  # 电梯题
+            "Q-M-G7-POS-NEG-B3-I2",  # 数轴题
+            "Q-M-G7-POS-NEG-B5-I0",  # 电梯两步题
+        )
+        for question_id in no_spatial:
+            tags = json.loads(str(self._row(question_id)["error_tags_json"]))
+            self.assertNotIn("visual_spatial", tags, f"{question_id} 不应含 visual_spatial")
+        for question_id in keep_spatial:
+            tags = json.loads(str(self._row(question_id)["error_tags_json"]))
+            self.assertIn("visual_spatial", tags, f"{question_id} 应保留 visual_spatial")
+
+    # ---- P2：design_rationale 五要素全齐 ----
+    def test_design_rationale_five_elements(self):
+        for node_id in pilot.PILOT_NODE_IDS:
+            for row in self._rows(node_id):
+                rationale = json.loads(str(row["design_rationale_json"]))
+                for key in ("考点", "难度理由", "认知阶梯定位", "错因陷阱", "教学角色"):
+                    self.assertTrue(
+                        str(rationale.get(key) or "").strip(),
+                        f"{row['id']}.design_rationale.{key} 缺失",
+                    )
+
+    # ---- P1#6：'记作'模板已压缩（温度×1、收支×1） ----
+    def test_record_template_compressed(self):
+        pos_neg = [str(r["prompt"]) for r in self._rows("M-G7-POS-NEG")]
+        # "记作"填空模板（给定正方向记法 → 求反方向记法）：
+        # 温度记作仅 1 题（B1-I0 锚点）；收支记作仅 1 题（B2-I1 锚点）
+        temperature = [p for p in pos_neg if "℃" in p and "记作" in p]
+        finance = [p for p in pos_neg if ("收入" in p or "支出" in p or "元" in p) and "记作" in p]
+        self.assertEqual(1, len(temperature), f"温度'记作'模板应压缩为 1 题: {temperature}")
+        self.assertEqual(1, len(finance), f"收支'记作'模板应压缩为 1 题: {finance}")
 
 
 class PilotRealQuestionChainTestCase(unittest.TestCase):
