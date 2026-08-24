@@ -1270,6 +1270,19 @@ def init_schema(conn: sqlite3.Connection) -> None:
         );
         -- mastery 判定不得读取本表：仅作每日全对证据范围标注，不进判定样本（设计稿 §3.1 / 审计核对项 3）；只 insert，confirm_date 每日唯一。
 
+        -- M5 动机层 ② 自选目标（设计稿 §6.3.2）：每周让孩子从 2 个策展候选里自选
+        -- 下周目标（有护栏的自主）。iso_week 周唯一，一周一次选择；周内改选走
+        -- UPSERT（created_at 保留首次选择时间，updated_at 置位），与 weekly_summary
+        -- 的 iso_week 唯一模式对齐（本表是记录载体，允许原地更新）。
+        create table if not exists weekly_goal_choices (
+          id text primary key,
+          iso_week text not null,
+          node_ids_json text not null,
+          chosen_by text not null default 'child',
+          created_at text not null,
+          updated_at text
+        );
+
         create index if not exists idx_questions_node on question_items(node_id);
         create index if not exists idx_questions_source on question_items(source_type);
         create unique index if not exists idx_question_usage_policies_one_active
@@ -1339,6 +1352,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
           on weekly_summary(iso_week);
         create unique index if not exists idx_daily_all_correct_confirmations_date
           on daily_all_correct_confirmations(confirm_date);
+        create unique index if not exists idx_weekly_goal_choices_iso_week
+          on weekly_goal_choices(iso_week);
 
         """
     )
