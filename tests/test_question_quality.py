@@ -71,6 +71,16 @@ class CanonicalizationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     question_quality.loads_strict(payload)
 
+    def test_strict_json_parser_rejects_invalid_utf8_and_surrogates(self):
+        for payload in (b'"\xff"', "\ud800", '"\\ud800"'):
+            with self.subTest(payload=payload):
+                with self.assertRaises(ValueError):
+                    question_quality.loads_strict(payload)
+
+    def test_canonical_json_rejects_non_string_mapping_keys(self):
+        with self.assertRaises(ValueError):
+            question_quality.canonical_json({1: "not a JSON object key"})
+
 
 class EnvelopeValidationTests(unittest.TestCase):
     def test_version_constants_are_pinned(self):
@@ -105,11 +115,49 @@ class EnvelopeValidationTests(unittest.TestCase):
 
         packet["prompt_spans"] = []
         packet["solution_steps"] = [
-            {"id": str(i), "action": "a", "evidence_key": "concept", "input_step_ids": [], "input_evidence_keys": [], "prompt_span_ids": []}
+            {"id": str(i), "action": "a", "evidence_key": "concept_recognition", "input_step_ids": [], "input_evidence_keys": [], "prompt_span_ids": []}
             for i in range(9)
         ]
         with self.assertRaises(ValueError):
             question_quality.validate_review_packet(packet)
+
+    def test_review_packet_requires_canonical_nonempty_evidence_and_prompt_refs(self):
+        base = {
+            "schema_version": "review_packet.v1",
+            "reviewer_run_id": "run-1",
+            "prompt_spans": [
+                {
+                    "id": "p1",
+                    "start_token": 0,
+                    "end_token": 1,
+                    "instance_hash": "0" * 64,
+                    "structural_hash": "0" * 64,
+                }
+            ],
+            "solution_steps": [
+                {
+                    "id": "s1",
+                    "action": "classify_structure",
+                    "evidence_key": "concept_recognition",
+                    "input_step_ids": [],
+                    "input_evidence_keys": ["concept_recognition"],
+                    "prompt_span_ids": ["p1"],
+                }
+            ],
+            "cross_node_prerequisite_relations": [],
+        }
+        question_quality.validate_review_packet(base)
+        for field, invalid in (
+            ("input_evidence_keys", []),
+            ("prompt_span_ids", []),
+            ("input_evidence_keys", ["unknown_evidence"]),
+            ("evidence_key", "unknown_evidence"),
+        ):
+            with self.subTest(field=field, invalid=invalid):
+                packet = json.loads(json.dumps(base))
+                packet["solution_steps"][0][field] = invalid
+                with self.assertRaises(ValueError):
+                    question_quality.validate_review_packet(packet)
 
     def test_discovery_output_rejects_invalid_enum_and_unknown_keys(self):
         output = {
@@ -134,7 +182,7 @@ class EnvelopeValidationTests(unittest.TestCase):
             "id": "d1",
             "taxonomy": "classify_structure",
             "alternatives": ["left", "right"],
-            "misconception_key": "concept",
+            "misconception_key": "concept_recognition",
             "step_ids": [],
             "structural_prompt_span_hashes": [],
             "depends_on": [],
@@ -152,7 +200,7 @@ class EnvelopeValidationTests(unittest.TestCase):
             "decision_points": [decision],
             "solution_families": [family],
             "execution_steps": 1,
-            "key_insight_evidence_keys": ["concept"],
+            "key_insight_evidence_keys": ["concept_recognition"],
         }
         with self.assertRaises(ValueError):
             question_quality.validate_discovery_derivation_output(base)
@@ -179,7 +227,7 @@ class EnvelopeValidationTests(unittest.TestCase):
             "id": "d1",
             "taxonomy": "classify_structure",
             "alternatives": ["left", "right"],
-            "misconception_key": "concept",
+            "misconception_key": "concept_recognition",
             "step_ids": ["s1"],
             "structural_prompt_span_hashes": ["0" * 64],
             "depends_on": [],
@@ -197,7 +245,7 @@ class EnvelopeValidationTests(unittest.TestCase):
             "decision_points": [decision],
             "solution_families": [family],
             "execution_steps": 1,
-            "key_insight_evidence_keys": ["concept"],
+            "key_insight_evidence_keys": ["concept_recognition"],
         }
         context = {"solution_step_ids": {"s1"}, "structural_prompt_span_hashes": {"0" * 64}}
         for depth, minimum, maximum in (("E1", 1, 6), ("E2", 1, 6), ("E3", 2, 6), ("E4", 2, 8)):
@@ -215,6 +263,38 @@ class EnvelopeValidationTests(unittest.TestCase):
         output["execution_steps"] = 1
         with self.assertRaises(ValueError):
             question_quality.validate_discovery_derivation_output(output, **context)
+
+    def test_discovery_e1_to_e4_require_family_and_canonical_key_insight(self):
+        output = {
+            "schema_version": "discovery_derivation.v1",
+            "discovery_depth": "E1",
+            "entry_point_visibility": "cued",
+            "decision_points": [],
+            "solution_families": [],
+            "execution_steps": 1,
+            "key_insight_evidence_keys": [],
+        }
+        for depth, steps in (("E1", 1), ("E2", 1), ("E3", 2), ("E4", 2)):
+            with self.subTest(depth=depth):
+                output["discovery_depth"] = depth
+                output["execution_steps"] = steps
+                with self.assertRaises(ValueError):
+                    question_quality.validate_discovery_derivation_output(output)
+
+        output["solution_families"] = [{
+            "id": "f1",
+            "first_action": "classify_structure",
+            "step_ids": ["s1"],
+            "structural_prompt_span_hashes": ["0" * 64],
+        }]
+        output["key_insight_evidence_keys"] = ["unknown_evidence"]
+        output["discovery_depth"] = "E1"
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(
+                output,
+                solution_step_ids={"s1"},
+                structural_prompt_span_hashes={"0" * 64},
+            )
 
 
 class GraphEvidenceTests(unittest.TestCase):

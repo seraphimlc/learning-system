@@ -29,6 +29,7 @@ MAX_DISCOVERY_REFERENCE_IDS = 8
 MAX_DISCOVERY_DEPENDENCIES = 4
 MAX_DISCOVERY_ALTERNATIVES = 8
 MAX_DISCOVERY_EVIDENCE_KEYS = 8
+MAX_SOLUTION_EVIDENCE_KEYS = 8
 DISCOVERY_EXECUTION_BOUNDS = {
     "E1": (1, 6),
     "E2": (1, 6),
@@ -122,7 +123,10 @@ def loads_strict(payload: str | bytes, *, max_bytes: int | None = None) -> Any:
             raise ValueError("JSON payload must be UTF-8") from exc
     elif isinstance(payload, str):
         text = payload
-        raw = text.encode("utf-8")
+        try:
+            raw = text.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ValueError("JSON payload contains an invalid surrogate") from exc
     else:
         raise TypeError("JSON payload must be str or bytes")
     if max_bytes is not None and len(raw) > max_bytes:
@@ -132,22 +136,42 @@ def loads_strict(payload: str | bytes, *, max_bytes: int | None = None) -> Any:
         raise ValueError(f"non-finite JSON constant is not allowed: {value}")
 
     try:
-        return json.loads(
+        parsed = json.loads(
             text,
             object_pairs_hook=_duplicate_key_rejector,
             parse_constant=reject_non_finite,
         )
+        _reject_surrogates(parsed)
+        return parsed
     except (json.JSONDecodeError, ValueError) as exc:
         if isinstance(exc, ValueError) and not isinstance(exc, json.JSONDecodeError):
             raise
         raise ValueError("invalid JSON payload") from exc
 
 
+def _reject_surrogates(value: Any) -> None:
+    if isinstance(value, str):
+        if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
+            raise ValueError("JSON payload contains an invalid surrogate")
+    elif isinstance(value, Mapping):
+        for key, item in value.items():
+            _reject_surrogates(key)
+            _reject_surrogates(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _reject_surrogates(item)
+
+
 def _canonical_value(value: Any) -> Any:
     if isinstance(value, Mapping):
-        return {str(key): _canonical_value(value[key]) for key in sorted(value)}
+        if any(not isinstance(key, str) for key in value):
+            raise ValueError("canonical JSON object keys must be strings")
+        return {key: _canonical_value(value[key]) for key in sorted(value)}
     if isinstance(value, (list, tuple)):
         return [_canonical_value(item) for item in value]
+    if isinstance(value, str):
+        _reject_surrogates(value)
+        return value
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         raise ValueError("canonical JSON does not allow non-finite numbers")
     return value
@@ -295,6 +319,21 @@ def _nonempty_string(value: Any, label: str) -> str:
     return value
 
 
+def _canonical_evidence_key(value: Any, label: str) -> str:
+    if not isinstance(value, str) or value not in CANONICAL_EVIDENCE_KEYS:
+        raise ValueError(f"{label} must be a canonical evidence key")
+    return value
+
+
+def _canonical_evidence_keys(value: Any, label: str, *, minimum: int = 1) -> list[str]:
+    if not isinstance(value, list) or not minimum <= len(value) <= MAX_SOLUTION_EVIDENCE_KEYS:
+        raise ValueError(f"{label} must contain {minimum}-{MAX_SOLUTION_EVIDENCE_KEYS} entries")
+    normalized = [_canonical_evidence_key(item, label) for item in value]
+    if len(set(normalized)) != len(normalized):
+        raise ValueError(f"{label} must not contain duplicates")
+    return normalized
+
+
 def _hash(value: Any, label: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
         raise ValueError(f"{label} must be a lowercase SHA-256 hex digest")
@@ -330,8 +369,15 @@ def _validate_solution_steps(steps: Any, span_ids: set[str] | None = None) -> se
             "solution_step",
         )
         _nonempty_string(step["action"], "solution_step.action")
-        _nonempty_string(step["evidence_key"], "solution_step.evidence_key")
-        for key in ("input_step_ids", "input_evidence_keys", "prompt_span_ids"):
+        _canonical_evidence_key(step["evidence_key"], "solution_step.evidence_key")
+        if not isinstance(step["input_evidence_keys"], list):
+            raise ValueError("solution_step.input_evidence_keys must be an array")
+        _canonical_evidence_keys(step["input_evidence_keys"], "solution_step.input_evidence_keys")
+        if not isinstance(step["prompt_span_ids"], list):
+            raise ValueError("solution_step.prompt_span_ids must be an array")
+        if not step["prompt_span_ids"]:
+            raise ValueError("solution_step.prompt_span_ids must be non-empty")
+        for key in ("input_step_ids", "prompt_span_ids"):
             if not isinstance(step[key], list) or any(not isinstance(item, str) or not item for item in step[key]):
                 raise ValueError(f"solution_step.{key} must be an array of non-empty strings")
         if len(set(step["input_step_ids"])) != len(step["input_step_ids"]):
@@ -393,7 +439,7 @@ def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
         _check_keys(relation, {"id", "prerequisite_node_id", "evidence_key", "target_step_id"}, "cross-node relation")
         _require_keys(relation, {"id", "prerequisite_node_id", "evidence_key", "target_step_id"}, "cross-node relation")
         _nonempty_string(relation["prerequisite_node_id"], "relation.prerequisite_node_id")
-        _nonempty_string(relation["evidence_key"], "relation.evidence_key")
+        _canonical_evidence_key(relation["evidence_key"], "relation.evidence_key")
         if relation["target_step_id"] not in step_ids:
             raise ValueError("relation references an unknown target step")
         target = next(step for step in packet["solution_steps"] if step["id"] == relation["target_step_id"])
@@ -475,6 +521,9 @@ def validate_discovery_derivation_output(
             raise ValueError(f"{key} must be an array")
     if len(output["decision_points"]) > 4 or len(output["solution_families"]) > 3:
         raise ValueError("too many decisions or solution families")
+    if output["discovery_depth"] in {"E1", "E2", "E3", "E4"}:
+        if not output["solution_families"]:
+            raise ValueError("E1-E4 outputs require at least one solution family")
     decision_ids = _unique_ids(output["decision_points"], "decision_points")
     family_ids = _unique_ids(output["solution_families"], "solution_families")
     references_present = any(
@@ -565,11 +614,9 @@ def validate_discovery_derivation_output(
             raise ValueError("family references an unknown solution step")
         if authoritative_span_hashes is not None and not set(family_span_hashes).issubset(authoritative_span_hashes):
             raise ValueError("family references an unknown structural prompt span")
-    _bounded_string_array(
+    _canonical_evidence_keys(
         output["key_insight_evidence_keys"],
         "key_insight_evidence_keys",
-        maximum=MAX_DISCOVERY_EVIDENCE_KEYS,
-        unique=True,
     )
     return copy.deepcopy(output)
 

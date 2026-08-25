@@ -36,7 +36,7 @@ def _keys(value: Mapping[str, Any], allowed: set[str], label: str) -> None:
 
 
 def _id(value: Any, label: str) -> str:
-    if not isinstance(value, str) or not value or len(value) > MAX_VALUE_LENGTH:
+    if not isinstance(value, str) or not value.strip() or len(value) > MAX_VALUE_LENGTH:
         raise ValueError(f"{label} must be a bounded non-empty string")
     return value
 
@@ -100,7 +100,15 @@ def parse_fixed_answer_response(payload: Any) -> dict[str, Any]:
 
 
 def response_digest(payload: Any) -> str:
-    return canonical_sha256(parse_fixed_answer_response(payload))
+    response = parse_fixed_answer_response(payload)
+    if response["type"] == "multi_choice":
+        response = {**response, "choice_ids": sorted(response["choice_ids"])}
+    elif response["type"] == "fill_blank":
+        response = {
+            **response,
+            "fields": sorted(response["fields"], key=lambda field: field["id"]),
+        }
+    return canonical_sha256(response)
 
 
 validate_fixed_answer_response = parse_fixed_answer_response

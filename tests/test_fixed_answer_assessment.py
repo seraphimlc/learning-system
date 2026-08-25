@@ -58,6 +58,7 @@ class FixedAnswerEnvelopeTests(unittest.TestCase):
             {"schema_version": "2026-08-25.fixed-answer-response.v1", "type": "multi_choice", "choice_ids": ["A", "A"]},
             {"schema_version": "2026-08-25.fixed-answer-response.v1", "type": "fill_blank", "fields": [{"id": "x", "value": None}]},
             {"schema_version": "2026-08-25.fixed-answer-response.v1", "type": "single_choice", "choice_id": "x" * 129},
+            {"schema_version": "2026-08-25.fixed-answer-response.v1", "type": "single_choice", "choice_id": "   "},
         ]
         for payload in invalid_payloads:
             with self.subTest(payload=payload):
@@ -82,6 +83,7 @@ class FixedAnswerEnvelopeTests(unittest.TestCase):
         for fields in (
             [{"id": "x", "value": "1"}, {"id": "x", "value": "2"}],
             [{"id": str(i), "value": "1"} for i in range(9)],
+            [{"id": "  ", "value": "1"}],
         ):
             with self.subTest(fields=fields):
                 with self.assertRaises(ValueError):
@@ -94,6 +96,35 @@ class FixedAnswerEnvelopeTests(unittest.TestCase):
             "choice_id": "A",
         }
         second = {"choice_id": "A", "type": "single_choice", "schema_version": "2026-08-25.fixed-answer-response.v1"}
+
+        self.assertEqual(
+            fixed_answer_assessment.response_digest(first),
+            fixed_answer_assessment.response_digest(second),
+        )
+
+    def test_canonical_digest_uses_set_semantics_for_multi_choice(self):
+        first = {
+            "schema_version": "2026-08-25.fixed-answer-response.v1",
+            "type": "multi_choice",
+            "choice_ids": ["C", "A", "B"],
+        }
+        second = {**first, "choice_ids": ["B", "C", "A"]}
+
+        self.assertEqual(
+            fixed_answer_assessment.response_digest(first),
+            fixed_answer_assessment.response_digest(second),
+        )
+
+    def test_canonical_digest_uses_field_id_order_for_fill_blank(self):
+        first = {
+            "schema_version": "2026-08-25.fixed-answer-response.v1",
+            "type": "fill_blank",
+            "fields": [
+                {"id": "constant", "value": "-1"},
+                {"id": "x_coefficient", "value": "10"},
+            ],
+        }
+        second = {**first, "fields": list(reversed(first["fields"]))}
 
         self.assertEqual(
             fixed_answer_assessment.response_digest(first),
