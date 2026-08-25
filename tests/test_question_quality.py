@@ -1,0 +1,185 @@
+"""TDD test list and focused tests for question-quality primitives.
+
+Test list:
+- canonical UTF-8 JSON uses lexicographic object keys and no extra whitespace
+- semantic arrays preserve order while set-like arrays sort after normalization
+- NFKC and mathematical-operator normalization are stable
+- prompt spans use inclusive/exclusive token offsets and SHA-256 digests
+- versioned envelopes reject nulls, unknown keys, duplicate ids, oversized data,
+  and invalid enum values
+- graph evidence values map only through the explicit catalog
+- fixed-answer policy defaults to observation-only/B and respects graph policy
+"""
+
+import hashlib
+import json
+import unittest
+
+from learning_system import question_quality
+
+
+class CanonicalizationTests(unittest.TestCase):
+    def test_canonical_json_is_utf8_sorted_and_preserves_semantic_order(self):
+        value = {"z": "中", "semantic": ["second", "first"], "a": 1}
+
+        canonical = question_quality.canonical_json(value)
+
+        self.assertEqual('{"a":1,"semantic":["second","first"],"z":"中"}', canonical)
+        self.assertEqual(canonical.encode("utf-8"), question_quality.canonical_json_bytes(value))
+
+    def test_set_array_helper_sorts_only_declared_paths(self):
+        value = {
+            "semantic": ["b", "a"],
+            "evidence_keys": ["转移", "正确"],
+        }
+
+        normalized = question_quality.canonicalize_set_arrays(
+            value,
+            paths={("evidence_keys",)},
+        )
+
+        self.assertEqual(["b", "a"], normalized["semantic"])
+        self.assertEqual(["正确", "转移"], normalized["evidence_keys"])
+
+    def test_text_normalization_maps_nfkc_and_math_operators(self):
+        self.assertEqual(
+            "x + y <= 3 / 4",
+            question_quality.normalize_text(" ｘ ＋ ｙ ≤ ３ ÷ ４ \r\n"),
+        )
+
+    def test_prompt_span_offsets_and_sha256_are_canonical(self):
+        prompt = "比较 −3 × 2 和 4。"
+        tokens = question_quality.prompt_tokens(prompt)
+        span = question_quality.prompt_span(prompt, start_token=1, end_token=4)
+
+        self.assertEqual(["比较", "-3", "*", "2", "和", "4。"], tokens)
+        self.assertEqual({"start_token", "end_token", "instance_hash", "structural_hash"}, set(span))
+        self.assertEqual(1, span["start_token"])
+        self.assertEqual(4, span["end_token"])
+        self.assertEqual(64, len(span["instance_hash"]))
+        self.assertEqual(span["instance_hash"], question_quality.sha256_hex(
+            question_quality.canonical_json_bytes({"tokens": tokens[1:4]})
+        ))
+
+    def test_strict_json_parser_rejects_duplicate_object_keys(self):
+        with self.assertRaises(ValueError):
+            question_quality.loads_strict('{"a": 1, "a": 2}')
+
+
+class EnvelopeValidationTests(unittest.TestCase):
+    def test_version_constants_are_pinned(self):
+        self.assertEqual("review_packet.v1", question_quality.REVIEW_PACKET_SCHEMA_VERSION)
+        self.assertEqual("discovery_derivation.v1", question_quality.DISCOVERY_DERIVATION_SCHEMA_VERSION)
+        self.assertEqual("question_fingerprint.v2", question_quality.QUESTION_FINGERPRINT_POLICY_VERSION)
+        self.assertEqual("2026-08-25.fixed-answer-response.v1", question_quality.FIXED_RESPONSE_SCHEMA_VERSION)
+        self.assertEqual("graph_evidence_contract.v1", question_quality.GRAPH_EVIDENCE_CONTRACT_VERSION)
+
+    def test_review_packet_rejects_null_unknown_keys_duplicate_ids_and_oversize(self):
+        with self.assertRaises(ValueError):
+            question_quality.validate_review_packet(None)
+
+        packet = {
+            "schema_version": "review_packet.v1",
+            "reviewer_run_id": "run-1",
+            "prompt_spans": [],
+            "solution_steps": [],
+            "cross_node_prerequisite_relations": [],
+            "unexpected": True,
+        }
+        with self.assertRaises(ValueError):
+            question_quality.validate_review_packet(packet)
+
+        packet.pop("unexpected")
+        packet["prompt_spans"] = [
+            {"id": "p1", "start_token": 0, "end_token": 1, "instance_hash": "0" * 64, "structural_hash": "0" * 64},
+            {"id": "p1", "start_token": 1, "end_token": 2, "instance_hash": "1" * 64, "structural_hash": "1" * 64},
+        ]
+        with self.assertRaises(ValueError):
+            question_quality.validate_review_packet(packet)
+
+        packet["prompt_spans"] = []
+        packet["solution_steps"] = [
+            {"id": str(i), "action": "a", "evidence_key": "concept", "input_step_ids": [], "input_evidence_keys": [], "prompt_span_ids": []}
+            for i in range(9)
+        ]
+        with self.assertRaises(ValueError):
+            question_quality.validate_review_packet(packet)
+
+    def test_discovery_output_rejects_invalid_enum_and_unknown_keys(self):
+        output = {
+            "schema_version": "discovery_derivation.v1",
+            "discovery_depth": "E9",
+            "entry_point_visibility": "implicit",
+            "decision_points": [],
+            "solution_families": [],
+            "execution_steps": 1,
+            "key_insight_evidence_keys": [],
+        }
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(output)
+
+        output["discovery_depth"] = "E2"
+        output["extra"] = "reject"
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(output)
+
+
+class GraphEvidenceTests(unittest.TestCase):
+    def test_explicit_graph_evidence_mapping_and_digest(self):
+        graph_node = {
+            "evidence_required": ["结果正确", "过程可复盘", "能口头解释", "能做一道小变式"],
+            "selective_core_evidence_keys": ["answer_correctness", "transfer"],
+        }
+
+        contract = question_quality.normalize_graph_evidence_contract(graph_node)
+
+        self.assertEqual(
+            {
+                "answer_correctness",
+                "process_explanation",
+                "verbal_explanation",
+                "transfer",
+            },
+            set(contract["evidence_keys"]),
+        )
+        self.assertEqual(["answer_correctness", "transfer"], contract["selective_core_evidence_keys"])
+        self.assertEqual("observation_only", contract["fixed_answer_mastery_policy"])
+        self.assertEqual("B", contract["fixed_answer_state_ceiling"])
+        self.assertEqual(64, len(contract["canonical_digest_sha256"]))
+
+    def test_unmapped_graph_evidence_fails_closed(self):
+        with self.assertRaises(ValueError):
+            question_quality.normalize_graph_evidence_contract(
+                {"evidence_required": ["结果正确", "某个未配置的证据"]}
+            )
+
+    def test_explicit_confirmation_policy_is_preserved_but_ceiling_is_clamped(self):
+        contract = question_quality.normalize_graph_evidence_contract(
+            {
+                "evidence_required": ["结果正确"],
+                "fixed_answer_mastery_policy": "confirmation_eligible",
+                "fixed_answer_state_ceiling": "A",
+            }
+        )
+
+        self.assertEqual("confirmation_eligible", contract["fixed_answer_mastery_policy"])
+        self.assertEqual("A", contract["fixed_answer_state_ceiling"])
+
+        contract = question_quality.normalize_graph_evidence_contract(
+            {
+                "evidence_required": ["过程可复盘"],
+                "fixed_answer_mastery_policy": "confirmation_eligible",
+                "fixed_answer_state_ceiling": "A",
+            }
+        )
+        self.assertEqual("B", contract["fixed_answer_state_ceiling"])
+
+    def test_invalid_graph_policy_enum_is_rejected(self):
+        with self.assertRaises(ValueError):
+            question_quality.normalize_graph_evidence_contract(
+                {"evidence_required": ["结果正确"], "fixed_answer_mastery_policy": "auto_mastery"}
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()
