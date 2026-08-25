@@ -161,6 +161,8 @@ class EnvelopeValidationTests(unittest.TestCase):
         decision["structural_prompt_span_hashes"] = ["0" * 64]
         family["step_ids"] = ["s1"]
         family["structural_prompt_span_hashes"] = ["0" * 64]
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(base)
         valid = question_quality.validate_discovery_derivation_output(
             base,
             solution_step_ids={"s1"},
@@ -171,6 +173,48 @@ class EnvelopeValidationTests(unittest.TestCase):
         decision["step_ids"] = ["s1"] * 9
         with self.assertRaises(ValueError):
             question_quality.validate_discovery_derivation_output(base)
+
+    def test_discovery_execution_steps_follow_depth_bounds(self):
+        decision = {
+            "id": "d1",
+            "taxonomy": "classify_structure",
+            "alternatives": ["left", "right"],
+            "misconception_key": "concept",
+            "step_ids": ["s1"],
+            "structural_prompt_span_hashes": ["0" * 64],
+            "depends_on": [],
+        }
+        family = {
+            "id": "f1",
+            "first_action": "classify_structure",
+            "step_ids": ["s1"],
+            "structural_prompt_span_hashes": ["0" * 64],
+        }
+        output = {
+            "schema_version": "discovery_derivation.v1",
+            "discovery_depth": "E1",
+            "entry_point_visibility": "cued",
+            "decision_points": [decision],
+            "solution_families": [family],
+            "execution_steps": 1,
+            "key_insight_evidence_keys": ["concept"],
+        }
+        context = {"solution_step_ids": {"s1"}, "structural_prompt_span_hashes": {"0" * 64}}
+        for depth, minimum, maximum in (("E1", 1, 6), ("E2", 1, 6), ("E3", 2, 6), ("E4", 2, 8)):
+            with self.subTest(depth=depth):
+                output["discovery_depth"] = depth
+                for steps in (minimum, maximum):
+                    output["execution_steps"] = steps
+                    question_quality.validate_discovery_derivation_output(output, **context)
+                for steps in (minimum - 1, maximum + 1):
+                    output["execution_steps"] = steps
+                    with self.assertRaises(ValueError):
+                        question_quality.validate_discovery_derivation_output(output, **context)
+
+        output["discovery_depth"] = "E0"
+        output["execution_steps"] = 1
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(output, **context)
 
 
 class GraphEvidenceTests(unittest.TestCase):
@@ -215,12 +259,7 @@ class GraphEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             question_quality.normalize_graph_evidence_contract({"evidence_required": []})
         with self.assertRaises(ValueError):
-            question_quality.normalize_graph_evidence_contract({"evidence_keys": ["结果正确"]})
-
-        contract = question_quality.normalize_graph_evidence_contract(
-            {"evidence_keys": ["answer_correctness"]}
-        )
-        self.assertEqual(["answer_correctness"], contract["evidence_keys"])
+            question_quality.normalize_graph_evidence_contract({"evidence_keys": ["answer_correctness"]})
 
     def test_explicit_confirmation_policy_is_preserved_but_ceiling_is_clamped(self):
         contract = question_quality.normalize_graph_evidence_contract(

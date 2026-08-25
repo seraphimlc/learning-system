@@ -29,7 +29,12 @@ MAX_DISCOVERY_REFERENCE_IDS = 8
 MAX_DISCOVERY_DEPENDENCIES = 4
 MAX_DISCOVERY_ALTERNATIVES = 8
 MAX_DISCOVERY_EVIDENCE_KEYS = 8
-MAX_DISCOVERY_EXECUTION_STEPS = 32
+DISCOVERY_EXECUTION_BOUNDS = {
+    "E1": (1, 6),
+    "E2": (1, 6),
+    "E3": (2, 6),
+    "E4": (2, 8),
+}
 
 DECISION_TAXONOMIES = frozenset(
     {
@@ -423,6 +428,21 @@ def _bounded_hash_array(value: Any, label: str, *, maximum: int) -> list[str]:
     return values
 
 
+def _authoritative_reference_set(value: Any, label: str, *, hashes: bool) -> set[str]:
+    if not isinstance(value, (set, frozenset, list, tuple)):
+        raise ValueError(f"{label} must be a bounded collection of strings")
+    values = list(value)
+    if len(values) > MAX_DISCOVERY_REFERENCE_IDS:
+        raise ValueError(f"{label} contains too many entries")
+    if any(not isinstance(item, str) or not item.strip() for item in values):
+        raise ValueError(f"{label} must contain non-empty strings")
+    if len(set(values)) != len(values):
+        raise ValueError(f"{label} must not contain duplicates")
+    if hashes and any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in values):
+        raise ValueError(f"{label} must contain lowercase SHA-256 hashes")
+    return set(values)
+
+
 def validate_discovery_derivation_output(
     output: Mapping[str, Any],
     *,
@@ -437,20 +457,53 @@ def validate_discovery_derivation_output(
         raise ValueError("unsupported discovery derivation version")
     if output["discovery_depth"] not in DISCOVERY_DEPTHS:
         raise ValueError("invalid discovery depth")
+    if output["discovery_depth"] == "E0":
+        raise ValueError("E0 cannot be an active discovery derivation output")
     if output["entry_point_visibility"] not in ENTRY_POINT_VISIBILITIES:
         raise ValueError("invalid entry-point visibility")
+    execution_minimum, execution_maximum = DISCOVERY_EXECUTION_BOUNDS[output["discovery_depth"]]
     if (
         not isinstance(output["execution_steps"], int)
         or isinstance(output["execution_steps"], bool)
-        or not 0 <= output["execution_steps"] <= MAX_DISCOVERY_EXECUTION_STEPS
+        or not execution_minimum <= output["execution_steps"] <= execution_maximum
     ):
-        raise ValueError("execution_steps must be a bounded non-negative integer")
+        raise ValueError(
+            f"execution_steps must be between {execution_minimum} and {execution_maximum}"
+        )
     for key in ("decision_points", "solution_families", "key_insight_evidence_keys"):
         if not isinstance(output[key], list):
             raise ValueError(f"{key} must be an array")
     if len(output["decision_points"]) > 4 or len(output["solution_families"]) > 3:
         raise ValueError("too many decisions or solution families")
     decision_ids = _unique_ids(output["decision_points"], "decision_points")
+    family_ids = _unique_ids(output["solution_families"], "solution_families")
+    references_present = any(
+        decision.get("step_ids") or decision.get("structural_prompt_span_hashes")
+        for decision in output["decision_points"]
+    ) or any(
+        family.get("step_ids") or family.get("structural_prompt_span_hashes")
+        for family in output["solution_families"]
+    )
+    if references_present and (
+        solution_step_ids is None or structural_prompt_span_hashes is None
+    ):
+        raise ValueError(
+            "solution_step_ids and structural_prompt_span_hashes are required for references"
+        )
+    authoritative_step_ids = (
+        _authoritative_reference_set(solution_step_ids, "solution_step_ids", hashes=False)
+        if solution_step_ids is not None
+        else None
+    )
+    authoritative_span_hashes = (
+        _authoritative_reference_set(
+            structural_prompt_span_hashes,
+            "structural_prompt_span_hashes",
+            hashes=True,
+        )
+        if structural_prompt_span_hashes is not None
+        else None
+    )
     for decision in output["decision_points"]:
         _check_keys(decision, {"id", "taxonomy", "alternatives", "misconception_key", "step_ids", "structural_prompt_span_hashes", "depends_on"}, "decision point")
         _require_keys(decision, {"id", "taxonomy", "alternatives", "misconception_key", "step_ids", "structural_prompt_span_hashes", "depends_on"}, "decision point")
@@ -482,9 +535,9 @@ def validate_discovery_derivation_output(
             maximum=MAX_DISCOVERY_DEPENDENCIES,
             unique=True,
         )
-        if solution_step_ids is not None and not set(step_ids).issubset(solution_step_ids):
+        if authoritative_step_ids is not None and not set(step_ids).issubset(authoritative_step_ids):
             raise ValueError("decision references an unknown solution step")
-        if structural_prompt_span_hashes is not None and not set(decision["structural_prompt_span_hashes"]).issubset(structural_prompt_span_hashes):
+        if authoritative_span_hashes is not None and not set(decision["structural_prompt_span_hashes"]).issubset(authoritative_span_hashes):
             raise ValueError("decision references an unknown structural prompt span")
         if any(dependency not in decision_ids for dependency in dependencies):
             raise ValueError("decision depends_on references an unknown decision")
@@ -492,7 +545,6 @@ def validate_discovery_derivation_output(
         if not set(decision["depends_on"]).issubset(decision_ids):
             raise ValueError("decision depends_on references an unknown decision")
     _assert_acyclic({decision["id"]: decision["depends_on"] for decision in output["decision_points"]}, "decision")
-    _unique_ids(output["solution_families"], "solution_families")
     for family in output["solution_families"]:
         _check_keys(family, {"id", "first_action", "step_ids", "structural_prompt_span_hashes"}, "solution family")
         _require_keys(family, {"id", "first_action", "step_ids", "structural_prompt_span_hashes"}, "solution family")
@@ -509,9 +561,9 @@ def validate_discovery_derivation_output(
             "family.structural_prompt_span_hashes",
             maximum=MAX_DISCOVERY_REFERENCE_IDS,
         )
-        if solution_step_ids is not None and not set(family_step_ids).issubset(solution_step_ids):
+        if authoritative_step_ids is not None and not set(family_step_ids).issubset(authoritative_step_ids):
             raise ValueError("family references an unknown solution step")
-        if structural_prompt_span_hashes is not None and not set(family_span_hashes).issubset(structural_prompt_span_hashes):
+        if authoritative_span_hashes is not None and not set(family_span_hashes).issubset(authoritative_span_hashes):
             raise ValueError("family references an unknown structural prompt span")
     _bounded_string_array(
         output["key_insight_evidence_keys"],
@@ -552,14 +604,11 @@ def normalize_graph_evidence_contract(graph_node: Mapping[str, Any]) -> dict[str
     node = _require_object(graph_node, "graph node")
     has_required = "evidence_required" in node
     has_stable = "evidence_keys" in node
-    if not has_required and not has_stable:
-        raise ValueError("graph node must declare evidence_required or evidence_keys")
-    if has_required:
-        required_source = _normalize_evidence_list(node["evidence_required"], "evidence_required")
-        if not required_source:
-            raise ValueError("evidence_required must be non-empty")
-    else:
-        required_source = []
+    if not has_required:
+        raise ValueError("graph node must declare authoritative evidence_required")
+    required_source = _normalize_evidence_list(node["evidence_required"], "evidence_required")
+    if not required_source:
+        raise ValueError("evidence_required must be non-empty")
     if has_stable:
         evidence_keys = _normalize_stable_evidence_list(node["evidence_keys"], "evidence_keys")
         if not evidence_keys:
