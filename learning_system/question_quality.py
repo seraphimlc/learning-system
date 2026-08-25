@@ -273,16 +273,31 @@ def canonical_prompt_envelope(
     if not isinstance(stem, str):
         raise TypeError("prompt stem must be a string")
     envelope: dict[str, Any] = {"stem": normalize_text(stem)}
+
+    def normalize_entries(entries: Any, label: str) -> list[dict[str, Any]]:
+        if not isinstance(entries, (list, tuple)):
+            raise ValueError(f"{label} must be an array")
+        normalized_entries: list[dict[str, Any]] = []
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                raise ValueError(f"{label} entries must be objects")
+            normalized_entry: dict[str, Any] = {}
+            for key, value in entry.items():
+                if not isinstance(key, str):
+                    raise ValueError(f"{label} object keys must be strings")
+                try:
+                    normalized_value = normalize_text(value) if isinstance(value, str) else copy.deepcopy(value)
+                    canonical_json(normalized_value)
+                except (TypeError, ValueError, RecursionError) as exc:
+                    raise ValueError(f"{label} contains a value that cannot be canonicalized") from exc
+                normalized_entry[key] = normalized_value
+            normalized_entries.append(normalized_entry)
+        return normalized_entries
+
     if choices is not None:
-        envelope["choices"] = [
-            {str(key): normalize_text(value) if isinstance(value, str) else copy.deepcopy(value) for key, value in choice.items()}
-            for choice in choices
-        ]
+        envelope["choices"] = normalize_entries(choices, "choices")
     if fields is not None:
-        envelope["fields"] = [
-            {str(key): normalize_text(value) if isinstance(value, str) else copy.deepcopy(value) for key, value in field.items()}
-            for field in fields
-        ]
+        envelope["fields"] = normalize_entries(fields, "fields")
     return envelope
 
 
@@ -419,8 +434,14 @@ def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
     if packet["schema_version"] != REVIEW_PACKET_SCHEMA_VERSION:
         raise ValueError("unsupported review packet version")
     _nonempty_string(packet["reviewer_run_id"], "reviewer_run_id")
-    if not isinstance(packet["prompt_spans"], list) or len(packet["prompt_spans"]) > MAX_PROMPT_SPANS:
-        raise ValueError("prompt_spans must contain at most 8 entries")
+    if (
+        not isinstance(packet["prompt_spans"], list)
+        or not packet["prompt_spans"]
+        or len(packet["prompt_spans"]) > MAX_PROMPT_SPANS
+    ):
+        raise ValueError("prompt_spans must contain 1-8 entries")
+    if not isinstance(packet["solution_steps"], list) or not packet["solution_steps"]:
+        raise ValueError("solution_steps must be non-empty")
     span_ids = _unique_ids(packet["prompt_spans"], "prompt_spans")
     for span in packet["prompt_spans"]:
         _check_keys(span, {"id", "start_token", "end_token", "instance_hash", "structural_hash"}, "prompt_span")

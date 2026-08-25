@@ -61,6 +61,15 @@ class CanonicalizationTests(unittest.TestCase):
             question_quality.canonical_json_bytes({"tokens": tokens[1:4]})
         ))
 
+    def test_canonical_prompt_envelope_rejects_invalid_choice_and_field_entries(self):
+        invalid_entries = [[None], ["not an object"], [{1: "non-string key"}], [{"label": object()}]]
+        for entries in invalid_entries:
+            with self.subTest(entries=entries):
+                with self.assertRaises(ValueError):
+                    question_quality.canonical_prompt_envelope(stem="题目", choices=entries)
+                with self.assertRaises(ValueError):
+                    question_quality.canonical_prompt_envelope(stem="题目", fields=entries)
+
     def test_strict_json_parser_rejects_duplicate_object_keys(self):
         with self.assertRaises(ValueError):
             question_quality.loads_strict('{"a": 1, "a": 2}')
@@ -124,6 +133,18 @@ class EnvelopeValidationTests(unittest.TestCase):
             {"id": str(i), "action": "a", "evidence_key": "concept_recognition", "input_step_ids": [], "input_evidence_keys": [], "prompt_span_ids": []}
             for i in range(9)
         ]
+        with self.assertRaises(ValueError):
+            question_quality.validate_review_packet(packet)
+
+    def test_review_packet_rejects_a_completely_empty_packet(self):
+        packet = {
+            "schema_version": "review_packet.v1",
+            "reviewer_run_id": "run-1",
+            "prompt_spans": [],
+            "solution_steps": [],
+            "cross_node_prerequisite_relations": [],
+        }
+
         with self.assertRaises(ValueError):
             question_quality.validate_review_packet(packet)
 
