@@ -1,0 +1,74 @@
+{
+  "e0": {
+    "prompt": "计算 2^4。",
+    "proposal": {"entry_point": "evaluate_power", "entry_point_visibility": "explicit", "discovery_depth": "E0", "execution_steps": 1, "required_decisions": [], "required_steps": ["s1"]},
+    "graph_contract": {"graph_lineage": "math-v2", "node_id": "integer.power", "diagnosis_contract": {}, "question_generation": {}},
+    "packet": {
+      "schema_version": "review_packet.v1",
+      "reviewer_run_id": "fixture-e0",
+      "prompt_spans": [{"id": "p1", "start_token": 0, "end_token": 2, "instance_hash": "1b205f57a4f160a7e641a6abece8fd84911ebfac3f97ae3ae8cf30e260fd5513", "structural_hash": "fd942b643236ff2744b18a14d240d1059d6bf367af007b5231ad488c2c912552"}],
+      "solution_steps": [{"id": "s1", "action": "evaluate_power", "evidence_key": "answer_correctness", "input_step_ids": [], "input_evidence_keys": ["answer_correctness"], "prompt_span_ids": ["p1"]}],
+      "cross_node_prerequisite_relations": []
+    }
+  },
+  "e1": {
+    "prompt": "按有理数加法规则计算 3 + (-2)。",
+    "proposal": {"entry_point": "apply_model", "entry_point_visibility": "explicit", "discovery_depth": "E1", "execution_steps": 1, "required_decisions": [], "required_steps": ["s1"]},
+    "graph_contract": {"graph_lineage": "math-v2", "node_id": "rational.addition", "diagnosis_contract": {}, "question_generation": {}},
+    "packet": {
+      "schema_version": "review_packet.v1",
+      "reviewer_run_id": "fixture-e1",
+      "prompt_spans": [{"id": "p1", "start_token": 0, "end_token": 4, "instance_hash": "e9886be3997d0570fd4e4d6c851a883f96078ee01c05c5fe8771d8ef909db8b7", "structural_hash": "e279c523a6b84427c4e20bfcca5b2bc3f4379adf899c2b0569d1026e048f5e8d"}],
+      "solution_steps": [{"id": "s1", "action": "apply_model", "evidence_key": "model_selection", "input_step_ids": [], "input_evidence_keys": ["model_selection"], "prompt_span_ids": ["p1"]}],
+      "cross_node_prerequisite_relations": []
+    }
+  },
+  "e2": {
+    "prompt": "按幂的运算规则判断 -2^4 中负号的范围。",
+    "proposal": {"entry_point": "resolve_sign_scope", "entry_point_visibility": "explicit", "discovery_depth": "E2", "execution_steps": 1, "required_decisions": ["resolve_sign_scope"], "required_steps": ["s1"]},
+    "graph_contract": {"graph_lineage": "math-v2", "node_id": "integer.power.sign", "diagnosis_contract": {"decision_taxonomies": {"resolve_sign_scope": {"alternatives": ["include_sign", "exclude_sign"], "misconception_key": "sign_scope"}}}, "question_generation": {}},
+    "packet": {
+      "schema_version": "review_packet.v1",
+      "reviewer_run_id": "fixture-e2",
+      "prompt_spans": [{"id": "p1", "start_token": 0, "end_token": 3, "instance_hash": "e43e2e1a52e438aac807501569dfc7209150e44abe8175c0aab652d44795e192", "structural_hash": "d7f6afbbfcf21390d6bb8727eb18fda78c2c7ae16acc137a3dfc031cb98ea7ac"}],
+      "solution_steps": [{"id": "s1", "action": "resolve_sign_scope", "evidence_key": "concept_recognition", "input_step_ids": [], "input_evidence_keys": ["concept_recognition"], "prompt_span_ids": ["p1"]}],
+      "cross_node_prerequisite_relations": []
+    }
+  },
+  "e3": {
+    "prompt": "先选择表示，再判断两个数的大小规律。",
+    "proposal": {"entry_point": "select_model", "entry_point_visibility": "cued", "discovery_depth": "E3", "execution_steps": 2, "required_decisions": ["select_model", "choose_representation"], "required_steps": ["s1", "s2"]},
+    "graph_contract": {"graph_lineage": "math-v2", "node_id": "rational.order", "diagnosis_contract": {"decision_taxonomies": {"select_model": {"alternatives": ["number_line", "common_denominator"], "misconception_key": "representation"}, "choose_representation": {"alternatives": ["fraction", "decimal"], "misconception_key": "representation_choice"}}}, "question_generation": {}},
+    "packet": {
+      "schema_version": "review_packet.v1",
+      "reviewer_run_id": "fixture-e3",
+      "prompt_spans": [{"id": "p1", "start_token": 0, "end_token": 1, "instance_hash": "4f3a8dbaf6ad228aaf9da7a1b2d9160b004272e95a34a557f8680781225d2a0c", "structural_hash": "4f3a8dbaf6ad228aaf9da7a1b2d9160b004272e95a34a557f8680781225d2a0c"}],
+      "solution_steps": [{"id": "s1", "action": "select_model", "evidence_key": "model_selection", "input_step_ids": [], "input_evidence_keys": ["model_selection"], "prompt_span_ids": ["p1"]}, {"id": "s2", "action": "choose_representation", "evidence_key": "concept_recognition", "input_step_ids": ["s1"], "input_evidence_keys": ["concept_recognition"], "prompt_span_ids": ["p1"]}],
+      "cross_node_prerequisite_relations": []
+    }
+  },
+  "e3_relation": {
+    "prompt": "使用已学整数概念，再选择表示解决问题。",
+    "proposal": {"entry_point": "select_model", "entry_point_visibility": "cued", "discovery_depth": "E3", "execution_steps": 2, "required_decisions": [], "required_steps": ["s1", "s2"]},
+    "graph_contract": {"graph_lineage": "math-v2", "node_id": "rational.order", "prerequisite_relations": [{"id": "r1", "prerequisite_node_id": "integer.order", "evidence_key": "concept_recognition", "target_step_id": "s2"}], "diagnosis_contract": {}, "question_generation": {}},
+    "packet": {
+      "schema_version": "review_packet.v1",
+      "reviewer_run_id": "fixture-e3-relation",
+      "prompt_spans": [{"id": "p1", "start_token": 0, "end_token": 1, "instance_hash": "e45c9f8778d38a88b725c282fb496c70bfd85385e40a86c3e5b81004f6123854", "structural_hash": "e45c9f8778d38a88b725c282fb496c70bfd85385e40a86c3e5b81004f6123854"}],
+      "solution_steps": [{"id": "s1", "action": "apply_prerequisite", "evidence_key": "concept_recognition", "input_step_ids": [], "input_evidence_keys": ["concept_recognition"], "prompt_span_ids": ["p1"]}, {"id": "s2", "action": "select_model", "evidence_key": "model_selection", "input_step_ids": [], "input_evidence_keys": ["concept_recognition"], "prompt_span_ids": ["p1"]}],
+      "cross_node_prerequisite_relations": [{"id": "r1", "prerequisite_node_id": "integer.order", "evidence_key": "concept_recognition", "target_step_id": "s2"}]
+    }
+  },
+  "e4": {
+    "prompt": "构造一个反例，说明这个结论并不总成立。",
+    "proposal": {"entry_point": "construct_counterexample", "entry_point_visibility": "exploratory", "discovery_depth": "E4", "execution_steps": 2, "required_decisions": [], "required_steps": ["s1", "s2"]},
+    "graph_contract": {"graph_lineage": "math-v2", "node_id": "proof.counterexample", "diagnosis_contract": {"entry_point_visibility": "exploratory"}, "question_generation": {}},
+    "packet": {
+      "schema_version": "review_packet.v1",
+      "reviewer_run_id": "fixture-e4",
+      "prompt_spans": [{"id": "p1", "start_token": 0, "end_token": 1, "instance_hash": "4a5073e604e2f970dbba97aa752067cc64dd7dc3ee9e82df15ecc4d1c6831070", "structural_hash": "4a5073e604e2f970dbba97aa752067cc64dd7dc3ee9e82df15ecc4d1c6831070"}],
+      "solution_steps": [{"id": "s1", "action": "construct_counterexample", "evidence_key": "transfer", "input_step_ids": [], "input_evidence_keys": ["transfer"], "prompt_span_ids": ["p1"]}, {"id": "s2", "action": "verify_counterexample", "evidence_key": "process_explanation", "input_step_ids": ["s1"], "input_evidence_keys": ["process_explanation"], "prompt_span_ids": ["p1"]}],
+      "cross_node_prerequisite_relations": []
+    }
+  }
+}

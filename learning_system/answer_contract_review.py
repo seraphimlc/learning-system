@@ -61,6 +61,9 @@ _VALIDATED_FIELDS = {
     "contract_id",
     "contract_version",
     "contract_digest_sha256",
+    "graph_version",
+    "graph_lineage",
+    "node_contract_sha256",
     "bound_node_id",
     "question_correctness_verdict",
     "question_node_alignment_verdict",
@@ -78,13 +81,22 @@ _VALIDATED_FIELDS = {
     "provider_mode",
     "activation_eligible",
     "fingerprint_policy_version",
+    "exact_instance_fingerprint",
+    "family_fingerprint",
     "prompt_instance_fingerprint",
     "core_structure_fingerprint",
     "validated_item_digest_sha256",
 }
+_LEGACY_VALIDATED_FIELDS = _VALIDATED_FIELDS - {
+    "exact_instance_fingerprint",
+    "family_fingerprint",
+}
 _SHARD_RECEIPT_FIELDS = {
     "status",
     "node_id",
+    "graph_version",
+    "graph_lineage",
+    "node_contract_sha256",
     "shard_index",
     "shard_digest_sha256",
     "question_ids",
@@ -233,15 +245,39 @@ def _validate_item(item: Any) -> dict[str, Any]:
         "contract_id",
         "node_id",
         "kind",
+        "question_type",
         "evidence_role",
+        "graph_version",
+        "graph_lineage",
+        "interaction_schema",
     ):
-        _nonempty_text(item.get(field), field)
+        if field == "interaction_schema":
+            question_fingerprints.validate_interaction_schema(item.get(field))
+        else:
+            _nonempty_text(item.get(field), field)
     _sha256_text(item.get("question_digest_sha256"), "question_digest_sha256")
     _sha256_text(item.get("contract_digest_sha256"), "contract_digest_sha256")
+    _sha256_text(item.get("node_contract_sha256"), "node_contract_sha256")
     version = item.get("contract_version")
     if isinstance(version, bool) or not isinstance(version, int) or version <= 0:
         raise ValueError("contract_version must be a positive integer")
     return item
+
+
+def _review_lineage(items: list[dict[str, Any]]) -> dict[str, str]:
+    if not isinstance(items, list) or not items:
+        raise ValueError("review items must be a nonempty list")
+    validated = [_validate_item(item) for item in items]
+    lineage = {
+        field: validated[0][field]
+        for field in ("graph_version", "graph_lineage", "node_contract_sha256")
+    }
+    if any(
+        any(item[field] != lineage[field] for field in lineage)
+        for item in validated[1:]
+    ):
+        raise ValueError("review items do not share immutable graph lineage")
+    return lineage
 
 
 def shard_digest(items: list[dict[str, Any]]) -> str:
@@ -611,6 +647,28 @@ def _with_validated_digest(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _fingerprint_pair_for_item(
+    item: dict[str, Any],
+    instance_descriptor: dict[str, Any],
+    core_descriptor: dict[str, Any],
+    *,
+    policy_version: str | None = None,
+) -> dict[str, str]:
+    if policy_version is None:
+        policy_version = question_fingerprints.FINGERPRINT_POLICY_VERSION
+    return question_fingerprints.fingerprint_pair(
+        instance_descriptor,
+        core_descriptor,
+        policy_version=policy_version,
+        graph_lineage=item["graph_lineage"],
+        node_id=item["node_id"],
+        question_type=item["question_type"],
+        graph_version=item["graph_version"],
+        node_contract_sha256=item["node_contract_sha256"],
+        interaction_schema=item["interaction_schema"],
+    )
+
+
 def validate_review_items(
     expected_items: list[dict[str, Any]],
     review_results: list[dict[str, Any]],
@@ -674,6 +732,9 @@ def validate_review_items(
             "contract_id": item["contract_id"],
             "contract_version": item["contract_version"],
             "contract_digest_sha256": item["contract_digest_sha256"],
+            "graph_version": item["graph_version"],
+            "graph_lineage": item["graph_lineage"],
+            "node_contract_sha256": item["node_contract_sha256"],
             "bound_node_id": item["node_id"],
             "question_correctness_verdict": result["question_correctness"]["verdict"],
             "question_node_alignment_verdict": result["question_node_alignment"]["verdict"],
@@ -684,7 +745,8 @@ def validate_review_items(
             "confidence": result["confidence"],
             "minimum_confidence": float(minimum_confidence),
             "provider_mode": provider_mode,
-            **question_fingerprints.fingerprint_pair(
+            **_fingerprint_pair_for_item(
+                item,
                 result["normalized_instance_descriptor"],
                 result["normalized_core_structure_descriptor"],
             ),
@@ -697,7 +759,16 @@ def validate_review_items(
 def _validate_local_outcome(
     expected_item: dict[str, Any], outcome: Any, provider_mode: str
 ) -> dict[str, Any]:
-    if not isinstance(outcome, dict) or set(outcome) != _VALIDATED_FIELDS:
+    if not isinstance(outcome, dict):
+        raise ValueError("validated outcome fields do not match the exact schema")
+    policy_version = outcome.get("fingerprint_policy_version")
+    if policy_version == question_fingerprints.LEGACY_FINGERPRINT_POLICY_VERSION:
+        required_fields = _LEGACY_VALIDATED_FIELDS
+    elif policy_version == question_fingerprints.FINGERPRINT_POLICY_VERSION:
+        required_fields = _VALIDATED_FIELDS
+    else:
+        raise ValueError("validated outcome fingerprint policy is unsupported")
+    if set(outcome) != required_fields:
         raise ValueError("validated outcome fields do not match the exact schema")
     payload = {key: deepcopy(value) for key, value in outcome.items() if key != "validated_item_digest_sha256"}
     if outcome["validated_item_digest_sha256"] != question_fingerprints.canonical_sha256(payload):
@@ -709,6 +780,9 @@ def _validate_local_outcome(
         ("contract_id", "contract_id"),
         ("contract_version", "contract_version"),
         ("contract_digest_sha256", "contract_digest_sha256"),
+        ("graph_version", "graph_version"),
+        ("graph_lineage", "graph_lineage"),
+        ("node_contract_sha256", "node_contract_sha256"),
         ("bound_node_id", "node_id"),
     ):
         if outcome[source] != expected_item[target]:
@@ -735,9 +809,11 @@ def _validate_local_outcome(
         outcome["normalized_instance_descriptor"],
         outcome["normalized_core_structure_descriptor"],
     )
-    expected_fingerprints = question_fingerprints.fingerprint_pair(
+    expected_fingerprints = _fingerprint_pair_for_item(
+        expected_item,
         outcome["normalized_instance_descriptor"],
         outcome["normalized_core_structure_descriptor"],
+        policy_version=policy_version,
     )
     if any(outcome[field] != value for field, value in expected_fingerprints.items()):
         raise ValueError("validated outcome fingerprint mismatch")
@@ -763,6 +839,7 @@ def build_shard_receipt(
     if shard.get("shard_digest_sha256") != expected_digest:
         raise ValueError("shard digest does not match expected items")
     expected_items = shard["items"]
+    lineage = _review_lineage(expected_items)
     by_id = {}
     for outcome in validated_items:
         if not isinstance(outcome, dict):
@@ -781,6 +858,7 @@ def build_shard_receipt(
     payload = {
         "status": "complete",
         "node_id": shard["node_id"],
+        **lineage,
         "shard_index": shard.get("shard_index"),
         "shard_digest_sha256": expected_digest,
         "question_ids": expected_ids,
@@ -806,12 +884,18 @@ def build_node_receipt(
     if not isinstance(expected_shards, list) or not isinstance(shard_receipts, list):
         raise TypeError("expected shards and shard receipts must be lists")
     expected = {}
+    expected_lineage = None
     for shard in expected_shards:
         if shard.get("node_id") != node_id:
             raise ValueError("expected shard belongs to another node")
         digest = shard_digest(shard.get("items"))
         if shard.get("shard_digest_sha256") != digest or digest in expected:
             raise ValueError("expected shard digest is invalid or duplicated")
+        shard_lineage = _review_lineage(shard.get("items"))
+        if expected_lineage is None:
+            expected_lineage = shard_lineage
+        elif shard_lineage != expected_lineage:
+            raise ValueError("expected shards do not share immutable graph lineage")
         expected[digest] = shard
 
     received = {}
@@ -843,6 +927,7 @@ def build_node_receipt(
     payload = {
         "status": "complete",
         "node_id": node_id,
+        **(expected_lineage or {}),
         "shard_count": len(ordered),
         "item_count": sum(receipt["item_count"] for receipt in ordered),
         "shard_digests": [receipt["shard_digest_sha256"] for receipt in ordered],

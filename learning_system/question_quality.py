@@ -54,6 +54,25 @@ ENTRY_POINT_VISIBILITIES = frozenset({"explicit", "cued", "implicit", "explorato
 MASTERY_STATES = frozenset({"A", "B", "C", "D"})
 FIXED_ANSWER_POLICIES = frozenset({"observation_only", "confirmation_eligible"})
 
+_STRUCTURAL_CJK_WORDS = frozenset(
+    {
+        "按", "规则", "公式", "直接", "计算", "求", "算出", "比较", "判断", "选择", "表示",
+        "先", "再", "用", "数轴", "通分", "范围", "负号", "有理数", "整数", "小数", "分数",
+        "加法", "减法", "乘法", "除法", "幂", "运算", "合并", "同类项", "系数", "式子",
+        "答案", "过程", "解释", "说明", "理由", "错误", "结论", "其中", "和", "与", "有",
+        "个", "的", "中", "再", "是否", "大小", "大小规律", "一个", "两个", "这", "题",
+    }
+)
+_MECHANICAL_DECISION_MARKERS = re.compile(
+    r"按.+(?:规则|公式|模型)|负号.{0,8}(?:范围|作用)|选择|表示|模型|数轴|通分|哪一种|为什么|理由|解释|错误|依据"
+)
+
+
+def _is_structural_cjk_word(value: str) -> bool:
+    return value in _STRUCTURAL_CJK_WORDS or any(
+        len(word) >= 2 and word in value for word in _STRUCTURAL_CJK_WORDS
+    )
+
 GRAPH_EVIDENCE_MAPPING = {
     "结果正确": "answer_correctness",
     "过程可复盘": "process_explanation",
@@ -179,6 +198,16 @@ def _canonical_value(value: Any) -> Any:
     return value
 
 
+def _normalize_text_tree(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _normalize_text_tree(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_normalize_text_tree(item) for item in value]
+    if isinstance(value, str):
+        return normalize_text(value)
+    return copy.deepcopy(value)
+
+
 def canonical_json(value: Any, *, set_array_paths: Iterable[tuple[str, ...]] = ()) -> str:
     """Serialize canonical JSON; array order is preserved by default."""
     if set_array_paths:
@@ -241,11 +270,45 @@ def prompt_tokens(prompt: str) -> list[str]:
 
 
 def _structural_token(token: str) -> str:
-    if re.fullmatch(r"[+-]?\d+(?:\.\d+)?", token):
-        return "NUMBER"
-    if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", token):
-        return "VARIABLE"
+    token = re.sub(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?", "NUMBER", token)
+    token = re.sub(r"[A-Za-z_][A-Za-z_0-9]*", "VARIABLE", token)
+    match = re.fullmatch(r"([^\u3400-\u9fff]*)([\u3400-\u9fff]+)([^\u3400-\u9fff]*)", token)
+    if match and not _is_structural_cjk_word(match.group(2)):
+        token = f"{match.group(1)}ENTITY{match.group(3)}"
     return token
+
+
+def _structural_tokens(tokens: Sequence[str]) -> list[str]:
+    classifiers = {"个", "只", "本", "支", "张", "块", "颗", "斤", "米", "元", "岁", "人", "份", "件"}
+    structural_tokens: list[str] = []
+    for index, token in enumerate(tokens):
+        structural = _structural_token(token)
+        if index > 0 and tokens[index - 1] in classifiers and re.fullmatch(r"[\u3400-\u9fff]+", token):
+            structural = "ENTITY"
+        structural_tokens.append(structural)
+    return structural_tokens
+
+
+def _is_low_information_mechanical_prompt(prompt: str) -> bool:
+    """Detect a direct operation without treating a model choice as evidence."""
+    compact = re.sub(r"\s+", "", normalize_text(prompt))
+    if _MECHANICAL_DECISION_MARKERS.search(compact):
+        return False
+    numeric_atom = r"[-+]?\d+(?:\.\d+)?(?:/\d+)?"
+    if re.search(rf"{numeric_atom}(?:[+\-*/×÷^]){numeric_atom}", compact):
+        return True
+    if re.search(rf"{numeric_atom}(?:○|<=|>=|<|>|=|!=){numeric_atom}", compact):
+        return True
+    if re.search(rf"{numeric_atom}(?:和|与|、|,){numeric_atom}(?:比较|大小规律)", compact):
+        return True
+    if re.search(
+        rf"比较{numeric_atom}(?:和|与|、|,){numeric_atom}(?:的)?(?:大小|大小规律|比较符号|符号)",
+        compact,
+    ):
+        return True
+    if re.search(r"(?<![A-Za-z0-9])[-+]?\d*[A-Za-z](?:\^\d+)?[+\-][-+]?\d*[A-Za-z](?:\^\d+)?", compact):
+        return True
+    return False
 
 
 def prompt_span(prompt: str, *, start_token: int, end_token: int) -> dict[str, Any]:
@@ -257,7 +320,7 @@ def prompt_span(prompt: str, *, start_token: int, end_token: int) -> dict[str, A
     if start_token < 0 or end_token <= start_token or end_token > len(tokens):
         raise ValueError("prompt span is outside the canonical token stream")
     instance_tokens = tokens[start_token:end_token]
-    structural_tokens = [_structural_token(token) for token in instance_tokens]
+    structural_tokens = _structural_tokens(instance_tokens)
     return {
         "start_token": start_token,
         "end_token": end_token,
@@ -436,7 +499,45 @@ def _assert_acyclic(graph: Mapping[str, Sequence[str]], label: str) -> None:
         visit(node)
 
 
-def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
+def _topological_step_ids(steps: Sequence[Mapping[str, Any]]) -> list[str]:
+    """Return a canonical topological order independent of packet order."""
+    step_by_id = {step["id"]: step for step in steps}
+    dependents = {step_id: [] for step_id in step_by_id}
+    remaining = {step_id: len(step["input_step_ids"]) for step_id, step in step_by_id.items()}
+    for step in steps:
+        for input_id in step["input_step_ids"]:
+            dependents[input_id].append(step["id"])
+    ready = sorted(step_id for step_id, count in remaining.items() if count == 0)
+    ordered: list[str] = []
+    while ready:
+        step_id = ready.pop(0)
+        ordered.append(step_id)
+        for dependent_id in sorted(dependents[step_id]):
+            remaining[dependent_id] -= 1
+            if remaining[dependent_id] == 0:
+                ready.append(dependent_id)
+        ready.sort()
+    if len(ordered) != len(step_by_id):
+        raise ValueError("solution step graph contains a cycle")
+    return ordered
+
+
+def _graph_relations(graph_contract: Mapping[str, Any]) -> list[dict[str, Any]]:
+    for key in ("cross_node_prerequisite_relations", "prerequisite_relations"):
+        value = graph_contract.get(key)
+        if value is not None:
+            if not isinstance(value, list):
+                raise ValueError("graph contract relations must be an array")
+            return value
+    return []
+
+
+def validate_review_packet(
+    packet: Mapping[str, Any],
+    *,
+    prompt: str | None = None,
+    graph_contract: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     packet = _require_object(packet, "review packet")
     _check_keys(packet, {"schema_version", "reviewer_run_id", "prompt_spans", "solution_steps", "cross_node_prerequisite_relations"}, "review packet")
     _require_keys(packet, {"schema_version", "reviewer_run_id", "prompt_spans", "solution_steps", "cross_node_prerequisite_relations"}, "review packet")
@@ -461,6 +562,16 @@ def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError("invalid prompt span offsets")
         _hash(span["instance_hash"], "prompt_span.instance_hash")
         _hash(span["structural_hash"], "prompt_span.structural_hash")
+        if prompt is not None:
+            expected_span = prompt_span(
+                prompt,
+                start_token=span["start_token"],
+                end_token=span["end_token"],
+            )
+            if span["instance_hash"] != expected_span["instance_hash"]:
+                raise ValueError("prompt span instance hash does not match canonical span")
+            if span["structural_hash"] != expected_span["structural_hash"]:
+                raise ValueError("prompt span structural hash does not match canonical span")
     _validate_solution_steps(packet["solution_steps"], span_ids)
     relations = packet["cross_node_prerequisite_relations"]
     if not isinstance(relations, list) or len(relations) > MAX_CROSS_NODE_RELATIONS:
@@ -475,12 +586,361 @@ def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
         target_step_id = _nonempty_string(relation["target_step_id"], "relation.target_step_id")
         if target_step_id not in step_ids:
             raise ValueError("relation references an unknown target step")
+        if graph_contract is not None:
+            declared_relations = _graph_relations(_require_object(graph_contract, "graph contract"))
+            declared_by_id = {item.get("id"): item for item in declared_relations}
+            if relation["id"] not in declared_by_id:
+                raise ValueError("review packet relation is not declared by graph contract")
+            if relation != declared_by_id[relation["id"]]:
+                raise ValueError("review packet relation does not match graph contract")
         target = next(step for step in packet["solution_steps"] if step["id"] == target_step_id)
         if relation["evidence_key"] not in target["input_evidence_keys"]:
             raise ValueError("relation evidence is not an input to the target step")
+    if graph_contract is not None:
+        declared_relations = _graph_relations(_require_object(graph_contract, "graph contract"))
+        declared_by_id = {relation.get("id"): relation for relation in declared_relations}
+        if len(declared_by_id) != len(declared_relations):
+            raise ValueError("graph contract contains duplicate relation ids")
+        for relation in relations:
+            if relation["id"] not in declared_by_id:
+                raise ValueError("review packet relation is not declared by graph contract")
+            if relation != declared_by_id[relation["id"]]:
+                raise ValueError("review packet relation does not match graph contract")
     if len(canonical_json_bytes(packet)) > MAX_REVIEW_PACKET_BYTES:
         raise ValueError("review packet is oversized")
     return copy.deepcopy(packet)
+
+
+def review_packet_sha256(packet: Mapping[str, Any]) -> str:
+    """Return the digest of a validated, canonical review packet."""
+    return canonical_sha256(validate_review_packet(packet))
+
+
+def node_contract_sha256(graph_contract: Mapping[str, Any]) -> str:
+    """Digest the complete authoritative graph contract used by derivation.
+
+    The compiler reads several fields at different nesting levels, including
+    top-level solution families and decision declarations. Digesting the
+    complete contract keeps future authoritative reads bound to this digest
+    instead of relying on a manually maintained allow-list.
+    """
+    graph = _require_object(graph_contract, "graph contract")
+    if not graph:
+        raise ValueError("graph contract has no immutable contract fields")
+    return canonical_sha256(copy.deepcopy(graph))
+
+
+def _contract_decision_specs(graph_contract: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    graph = _require_object(graph_contract, "graph contract")
+    specs: dict[str, dict[str, Any]] = {}
+    sections = [graph.get("diagnosis_contract", {}), graph.get("question_generation", {}), graph]
+    for section in sections:
+        if not isinstance(section, Mapping):
+            raise ValueError("graph decision contract must be an object")
+        raw = section.get("decision_taxonomies", section.get("decisions", {}))
+        if raw is None:
+            continue
+        if not isinstance(raw, Mapping):
+            raise ValueError("graph decision taxonomies must be an object")
+        for taxonomy, spec in raw.items():
+            _enum_value(taxonomy, DECISION_TAXONOMIES, "invalid graph decision taxonomy")
+            if not isinstance(spec, Mapping):
+                raise ValueError("graph decision specification must be an object")
+            if taxonomy in specs and specs[taxonomy] != dict(spec):
+                raise ValueError("graph decision taxonomy is declared inconsistently")
+            specs[taxonomy] = dict(spec)
+    return specs
+
+
+def _entry_point_visibility(prompt: str, graph_contract: Mapping[str, Any], actions: Sequence[str]) -> str:
+    graph = _require_object(graph_contract, "graph contract")
+    for section in (graph.get("diagnosis_contract", {}), graph.get("question_generation", {}), graph):
+        if isinstance(section, Mapping) and "entry_point_visibility" in section:
+            return _enum_value(section["entry_point_visibility"], ENTRY_POINT_VISIBILITIES, "invalid entry-point visibility")
+    if any(action in {"construct_counterexample", "identify_invariant", "explore_construction"} for action in actions):
+        return "exploratory" if re.search(r"构造|反例|不变量|探索|任意", prompt) else "implicit"
+    normalized_prompt = normalize_text(prompt)
+    if re.search(r"按.+规则|按.+公式|直接计算|计算|求", normalized_prompt):
+        return "explicit"
+    if re.search(r"选择|判断|比较|表示|先", normalized_prompt):
+        return "cued"
+    if any(action in DECISION_TAXONOMIES for action in actions):
+        return "implicit"
+    return "cued"
+
+
+def _decision_output(
+    packet: Mapping[str, Any],
+    specs: Mapping[str, Mapping[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    steps = packet["solution_steps"]
+    step_by_id = {step["id"]: step for step in steps}
+    ordered_step_ids = _topological_step_ids(steps)
+    decision_steps = [
+        step_by_id[step_id]
+        for step_id in ordered_step_ids
+        if step_by_id[step_id]["action"] in specs
+        and isinstance(specs[step_by_id[step_id]["action"]].get("alternatives"), list)
+        and len(specs[step_by_id[step_id]["action"]]["alternatives"]) >= 2
+        and isinstance(specs[step_by_id[step_id]["action"]].get("misconception_key"), str)
+        and bool(specs[step_by_id[step_id]["action"]].get("misconception_key"))
+    ]
+    decision_by_step = {
+        step["id"]: f"d{index}"
+        for index, step in enumerate(decision_steps, start=1)
+    }
+    step_order = {step_id: index for index, step_id in enumerate(ordered_step_ids)}
+    decisions: list[dict[str, Any]] = []
+    for step in decision_steps:
+        spec = specs.get(step["action"])
+        ancestors: set[str] = set()
+        pending = list(step["input_step_ids"])
+        while pending:
+            input_id = pending.pop()
+            if input_id in ancestors:
+                continue
+            ancestors.add(input_id)
+            pending.extend(step_by_id[input_id]["input_step_ids"])
+        depends_on = [
+            decision_by_step[ancestor_id]
+            for ancestor_id in sorted(
+                ancestors.intersection(decision_by_step),
+                key=lambda step_id: step_order[step_id],
+            )
+        ]
+        span_hashes = [
+            next(span["structural_hash"] for span in packet["prompt_spans"] if span["id"] == span_id)
+            for span_id in step["prompt_span_ids"]
+        ]
+        decisions.append(
+            {
+                "id": decision_by_step[step["id"]],
+                "taxonomy": step["action"],
+                "alternatives": sort_set_array(spec["alternatives"]),
+                "misconception_key": spec["misconception_key"],
+                "step_ids": [step["id"]],
+                "structural_prompt_span_hashes": list(dict.fromkeys(span_hashes)),
+                "depends_on": depends_on,
+            }
+        )
+    _assert_acyclic({decision["id"]: decision["depends_on"] for decision in decisions}, "decision")
+    return decisions, decision_by_step
+
+
+def _family_output(packet: Mapping[str, Any], graph_contract: Mapping[str, Any]) -> list[dict[str, Any]]:
+    step_by_id = {step["id"]: step for step in packet["solution_steps"]}
+    ordered_step_ids = _topological_step_ids(packet["solution_steps"])
+    raw_families = _require_object(graph_contract, "graph contract").get("solution_families")
+    if raw_families is None:
+        raw_families = [{"id": "f1", "step_ids": ordered_step_ids}]
+    if not isinstance(raw_families, list) or not raw_families or len(raw_families) > 3:
+        raise ValueError("graph solution families must contain 1-3 entries")
+    families: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for raw in raw_families:
+        if not isinstance(raw, Mapping):
+            raise ValueError("graph solution family must be an object")
+        family_id = _nonempty_string(raw.get("id"), "graph solution family.id")
+        if family_id in seen_ids:
+            raise ValueError("duplicate graph solution family id")
+        seen_ids.add(family_id)
+        step_ids = raw.get("step_ids", [])
+        if not isinstance(step_ids, list) or not step_ids or any(step_id not in step_by_id for step_id in step_ids):
+            raise ValueError("graph solution family references an unknown step")
+        first_step = step_by_id[step_ids[0]]
+        first_action = _nonempty_string(raw.get("first_action", first_step["action"]), "graph solution family.first_action")
+        if first_action != first_step["action"]:
+            raise ValueError("graph solution family first action does not match reviewed step")
+        span_hashes = list(dict.fromkeys(
+            span["structural_hash"]
+            for step_id in step_ids
+            for span_id in step_by_id[step_id]["prompt_span_ids"]
+            for span in packet["prompt_spans"]
+            if span["id"] == span_id
+        ))
+        families.append({"id": family_id, "first_action": first_action, "step_ids": list(step_ids), "structural_prompt_span_hashes": span_hashes})
+    return families
+
+
+def derive_discovery_derivation(
+    proposal: Mapping[str, Any],
+    *,
+    review_packet: Mapping[str, Any],
+    graph_contract: Mapping[str, Any],
+    prompt: str,
+    interaction_schema: Mapping[str, Any] | None = None,
+    graph_lineage: str | None = None,
+    node_id: str | None = None,
+    graph_mode: str = "core",
+) -> dict[str, Any]:
+    """Compile an authoritative discovery receipt from reviewer evidence."""
+    proposal = _validate_candidate_proposal(proposal)
+    graph = _require_object(graph_contract, "graph contract")
+    packet = validate_review_packet(review_packet, prompt=prompt, graph_contract=graph)
+    packet_digest = review_packet_sha256(packet)
+    if "review_packet_sha256" in proposal and proposal["review_packet_sha256"] != packet_digest:
+        raise ValueError("candidate review packet digest does not match review packet")
+    if "node_contract_sha256" in proposal and proposal["node_contract_sha256"] != node_contract_sha256(graph):
+        raise ValueError("candidate node contract digest does not match graph contract")
+    steps = packet["solution_steps"]
+    step_by_id = {step["id"]: step for step in steps}
+    ordered_step_ids = _topological_step_ids(steps)
+    ordered_steps = [step_by_id[step_id] for step_id in ordered_step_ids]
+    actions = [step["action"] for step in ordered_steps]
+    visibility = _entry_point_visibility(prompt, graph, actions)
+    specs = _contract_decision_specs(graph)
+    decisions, decision_by_step = _decision_output(packet, specs)
+    families = _family_output(packet, graph)
+    mechanical = _is_low_information_mechanical_prompt(prompt)
+    graph_relations = _graph_relations(graph)
+    packet_relations = packet["cross_node_prerequisite_relations"]
+    graph_relation_ids = {relation.get("id") for relation in graph_relations}
+    used_relation_ids = {
+        relation["id"]
+        for relation in packet_relations
+        if relation["id"] in graph_relation_ids
+        and relation["evidence_key"] in next(step for step in steps if step["id"] == relation["target_step_id"])["input_evidence_keys"]
+    }
+    dependent_decisions = any(decision["depends_on"] for decision in decisions)
+    distinct_routes = len({family["first_action"] for family in families}) >= 2
+    if mechanical:
+        depth = "E0"
+    elif visibility == "exploratory":
+        depth = "E4"
+    elif dependent_decisions or distinct_routes or used_relation_ids:
+        depth = "E3"
+    elif decisions:
+        depth = "E2"
+    elif visibility in {"explicit", "cued"} and len(steps) == 1 and actions[0] in {"apply_model", "known_model", "apply_rule"}:
+        depth = "E1"
+    elif visibility in {"explicit", "cued"} and len(steps) == 1:
+        depth = "E0"
+    else:
+        depth = "E1" if visibility in {"explicit", "cued"} else "E0"
+    proposed_depth = proposal.get("proposed_discovery_depth", proposal.get("discovery_depth"))
+    if proposed_depth is not None and proposed_depth != depth:
+        raise ValueError("candidate proposed discovery depth does not match authoritative derivation")
+    proposal_projection = {
+        "entry_point": actions[0],
+        "entry_point_visibility": visibility,
+        "required_decisions": [decision["taxonomy"] for decision in decisions],
+        "required_steps": ordered_step_ids,
+    }
+    for field, authoritative in proposal_projection.items():
+        if field not in proposal:
+            continue
+        candidate = proposal[field]
+        if field == "entry_point_visibility":
+            candidate = _enum_value(candidate, ENTRY_POINT_VISIBILITIES, "invalid proposal entry-point visibility")
+        elif field in {"required_decisions", "required_steps"}:
+            candidate = _bounded_string_array(candidate, f"proposal.{field}", maximum=MAX_SOLUTION_STEPS, unique=True)
+        elif not isinstance(candidate, str) or not candidate.strip():
+            raise ValueError(f"proposal.{field} must be a non-empty string")
+        if canonical_json(candidate) != canonical_json(authoritative):
+            raise ValueError(f"candidate proposal {field} does not match authoritative projection")
+    execution_steps = len(steps)
+    minimum, maximum = (0, 1) if depth == "E0" else DISCOVERY_EXECUTION_BOUNDS[depth]
+    if not minimum <= execution_steps <= maximum:
+        raise ValueError(f"execution_steps must be between {minimum} and {maximum}")
+    key_evidence = list(dict.fromkeys(step["evidence_key"] for step in steps))
+    low_information = depth == "E0"
+    receipt = {
+        "schema_version": DISCOVERY_DERIVATION_SCHEMA_VERSION,
+        "discovery_depth": depth,
+        "entry_point_visibility": visibility,
+        "decision_points": decisions,
+        "solution_families": families,
+        "execution_steps": execution_steps,
+        "key_insight_evidence_keys": key_evidence,
+        "low_information": low_information,
+        "scheduling_eligible": not low_information,
+        "review_packet_sha256": packet_digest,
+        "node_contract_sha256": node_contract_sha256(graph),
+    }
+    derivation_input = build_discovery_derivation_input(
+        proposal=proposal,
+        review_packet=packet,
+        graph_contract=graph,
+        prompt=prompt,
+        interaction_schema=interaction_schema,
+        graph_lineage=graph_lineage,
+        node_id=node_id,
+        graph_mode=graph_mode,
+    )
+    receipt["derivation_input_sha256"] = canonical_sha256(derivation_input)
+    validate_discovery_derivation_output(
+        receipt,
+        solution_step_ids={step["id"] for step in steps},
+        structural_prompt_span_hashes={span["structural_hash"] for span in packet["prompt_spans"]},
+        solution_step_actions={step["id"]: step["action"] for step in steps},
+        allow_e0=True,
+    )
+    return receipt
+
+
+compile_discovery_derivation = derive_discovery_derivation
+
+
+def build_discovery_derivation_input(
+    *,
+    proposal: Mapping[str, Any],
+    review_packet: Mapping[str, Any],
+    graph_contract: Mapping[str, Any],
+    prompt: str,
+    interaction_schema: Mapping[str, Any] | None = None,
+    graph_lineage: str | None = None,
+    node_id: str | None = None,
+    graph_mode: str = "core",
+) -> dict[str, Any]:
+    """Build the canonical, digestible input copied into a derivation receipt."""
+    proposal = _validate_candidate_proposal(proposal)
+    graph = _require_object(graph_contract, "graph contract")
+    contract_graph_lineage = _nonempty_string(graph.get("graph_lineage"), "graph contract.graph_lineage")
+    contract_node_id = _nonempty_string(graph.get("node_id"), "graph contract.node_id")
+    if graph_lineage is not None and graph_lineage != contract_graph_lineage:
+        raise ValueError("graph_lineage must come from the immutable graph contract")
+    if node_id is not None and node_id != contract_node_id:
+        raise ValueError("node_id must come from the immutable graph contract")
+    if graph_mode not in {"core", "selective_core", "controlled_extension", "diagnose_only"}:
+        raise ValueError("invalid graph mode")
+    packet = validate_review_packet(review_packet, prompt=prompt, graph_contract=graph)
+    packet_digest = review_packet_sha256(packet)
+    canonical_prompt = canonical_prompt_envelope(stem=prompt)
+    if interaction_schema is None:
+        interaction_digest = ""
+    else:
+        canonical_interaction = canonicalize_set_arrays(
+            _normalize_text_tree(_canonical_value(interaction_schema)),
+            paths=set(),
+        )
+        interaction_digest = canonical_sha256(canonical_interaction) if canonical_interaction else ""
+    copied_steps = [
+        {
+            key: copy.deepcopy(step[key])
+            for key in ("id", "action", "evidence_key", "input_step_ids", "input_evidence_keys", "prompt_span_ids")
+        }
+        for step in packet["solution_steps"]
+    ]
+    copied_relations = [copy.deepcopy(relation) for relation in packet["cross_node_prerequisite_relations"]]
+    proposal_projection = {
+        key: copy.deepcopy(proposal[key])
+        for key in ("entry_point", "required_decisions", "required_steps")
+        if key in proposal
+    }
+    return {
+        "schema_version": DISCOVERY_DERIVATION_SCHEMA_VERSION,
+        "graph_lineage": contract_graph_lineage,
+        "node_id": contract_node_id,
+        "node_contract_sha256": node_contract_sha256(graph),
+        "graph_mode": graph_mode,
+        "prompt_sha256": prompt_sha256(canonical_prompt),
+        "interaction_schema_sha256": interaction_digest,
+        "review_packet_version": REVIEW_PACKET_SCHEMA_VERSION,
+        "review_packet_sha256": packet_digest,
+        "cross_node_prerequisite_relations": copied_relations,
+        "solution_steps": copied_steps,
+        "proposal": proposal_projection,
+    }
 
 
 def _bounded_string_array(
@@ -498,6 +958,63 @@ def _bounded_string_array(
     if unique and len(set(value)) != len(value):
         raise ValueError(f"{label} must not contain duplicates")
     return value
+
+
+def _validate_candidate_proposal(value: Any) -> dict[str, Any]:
+    proposal = _require_object(value, "candidate proposal")
+    if not proposal:
+        raise ValueError("candidate proposal must not be empty")
+    _check_keys(
+        proposal,
+        {
+            "entry_point",
+            "entry_point_visibility",
+            "alternative_entries",
+            "required_decisions",
+            "required_steps",
+            "depends_on",
+            "discovery_depth",
+            "proposed_discovery_depth",
+            "execution_steps",
+            "review_packet_sha256",
+            "node_contract_sha256",
+        },
+        "candidate proposal",
+    )
+    for generator_only_field in ("alternative_entries", "depends_on"):
+        if generator_only_field in proposal:
+            raise ValueError(
+                f"candidate proposal {generator_only_field} is generator-only and is not authoritative"
+            )
+    if "entry_point" in proposal:
+        _nonempty_string(proposal["entry_point"], "proposal.entry_point")
+    if "entry_point_visibility" in proposal:
+        _enum_value(
+            proposal["entry_point_visibility"],
+            ENTRY_POINT_VISIBILITIES,
+            "invalid proposal entry-point visibility",
+        )
+    for field in ("required_decisions", "required_steps"):
+        if field in proposal:
+            _bounded_string_array(
+                proposal[field],
+                f"proposal.{field}",
+                maximum=MAX_SOLUTION_STEPS,
+                unique=True,
+            )
+    for field in ("discovery_depth", "proposed_discovery_depth"):
+        if field in proposal:
+            _enum_value(proposal[field], DISCOVERY_DEPTHS, f"invalid proposal {field}")
+    if "execution_steps" in proposal and (
+        not isinstance(proposal["execution_steps"], int)
+        or isinstance(proposal["execution_steps"], bool)
+        or proposal["execution_steps"] < 0
+    ):
+        raise ValueError("proposal.execution_steps must be a non-negative integer")
+    for field in ("review_packet_sha256", "node_contract_sha256"):
+        if field in proposal:
+            _hash(proposal[field], f"proposal.{field}")
+    return proposal
 
 
 def _bounded_hash_array(value: Any, label: str, *, maximum: int) -> list[str]:
@@ -547,24 +1064,42 @@ def validate_discovery_derivation_output(
     solution_step_ids: set[str] | None = None,
     structural_prompt_span_hashes: set[str] | None = None,
     solution_step_actions: Mapping[str, str] | None = None,
+    allow_e0: bool = False,
 ) -> dict[str, Any]:
     output = _require_object(output, "discovery derivation output")
-    allowed = {"schema_version", "discovery_depth", "entry_point_visibility", "decision_points", "solution_families", "execution_steps", "key_insight_evidence_keys"}
+    allowed = {
+        "schema_version", "discovery_depth", "entry_point_visibility", "decision_points",
+        "solution_families", "execution_steps", "key_insight_evidence_keys", "low_information",
+        "scheduling_eligible",
+        "review_packet_sha256", "node_contract_sha256", "derivation_input_sha256",
+    }
     _check_keys(output, allowed, "discovery derivation output")
-    _require_keys(output, allowed, "discovery derivation output")
+    _require_keys(
+        output,
+        {
+            "schema_version",
+            "discovery_depth",
+            "entry_point_visibility",
+            "decision_points",
+            "solution_families",
+            "execution_steps",
+            "key_insight_evidence_keys",
+        },
+        "discovery derivation output",
+    )
     if output["schema_version"] != DISCOVERY_DERIVATION_SCHEMA_VERSION:
         raise ValueError("unsupported discovery derivation version")
     discovery_depth = _enum_value(
         output["discovery_depth"], DISCOVERY_DEPTHS, "invalid discovery depth"
     )
-    if discovery_depth == "E0":
+    if discovery_depth == "E0" and not allow_e0:
         raise ValueError("E0 cannot be an active discovery derivation output")
     _enum_value(
         output["entry_point_visibility"],
         ENTRY_POINT_VISIBILITIES,
         "invalid entry-point visibility",
     )
-    execution_minimum, execution_maximum = DISCOVERY_EXECUTION_BOUNDS[discovery_depth]
+    execution_minimum, execution_maximum = ((0, 1) if discovery_depth == "E0" else DISCOVERY_EXECUTION_BOUNDS[discovery_depth])
     if (
         not isinstance(output["execution_steps"], int)
         or isinstance(output["execution_steps"], bool)
@@ -691,6 +1226,17 @@ def validate_discovery_derivation_output(
         output["key_insight_evidence_keys"],
         "key_insight_evidence_keys",
     )
+    if "low_information" in output and not isinstance(output["low_information"], bool):
+        raise ValueError("low_information must be a boolean")
+    if "scheduling_eligible" in output and not isinstance(output["scheduling_eligible"], bool):
+        raise ValueError("scheduling_eligible must be a boolean")
+    if "low_information" in output and output["low_information"] != (discovery_depth == "E0"):
+        raise ValueError("low_information does not match discovery depth")
+    if "scheduling_eligible" in output and output["scheduling_eligible"] != (discovery_depth != "E0"):
+        raise ValueError("scheduling_eligible does not match discovery depth")
+    for digest_key in ("review_packet_sha256", "node_contract_sha256", "derivation_input_sha256"):
+        if digest_key in output:
+            _hash(output[digest_key], digest_key)
     return copy.deepcopy(output)
 
 

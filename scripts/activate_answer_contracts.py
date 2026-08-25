@@ -117,6 +117,8 @@ def _question_digest(question: dict[str, Any]) -> str:
 
 def _draft_and_review_item(
     question: dict[str, Any],
+    *,
+    graph_version: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     draft = assessment_policy.build_answer_contract(question)
     stable_contract_id = f"AC-{question['id']}"
@@ -143,6 +145,11 @@ def _draft_and_review_item(
         "contract_digest_sha256": contract_digest,
         "node_id": question["node_id"],
         "kind": question["kind"],
+        "question_type": question.get("question_type") or question["kind"],
+        "graph_version": graph_version,
+        "graph_lineage": graph_version,
+        "node_contract_sha256": question.get("node_contract_sha256") or "",
+        "interaction_schema": question.get("interaction_schema"),
         "evidence_role": str(
             question.get("evidence_role")
             or question.get("evidence_goal")
@@ -183,7 +190,10 @@ def build_dry_run_report(db_path: Path, *, mode: str) -> dict[str, Any]:
     drafts = []
     review_items = []
     for question in questions:
-        draft, review_item = _draft_and_review_item(question)
+        draft, review_item = _draft_and_review_item(
+            question,
+            graph_version=str(ledger.get("graph_version") or ""),
+        )
         drafts.append(draft)
         review_items.append(review_item)
     shards = answer_contract_review.plan_review_shards(review_items)

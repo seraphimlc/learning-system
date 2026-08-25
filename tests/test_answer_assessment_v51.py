@@ -2050,6 +2050,17 @@ class AnswerContractReviewUnitTests(unittest.TestCase):
             "contract_digest_sha256": f"{index + 1001:064x}",
             "node_id": node_id,
             "kind": "standard_example",
+            "question_type": "fill_blank",
+            "graph_version": "graph-A",
+            "graph_lineage": "graph-A+lineage",
+            "node_contract_sha256": "a" * 64,
+            "interaction_schema": {
+                "type": "fill_blank",
+                "choices": [],
+                "fields": [
+                    {"id": "answer", "label": "答案", "input_mode": "fraction"}
+                ],
+            },
             "evidence_role": "direct",
         }
 
@@ -2458,6 +2469,12 @@ class AnswerContractReviewUnitTests(unittest.TestCase):
             result["normalized_instance_descriptor"],
             result["normalized_core_structure_descriptor"],
             policy_version=fingerprints.FINGERPRINT_POLICY_VERSION,
+            graph_lineage=item["graph_lineage"],
+            node_id=item["node_id"],
+            question_type=item["question_type"],
+            graph_version=item["graph_version"],
+            node_contract_sha256=item["node_contract_sha256"],
+            interaction_schema=item["interaction_schema"],
         )
         for field, expected in expected_pair.items():
             self.assertEqual(expected, outcome[field])
@@ -2598,16 +2615,28 @@ class AnswerContractReviewUnitTests(unittest.TestCase):
         }
         version = fingerprints.FINGERPRINT_POLICY_VERSION
 
-        first = fingerprints.fingerprint_pair(instance, core, policy_version=version)
+        v2_kwargs = {
+            "graph_lineage": "graph-A+lineage",
+            "node_id": "M-G7-NUMBER-LINE",
+            "question_type": "standard_example",
+            "interaction_schema": {
+                "type": "fill_blank",
+                "choices": [],
+                "fields": [{"id": "answer", "label": "答案"}],
+            },
+        }
+        first = fingerprints.fingerprint_pair(instance, core, policy_version=version, **v2_kwargs)
         retry = fingerprints.fingerprint_pair(
             same_instance_different_key_order,
             copy.deepcopy(core),
             policy_version=version,
+            **v2_kwargs,
         )
         changed = fingerprints.fingerprint_pair(
             changed_instance,
             core,
             policy_version=version,
+            **v2_kwargs,
         )
 
         self.assertEqual(first, retry)

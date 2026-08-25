@@ -13,9 +13,10 @@ Test list:
 
 import hashlib
 import json
+from pathlib import Path
 import unittest
 
-from learning_system import question_quality
+from learning_system import question_fingerprints, question_quality
 
 
 class CanonicalizationTests(unittest.TestCase):
@@ -504,6 +505,818 @@ class GraphEvidenceTests(unittest.TestCase):
             question_quality.normalize_graph_evidence_contract(
                 {"evidence_required": ["结果正确"], "fixed_answer_mastery_policy": "auto_mastery"}
             )
+
+
+class ReviewerDerivedDiscoveryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        fixture_path = Path(__file__).parent / "fixtures" / "question_quality_review_packets.json"
+        cls.cases = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    def _derive(self, name):
+        case = self.cases[name]
+        return question_quality.derive_discovery_derivation(
+            case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+        )
+
+    def test_fixture_covers_authoritative_e0_to_e4_levels(self):
+        expected = {"e0": "E0", "e1": "E1", "e2": "E2", "e3": "E3", "e4": "E4"}
+        for name, depth in expected.items():
+            with self.subTest(name=name):
+                receipt = self._derive(name)
+                self.assertEqual(depth, receipt["discovery_depth"])
+
+    def test_e0_is_marked_low_information_and_cannot_be_raised_by_execution(self):
+        receipt = self._derive("e0")
+        self.assertTrue(receipt["low_information"])
+        self.assertFalse(receipt["scheduling_eligible"])
+        self.assertEqual(1, receipt["execution_steps"])
+        self.assertEqual("E0", receipt["discovery_depth"])
+
+        case = json.loads(json.dumps(self.cases["e0"]))
+        case["proposal"]["execution_steps"] = 8
+        receipt = question_quality.derive_discovery_derivation(
+            case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+        )
+        self.assertEqual("E0", receipt["discovery_depth"])
+
+    def test_authoritative_derive_marks_direct_operations_e0_but_real_decision_e2(self):
+        def derive(prompt, *, action="apply_model", graph_contract=None, evidence_key="answer_correctness"):
+            graph_contract = graph_contract or {
+                "graph_lineage": "math-v2",
+                "node_id": "math.direct-operation",
+                "diagnosis_contract": {},
+                "question_generation": {},
+            }
+            span = question_quality.prompt_span(
+                prompt,
+                start_token=0,
+                end_token=len(question_quality.prompt_tokens(prompt)),
+            )
+            span["id"] = "p1"
+            packet = {
+                "schema_version": "review_packet.v1",
+                "reviewer_run_id": "regression-direct-operation",
+                "prompt_spans": [span],
+                "solution_steps": [{
+                    "id": "s1",
+                    "action": action,
+                    "evidence_key": evidence_key,
+                    "input_step_ids": [],
+                    "input_evidence_keys": [evidence_key],
+                    "prompt_span_ids": ["p1"],
+                }],
+                "cross_node_prerequisite_relations": [],
+            }
+            return question_quality.derive_discovery_derivation(
+                {
+                    "entry_point": action,
+                    "discovery_depth": "E2" if action == "resolve_sign_scope" else "E0",
+                    "execution_steps": 1,
+                    "required_decisions": ["resolve_sign_scope"] if action == "resolve_sign_scope" else [],
+                    "required_steps": ["s1"],
+                },
+                review_packet=packet,
+                graph_contract=graph_contract,
+                prompt=prompt,
+            )
+
+        for prompt in (
+            "-8 + 3",
+            "2^4",
+            "-7 和 -3 比较",
+            "比较 -7 和 -3 的大小",
+            "-7 ○ -3",
+            "-7 < -3",
+            "-7 ≤ -3",
+            "-7 > -3",
+            "-7 ≥ -3",
+            "4x + 6x",
+        ):
+            with self.subTest(prompt=prompt):
+                receipt = derive(prompt)
+                self.assertEqual("E0", receipt["discovery_depth"])
+                self.assertTrue(receipt["low_information"])
+                self.assertFalse(receipt["scheduling_eligible"])
+
+        decision_graph = {
+            "graph_lineage": "math-v2",
+            "node_id": "math.sign-scope",
+            "diagnosis_contract": {
+                "decision_taxonomies": {
+                    "resolve_sign_scope": {
+                        "alternatives": ["include_sign", "exclude_sign"],
+                        "misconception_key": "sign_scope",
+                    }
+                }
+            },
+            "question_generation": {},
+        }
+        receipt = derive(
+            "判断 -2^4 中负号的范围",
+            action="resolve_sign_scope",
+            graph_contract=decision_graph,
+            evidence_key="concept_recognition",
+        )
+        self.assertEqual("E2", receipt["discovery_depth"])
+        self.assertFalse(receipt["low_information"])
+        self.assertTrue(receipt["scheduling_eligible"])
+
+    def test_node_contract_digest_binds_every_graph_input_used_by_derivation(self):
+        family_case = json.loads(json.dumps(self.cases["e1"]))
+        family_case["graph_contract"]["solution_families"] = [{
+            "id": "f1",
+            "step_ids": ["s1"],
+            "first_action": "apply_model",
+        }]
+        family_receipt = self._derive_from_case(family_case)
+
+        changed_family = json.loads(json.dumps(family_case))
+        changed_family["graph_contract"]["solution_families"].append({
+            "id": "f2",
+            "step_ids": ["s1"],
+            "first_action": "apply_model",
+        })
+        self.assertNotEqual(
+            family_receipt["node_contract_sha256"],
+            question_quality.node_contract_sha256(changed_family["graph_contract"]),
+        )
+        changed_receipt = self._derive_from_case(changed_family)
+        self.assertNotEqual(family_receipt["solution_families"], changed_receipt["solution_families"])
+
+        decision_case = json.loads(json.dumps(self.cases["e3"]))
+        decision_receipt = self._derive_from_case(decision_case)
+        changed_decision = json.loads(json.dumps(decision_case))
+        changed_decision["graph_contract"]["diagnosis_contract"]["decision_taxonomies"]["select_model"]["alternatives"] = [
+            "number_line",
+            "decimal",
+        ]
+        self.assertNotEqual(
+            decision_receipt["node_contract_sha256"],
+            question_quality.node_contract_sha256(changed_decision["graph_contract"]),
+        )
+        changed_decision["proposal"]["node_contract_sha256"] = decision_receipt["node_contract_sha256"]
+        with self.assertRaisesRegex(ValueError, "node contract digest"):
+            self._derive_from_case(changed_decision)
+
+    def test_candidate_level_mismatch_is_rejected(self):
+        case = json.loads(json.dumps(self.cases["e2"]))
+        case["proposal"]["discovery_depth"] = "E1"
+        with self.assertRaisesRegex(ValueError, "proposed discovery depth"):
+            question_quality.derive_discovery_derivation(
+                case["proposal"],
+                review_packet=case["packet"],
+                graph_contract=case["graph_contract"],
+                prompt=case["prompt"],
+            )
+
+    def test_review_packet_digest_and_span_hashes_are_bound(self):
+        case = self.cases["e2"]
+        packet = question_quality.validate_review_packet(
+            case["packet"],
+            prompt=case["prompt"],
+            graph_contract=case["graph_contract"],
+        )
+        self.assertEqual(
+            question_quality.review_packet_sha256(packet),
+            question_quality.review_packet_sha256(case["packet"]),
+        )
+
+        tampered = json.loads(json.dumps(case["packet"]))
+        tampered["prompt_spans"][0]["instance_hash"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "instance hash"):
+            question_quality.validate_review_packet(tampered, prompt=case["prompt"])
+
+        proposal = json.loads(json.dumps(case["proposal"]))
+        proposal["review_packet_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "review packet digest"):
+            question_quality.derive_discovery_derivation(
+                proposal,
+                review_packet=case["packet"],
+                graph_contract=case["graph_contract"],
+                prompt=case["prompt"],
+            )
+
+    def test_generator_only_dependencies_do_not_create_e3(self):
+        case = json.loads(json.dumps(self.cases["e1"]))
+        case["proposal"]["required_decisions"] = ["resolve_sign_scope"]
+        case["proposal"]["depends_on"] = ["fake-decision"]
+        with self.assertRaisesRegex(ValueError, "proposal"):
+            question_quality.derive_discovery_derivation(
+                case["proposal"],
+                review_packet=case["packet"],
+                graph_contract=case["graph_contract"],
+                prompt=case["prompt"],
+            )
+
+    def test_graph_relation_must_be_declared_and_used_by_target_step(self):
+        case = json.loads(json.dumps(self.cases["e3_relation"]))
+        case["packet"]["cross_node_prerequisite_relations"][0]["evidence_key"] = "transfer"
+        with self.assertRaisesRegex(ValueError, "graph contract"):
+            question_quality.derive_discovery_derivation(
+                case["proposal"],
+                review_packet=case["packet"],
+                graph_contract=case["graph_contract"],
+                prompt=case["prompt"],
+            )
+
+        case = json.loads(json.dumps(self.cases["e3_relation"]))
+        case["packet"]["solution_steps"][1]["input_evidence_keys"] = ["model_selection"]
+        with self.assertRaisesRegex(ValueError, "target step"):
+            question_quality.derive_discovery_derivation(
+                case["proposal"],
+                review_packet=case["packet"],
+                graph_contract=case["graph_contract"],
+                prompt=case["prompt"],
+            )
+
+    def test_dependency_derivation_uses_topological_transitive_solution_graph(self):
+        case = json.loads(json.dumps(self.cases["e3"]))
+        case["proposal"].update(
+            {
+                "required_decisions": ["select_model", "choose_representation"],
+                "required_steps": ["s1", "s2", "s3"],
+            }
+        )
+        case["graph_contract"]["diagnosis_contract"]["decision_taxonomies"].update(
+            {
+                "choose_representation": {
+                    "alternatives": ["fraction", "decimal"],
+                    "misconception_key": "representation_choice",
+                }
+            }
+        )
+        case["packet"]["solution_steps"] = [
+            {
+                "id": "s3",
+                "action": "choose_representation",
+                "evidence_key": "concept_recognition",
+                "input_step_ids": ["s2"],
+                "input_evidence_keys": ["concept_recognition"],
+                "prompt_span_ids": ["p1"],
+            },
+            {
+                "id": "s2",
+                "action": "apply_model",
+                "evidence_key": "model_selection",
+                "input_step_ids": ["s1"],
+                "input_evidence_keys": ["model_selection"],
+                "prompt_span_ids": ["p1"],
+            },
+            {
+                "id": "s1",
+                "action": "select_model",
+                "evidence_key": "model_selection",
+                "input_step_ids": [],
+                "input_evidence_keys": ["model_selection"],
+                "prompt_span_ids": ["p1"],
+            },
+        ]
+
+        receipt = question_quality.derive_discovery_derivation(
+            case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+        )
+
+        self.assertEqual("E3", receipt["discovery_depth"])
+        self.assertEqual(["s1"], receipt["decision_points"][0]["step_ids"])
+        self.assertEqual(["d1"], receipt["decision_points"][1]["depends_on"])
+        self.assertEqual("s3", receipt["decision_points"][1]["step_ids"][0])
+
+    def test_proposal_projection_must_match_authoritative_canonical_fields(self):
+        for field, value in (
+            ("entry_point_visibility", "explicit"),
+            ("required_decisions", []),
+            ("required_steps", ["s2", "s1"]),
+        ):
+            with self.subTest(field=field):
+                case = json.loads(json.dumps(self.cases["e3"]))
+                case["proposal"][field] = value
+                with self.assertRaisesRegex(ValueError, "proposal"):
+                    self._derive_from_case(case)
+
+    def test_graph_identity_overrides_are_rejected_in_derivation_input(self):
+        case = self.cases["e1"]
+        for kwargs in (
+            {"graph_lineage": "forged-lineage"},
+            {"node_id": "forged.node"},
+        ):
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaisesRegex(ValueError, "immutable graph contract"):
+                    question_quality.build_discovery_derivation_input(
+                        proposal=case["proposal"],
+                        review_packet=case["packet"],
+                        graph_contract=case["graph_contract"],
+                        prompt=case["prompt"],
+                        **kwargs,
+                    )
+
+    def test_proposal_envelope_fails_closed_and_derivation_input_keeps_controlled_projection(self):
+        case = json.loads(json.dumps(self.cases["e1"]))
+        with self.assertRaisesRegex(ValueError, "proposal"):
+            self._derive_from_case({**case, "proposal": {}})
+
+        for field, value in (("alternative_entries", "not-an-array"), ("depends_on", ["fake-decision"])):
+            with self.subTest(field=field):
+                invalid = json.loads(json.dumps(case))
+                invalid["proposal"][field] = value
+                with self.assertRaisesRegex(ValueError, "proposal"):
+                    self._derive_from_case(invalid)
+
+        derivation_input = question_quality.build_discovery_derivation_input(
+            proposal=case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+        )
+        self.assertEqual(
+            {
+                "entry_point": "apply_model",
+                "required_decisions": [],
+                "required_steps": ["s1"],
+            },
+            derivation_input["proposal"],
+        )
+
+    def _derive_from_case(self, case):
+        return question_quality.derive_discovery_derivation(
+            case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+        )
+
+    def test_review_packet_rejects_cycles_and_out_of_bounds_spans(self):
+        case = json.loads(json.dumps(self.cases["e3"]))
+        case["packet"]["solution_steps"][0]["input_step_ids"] = ["s2"]
+        with self.assertRaisesRegex(ValueError, "cycle"):
+            question_quality.validate_review_packet(case["packet"], prompt=case["prompt"])
+
+        case = json.loads(json.dumps(self.cases["e1"]))
+        case["packet"]["prompt_spans"][0]["end_token"] += 1
+        with self.assertRaisesRegex(ValueError, "outside"):
+            question_quality.validate_review_packet(case["packet"], prompt=case["prompt"])
+
+
+class QuestionFingerprintV2Tests(unittest.TestCase):
+    def _descriptor(self, *, number="3", story="apples", **changes):
+        descriptor = {
+            "graph_lineage": "math-v2",
+            "node_id": "math.integer.order",
+            "question_type": "fill_blank",
+            "prompt_envelope": {
+                "stem": f"{story}: compare {number}/4 and -1/2",
+                "fields": [{"id": "answer", "label": "答案", "input_mode": "fraction"}],
+            },
+            "interaction_schema": {
+                "type": "fill_blank",
+                "choices": [],
+                "fields": [{"id": "answer", "label": "答案", "required": True, "input_mode": "fraction"}],
+            },
+            "values": [{"name": "n", "type": "number", "value": number}],
+            "surface_entities": [story],
+            "mathematical_grammar": "fraction_ordering",
+            "structural_prompt_span_hashes": ["a" * 64],
+            "decision_taxonomies": ["choose_representation"],
+            "solution_actions": ["choose_common_denominator", "order_values"],
+            "evidence_keys": ["model_selection"],
+            "misconception_keys": ["negative_order"],
+        }
+        descriptor.update(changes)
+        return descriptor
+
+    def test_exact_duplicates_are_rejected_and_numbers_stories_share_a_family(self):
+        base = question_fingerprints.build_question_fingerprints(self._descriptor())
+        duplicate = question_fingerprints.build_question_fingerprints(self._descriptor())
+        with self.assertRaisesRegex(ValueError, "exact"):
+            question_fingerprints.validate_family_quota("math.integer.order", [base, duplicate])
+
+        changed_instance = question_fingerprints.build_question_fingerprints(
+            self._descriptor(number="9", story="marbles")
+        )
+        self.assertNotEqual(base["exact_instance_fingerprint"], changed_instance["exact_instance_fingerprint"])
+        self.assertEqual(base["family_fingerprint"], changed_instance["family_fingerprint"])
+
+    def test_exact_fingerprint_binds_authoritative_discovery_receipt_digest(self):
+        first = self._descriptor(discovery_derivation_sha256="a" * 64)
+        second = self._descriptor(discovery_derivation_sha256="b" * 64)
+
+        first_fingerprint = question_fingerprints.build_question_fingerprints(first)
+        second_fingerprint = question_fingerprints.build_question_fingerprints(second)
+
+        self.assertNotEqual(
+            first_fingerprint["exact_instance_fingerprint"],
+            second_fingerprint["exact_instance_fingerprint"],
+        )
+
+    def test_family_normalizes_surface_arrays_with_typed_placeholders(self):
+        interaction_schema = {
+            "type": "single_choice",
+            "mode": "single_choice",
+            "choices": [
+                {"id": "choice-a", "label": "甲", "value": "-1/2"},
+                {"id": "choice-b", "label": "乙", "value": "3/4"},
+            ],
+            "fields": [
+                {"id": "answer-a", "label": "答案", "required": True, "input_mode": "fraction"},
+            ],
+        }
+        base = self._descriptor(interaction_schema=interaction_schema)
+        relabeled = self._descriptor(
+            interaction_schema={
+                **interaction_schema,
+                "choices": [
+                    {"id": "renamed-1", "label": "丙", "value": "other"},
+                    {"id": "renamed-2", "label": "丁", "value": "another"},
+                ],
+                "fields": [
+                    {"id": "renamed-field", "label": "填写结果", "required": True, "input_mode": "fraction"},
+                ],
+            }
+        )
+        changed_choice_count = self._descriptor(
+            interaction_schema={
+                **interaction_schema,
+                "choices": interaction_schema["choices"] + [{"id": "choice-c", "label": "丙", "value": "0"}],
+            }
+        )
+        changed_grammar = self._descriptor(
+            interaction_schema={
+                **interaction_schema,
+                "fields": [
+                    {"id": "answer-a", "label": "答案", "required": True, "input_mode": "decimal"},
+                ],
+            }
+        )
+
+        base_fingerprint = question_fingerprints.build_question_fingerprints(base)
+        self.assertEqual(
+            base_fingerprint["family_fingerprint"],
+            question_fingerprints.build_question_fingerprints(relabeled)["family_fingerprint"],
+        )
+        self.assertNotEqual(
+            base_fingerprint["family_fingerprint"],
+            question_fingerprints.build_question_fingerprints(changed_choice_count)["family_fingerprint"],
+        )
+        self.assertNotEqual(
+            base_fingerprint["family_fingerprint"],
+            question_fingerprints.build_question_fingerprints(changed_grammar)["family_fingerprint"],
+        )
+        self.assertEqual(
+            [
+                {"id": "CHOICE_ID", "label": "CHOICE_LABEL", "value": "CHOICE_VALUE"},
+                {"id": "CHOICE_ID", "label": "CHOICE_LABEL", "value": "CHOICE_VALUE"},
+            ],
+            base_fingerprint["family_payload"]["structural_interaction_schema"]["choices"],
+        )
+
+    def test_structural_span_and_family_normalization_replaces_cosmetic_names_but_keeps_structure(self):
+        base_span = question_quality.prompt_span("张三 有 3 个 苹果", start_token=0, end_token=5)
+        renamed_span = question_quality.prompt_span("李四 有 3 个 橘子", start_token=0, end_token=5)
+        self.assertNotEqual(base_span["instance_hash"], renamed_span["instance_hash"])
+        self.assertEqual(base_span["structural_hash"], renamed_span["structural_hash"])
+
+        interaction = {
+            "type": "single_choice",
+            "mode": "single_choice",
+            "choices": [],
+            "choice_ids": ["choice-a", "choice-b"],
+            "choice_labels": ["甲", "乙"],
+            "field_ids": ["answer-a"],
+            "fields": [{"id": "answer-a", "label": "答案", "required": True, "input_mode": "fraction"}],
+        }
+        base = self._descriptor(interaction_schema=interaction)
+        renamed = self._descriptor(
+            interaction_schema={
+                **interaction,
+                "choice_ids": ["left", "right"],
+                "choice_labels": ["第一项", "第二项"],
+                "field_ids": ["result"],
+                "fields": [{"id": "result", "label": "填写结果", "required": True, "input_mode": "fraction"}],
+            }
+        )
+        self.assertEqual(
+            question_fingerprints.family_fingerprint(base),
+            question_fingerprints.family_fingerprint(renamed),
+        )
+        for mutation in (
+            {"mathematical_grammar": "fraction_addition"},
+            {"evidence_keys": ["transfer"]},
+            {"misconception_keys": ["wrong_sign_scope"]},
+            {"decision_taxonomies": ["resolve_sign_scope"]},
+        ):
+            with self.subTest(mutation=mutation):
+                self.assertNotEqual(
+                    question_fingerprints.family_fingerprint(base),
+                    question_fingerprints.family_fingerprint(self._descriptor(**mutation)),
+                )
+
+    def test_fingerprint_pair_uses_v2_hashes_and_keeps_legacy_aliases(self):
+        instance = {
+            "relations": ["C=A+3", "A<C<B"],
+            "values": [{"name": "A", "value": -2.5}, {"name": "step", "value": 3}],
+            "requested": ["C", "ascending_order"],
+        }
+        core = {
+            "relation": "directed_translation_then_order",
+            "evidence": ["relation", "value", "order"],
+        }
+        pair = question_fingerprints.fingerprint_pair(
+            instance,
+            core,
+            graph_lineage="math-v2",
+            node_id="math.integer.order",
+            question_type="fill_blank",
+            graph_version="math-v2",
+            node_contract_sha256="a" * 64,
+            interaction_schema={
+                "type": "fill_blank",
+                "choices": [],
+                "fields": [{"id": "answer", "label": "答案"}],
+            },
+        )
+        self.assertEqual(
+            pair["exact_instance_fingerprint"],
+            pair["prompt_instance_fingerprint"],
+        )
+        self.assertEqual(
+            pair["family_fingerprint"],
+            pair["core_structure_fingerprint"],
+        )
+        self.assertEqual("question_fingerprint.v2", pair["fingerprint_policy_version"])
+        self.assertNotEqual(
+            pair["prompt_instance_fingerprint"],
+            question_fingerprints.descriptor_fingerprint(
+                instance,
+                fingerprint_type="prompt_instance",
+            ),
+        )
+
+    def test_fingerprint_pair_policy_version_selects_the_actual_hash_payload(self):
+        instance = {"values": [{"name": "x", "value": 3}], "requested": ["x"]}
+        core = {"relation": "identity", "evidence": ["answer_correctness"]}
+        v1 = question_fingerprints.fingerprint_pair(
+            instance,
+            core,
+            policy_version="question-fingerprint.v1",
+        )
+        self.assertEqual("question-fingerprint.v1", v1["fingerprint_policy_version"])
+        self.assertEqual(
+            question_fingerprints.descriptor_fingerprint(
+                instance,
+                fingerprint_type="prompt_instance",
+                policy_version="question-fingerprint.v1",
+            ),
+            v1["prompt_instance_fingerprint"],
+        )
+        self.assertEqual(
+            question_fingerprints.descriptor_fingerprint(
+                core,
+                fingerprint_type="core_structure",
+                policy_version="question-fingerprint.v1",
+            ),
+            v1["core_structure_fingerprint"],
+        )
+        self.assertNotIn("exact_instance_fingerprint", v1)
+
+        v2 = question_fingerprints.fingerprint_pair(
+            instance,
+            core,
+            policy_version="question_fingerprint.v2",
+            graph_lineage="math-v2",
+            node_id="math.integer.order",
+            question_type="fill_blank",
+            interaction_schema={
+                "type": "fill_blank",
+                "choices": [],
+                "fields": [{"id": "answer", "label": "答案"}],
+            },
+        )
+        self.assertEqual("question_fingerprint.v2", v2["fingerprint_policy_version"])
+        self.assertIn("exact_instance_fingerprint", v2)
+        self.assertNotEqual(v1["prompt_instance_fingerprint"], v2["prompt_instance_fingerprint"])
+
+    def test_fingerprint_descriptor_rejects_malformed_authoritative_members(self):
+        malformed = self._descriptor(decision_points=["not-an-object"])
+        with self.assertRaises((TypeError, ValueError)):
+            question_fingerprints.build_question_fingerprints(malformed)
+
+        malformed = self._descriptor(solution_families=["not-an-object"])
+        with self.assertRaises((TypeError, ValueError)):
+            question_fingerprints.build_question_fingerprints(malformed)
+
+        malformed = self._descriptor(solution_actions="apply_model")
+        with self.assertRaises((TypeError, ValueError)):
+            question_fingerprints.build_question_fingerprints(malformed)
+
+        malformed = self._descriptor(values={1: "non-string key"})
+        with self.assertRaises((TypeError, ValueError)):
+            question_fingerprints.build_question_fingerprints(malformed)
+
+    def test_family_fingerprint_fails_closed_without_interaction_schema(self):
+        descriptor = self._descriptor()
+        del descriptor["interaction_schema"]
+        with self.assertRaisesRegex(ValueError, "interaction_schema"):
+            question_fingerprints.family_fingerprint(descriptor)
+
+    def test_family_fingerprint_does_not_accept_structural_schema_as_authority(self):
+        descriptor = self._descriptor(
+            structural_interaction_schema={
+                "fields": [
+                    {
+                        "id": "FIELD_ID",
+                        "label": "FIELD_LABEL",
+                        "required": True,
+                        "input_mode": "fraction",
+                    }
+                ]
+            }
+        )
+        del descriptor["interaction_schema"]
+        with self.assertRaisesRegex(ValueError, "interaction_schema"):
+            question_fingerprints.family_fingerprint(descriptor)
+
+    def test_family_fingerprint_rejects_forged_structural_schema_override(self):
+        descriptor = self._descriptor(
+            structural_interaction_schema={
+                "fields": [
+                    {
+                        "id": "FIELD_ID",
+                        "label": "FIELD_LABEL",
+                        "required": True,
+                        "input_mode": "decimal",
+                    }
+                ]
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "structural_interaction_schema"):
+            question_fingerprints.family_fingerprint(descriptor)
+
+    def test_family_fingerprint_accepts_structural_schema_only_when_it_matches_projection(self):
+        authoritative = self._descriptor()
+        expected = question_fingerprints.build_question_fingerprints(authoritative)
+        descriptor = self._descriptor(
+            structural_interaction_schema=expected["family_payload"]["structural_interaction_schema"]
+        )
+        actual = question_fingerprints.build_question_fingerprints(descriptor)
+        self.assertEqual(expected["family_fingerprint"], actual["family_fingerprint"])
+
+    def test_family_payload_stores_verifiable_structural_derivation_digest_only(self):
+        fingerprints = question_fingerprints.build_question_fingerprints(self._descriptor())
+        payload = fingerprints["family_payload"]
+        self.assertNotIn("structural_derivation", payload)
+        self.assertEqual(
+            64,
+            len(payload["structural_derivation_digest_sha256"]),
+        )
+        self.assertEqual(
+            payload["structural_derivation_digest_sha256"],
+            question_fingerprints.canonical_sha256(
+                question_fingerprints._structural_derivation(self._descriptor())
+            ),
+        )
+
+    def test_family_quota_recomputes_candidate_fingerprints_instead_of_trusting_supplied_hashes(self):
+        existing = question_fingerprints.build_question_fingerprints(self._descriptor())
+        forged_candidate = self._descriptor()
+        forged_candidate.update(
+            {
+                "exact_instance_fingerprint": "f" * 64,
+                "family_fingerprint": "e" * 64,
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "exact"):
+            question_fingerprints.validate_family_quota(
+                "math.integer.order",
+                [forged_candidate],
+                existing=[existing],
+            )
+
+    def test_family_quota_rejects_candidate_node_id_mismatch(self):
+        mismatched = self._descriptor(node_id="math.other-node")
+        with self.assertRaisesRegex(ValueError, "node_id"):
+            question_fingerprints.validate_family_quota(
+                "math.integer.order",
+                [mismatched],
+            )
+
+    def test_grammar_evidence_misconception_and_decision_changes_make_new_family(self):
+        base = question_fingerprints.build_question_fingerprints(self._descriptor())
+        mutations = (
+            {"mathematical_grammar": "signed_decimal_ordering"},
+            {"evidence_keys": ["transfer"]},
+            {"misconception_keys": ["zero_as_positive"]},
+            {"decision_taxonomies": ["resolve_sign_scope"]},
+            {"structural_prompt_span_hashes": ["b" * 64]},
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                changed = question_fingerprints.build_question_fingerprints(
+                    self._descriptor(**mutation)
+                )
+                self.assertNotEqual(base["family_fingerprint"], changed["family_fingerprint"])
+
+    def test_family_quota_allows_only_one_distinct_second_evidence_misconception(self):
+        first = question_fingerprints.build_question_fingerprints(self._descriptor())
+        second = question_fingerprints.build_question_fingerprints(
+            self._descriptor(evidence_keys=["transfer"], misconception_keys=["zero_as_positive"])
+        )
+        question_fingerprints.validate_family_quota("math.integer.order", [first, second])
+
+        same_evidence = question_fingerprints.build_question_fingerprints(
+            self._descriptor(misconception_keys=["zero_as_positive"])
+        )
+        with self.assertRaisesRegex(ValueError, "distinct evidence"):
+            question_fingerprints.validate_family_quota(
+                "math.integer.order", [first, same_evidence]
+            )
+
+        third = question_fingerprints.build_question_fingerprints(
+            self._descriptor(number="11", evidence_keys=["transfer"], misconception_keys=["zero_as_positive"])
+        )
+        with self.assertRaisesRegex(ValueError, "at most two"):
+            question_fingerprints.validate_family_quota(
+                "math.integer.order", [first, second, third]
+            )
+
+    def test_fingerprint_descriptor_requires_graph_lineage_and_node_id(self):
+        for field in ("graph_lineage", "node_id"):
+            with self.subTest(field=field):
+                descriptor = self._descriptor()
+                del descriptor[field]
+                with self.assertRaisesRegex(ValueError, field):
+                    question_fingerprints.build_question_fingerprints(descriptor)
+
+    def test_graph_a_and_graph_b_cannot_share_v2_fingerprints(self):
+        graph_a = self._descriptor(
+            graph_lineage="graph-A+lineage",
+            graph_version="graph-A",
+            node_contract_sha256="a" * 64,
+        )
+        graph_b = self._descriptor(
+            graph_lineage="graph-B+lineage",
+            graph_version="graph-B",
+            node_contract_sha256="b" * 64,
+        )
+        first = question_fingerprints.build_question_fingerprints(graph_a)
+        second = question_fingerprints.build_question_fingerprints(graph_b)
+        self.assertNotEqual(first["exact_instance_fingerprint"], second["exact_instance_fingerprint"])
+        self.assertNotEqual(first["family_fingerprint"], second["family_fingerprint"])
+        self.assertNotEqual(
+            first["family_payload"]["graph_lineage"],
+            second["family_payload"]["graph_lineage"],
+        )
+        self.assertNotEqual(
+            first["family_payload"]["node_contract_sha256"],
+            second["family_payload"]["node_contract_sha256"],
+        )
+
+    def test_v2_interaction_schema_fails_closed_before_projection(self):
+        malformed_cases = (
+            {"type": "fill_blank", "choices": [], "fields": [{"label": "答案"}]},
+            {"type": "fill_blank", "choices": [], "fields": [{"id": [], "label": "答案"}]},
+            {"type": "fill_blank", "choices": [{"id": "a", "label": "甲", "value": {}}], "fields": []},
+            {"type": "fill_blank", "choices": [], "fields": [{"id": "answer", "label": []}]},
+            {"type": "fill_blank", "choices": {}, "fields": []},
+            {"type": "fill_blank", "fields": []},
+            {"type": "fill_blank", "choices": [], "fields": [], "label": {}},
+        )
+        for interaction_schema in malformed_cases:
+            with self.subTest(interaction_schema=interaction_schema):
+                with self.assertRaises(ValueError):
+                    question_fingerprints.build_question_fingerprints(
+                        self._descriptor(interaction_schema=interaction_schema)
+                    )
+
+    def test_interaction_schema_digest_uses_shared_question_quality_normalization(self):
+        case = json.loads(
+            (Path(__file__).parent / "fixtures" / "question_quality_review_packets.json").read_text(
+                encoding="utf-8"
+            )
+        )["e1"]
+        first = question_quality.build_discovery_derivation_input(
+            proposal=case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+            interaction_schema={"label": "Ａ  ×\n Ｂ", "mode": "short_text"},
+        )
+        second = question_quality.build_discovery_derivation_input(
+            proposal=case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+            interaction_schema={"label": "A * B", "mode": "short_text"},
+        )
+        self.assertEqual(first["interaction_schema_sha256"], second["interaction_schema_sha256"])
 
 
 if __name__ == "__main__":

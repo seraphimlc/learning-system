@@ -191,6 +191,8 @@ def _review_item(
     conn: sqlite3.Connection,
     question: dict[str, Any],
     review_record_id: str,
+    *,
+    graph_version: str,
 ) -> dict[str, Any]:
     stored = _stored_draft_contract(conn, question, review_record_id)
     if stored is None:
@@ -200,6 +202,20 @@ def _review_item(
         )
     contract_id, versioned_draft, contract_digest = stored
     design_source = "persisted_exact_version_draft"
+    graph_version = str(graph_version or "")
+    if not graph_version:
+        raise ValueError("review item graph_version is missing")
+    graph_lineage = str(question.get("graph_lineage") or graph_version)
+    node_contract_sha256 = str(question.get("node_contract_sha256") or "")
+    question_type = str(question.get("question_type") or question.get("kind") or "")
+    if not graph_lineage:
+        raise ValueError("review item graph_lineage is missing")
+    if not node_contract_sha256:
+        raise ValueError("review item node_contract_sha256 is missing")
+    if not question_type:
+        raise ValueError("review item question_type is missing")
+    interaction_schema = question.get("interaction_schema")
+    question_fingerprints.validate_interaction_schema(interaction_schema)
     return {
         "review_item_handle": "review-item-"
         + _canonical_digest(
@@ -220,6 +236,11 @@ def _review_item(
         "contract_digest_sha256": contract_digest,
         "node_id": question["node_id"],
         "kind": question["kind"],
+        "question_type": question_type,
+        "graph_version": graph_version,
+        "graph_lineage": graph_lineage,
+        "node_contract_sha256": node_contract_sha256,
+        "interaction_schema": deepcopy(interaction_schema),
         "evidence_role": str(
             question.get("evidence_role")
             or question.get("evidence_goal")
@@ -283,7 +304,12 @@ def build_probe_review_plan(
     question, review_record_id = _authoritative_probe_question(
         conn, bank_version, question_id
     )
-    item = _review_item(conn, question, review_record_id)
+    item = _review_item(
+        conn,
+        question,
+        review_record_id,
+        graph_version=str(ledger.get("graph_version") or ""),
+    )
 
     contract = internal_agents.load_v5_contract_for_agent(AGENT_KEY)
     model_route = model_router.answer_contract_review_route()
@@ -387,7 +413,12 @@ def build_review_plan(
     route_digest = _canonical_digest(route_policy)
 
     items = [
-        _review_item(conn, question, review_id)
+        _review_item(
+            conn,
+            question,
+            review_id,
+            graph_version=str(ledger.get("graph_version") or ""),
+        )
         for question, review_id in question_rows
     ]
     shards = answer_contract_review.plan_review_shards(items)
