@@ -65,6 +65,12 @@ class CanonicalizationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             question_quality.loads_strict('{"a": 1, "a": 2}')
 
+    def test_strict_json_parser_rejects_non_finite_constants(self):
+        for payload in ('{"value": NaN}', '{"value": Infinity}', '{"value": -Infinity}'):
+            with self.subTest(payload=payload):
+                with self.assertRaises(ValueError):
+                    question_quality.loads_strict(payload)
+
 
 class EnvelopeValidationTests(unittest.TestCase):
     def test_version_constants_are_pinned(self):
@@ -123,6 +129,49 @@ class EnvelopeValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             question_quality.validate_discovery_derivation_output(output)
 
+    def test_discovery_output_requires_bounded_decision_and_family_references(self):
+        decision = {
+            "id": "d1",
+            "taxonomy": "classify_structure",
+            "alternatives": ["left", "right"],
+            "misconception_key": "concept",
+            "step_ids": [],
+            "structural_prompt_span_hashes": [],
+            "depends_on": [],
+        }
+        family = {
+            "id": "f1",
+            "first_action": "classify_structure",
+            "step_ids": [],
+            "structural_prompt_span_hashes": [],
+        }
+        base = {
+            "schema_version": "discovery_derivation.v1",
+            "discovery_depth": "E2",
+            "entry_point_visibility": "implicit",
+            "decision_points": [decision],
+            "solution_families": [family],
+            "execution_steps": 1,
+            "key_insight_evidence_keys": ["concept"],
+        }
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(base)
+
+        decision["step_ids"] = ["s1"]
+        decision["structural_prompt_span_hashes"] = ["0" * 64]
+        family["step_ids"] = ["s1"]
+        family["structural_prompt_span_hashes"] = ["0" * 64]
+        valid = question_quality.validate_discovery_derivation_output(
+            base,
+            solution_step_ids={"s1"},
+            structural_prompt_span_hashes={"0" * 64},
+        )
+        self.assertEqual("E2", valid["discovery_depth"])
+
+        decision["step_ids"] = ["s1"] * 9
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(base)
+
 
 class GraphEvidenceTests(unittest.TestCase):
     def test_explicit_graph_evidence_mapping_and_digest(self):
@@ -152,6 +201,26 @@ class GraphEvidenceTests(unittest.TestCase):
             question_quality.normalize_graph_evidence_contract(
                 {"evidence_required": ["结果正确", "某个未配置的证据"]}
             )
+
+    def test_evidence_required_is_authoritative_and_must_agree_with_stable_keys(self):
+        with self.assertRaises(ValueError):
+            question_quality.normalize_graph_evidence_contract(
+                {
+                    "evidence_required": ["结果正确", "某个未配置的证据"],
+                    "evidence_keys": ["answer_correctness"],
+                }
+            )
+        with self.assertRaises(ValueError):
+            question_quality.normalize_graph_evidence_contract({})
+        with self.assertRaises(ValueError):
+            question_quality.normalize_graph_evidence_contract({"evidence_required": []})
+        with self.assertRaises(ValueError):
+            question_quality.normalize_graph_evidence_contract({"evidence_keys": ["结果正确"]})
+
+        contract = question_quality.normalize_graph_evidence_contract(
+            {"evidence_keys": ["answer_correctness"]}
+        )
+        self.assertEqual(["answer_correctness"], contract["evidence_keys"])
 
     def test_explicit_confirmation_policy_is_preserved_but_ceiling_is_clamped(self):
         contract = question_quality.normalize_graph_evidence_contract(

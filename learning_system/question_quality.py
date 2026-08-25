@@ -25,6 +25,11 @@ MAX_REVIEW_PACKET_BYTES = 64 * 1024
 MAX_SOLUTION_STEPS = 8
 MAX_PROMPT_SPANS = 8
 MAX_CROSS_NODE_RELATIONS = 4
+MAX_DISCOVERY_REFERENCE_IDS = 8
+MAX_DISCOVERY_DEPENDENCIES = 4
+MAX_DISCOVERY_ALTERNATIVES = 8
+MAX_DISCOVERY_EVIDENCE_KEYS = 8
+MAX_DISCOVERY_EXECUTION_STEPS = 32
 
 DECISION_TAXONOMIES = frozenset(
     {
@@ -117,8 +122,16 @@ def loads_strict(payload: str | bytes, *, max_bytes: int | None = None) -> Any:
         raise TypeError("JSON payload must be str or bytes")
     if max_bytes is not None and len(raw) > max_bytes:
         raise ValueError("JSON payload is oversized")
+
+    def reject_non_finite(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant is not allowed: {value}")
+
     try:
-        return json.loads(text, object_pairs_hook=_duplicate_key_rejector)
+        return json.loads(
+            text,
+            object_pairs_hook=_duplicate_key_rejector,
+            parse_constant=reject_non_finite,
+        )
     except (json.JSONDecodeError, ValueError) as exc:
         if isinstance(exc, ValueError) and not isinstance(exc, json.JSONDecodeError):
             raise
@@ -386,7 +399,36 @@ def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
     return copy.deepcopy(packet)
 
 
-def validate_discovery_derivation_output(output: Mapping[str, Any]) -> dict[str, Any]:
+def _bounded_string_array(
+    value: Any,
+    label: str,
+    *,
+    maximum: int,
+    minimum: int = 0,
+    unique: bool = False,
+) -> list[str]:
+    if not isinstance(value, list) or not minimum <= len(value) <= maximum:
+        raise ValueError(f"{label} must contain {minimum}-{maximum} entries")
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise ValueError(f"{label} must contain non-empty strings")
+    if unique and len(set(value)) != len(value):
+        raise ValueError(f"{label} must not contain duplicates")
+    return value
+
+
+def _bounded_hash_array(value: Any, label: str, *, maximum: int) -> list[str]:
+    values = _bounded_string_array(value, label, maximum=maximum, minimum=1, unique=True)
+    if any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in values):
+        raise ValueError(f"{label} must contain lowercase SHA-256 hashes")
+    return values
+
+
+def validate_discovery_derivation_output(
+    output: Mapping[str, Any],
+    *,
+    solution_step_ids: set[str] | None = None,
+    structural_prompt_span_hashes: set[str] | None = None,
+) -> dict[str, Any]:
     output = _require_object(output, "discovery derivation output")
     allowed = {"schema_version", "discovery_depth", "entry_point_visibility", "decision_points", "solution_families", "execution_steps", "key_insight_evidence_keys"}
     _check_keys(output, allowed, "discovery derivation output")
@@ -397,8 +439,12 @@ def validate_discovery_derivation_output(output: Mapping[str, Any]) -> dict[str,
         raise ValueError("invalid discovery depth")
     if output["entry_point_visibility"] not in ENTRY_POINT_VISIBILITIES:
         raise ValueError("invalid entry-point visibility")
-    if not isinstance(output["execution_steps"], int) or isinstance(output["execution_steps"], bool) or output["execution_steps"] < 0:
-        raise ValueError("execution_steps must be a non-negative integer")
+    if (
+        not isinstance(output["execution_steps"], int)
+        or isinstance(output["execution_steps"], bool)
+        or not 0 <= output["execution_steps"] <= MAX_DISCOVERY_EXECUTION_STEPS
+    ):
+        raise ValueError("execution_steps must be a bounded non-negative integer")
     for key in ("decision_points", "solution_families", "key_insight_evidence_keys"):
         if not isinstance(output[key], list):
             raise ValueError(f"{key} must be an array")
@@ -411,16 +457,37 @@ def validate_discovery_derivation_output(output: Mapping[str, Any]) -> dict[str,
         if decision["taxonomy"] not in DECISION_TAXONOMIES:
             raise ValueError("invalid decision taxonomy")
         _nonempty_string(decision["misconception_key"], "decision.misconception_key")
-        if not isinstance(decision["alternatives"], list) or not decision["alternatives"]:
-            raise ValueError("decision alternatives must be non-empty")
-        for key in ("alternatives", "step_ids", "depends_on"):
-            if not isinstance(decision[key], list) or any(not isinstance(item, str) or not item for item in decision[key]):
-                raise ValueError(f"decision.{key} must contain strings")
-        if not isinstance(decision["structural_prompt_span_hashes"], list) or any(
-            not isinstance(item, str) or not re.fullmatch(r"[0-9a-f]{64}", item)
-            for item in decision["structural_prompt_span_hashes"]
-        ):
-            raise ValueError("invalid decision prompt span hash")
+        _bounded_string_array(
+            decision["alternatives"],
+            "decision.alternatives",
+            maximum=MAX_DISCOVERY_ALTERNATIVES,
+            minimum=2,
+            unique=True,
+        )
+        step_ids = _bounded_string_array(
+            decision["step_ids"],
+            "decision.step_ids",
+            maximum=MAX_DISCOVERY_REFERENCE_IDS,
+            minimum=1,
+            unique=True,
+        )
+        _bounded_hash_array(
+            decision["structural_prompt_span_hashes"],
+            "decision.structural_prompt_span_hashes",
+            maximum=MAX_DISCOVERY_REFERENCE_IDS,
+        )
+        dependencies = _bounded_string_array(
+            decision["depends_on"],
+            "decision.depends_on",
+            maximum=MAX_DISCOVERY_DEPENDENCIES,
+            unique=True,
+        )
+        if solution_step_ids is not None and not set(step_ids).issubset(solution_step_ids):
+            raise ValueError("decision references an unknown solution step")
+        if structural_prompt_span_hashes is not None and not set(decision["structural_prompt_span_hashes"]).issubset(structural_prompt_span_hashes):
+            raise ValueError("decision references an unknown structural prompt span")
+        if any(dependency not in decision_ids for dependency in dependencies):
+            raise ValueError("decision depends_on references an unknown decision")
     for decision in output["decision_points"]:
         if not set(decision["depends_on"]).issubset(decision_ids):
             raise ValueError("decision depends_on references an unknown decision")
@@ -430,8 +497,28 @@ def validate_discovery_derivation_output(output: Mapping[str, Any]) -> dict[str,
         _check_keys(family, {"id", "first_action", "step_ids", "structural_prompt_span_hashes"}, "solution family")
         _require_keys(family, {"id", "first_action", "step_ids", "structural_prompt_span_hashes"}, "solution family")
         _nonempty_string(family["first_action"], "family.first_action")
-    if any(not isinstance(item, str) or not item for item in output["key_insight_evidence_keys"]):
-        raise ValueError("key insight evidence keys must contain strings")
+        family_step_ids = _bounded_string_array(
+            family["step_ids"],
+            "family.step_ids",
+            maximum=MAX_DISCOVERY_REFERENCE_IDS,
+            minimum=1,
+            unique=True,
+        )
+        family_span_hashes = _bounded_hash_array(
+            family["structural_prompt_span_hashes"],
+            "family.structural_prompt_span_hashes",
+            maximum=MAX_DISCOVERY_REFERENCE_IDS,
+        )
+        if solution_step_ids is not None and not set(family_step_ids).issubset(solution_step_ids):
+            raise ValueError("family references an unknown solution step")
+        if structural_prompt_span_hashes is not None and not set(family_span_hashes).issubset(structural_prompt_span_hashes):
+            raise ValueError("family references an unknown structural prompt span")
+    _bounded_string_array(
+        output["key_insight_evidence_keys"],
+        "key_insight_evidence_keys",
+        maximum=MAX_DISCOVERY_EVIDENCE_KEYS,
+        unique=True,
+    )
     return copy.deepcopy(output)
 
 
@@ -451,21 +538,48 @@ def _normalize_evidence_list(values: Any, label: str) -> list[str]:
     return sorted(normalized)
 
 
+def _normalize_stable_evidence_list(values: Any, label: str) -> list[str]:
+    if not isinstance(values, list):
+        raise ValueError(f"{label} must be an array")
+    if any(not isinstance(value, str) or value not in CANONICAL_EVIDENCE_KEYS for value in values):
+        raise ValueError(f"{label} contains an unknown stable evidence key")
+    if len(set(values)) != len(values):
+        raise ValueError(f"duplicate stable evidence key in {label}")
+    return sorted(values)
+
+
 def normalize_graph_evidence_contract(graph_node: Mapping[str, Any]) -> dict[str, Any]:
     node = _require_object(graph_node, "graph node")
-    if "evidence_keys" in node:
-        raw_evidence = node["evidence_keys"]
-    elif "evidence_required" in node:
-        raw_evidence = node["evidence_required"]
+    has_required = "evidence_required" in node
+    has_stable = "evidence_keys" in node
+    if not has_required and not has_stable:
+        raise ValueError("graph node must declare evidence_required or evidence_keys")
+    if has_required:
+        required_source = _normalize_evidence_list(node["evidence_required"], "evidence_required")
+        if not required_source:
+            raise ValueError("evidence_required must be non-empty")
     else:
-        raw_evidence = []
-    evidence_keys = _normalize_evidence_list(raw_evidence, "evidence_required")
-    raw_required = node["requires_for_mastery"] if "requires_for_mastery" in node else raw_evidence
-    requires_for_mastery = _normalize_evidence_list(raw_required, "requires_for_mastery")
+        required_source = []
+    if has_stable:
+        evidence_keys = _normalize_stable_evidence_list(node["evidence_keys"], "evidence_keys")
+        if not evidence_keys:
+            raise ValueError("evidence_keys must be non-empty")
+    else:
+        evidence_keys = required_source
+    if has_required and has_stable and set(required_source) != set(evidence_keys):
+        raise ValueError("evidence_required and evidence_keys do not agree")
+    if "requires_for_mastery" in node:
+        requires_for_mastery = _normalize_stable_evidence_list(
+            node["requires_for_mastery"], "requires_for_mastery"
+        )
+    else:
+        requires_for_mastery = required_source
     if not set(requires_for_mastery).issubset(set(evidence_keys)):
         raise ValueError("requires_for_mastery must be included in evidence_keys")
     raw_selective = node.get("selective_core_evidence_keys", [])
-    selective_core = _normalize_evidence_list(raw_selective, "selective_core_evidence_keys")
+    selective_core = _normalize_stable_evidence_list(
+        raw_selective, "selective_core_evidence_keys"
+    )
     if not set(selective_core).issubset(set(evidence_keys)):
         raise ValueError("selective_core_evidence_keys must be included in evidence_keys")
     policy = node.get("fixed_answer_mastery_policy", "observation_only")
