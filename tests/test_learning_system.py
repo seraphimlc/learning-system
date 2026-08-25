@@ -4350,6 +4350,7 @@ class LearningSystemTest(unittest.TestCase):
             "route_meta": {"source": "terminal-reuse-red-test"},
         }
         queue = job_queue.JobQueue(self.conn)
+
         first = queue.enqueue("answer_analysis", "v5:answer_analysis:terminal-reuse:1", payload)
         claimed = queue.claim("worker-terminal-a", db.now_iso())
         self.assertEqual(first.job_id, claimed[0]["id"])
@@ -4363,6 +4364,167 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual(1, self.conn.execute(
             "select count(*) from background_jobs where idempotency_key = ?",
             ("v5:answer_analysis:terminal-reuse:1",),
+        ).fetchone()[0])
+
+    def test_v5_active_same_key_conflicting_contract_digest_is_rejected(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        attempt = db.get_attempt(self.conn, lineage["attempt_id"])
+        payload = self._v5_job_payload_for_attempt(attempt)
+        queue = job_queue.JobQueue(self.conn)
+        idempotency_key = "v5:answer_analysis:active-digest-conflict:1"
+
+        queue.enqueue(
+            "answer_analysis",
+            idempotency_key,
+            payload,
+            contract_digest_sha256="a" * 64,
+        )
+
+        with self.assertRaisesRegex(ValueError, "conflicting contract digest"):
+            queue.enqueue(
+                "answer_analysis",
+                idempotency_key,
+                payload,
+                contract_digest_sha256="b" * 64,
+            )
+
+        self.assertEqual(
+            1,
+            self.conn.execute(
+                "select count(*) from background_jobs where idempotency_key = ?",
+                (idempotency_key,),
+            ).fetchone()[0],
+        )
+
+    def test_v5_terminal_same_key_conflicting_contract_digest_is_rejected(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        attempt = db.get_attempt(self.conn, lineage["attempt_id"])
+        payload = self._v5_job_payload_for_attempt(attempt)
+        queue = job_queue.JobQueue(self.conn)
+        idempotency_key = "v5:answer_analysis:terminal-digest-conflict:1"
+
+        first = queue.enqueue(
+            "answer_analysis",
+            idempotency_key,
+            payload,
+            contract_digest_sha256="a" * 64,
+        )
+        claimed = queue.claim("worker-terminal-conflict", db.now_iso())
+        self.assertEqual(first.job_id, claimed[0]["id"])
+        queue.start(first.job_id, "worker-terminal-conflict")
+        queue.finish(first.job_id, "worker-terminal-conflict", {"ok": True})
+
+        with self.assertRaisesRegex(ValueError, "conflicting contract digest"):
+            queue.enqueue(
+                "answer_analysis",
+                idempotency_key,
+                payload,
+                contract_digest_sha256="b" * 64,
+            )
+
+    def test_v5_legacy_terminal_empty_digest_reuses_without_backfill(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        attempt = db.get_attempt(self.conn, lineage["attempt_id"])
+        payload = self._v5_job_payload_for_attempt(attempt)
+        queue = job_queue.JobQueue(self.conn)
+        idempotency_key = "v5:answer_analysis:legacy-empty-digest:1"
+
+        first = queue.enqueue("answer_analysis", idempotency_key, payload)
+        claimed = queue.claim("worker-legacy-terminal", db.now_iso())
+        self.assertEqual(first.job_id, claimed[0]["id"])
+        queue.start(first.job_id, "worker-legacy-terminal")
+        queue.finish(first.job_id, "worker-legacy-terminal", {"legacy": True})
+
+        replay = queue.enqueue(
+            "answer_analysis",
+            idempotency_key,
+            payload,
+            contract_digest_sha256="d" * 64,
+        )
+
+        self.assertTrue(replay.reused_existing)
+        self.assertEqual(first.job_id, replay.job_id)
+        row = self.conn.execute(
+            "select contract_digest_sha256 from background_jobs where id = ?",
+            (first.job_id,),
+        ).fetchone()
+        self.assertEqual("", row["contract_digest_sha256"])
+
+    def test_v5_legacy_active_empty_digest_reuses_without_backfill(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        attempt = db.get_attempt(self.conn, lineage["attempt_id"])
+        payload = self._v5_job_payload_for_attempt(attempt)
+        queue = job_queue.JobQueue(self.conn)
+
+        for status in ("claimed", "retry"):
+            with self.subTest(status=status):
+                idempotency_key = f"v5:answer_analysis:legacy-active-empty-digest:{status}"
+                first = queue.enqueue("answer_analysis", idempotency_key, payload)
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first.job_id),
+                )
+                self.conn.commit()
+
+                replay = queue.enqueue(
+                    "answer_analysis",
+                    idempotency_key,
+                    payload,
+                    contract_digest_sha256="d" * 64,
+                )
+
+                self.assertTrue(replay.reused_existing)
+                self.assertEqual(first.job_id, replay.job_id)
+                row = self.conn.execute(
+                    "select contract_digest_sha256 from background_jobs where id = ?",
+                    (first.job_id,),
+                ).fetchone()
+                self.assertEqual("", row["contract_digest_sha256"])
+
+    def test_v5_terminal_same_key_same_digest_replay_preserves_terminal_row(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        payload = {
+            "payload_schema_version": "2026-07-11.v5.model-job.v1",
+            "legacy_session_id": lineage["session_id"],
+            "flow_id": lineage["flow_id"],
+            "flow_revision": 1,
+            "flow_step_id": lineage["flow_step_id"],
+            "step_revision": 1,
+            "attempt_id": lineage["attempt_id"],
+            "attempt_version": 1,
+            "analysis_version": 1,
+            "graph_version": lineage["graph_version"],
+            "question_bank_version": question_bank.QUESTION_BANK_VERSION,
+            "question_id": lineage["question"]["id"],
+            "review_record_id": lineage["review_record_id"],
+            "provider_mode": "recorded_model",
+            "route_meta": {"source": "terminal-reuse-red-test"},
+        }
+        queue = job_queue.JobQueue(self.conn)
+        contract_digest = "e" * 64
+        first = queue.enqueue(
+            "answer_analysis",
+            "v5:answer_analysis:terminal-reuse-explicit:1",
+            payload,
+            contract_digest_sha256=contract_digest,
+        )
+        claimed = queue.claim("worker-terminal-a", db.now_iso())
+        self.assertEqual(first.job_id, claimed[0]["id"])
+        queue.start(first.job_id, "worker-terminal-a")
+        queue.finish(first.job_id, "worker-terminal-a", {"answer_analysis_agent_run_id": "AR-terminal"})
+
+        duplicate = queue.enqueue(
+            "answer_analysis",
+            "v5:answer_analysis:terminal-reuse-explicit:1",
+            payload,
+            contract_digest_sha256=contract_digest,
+        )
+
+        self.assertTrue(duplicate.reused_existing)
+        self.assertEqual(first.job_id, duplicate.job_id)
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from background_jobs where idempotency_key = ?",
+            ("v5:answer_analysis:terminal-reuse-explicit:1",),
         ).fetchone()[0])
 
     def test_v5_waiting_jobs_are_child_wait_only_not_generic_worker_runnable(self):
@@ -8335,6 +8497,136 @@ class LearningSystemTest(unittest.TestCase):
         queue.finish(parent.job_id, "worker-dep", {"done": True}, now="2026-07-10T00:00:01.000000")
         child_claimed = queue.claim("worker-child", "2026-07-10T00:00:01.000000", limit=2)
         self.assertEqual([child.job_id], [row["id"] for row in child_claimed])
+
+    def test_v3_job_queue_persists_explicit_contract_digest(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        payload = {
+            "payload_schema_version": job_queue.V3_JOB_PAYLOAD_SCHEMA_VERSION,
+            "legacy_session_id": lineage["session_id"],
+            "flow_id": lineage["flow_id"],
+            "flow_revision": 1,
+            "flow_step_id": lineage["flow_step_id"],
+            "step_revision": 1,
+            "attempt_id": lineage["attempt_id"],
+            "attempt_version": 1,
+            "analysis_version": 1,
+            "graph_version": lineage["graph_version"],
+            "question_bank_version": question_bank.QUESTION_BANK_VERSION,
+            "question_id": lineage["question"]["id"],
+            "review_record_id": lineage["review_record_id"],
+            "provider_mode": "real",
+        }
+        digest = "c" * 64
+
+        result = job_queue.JobQueue(self.conn).enqueue(
+            "answer_analysis",
+            "v3:test:job:contract-digest",
+            payload,
+            contract_digest_sha256=digest,
+        )
+
+        row = self.conn.execute(
+            "select contract_digest_sha256 from background_jobs where id = ?",
+            (result.job_id,),
+        ).fetchone()
+        self.assertEqual(digest, row["contract_digest_sha256"])
+
+    def test_v5_active_or_terminal_job_requires_digest_for_replay(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        attempt = db.get_attempt(self.conn, lineage["attempt_id"])
+        payload = self._v5_job_payload_for_attempt(attempt)
+        queue = job_queue.JobQueue(self.conn)
+
+        for status in ("queued", "claimed", "running", "waiting", "retry"):
+            with self.subTest(status=status):
+                idempotency_key = f"v5:answer_analysis:missing-active-digest:{status}"
+                first = queue.enqueue(
+                    "answer_analysis",
+                    idempotency_key,
+                    payload,
+                    contract_digest_sha256="a" * 64,
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first.job_id),
+                )
+                self.conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "requires contract digest"):
+                    queue.enqueue("answer_analysis", idempotency_key, payload)
+
+        for status in ("succeeded", "blocked", "dead_letter"):
+            with self.subTest(status=status):
+                idempotency_key = f"v5:answer_analysis:missing-terminal-digest:{status}"
+                first = queue.enqueue(
+                    "answer_analysis",
+                    idempotency_key,
+                    payload,
+                    contract_digest_sha256="a" * 64,
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first.job_id),
+                )
+                self.conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "requires contract digest"):
+                    queue.enqueue("answer_analysis", idempotency_key, payload)
+
+    def test_v3_job_queue_rejects_invalid_contract_digest(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        attempt = db.get_attempt(self.conn, lineage["attempt_id"])
+        payload = self._v5_job_payload_for_attempt(attempt)
+        queue = job_queue.JobQueue(self.conn)
+
+        invalid_digests = (
+            (123, TypeError),
+            ("a" * 63, ValueError),
+            ("g" * 64, ValueError),
+            ("a" * 65, ValueError),
+        )
+        for index, (digest, expected_error) in enumerate(invalid_digests):
+            with self.subTest(digest=digest):
+                with self.assertRaises(expected_error):
+                    queue.enqueue(
+                        "answer_analysis",
+                        f"v5:answer_analysis:invalid-digest:{index}",
+                        payload,
+                        contract_digest_sha256=digest,
+                    )
+
+    def test_legacy_background_job_extracts_contract_digest_and_keeps_empty_default(self):
+        lineage = self._create_v3_attempt_with_lineage()
+        digest = "d" * 64
+        contract_job = db.enqueue_background_job(
+            self.conn,
+            job_type="answer_review",
+            session_id=lineage["session_id"],
+            attempt_id=lineage["attempt_id"],
+            payload={"contract": {"contract_digest_sha256": digest}},
+        )
+        stored_contract_job = self.conn.execute(
+            "select contract_digest_sha256 from background_jobs where id = ?",
+            (contract_job["id"],),
+        ).fetchone()
+        self.assertEqual(digest, stored_contract_job["contract_digest_sha256"])
+
+        legacy_session_id = db.create_session(
+            self.conn,
+            "legacy background-job digest default",
+            mode="child_learning",
+        )
+        legacy_job = db.enqueue_background_job(
+            self.conn,
+            job_type="answer_review",
+            session_id=legacy_session_id,
+            payload={"try": 1},
+        )
+        stored_legacy_job = self.conn.execute(
+            "select contract_digest_sha256 from background_jobs where id = ?",
+            (legacy_job["id"],),
+        ).fetchone()
+        self.assertEqual("", stored_legacy_job["contract_digest_sha256"])
 
     def test_v3_evidence_gate_requires_real_lineage_before_usable(self):
         lineage = self._create_v3_attempt_with_lineage(flow_step_exists=False)
@@ -15104,6 +15396,356 @@ class LearningSystemTest(unittest.TestCase):
         self.assertEqual(1, len(rows))
         self.assertEqual("succeeded", rows[0]["status"])
         self.assertEqual(2, rows[0]["run_count"])
+
+    def test_background_job_reuses_claimed_or_retry_job_with_same_digest(self):
+        for status in ("claimed", "retry"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"active {status} digest replay",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": "a" * 64},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                replay = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": "a" * 64},
+                )
+
+                self.assertEqual(first["id"], replay["id"])
+                self.assertEqual(
+                    1,
+                    self.conn.execute(
+                        "select count(*) from background_jobs where session_id = ?",
+                        (session_id,),
+                    ).fetchone()[0],
+                )
+
+    def test_background_job_reuses_claimed_or_retry_legacy_empty_digest_without_backfill(self):
+        for status in ("claimed", "retry"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"active {status} legacy empty digest replay",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                replay = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={},
+                    contract_digest_sha256="d" * 64,
+                )
+
+                self.assertEqual(first["id"], replay["id"])
+                self.assertEqual(
+                    "",
+                    self.conn.execute(
+                        "select contract_digest_sha256 from background_jobs where id = ?",
+                        (first["id"],),
+                    ).fetchone()["contract_digest_sha256"],
+                )
+                self.assertEqual(
+                    1,
+                    self.conn.execute(
+                        "select count(*) from background_jobs where session_id = ?",
+                        (session_id,),
+                    ).fetchone()[0],
+                )
+
+    def test_background_job_rejects_claimed_or_retry_job_with_different_digest(self):
+        for status in ("claimed", "retry"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"active {status} digest conflict",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": "a" * 64},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "conflicting contract digest"):
+                    db.enqueue_background_job(
+                        self.conn,
+                        job_type="answer_review",
+                        session_id=session_id,
+                        payload={"contract_digest_sha256": "b" * 64},
+                    )
+
+                self.assertEqual(
+                    1,
+                    self.conn.execute(
+                        "select count(*) from background_jobs where session_id = ?",
+                        (session_id,),
+                    ).fetchone()[0],
+                )
+
+    def test_legacy_background_job_reuses_terminal_job_with_same_digest(self):
+        for status in ("succeeded", "blocked", "dead_letter"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"terminal {status} same digest replay",
+                    mode="child_learning_group",
+                )
+                digest = "a" * 64
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": digest},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                replay = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": digest},
+                )
+
+                self.assertEqual(first["id"], replay["id"])
+                self.assertEqual(status, replay["status"])
+                self.assertEqual(
+                    1,
+                    self.conn.execute(
+                        "select count(*) from background_jobs where session_id = ?",
+                        (session_id,),
+                    ).fetchone()[0],
+                )
+
+    def test_legacy_background_job_rejects_terminal_job_with_different_digest(self):
+        for status in ("succeeded", "blocked", "dead_letter"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"terminal {status} digest conflict",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": "a" * 64},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "conflicting contract digest"):
+                    db.enqueue_background_job(
+                        self.conn,
+                        job_type="answer_review",
+                        session_id=session_id,
+                        payload={"contract_digest_sha256": "b" * 64},
+                    )
+
+                self.assertEqual(
+                    1,
+                    self.conn.execute(
+                        "select count(*) from background_jobs where session_id = ?",
+                        (session_id,),
+                    ).fetchone()[0],
+                )
+
+    def test_legacy_background_job_reuses_terminal_empty_digest_without_backfill(self):
+        for status in ("succeeded", "blocked", "dead_letter"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"terminal {status} empty digest replay",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                replay = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={},
+                    contract_digest_sha256="d" * 64,
+                )
+
+                self.assertEqual(first["id"], replay["id"])
+                self.assertEqual(status, replay["status"])
+                self.assertEqual(
+                    "",
+                    self.conn.execute(
+                        "select contract_digest_sha256 from background_jobs where id = ?",
+                        (first["id"],),
+                    ).fetchone()["contract_digest_sha256"],
+                )
+                self.assertEqual(
+                    1,
+                    self.conn.execute(
+                        "select count(*) from background_jobs where session_id = ?",
+                        (session_id,),
+                    ).fetchone()[0],
+                )
+
+    def test_legacy_background_job_requires_digest_for_active_or_terminal_replay(self):
+        for status in ("queued", "claimed", "running", "waiting", "retry", "error"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"missing active {status} digest",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": "a" * 64},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "requires contract digest"):
+                    db.enqueue_background_job(
+                        self.conn,
+                        job_type="answer_review",
+                        session_id=session_id,
+                        payload={},
+                    )
+
+        for status in ("succeeded", "blocked", "dead_letter"):
+            with self.subTest(status=status):
+                session_id = db.create_session(
+                    self.conn,
+                    f"missing terminal {status} digest",
+                    mode="child_learning_group",
+                )
+                first = db.enqueue_background_job(
+                    self.conn,
+                    job_type="answer_review",
+                    session_id=session_id,
+                    payload={"contract_digest_sha256": "a" * 64},
+                )
+                self.conn.execute(
+                    "update background_jobs set status = ? where id = ?",
+                    (status, first["id"]),
+                )
+                self.conn.commit()
+
+                with self.assertRaisesRegex(ValueError, "requires contract digest"):
+                    db.enqueue_background_job(
+                        self.conn,
+                        job_type="answer_review",
+                        session_id=session_id,
+                        payload={},
+                    )
+
+    def test_legacy_background_job_rejects_invalid_contract_digest(self):
+        invalid_digests = (
+            (123, TypeError),
+            ("a" * 63, ValueError),
+            ("g" * 64, ValueError),
+            ("a" * 65, ValueError),
+        )
+        for index, (digest, expected_error) in enumerate(invalid_digests):
+            with self.subTest(digest=digest):
+                session_id = db.create_session(
+                    self.conn,
+                    f"invalid digest {index}",
+                    mode="child_learning_group",
+                )
+                with self.assertRaises(expected_error):
+                    db.enqueue_background_job(
+                        self.conn,
+                        job_type="answer_review",
+                        session_id=session_id,
+                        payload={"contract_digest_sha256": digest},
+                    )
+
+        session_id = db.create_session(
+            self.conn,
+            "invalid explicit digest",
+            mode="child_learning_group",
+        )
+        with self.assertRaises(ValueError):
+            db.enqueue_background_job(
+                self.conn,
+                job_type="answer_review",
+                session_id=session_id,
+                payload={},
+                contract_digest_sha256="a" * 63,
+            )
+
+    def test_legacy_background_job_requires_dict_or_none_payload(self):
+        session_id = db.create_session(
+            self.conn,
+            "invalid background-job payload",
+            mode="child_learning_group",
+        )
+        for payload in ([], "payload", 1):
+            with self.subTest(payload=payload):
+                with self.assertRaises(TypeError):
+                    db.enqueue_background_job(
+                        self.conn,
+                        job_type="answer_review",
+                        session_id=session_id,
+                        payload=payload,
+                    )
+
+        job = db.enqueue_background_job(
+            self.conn,
+            job_type="answer_review",
+            session_id=session_id,
+            payload=None,
+        )
+        self.assertEqual({}, job["payload"])
 
     def test_child_bootstrap_recovers_waiting_ai_background_review(self):
         httpd, base_url = server.start_test_server(self.db_path)

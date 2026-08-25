@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -335,6 +336,22 @@ def init_schema(conn: sqlite3.Connection) -> None:
           purpose_role text not null default 'core',
           answer_verification text not null default 'pending',
           design_rationale_json text not null default '{}',
+          discovery_depth text,
+          execution_steps integer,
+          key_insight text,
+          graph_mode text,
+          evidence_profile_json text,
+          review_packet_sha256 text,
+          node_contract_sha256 text,
+          prompt_sha256 text,
+          interaction_schema_sha256 text,
+          discovery_derivation_sha256 text,
+          structural_derivation_digest_sha256 text,
+          exact_instance_fingerprint text,
+          family_fingerprint text,
+          fingerprint_policy_version text,
+          quality_receipt_json text,
+          quality_receipt_sha256 text,
           prompt text not null,
           answer_format text not null,
           expected_answer text not null,
@@ -717,6 +734,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
           analysis_version integer not null default 0,
           graph_version text not null default '',
           question_bank_version text not null default '',
+          contract_digest_sha256 text not null default '',
           question_id text,
           review_record_id text not null default '',
           candidate_packet_id text not null default '',
@@ -772,6 +790,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
           review_provider_chain_digest_sha256 text not null default '',
           review_receipt_json text not null default '{}',
           review_receipt_sha256 text not null default '',
+          evidence_profile_json text,
+          evidence_profile_sha256 text,
+          mastery_update_mode text,
+          mastery_state_ceiling text,
           fingerprint_policy_version text not null default '',
           prompt_instance_fingerprint text not null default '',
           core_structure_fingerprint text not null default '',
@@ -977,6 +999,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
           semantic_output_digest_sha256 text not null default '',
           semantic_envelope_json text not null default '{}',
           semantic_checkpointed_at text,
+          evidence_profile_json text,
+          evidence_profile_sha256 text,
+          mastery_update_mode text,
+          mastery_state_ceiling text,
           trust_label text not null default 'pending',
           provider_mode text not null default 'not_configured',
           answer_analysis_agent_run_id text references agent_runs(id),
@@ -989,6 +1015,18 @@ def init_schema(conn: sqlite3.Connection) -> None:
           superseded_at text,
           created_at text not null,
           updated_at text not null
+        );
+
+        create table if not exists fixed_assessment_effects (
+          effect_key text primary key,
+          attempt_id text not null,
+          attempt_version integer not null,
+          contract_digest_sha256 text not null,
+          result_json text not null,
+          profile_json text not null,
+          ceiling text not null,
+          created_at text not null,
+          unique(attempt_id, attempt_version)
         );
 
         create table if not exists model_response_checkpoints (
@@ -1313,6 +1351,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
         create index if not exists idx_mastery_decisions_session on mastery_decisions(session_id);
         create index if not exists idx_background_jobs_session_status on background_jobs(session_id, status);
         create index if not exists idx_background_jobs_attempt on background_jobs(attempt_id);
+        create unique index if not exists idx_fixed_assessment_effects_effect_key
+          on fixed_assessment_effects(effect_key);
+        create unique index if not exists idx_fixed_assessment_effects_attempt_version
+          on fixed_assessment_effects(attempt_id, attempt_version);
         create unique index if not exists idx_agent_runs_unique_session_phase_trigger
           on agent_runs(agent_key, session_id, phase, trigger);
         create unique index if not exists idx_question_review_records_unique_question
@@ -1391,6 +1433,33 @@ def init_schema(conn: sqlite3.Connection) -> None:
         "design_rationale_json",
         "text not null default '{}'",
     )
+    for column, declaration in (
+        ("discovery_depth", "text"),
+        ("execution_steps", "integer"),
+        ("key_insight", "text"),
+        ("graph_mode", "text"),
+        ("evidence_profile_json", "text"),
+        ("review_packet_sha256", "text"),
+        ("node_contract_sha256", "text"),
+        ("prompt_sha256", "text"),
+        ("interaction_schema_sha256", "text"),
+        ("discovery_derivation_sha256", "text"),
+        ("structural_derivation_digest_sha256", "text"),
+        ("exact_instance_fingerprint", "text"),
+        ("family_fingerprint", "text"),
+        ("fingerprint_policy_version", "text"),
+        ("quality_receipt_json", "text"),
+        ("quality_receipt_sha256", "text"),
+    ):
+        _ensure_column(conn, "question_items", column, declaration)
+    conn.execute(
+        "create index if not exists idx_questions_exact_instance_fingerprint "
+        "on question_items(exact_instance_fingerprint)"
+    )
+    conn.execute(
+        "create index if not exists idx_questions_family_fingerprint "
+        "on question_items(family_fingerprint)"
+    )
     conn.execute(
         "create index if not exists idx_questions_production_category "
         "on question_items(production_category, item_version)"
@@ -1433,6 +1502,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "answer_contracts", "review_contract_schema_version", "text not null default ''")
     _ensure_column(conn, "answer_contracts", "design_receipt_json", "text not null default '{}'")
     _ensure_column(conn, "answer_contracts", "design_receipt_sha256", "text not null default ''")
+    _ensure_column(conn, "answer_contracts", "evidence_profile_json", "text")
+    _ensure_column(conn, "answer_contracts", "evidence_profile_sha256", "text")
+    _ensure_column(conn, "answer_contracts", "mastery_update_mode", "text")
+    _ensure_column(conn, "answer_contracts", "mastery_state_ceiling", "text")
     _ensure_column(conn, "answer_contracts", "repair_iteration", "integer not null default 0")
     _ensure_column(conn, "answer_contracts", "repair_issue_digest_sha256", "text not null default ''")
     _ensure_column(
@@ -1507,6 +1580,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "attempt_assessments", "semantic_output_digest_sha256", "text not null default ''")
     _ensure_column(conn, "attempt_assessments", "semantic_envelope_json", "text not null default '{}'")
     _ensure_column(conn, "attempt_assessments", "semantic_checkpointed_at", "text")
+    _ensure_column(conn, "attempt_assessments", "evidence_profile_json", "text")
+    _ensure_column(conn, "attempt_assessments", "evidence_profile_sha256", "text")
+    _ensure_column(conn, "attempt_assessments", "mastery_update_mode", "text")
+    _ensure_column(conn, "attempt_assessments", "mastery_state_ceiling", "text")
     _ensure_column(conn, "evidence_validations", "assessment_id", "text references attempt_assessments(id)")
     _ensure_column(conn, "evidence_validations", "assessment_version", "integer")
     _ensure_column(conn, "evidence_validations", "assessment_digest_sha256", "text")
@@ -1545,6 +1622,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "background_jobs", "analysis_version", "integer not null default 0")
     _ensure_column(conn, "background_jobs", "graph_version", "text not null default ''")
     _ensure_column(conn, "background_jobs", "question_bank_version", "text not null default ''")
+    _ensure_column(conn, "background_jobs", "contract_digest_sha256", "text not null default ''")
     _ensure_column(conn, "background_jobs", "question_id", "text")
     _ensure_column(conn, "background_jobs", "review_record_id", "text not null default ''")
     _ensure_column(conn, "background_jobs", "candidate_packet_id", "text not null default ''")
@@ -1563,6 +1641,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "background_jobs", "blocked_reason", "text not null default ''")
     _ensure_column(conn, "background_jobs", "dead_letter_reason", "text not null default ''")
     _ensure_column(conn, "background_jobs", "route_meta_json", "text not null default '{}'")
+    conn.execute(
+        "create index if not exists idx_background_jobs_contract_digest "
+        "on background_jobs(contract_digest_sha256)"
+    )
     _ensure_column(conn, "media_recognition_runs", "trust_classification", "text not null default 'unknown'")
     _ensure_column(conn, "generated_plans", "planner_policy_version", "text not null default ''")
     _ensure_column(conn, "generated_plans", "plan_meta_json", "text not null default '{}'")
@@ -1671,6 +1753,157 @@ def _canonical_digest_json(value: Any) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+class FixedAssessmentEffectConflict(ValueError):
+    """Raised when one attempt version is reused with another contract digest."""
+
+
+def fixed_assessment_effect_key(
+    attempt_id: str,
+    attempt_version: int,
+    contract_digest_sha256: str,
+) -> str:
+    if not isinstance(attempt_id, str) or not attempt_id.strip():
+        raise ValueError("attempt_id must be a non-empty string")
+    if isinstance(attempt_version, bool) or not isinstance(attempt_version, int) or attempt_version <= 0:
+        raise ValueError("attempt_version must be a positive integer")
+    digest = _normalize_sha256_digest(
+        contract_digest_sha256,
+        field_name="contract_digest_sha256",
+    )
+    return f"fixed_assessment:{attempt_id}:{attempt_version}:{digest}"
+
+
+def _fixed_assessment_effect_from_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    data = dict(row)
+    data["result"] = json_load(data.pop("result_json"), None)
+    data["profile"] = json_load(data.pop("profile_json"), {})
+    return data
+
+
+def record_fixed_assessment_effect(
+    conn: sqlite3.Connection,
+    *,
+    attempt_id: str,
+    attempt_version: int,
+    contract_digest_sha256: str,
+    result: Any,
+    profile: dict[str, Any],
+    ceiling: str,
+    commit: bool = True,
+) -> dict[str, Any]:
+    """Persist or replay one fixed-answer reducer effect.
+
+    The attempt/version uniqueness constraint is the guard against applying a
+    second reducer effect when a retry arrives with a different contract.
+    """
+    contract_digest_sha256 = _normalize_sha256_digest(
+        contract_digest_sha256,
+        field_name="contract_digest_sha256",
+    )
+    effect_key = fixed_assessment_effect_key(
+        attempt_id, attempt_version, contract_digest_sha256
+    )
+    if not isinstance(profile, dict):
+        raise TypeError("profile must be a mapping")
+    if not isinstance(ceiling, str) or not ceiling.strip():
+        raise ValueError("ceiling must be a non-empty string")
+    result_json = json_dump(result)
+    profile_json = json_dump(profile)
+    owns_transaction = not conn.in_transaction
+    if owns_transaction:
+        conn.execute("begin immediate")
+    try:
+        existing = conn.execute(
+            """
+            select *
+            from fixed_assessment_effects
+            where attempt_id = ? and attempt_version = ?
+            limit 1
+            """,
+            (attempt_id, attempt_version),
+        ).fetchone()
+        if existing:
+            existing_digest = _normalize_sha256_digest(
+                existing["contract_digest_sha256"],
+                field_name="stored contract_digest_sha256",
+            )
+            if (
+                existing_digest != contract_digest_sha256
+            ):
+                raise FixedAssessmentEffectConflict(
+                    "fixed assessment has a conflicting contract digest"
+                )
+            stored = _fixed_assessment_effect_from_row(existing)
+            if owns_transaction and commit:
+                conn.commit()
+            return stored
+
+        created_at = now_iso()
+        try:
+            conn.execute(
+                """
+                insert into fixed_assessment_effects(
+                  effect_key, attempt_id, attempt_version,
+                  contract_digest_sha256, result_json, profile_json,
+                  ceiling, created_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    effect_key,
+                    attempt_id,
+                    attempt_version,
+                    contract_digest_sha256,
+                    result_json,
+                    profile_json,
+                    ceiling,
+                    created_at,
+                ),
+            )
+        except sqlite3.IntegrityError:
+            existing = conn.execute(
+                """
+                select *
+                from fixed_assessment_effects
+                where attempt_id = ? and attempt_version = ?
+                limit 1
+                """,
+                (attempt_id, attempt_version),
+            ).fetchone()
+            if existing is None:
+                raise
+            existing_digest = _normalize_sha256_digest(
+                existing["contract_digest_sha256"],
+                field_name="stored contract_digest_sha256",
+            )
+            if (
+                existing_digest != contract_digest_sha256
+            ):
+                raise FixedAssessmentEffectConflict(
+                    "fixed assessment has a conflicting contract digest"
+                )
+            stored = _fixed_assessment_effect_from_row(existing)
+            if owns_transaction and commit:
+                conn.commit()
+            return stored
+
+        stored = _fixed_assessment_effect_from_row(
+            conn.execute(
+                "select * from fixed_assessment_effects where effect_key = ?",
+                (effect_key,),
+            ).fetchone()
+        )
+        if owns_transaction and commit:
+            conn.commit()
+        return stored
+    except Exception:
+        if owns_transaction:
+            conn.rollback()
+        raise
+
+
+get_or_record_fixed_assessment_effect = record_fixed_assessment_effect
+
+
 BACKGROUND_JOB_TYPES = {
     "answer_review",
     "answer_analysis",
@@ -1694,6 +1927,90 @@ ACTIVE_BACKGROUND_JOB_STATUSES = {"queued", "running"}
 V3_ACTIVE_BACKGROUND_JOB_STATUSES = {"queued", "claimed", "running", "waiting", "retry"}
 
 
+_CONTRACT_DIGEST_PATTERN = re.compile(r"[0-9a-fA-F]{64}")
+
+
+def _normalize_sha256_digest(
+    value: Any,
+    *,
+    field_name: str = "sha256",
+    allow_empty: bool = False,
+) -> str:
+    if value is None:
+        if allow_empty:
+            return ""
+        raise ValueError(f"{field_name} must be a 64-character hexadecimal SHA-256 digest")
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{field_name} must be a 64-character hexadecimal SHA-256 digest")
+    if _CONTRACT_DIGEST_PATTERN.fullmatch(value) is None:
+        raise ValueError(f"{field_name} must be a 64-character hexadecimal SHA-256 digest")
+    return value.lower()
+
+
+def _validate_contract_digest(value: Any, *, field_name: str = "contract_digest_sha256") -> str:
+    if value is not None and not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string or None")
+    return _normalize_sha256_digest(value, field_name=field_name, allow_empty=True)
+
+
+def _contract_digests_equal(left: str, right: str) -> bool:
+    return left.lower() == right.lower()
+
+
+def _assert_contract_digest_compatible(
+    existing_digest: str | None,
+    incoming_digest: str,
+    *,
+    job_label: str,
+) -> None:
+    existing_digest = existing_digest or ""
+    if existing_digest and not incoming_digest:
+        raise ValueError(f"{job_label} requires contract digest")
+    if (
+        existing_digest
+        and incoming_digest
+        and not _contract_digests_equal(existing_digest, incoming_digest)
+    ):
+        raise ValueError(f"{job_label} has a conflicting contract digest")
+
+
+def _trusted_contract_digest_from_payload(payload: dict[str, Any] | None) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    candidates: list[str] = []
+    for key in ("contract_digest_sha256", "answer_contract_digest_sha256"):
+        if key in payload:
+            value = _validate_contract_digest(payload[key], field_name=f"payload.{key}")
+            if value:
+                candidates.append(value)
+    for key in ("contract", "answer_contract"):
+        contract = payload.get(key)
+        if isinstance(contract, dict):
+            if "contract_digest_sha256" in contract:
+                value = _validate_contract_digest(
+                    contract["contract_digest_sha256"],
+                    field_name=f"payload.{key}.contract_digest_sha256",
+                )
+                if value:
+                    candidates.append(value)
+    if not candidates:
+        return ""
+    if any(not _contract_digests_equal(value, candidates[0]) for value in candidates[1:]):
+        raise ValueError("conflicting contract digest values in job payload")
+    return candidates[0]
+
+
+def resolve_contract_digest_sha256(
+    payload: dict[str, Any] | None,
+    explicit_digest: str | None = None,
+) -> str:
+    payload_digest = _trusted_contract_digest_from_payload(payload)
+    explicit_digest = _validate_contract_digest(explicit_digest)
+    if explicit_digest and payload_digest and not _contract_digests_equal(explicit_digest, payload_digest):
+        raise ValueError("explicit contract digest conflicts with job payload")
+    return explicit_digest or payload_digest
+
+
 def _background_job_from_row(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -1702,6 +2019,7 @@ def _background_job_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "attempt_id": row["attempt_id"],
         "status": row["status"],
         "run_count": int(row["run_count"]),
+        "contract_digest_sha256": row["contract_digest_sha256"],
         "payload": json_load(row["payload_json"], {}),
         "last_error": row["last_error"],
         "created_at": row["created_at"],
@@ -1718,10 +2036,20 @@ def enqueue_background_job(
     session_id: str,
     attempt_id: str | None = None,
     payload: dict[str, Any] | None = None,
+    contract_digest_sha256: str | None = None,
     commit: bool = True,
 ) -> dict[str, Any]:
     if job_type not in BACKGROUND_JOB_TYPES:
         raise ValueError(f"Invalid background job type: {job_type}")
+    if payload is None:
+        payload = {}
+    elif not isinstance(payload, dict):
+        raise TypeError("background job payload must be a dict or None")
+    contract_digest_sha256 = resolve_contract_digest_sha256(
+        payload,
+        contract_digest_sha256,
+    )
+    owns_transaction = not conn.in_transaction
     existing = conn.execute(
         """
         select *
@@ -1729,27 +2057,50 @@ def enqueue_background_job(
         where job_type = ?
           and session_id = ?
           and coalesce(attempt_id, '') = coalesce(?, '')
-          and status in ('queued', 'running', 'waiting', 'error')
+          and status in (
+            'queued', 'claimed', 'running', 'waiting', 'retry', 'error',
+            'succeeded', 'blocked', 'dead_letter'
+          )
         order by created_at desc, id desc
         limit 1
         """,
         (job_type, session_id, attempt_id),
     ).fetchone()
     if existing:
+        _assert_contract_digest_compatible(
+            existing["contract_digest_sha256"],
+            contract_digest_sha256,
+            job_label="existing background job",
+        )
         return _background_job_from_row(existing)
     now = now_iso()
     job_id = f"BJ-{uuid.uuid4().hex[:12]}"
-    conn.execute(
-        """
-        insert into background_jobs(
-          id, job_type, session_id, attempt_id, status, run_count,
-          payload_json, last_error, created_at, updated_at, started_at, finished_at
-        ) values (?, ?, ?, ?, 'queued', 0, ?, '', ?, ?, null, null)
-        """,
-        (job_id, job_type, session_id, attempt_id, json_dump(payload or {}), now, now),
-    )
-    if commit:
-        conn.commit()
+    try:
+        conn.execute(
+            """
+            insert into background_jobs(
+              id, job_type, session_id, attempt_id, status, run_count,
+              payload_json, last_error, contract_digest_sha256,
+              created_at, updated_at, started_at, finished_at
+            ) values (?, ?, ?, ?, 'queued', 0, ?, '', ?, ?, ?, null, null)
+            """,
+            (
+                job_id,
+                job_type,
+                session_id,
+                attempt_id,
+                json_dump(payload),
+                contract_digest_sha256,
+                now,
+                now,
+            ),
+        )
+        if owns_transaction and commit:
+            conn.commit()
+    except Exception:
+        if owns_transaction:
+            conn.rollback()
+        raise
     return {
         "id": job_id,
         "job_type": job_type,
@@ -1757,7 +2108,8 @@ def enqueue_background_job(
         "attempt_id": attempt_id,
         "status": "queued",
         "run_count": 0,
-        "payload": payload or {},
+        "contract_digest_sha256": contract_digest_sha256,
+        "payload": payload,
         "last_error": "",
         "created_at": now,
         "updated_at": now,

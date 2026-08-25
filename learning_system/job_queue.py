@@ -75,12 +75,15 @@ class JobQueue:
         payload: dict[str, Any],
         *,
         depends_on_job_id: str | None = None,
+        contract_digest_sha256: str | None = None,
         commit: bool = True,
     ) -> JobQueueResult:
         if job_type not in V3_JOB_TYPES:
             raise ValueError(f"Invalid v3 job type: {job_type}")
         if not idempotency_key:
             raise ValueError("v3 job idempotency_key is required")
+        if not isinstance(payload, dict):
+            raise TypeError("v3 job payload must be a dict")
         session_id = str(payload.get("legacy_session_id") or payload.get("session_id") or "")
         if not session_id:
             raise ValueError("v3 job payload requires legacy_session_id")
@@ -91,10 +94,23 @@ class JobQueue:
         missing = [key for key in required if not payload.get(key)]
         if missing:
             raise ValueError("v3 job payload missing required lineage: " + ", ".join(missing))
+        contract_digest_sha256 = db.resolve_contract_digest_sha256(
+            payload,
+            contract_digest_sha256,
+        )
+        contract_identity = (
+            payload.get("answer_contract_id")
+            or payload.get("contract_id")
+            or payload.get("contract")
+            or payload.get("answer_contract")
+        )
+        if contract_identity and not contract_digest_sha256:
+            raise ValueError("v3 contract job requires contract_digest_sha256")
 
+        owns_transaction = not self.conn.in_transaction
         existing = self.conn.execute(
             """
-            select id, status
+            select id, status, contract_digest_sha256
             from background_jobs
             where idempotency_key = ?
               and status in ('queued','claimed','running','waiting','retry')
@@ -104,12 +120,22 @@ class JobQueue:
             (idempotency_key,),
         ).fetchone()
         if existing:
+            db._assert_contract_digest_compatible(
+                existing["contract_digest_sha256"],
+                contract_digest_sha256,
+                job_label="existing v3 job",
+            )
             return JobQueueResult(job_id=existing["id"], status=existing["status"], reused_existing=True)
         if _is_v5_idempotency_key(idempotency_key):
             # Terminal same-key retries are explicit recovery decisions: enqueue reuses
             # blocked/dead_letter/succeeded rows instead of silently forking a new stage.
             terminal = self.terminal_stage_for_key(idempotency_key)
             if terminal:
+                db._assert_contract_digest_compatible(
+                    terminal.get("contract_digest_sha256"),
+                    contract_digest_sha256,
+                    job_label="existing v3 job",
+                )
                 return JobQueueResult(job_id=terminal["id"], status=terminal["status"], reused_existing=True)
 
         now = db.now_iso()
@@ -117,49 +143,55 @@ class JobQueue:
         depends_on = list(payload.get("depends_on") or [])
         if depends_on_job_id:
             depends_on.append(depends_on_job_id)
-        self.conn.execute(
-            """
-            insert into background_jobs(
-              id, job_type, session_id, attempt_id, status, run_count,
-              payload_json, last_error, created_at, updated_at, started_at, finished_at,
-              idempotency_key, flow_id, flow_revision, flow_step_id, step_revision,
-              attempt_version, analysis_version, graph_version, question_bank_version,
-              question_id, review_record_id, candidate_packet_id, depends_on_json,
-              depends_on_job_id, provider_mode, payload_schema_version, available_at,
-              route_meta_json
-            ) values (?, ?, ?, ?, 'queued', 0, ?, '', ?, ?, null, null,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                job_id,
-                job_type,
-                session_id,
-                payload.get("attempt_id"),
-                db.json_dump(payload),
-                now,
-                now,
-                idempotency_key,
-                payload.get("flow_id"),
-                int(payload.get("flow_revision") or 0),
-                payload.get("flow_step_id"),
-                int(payload.get("step_revision") or 0),
-                int(payload.get("attempt_version") or 0),
-                int(payload.get("analysis_version") or 0),
-                payload.get("graph_version"),
-                payload.get("question_bank_version"),
-                payload.get("question_id"),
-                str(payload.get("review_record_id") or ""),
-                str(payload.get("candidate_packet_id") or ""),
-                db.json_dump(depends_on),
-                depends_on_job_id,
-                str(payload.get("provider_mode") or "not_configured"),
-                str(payload.get("payload_schema_version") or _default_payload_schema_version(job_type, idempotency_key)),
-                str(payload.get("available_at") or now),
-                db.json_dump(payload.get("route_meta") or {}),
-            ),
-        )
-        if commit:
-            self.conn.commit()
+        try:
+            self.conn.execute(
+                """
+                insert into background_jobs(
+                  id, job_type, session_id, attempt_id, status, run_count,
+                  payload_json, last_error, created_at, updated_at, started_at, finished_at,
+                  idempotency_key, flow_id, flow_revision, flow_step_id, step_revision,
+                  attempt_version, analysis_version, graph_version, question_bank_version,
+                  contract_digest_sha256, question_id, review_record_id, candidate_packet_id, depends_on_json,
+                  depends_on_job_id, provider_mode, payload_schema_version, available_at,
+                  route_meta_json
+                ) values (?, ?, ?, ?, 'queued', 0, ?, '', ?, ?, null, null,
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    job_id,
+                    job_type,
+                    session_id,
+                    payload.get("attempt_id"),
+                    db.json_dump(payload),
+                    now,
+                    now,
+                    idempotency_key,
+                    payload.get("flow_id"),
+                    int(payload.get("flow_revision") or 0),
+                    payload.get("flow_step_id"),
+                    int(payload.get("step_revision") or 0),
+                    int(payload.get("attempt_version") or 0),
+                    int(payload.get("analysis_version") or 0),
+                    payload.get("graph_version"),
+                    payload.get("question_bank_version"),
+                    contract_digest_sha256,
+                    payload.get("question_id"),
+                    str(payload.get("review_record_id") or ""),
+                    str(payload.get("candidate_packet_id") or ""),
+                    db.json_dump(depends_on),
+                    depends_on_job_id,
+                    str(payload.get("provider_mode") or "not_configured"),
+                    str(payload.get("payload_schema_version") or _default_payload_schema_version(job_type, idempotency_key)),
+                    str(payload.get("available_at") or now),
+                    db.json_dump(payload.get("route_meta") or {}),
+                ),
+            )
+            if owns_transaction and commit:
+                self.conn.commit()
+        except Exception:
+            if owns_transaction:
+                self.conn.rollback()
+            raise
         return JobQueueResult(job_id=job_id, status="queued")
 
     def claim(
