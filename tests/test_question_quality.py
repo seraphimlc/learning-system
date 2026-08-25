@@ -136,6 +136,19 @@ class EnvelopeValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             question_quality.validate_review_packet(packet)
 
+    def test_review_packet_checks_solution_step_limit_before_id_scan(self):
+        packet = {
+            "schema_version": "review_packet.v1",
+            "reviewer_run_id": "run-1",
+            "prompt_spans": [
+                {"id": "p1", "start_token": 0, "end_token": 1, "instance_hash": "0" * 64, "structural_hash": "0" * 64}
+            ],
+            "solution_steps": [{} for _ in range(question_quality.MAX_SOLUTION_STEPS + 1)],
+            "cross_node_prerequisite_relations": [],
+        }
+        with self.assertRaisesRegex(ValueError, "too many solution steps"):
+            question_quality.validate_review_packet(packet)
+
     def test_review_packet_rejects_a_completely_empty_packet(self):
         packet = {
             "schema_version": "review_packet.v1",
@@ -200,9 +213,31 @@ class EnvelopeValidationTests(unittest.TestCase):
             question_quality.validate_discovery_derivation_output(output)
 
         output["discovery_depth"] = "E2"
-        output["extra"] = "reject"
+        output[1] = "reject"
         with self.assertRaises(ValueError):
             question_quality.validate_discovery_derivation_output(output)
+
+    def test_discovery_and_graph_enums_reject_unhashable_values_as_value_error(self):
+        discovery = {
+            "schema_version": "discovery_derivation.v1",
+            "discovery_depth": "E2",
+            "entry_point_visibility": "implicit",
+            "decision_points": [],
+            "solution_families": [],
+            "execution_steps": 1,
+            "key_insight_evidence_keys": [],
+        }
+        for field, value in (("discovery_depth", []), ("entry_point_visibility", {})):
+            with self.subTest(field=field):
+                invalid = {**discovery, field: value}
+                with self.assertRaises(ValueError):
+                    question_quality.validate_discovery_derivation_output(invalid)
+
+        for field, value in (("fixed_answer_mastery_policy", []), ("fixed_answer_state_ceiling", {})):
+            with self.subTest(field=field):
+                invalid = {"evidence_required": ["结果正确"], field: value}
+                with self.assertRaises(ValueError):
+                    question_quality.normalize_graph_evidence_contract(invalid)
 
     def test_discovery_output_requires_bounded_decision_and_family_references(self):
         decision = {

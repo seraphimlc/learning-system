@@ -321,7 +321,8 @@ def _require_object(value: Any, label: str) -> dict[str, Any]:
 def _check_keys(value: Mapping[str, Any], allowed: set[str], label: str) -> None:
     unknown = set(value) - allowed
     if unknown:
-        raise ValueError(f"{label} contains unknown keys: {sorted(unknown)}")
+        rendered = sorted(repr(key) for key in unknown)
+        raise ValueError(f"{label} contains unknown keys: {rendered}")
 
 
 def _require_keys(value: Mapping[str, Any], required: set[str], label: str) -> None:
@@ -333,6 +334,12 @@ def _require_keys(value: Mapping[str, Any], required: set[str], label: str) -> N
 def _nonempty_string(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} must be a non-empty string")
+    return value
+
+
+def _enum_value(value: Any, allowed: frozenset[str], message: str) -> str:
+    if not isinstance(value, str) or value not in allowed:
+        raise ValueError(message)
     return value
 
 
@@ -371,9 +378,11 @@ def _unique_ids(entries: Any, label: str) -> set[str]:
 
 
 def _validate_solution_steps(steps: Any, span_ids: set[str] | None = None) -> set[str]:
-    step_ids = _unique_ids(steps, "solution_steps")
+    if not isinstance(steps, list):
+        raise ValueError("solution_steps must be an array")
     if len(steps) > MAX_SOLUTION_STEPS:
         raise ValueError("too many solution steps")
+    step_ids = _unique_ids(steps, "solution_steps")
     for step in steps:
         _check_keys(
             step,
@@ -544,13 +553,17 @@ def validate_discovery_derivation_output(
     _require_keys(output, allowed, "discovery derivation output")
     if output["schema_version"] != DISCOVERY_DERIVATION_SCHEMA_VERSION:
         raise ValueError("unsupported discovery derivation version")
-    if output["discovery_depth"] not in DISCOVERY_DEPTHS:
-        raise ValueError("invalid discovery depth")
-    if output["discovery_depth"] == "E0":
+    discovery_depth = _enum_value(
+        output["discovery_depth"], DISCOVERY_DEPTHS, "invalid discovery depth"
+    )
+    if discovery_depth == "E0":
         raise ValueError("E0 cannot be an active discovery derivation output")
-    if output["entry_point_visibility"] not in ENTRY_POINT_VISIBILITIES:
-        raise ValueError("invalid entry-point visibility")
-    execution_minimum, execution_maximum = DISCOVERY_EXECUTION_BOUNDS[output["discovery_depth"]]
+    _enum_value(
+        output["entry_point_visibility"],
+        ENTRY_POINT_VISIBILITIES,
+        "invalid entry-point visibility",
+    )
+    execution_minimum, execution_maximum = DISCOVERY_EXECUTION_BOUNDS[discovery_depth]
     if (
         not isinstance(output["execution_steps"], int)
         or isinstance(output["execution_steps"], bool)
@@ -564,7 +577,7 @@ def validate_discovery_derivation_output(
             raise ValueError(f"{key} must be an array")
     if len(output["decision_points"]) > 4 or len(output["solution_families"]) > 3:
         raise ValueError("too many decisions or solution families")
-    if output["discovery_depth"] in {"E1", "E2", "E3", "E4"}:
+    if discovery_depth in {"E1", "E2", "E3", "E4"}:
         if not output["solution_families"]:
             raise ValueError("E1-E4 outputs require at least one solution family")
     decision_ids = _unique_ids(output["decision_points"], "decision_points")
@@ -738,12 +751,16 @@ def normalize_graph_evidence_contract(graph_node: Mapping[str, Any]) -> dict[str
     )
     if not set(selective_core).issubset(set(evidence_keys)):
         raise ValueError("selective_core_evidence_keys must be included in evidence_keys")
-    policy = node.get("fixed_answer_mastery_policy", "observation_only")
-    if policy not in FIXED_ANSWER_POLICIES:
-        raise ValueError("invalid fixed-answer mastery policy")
-    ceiling = node.get("fixed_answer_state_ceiling", "B")
-    if ceiling not in MASTERY_STATES:
-        raise ValueError("invalid fixed-answer state ceiling")
+    policy = _enum_value(
+        node.get("fixed_answer_mastery_policy", "observation_only"),
+        FIXED_ANSWER_POLICIES,
+        "invalid fixed-answer mastery policy",
+    )
+    ceiling = _enum_value(
+        node.get("fixed_answer_state_ceiling", "B"),
+        MASTERY_STATES,
+        "invalid fixed-answer state ceiling",
+    )
     if PROCESS_EVIDENCE_KEYS.intersection(requires_for_mastery):
         ceiling = "B"
     contract = {

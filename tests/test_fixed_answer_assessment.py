@@ -50,6 +50,18 @@ class FixedAnswerEnvelopeTests(unittest.TestCase):
                 '{"schema_version":"2026-08-25.fixed-answer-response.v1","type":"single_choice","choice_id":"A","choice_id":"B"}'
             )
 
+    def test_response_type_rejects_unhashable_values_as_value_error(self):
+        for response_type in ([], {}):
+            with self.subTest(response_type=response_type):
+                with self.assertRaises(ValueError):
+                    fixed_answer_assessment.parse_fixed_answer_response(
+                        {
+                            "schema_version": "2026-08-25.fixed-answer-response.v1",
+                            "type": response_type,
+                            "choice_id": "A",
+                        }
+                    )
+
     def test_structured_payload_recursion_error_is_value_error(self):
         nested = 0
         for _ in range(2000):

@@ -65,7 +65,7 @@ def parse_fixed_answer_response(payload: Any) -> dict[str, Any]:
     if response.get("schema_version") != FIXED_RESPONSE_SCHEMA_VERSION:
         raise ValueError("unsupported fixed-answer response version")
     response_type = response.get("type")
-    if response_type not in RESPONSE_TYPES:
+    if not isinstance(response_type, str) or response_type not in RESPONSE_TYPES:
         raise ValueError("invalid fixed-answer response type")
 
     if response_type == "single_choice":
