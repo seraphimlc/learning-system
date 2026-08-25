@@ -6090,6 +6090,23 @@ class DailyLearningRuntime:
                 "pipeline_mode": "v5.1_fail_closed_missing_answer_contract",
             }
         if contract is not None:
+            expected_contract = internal_agents.load_v5_contract_for_agent(
+                "answer_analysis_agent"
+            )
+            if expected_contract.get("contract_version", "").startswith(
+                "2026-08-25.answer-review.lite"
+            ):
+                # lite v4 批改：模型只判 score/result/error_tags/improvement，
+                # 本地转换为标准 answer_analysis，不走 v3 criteria 编排。
+                return self._handle_lite_answer_analysis_job(
+                    job=job,
+                    attempt=attempt,
+                    question=question,
+                    contract=contract,
+                    route=route,
+                    provider_mode=provider_mode,
+                    photo_ocr=photo_ocr,
+                )
             return self._handle_v51_answer_analysis_job(
                 job=job,
                 attempt=attempt,
@@ -6148,6 +6165,11 @@ class DailyLearningRuntime:
         answer_output = envelope.output
         if self._is_v51_answer_review_output(answer_output):
             answer_output = self._legacy_answer_output_from_v51_review(
+                question=question,
+                output=answer_output,
+            )
+        elif self._is_lite_answer_review_output(answer_output):
+            answer_output = self._lite_answer_output_from_review(
                 question=question,
                 output=answer_output,
             )
@@ -6290,6 +6312,154 @@ class DailyLearningRuntime:
                 decision.get("action")
                 or ("evaluation_update" if eval_job_id else "blocked")
             ),
+        }
+
+    def _handle_lite_answer_analysis_job(
+        self,
+        *,
+        job: dict[str, Any],
+        attempt: dict[str, Any],
+        question: dict[str, Any],
+        contract: dict[str, Any],
+        route: model_router.ModelRoute,
+        provider_mode: str,
+        photo_ocr: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """lite v4 批改：模型只判 score/result/error_tags/improvement。
+
+        输入只给题干、标准答案、实际答案；输出本地转换为标准 answer_analysis
+        并落库，不进入 v3 criteria 编排。
+        """
+        payload = db.json_load(job.get("payload_json"), {})
+        attempt_id = attempt["id"]
+        attempt_version = int(attempt.get("attempt_version") or 1)
+        input_digest = question_fingerprints.canonical_sha256({
+            "attempt_id": attempt_id,
+            "attempt_version": attempt_version,
+            "evidence_digest_sha256": attempt.get("evidence_digest_sha256") or "",
+            "answer_contract_id": contract["id"],
+            "answer_contract_version": contract["contract_version"],
+            "answer_contract_digest_sha256": contract["contract_digest_sha256"],
+            "photo_ocr": photo_ocr,
+            "lite_v4": True,
+        })
+        expected_contract = internal_agents.load_v5_contract_for_agent(
+            "answer_analysis_agent"
+        )
+        response_checkpoint = assessment_store.model_response_checkpoint_for_input(
+            self.conn,
+            checkpoint_kind="answer_analysis_lite",
+            immutable_input_digest_sha256=input_digest,
+        )
+        if response_checkpoint is None:
+            recorded_output = (
+                payload.get("recorded_agent_output")
+                if isinstance(payload.get("recorded_agent_output"), dict)
+                else None
+            )
+            request = self._answer_analysis_request(
+                job=job,
+                attempt=attempt,
+                question=question,
+                provider_mode=provider_mode,
+                photo_ocr=photo_ocr,
+                recorded_output=recorded_output,
+                answer_contract=contract,
+                operation_idempotency_source=input_digest,
+            )
+            envelope = semantic_agents.call_answer_analysis_agent(request)
+            if envelope.status != "accepted":
+                return self._handle_pending_answer_analysis(
+                    job,
+                    attempt=attempt,
+                    question=question,
+                    review={
+                        "status": envelope.status,
+                        "reason": envelope.error_reason or "answer_analysis_agent blocked",
+                    },
+                    provider_mode=envelope.provider_mode,
+                )
+            assessment_store.checkpoint_model_response(
+                self.conn,
+                checkpoint_kind="answer_analysis_lite",
+                immutable_input_digest_sha256=input_digest,
+                source_job_id=str(job.get("id") or ""),
+                output=envelope.output,
+                envelope={
+                    **envelope.as_result_refs(),
+                    "route_meta": envelope.route_meta or {},
+                },
+                commit=True,
+            )
+        else:
+            envelope = self._semantic_envelope_from_response_checkpoint(
+                {
+                    "output": response_checkpoint["output"],
+                    "envelope": response_checkpoint["envelope"],
+                },
+                default_provider_mode=provider_mode,
+                default_prompt_version_id=expected_contract["prompt_version_id"],
+                default_response_schema_version=expected_contract[
+                    "response_schema_version"
+                ],
+            )
+        output = envelope.output
+        if not self._is_lite_answer_review_output(output):
+            raise model_router.ModelJSONParseError(
+                "answer_analysis_agent returned malformed lite answer review"
+            )
+        converted = self._lite_answer_output_from_review(
+            question=question,
+            output=output,
+        )
+        if not isinstance(converted.get("answer_analysis"), dict) or not db.is_valid_answer_analysis(
+            self._normalize_answer_analysis_for_attempt(converted.get("answer_analysis") or {})
+        ):
+            raise model_router.ModelJSONParseError(
+                "answer_analysis_agent returned malformed lite answer_analysis"
+            )
+        grade = self._grade_from_answer_agent_output(
+            converted,
+            route=route,
+            provider_mode=envelope.provider_mode,
+            photo_ocr=photo_ocr,
+        )
+        with self.conn:
+            latest, latest_step = self._revalidate_answer_job_for_commit(
+                job=job,
+                attempt_id=attempt_id,
+            )
+            self._validate_photo_ocr_evidence_for_commit(
+                attempt=latest,
+                step=latest_step,
+                photo_ocr=photo_ocr,
+            )
+            if latest["grading_status"] != "pending_review" or latest.get("evidence_status") != "active":
+                return {"job_status": "succeeded", "reason": "attempt_no_longer_active", "attempt_id": attempt_id}
+            graded = db.grade_attempt(
+                self.conn,
+                attempt_id=attempt_id,
+                answer_raw=None,
+                commit=False,
+                **grade,
+            )
+            self.conn.execute(
+                """
+                update attempts
+                set flow_step_id = ?,
+                    analysis_status = 'valid',
+                    analysis_version = coalesce(analysis_version, 0) + 1
+                where id = ?
+                """,
+                (latest_step["id"], attempt_id),
+            )
+        return {
+            "job_status": "succeeded",
+            "attempt_id": attempt_id,
+            "answer_analysis_job_id": job["id"],
+            "pipeline_mode": "v5.1_lite_single_attempt_call",
+            "confidence": float(output.get("confidence") or 0.0),
+            "assessment_input_digest_sha256": input_digest,
         }
 
     def _handle_v51_answer_analysis_job(
@@ -8993,31 +9163,11 @@ class DailyLearningRuntime:
             or question_bank.normalize_question_interaction_schema(question.get("interaction_schema"))
             or {}
         )
+        # lite v4：只给模型最少的输入（题干、标准答案、实际答案），降低推理负担。
         trusted_context = {
-            "question_package": {
-                "question_id": question["id"],
-                "node_id": question["node_id"],
+            "question": {
                 "prompt": question["prompt"],
-                "interaction_schema": interaction_schema,
                 "reference_answer": question["expected_answer"],
-                "answer_format": question.get("answer_format"),
-                "rubric": question.get("rubric") or {},
-                "solution_steps": question.get("solution_steps") or [],
-                "kind": question.get("kind") or question.get("variant_level"),
-                "difficulty_vector": question.get("difficulty_vector") or {},
-            },
-            "graph_node": {
-                "id": graph_node.get("id"),
-                "name": graph_node.get("name"),
-                "essence_for_child": graph_node.get("essence_for_child"),
-                "mastery_criteria": graph_node.get("mastery_criteria") or [],
-            },
-            "lineage": {
-                "flow_id": str(job.get("flow_id") or ""),
-                "flow_step_id": attempt.get("flow_step_id"),
-                "attempt_version": attempt.get("attempt_version"),
-                "graph_version": attempt.get("graph_version"),
-                "question_bank_version": attempt.get("question_bank_version"),
             },
         }
         if recorded_output is not None:
@@ -9146,6 +9296,84 @@ class DailyLearningRuntime:
             and output.get("schema_version") == "2026-07-14.answer-review.v5.schema.v3"
             and isinstance(output.get("criteria"), list)
         )
+
+    def _is_lite_answer_review_output(self, output: dict[str, Any]) -> bool:
+        return (
+            isinstance(output, dict)
+            and output.get("schema_version") == "2026-08-25.answer-review.lite.schema.v1"
+            and "score" in output
+            and "result" in output
+        )
+
+    def _lite_answer_output_from_review(self, *, question: dict[str, Any], output: dict[str, Any]) -> dict[str, Any]:
+        """把 lite v4 模型输出（score/result/error_tags/improvement）转成标准 answer_analysis。"""
+        result = str(output.get("result") or "partial")
+        score = int(output.get("score") or 0)
+        improvement = str(output.get("improvement") or "").strip()
+        error_tags = [
+            str(tag).strip()
+            for tag in (output.get("error_tags") or [])
+            if str(tag).strip()
+        ]
+        comparison = [
+            {
+                "dimension": "final_answer",
+                "status": "matched" if result == "correct" else ("incorrect" if result == "wrong" else "weak"),
+                "detail": improvement or "模型总评：答案按 lite 评分给出结果。",
+            },
+            {
+                "dimension": "steps",
+                "status": "matched" if score >= 8 else ("weak" if result == "partial" else "missing"),
+                "detail": improvement or "模型总评：过程按 lite 评分给出结果。",
+            },
+        ]
+        analysis = {
+            "optimal_answer": str(question.get("expected_answer") or ""),
+            "optimal_solution_steps": [
+                str(item).strip()
+                for item in (question.get("solution_steps") or [])
+                if str(item).strip()
+            ][:6],
+            "child_answer_summary": "lite v4 answer review.",
+            "comparison": comparison,
+            "alternative_solutions": [],
+            "process_gap": "" if result == "correct" else improvement,
+            "teaching_explanation": improvement,
+            "next_child_prompt": improvement or "先补清关键关系和步骤。",
+        }
+        analysis["evaluation_support"] = {
+            "usable_for_evaluation": result != "unclear",
+            "evidence_strength": "direct" if result == "correct" else ("partial" if result == "partial" else "insufficient"),
+            "reasoning_soundness": "sound" if result == "correct" else ("incomplete" if result == "partial" else "unsound"),
+            "dominant_gap_dimensions": (
+                []
+                if result == "correct"
+                else ["model_or_relation" if "concept_confusion" in error_tags else "steps"]
+            ),
+        }
+        # db.grade_attempt 强制：correct=满分、wrong=0 分；score 只用于 partial 区分度。
+        if result == "correct":
+            score_points = 2.0
+        elif result == "wrong":
+            score_points = 0.0
+        else:
+            score_points = round(max(0, min(score, 9)) / 5.0, 2)
+        return {
+            "schema_version": "2026-08-25.answer-review.lite.schema.v1",
+            "result": result,
+            "score_points": score_points,
+            "max_points": 2,
+            "confidence": float(output.get("confidence") or 0.0),
+            "error_tags": error_tags,
+            "blocking_evidence": False,
+            "answer_analysis": analysis,
+            "evaluation_support": analysis["evaluation_support"],
+            "next_evidence_need": (
+                "none"
+                if result == "correct"
+                else "targeted_reteach" if result == "wrong" else "clearer_solution_evidence"
+            ),
+        }
 
     def _legacy_answer_output_from_v51_review(
         self,

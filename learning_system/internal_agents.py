@@ -43,7 +43,7 @@ INTERNAL_AGENT_ROLES: dict[str, dict[str, str]] = {
         "does_not": "不做字符串匹配、不更新掌握状态、不选择下一轮题目、不把分数当作掌握结论",
         "contract_key": "answer_review",
         "v5_contract_key": "answer_review",
-        "v5_contract_version_suffix": "v3",
+        "v5_contract_version_suffix": "v4",
     },
     "answer_contract_designer_agent": {
         "display": "答案合同设计 Agent",
