@@ -6,6 +6,7 @@ grading and mastery effects are intentionally left to later tasks.
 
 from __future__ import annotations
 
+import copy
 from typing import Any, Mapping
 
 from .question_quality import (
@@ -51,6 +52,8 @@ def _parse(payload: Any) -> dict[str, Any]:
         try:
             if len(canonical_json_bytes(parsed)) > MAX_RESPONSE_BYTES:
                 raise ValueError("response payload is oversized")
+        except RecursionError as exc:
+            raise ValueError("response payload is too deeply nested") from exc
         except TypeError as exc:
             raise ValueError("response payload is not JSON-compatible") from exc
     return _object(parsed)
@@ -96,7 +99,7 @@ def parse_fixed_answer_response(payload: Any) -> dict[str, Any]:
             field_ids.add(field_id)
             if not isinstance(field["value"], str) or len(field["value"]) > MAX_VALUE_LENGTH:
                 raise ValueError("field.value must be a bounded string")
-    return response
+    return copy.deepcopy(response)
 
 
 def response_digest(payload: Any) -> str:

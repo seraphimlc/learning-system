@@ -143,6 +143,8 @@ def loads_strict(payload: str | bytes, *, max_bytes: int | None = None) -> Any:
         )
         _reject_surrogates(parsed)
         return parsed
+    except RecursionError as exc:
+        raise ValueError("JSON payload is too deeply nested") from exc
     except (json.JSONDecodeError, ValueError) as exc:
         if isinstance(exc, ValueError) and not isinstance(exc, json.JSONDecodeError):
             raise
@@ -489,11 +491,31 @@ def _authoritative_reference_set(value: Any, label: str, *, hashes: bool) -> set
     return set(values)
 
 
+def _authoritative_action_mapping(
+    value: Any,
+    label: str,
+    solution_step_ids: set[str] | None,
+) -> dict[str, str]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{label} must be a mapping of step ids to actions")
+    if len(value) > MAX_DISCOVERY_REFERENCE_IDS:
+        raise ValueError(f"{label} contains too many entries")
+    actions: dict[str, str] = {}
+    for step_id, action in value.items():
+        _nonempty_string(step_id, f"{label}.step_id")
+        _nonempty_string(action, f"{label}.action")
+        if solution_step_ids is not None and step_id not in solution_step_ids:
+            raise ValueError(f"{label} references an unknown solution step")
+        actions[step_id] = action
+    return actions
+
+
 def validate_discovery_derivation_output(
     output: Mapping[str, Any],
     *,
     solution_step_ids: set[str] | None = None,
     structural_prompt_span_hashes: set[str] | None = None,
+    solution_step_actions: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     output = _require_object(output, "discovery derivation output")
     allowed = {"schema_version", "discovery_depth", "entry_point_visibility", "decision_points", "solution_families", "execution_steps", "key_insight_evidence_keys"}
@@ -539,6 +561,8 @@ def validate_discovery_derivation_output(
         raise ValueError(
             "solution_step_ids and structural_prompt_span_hashes are required for references"
         )
+    if output["solution_families"] and solution_step_actions is None:
+        raise ValueError("solution_step_actions are required for solution families")
     authoritative_step_ids = (
         _authoritative_reference_set(solution_step_ids, "solution_step_ids", hashes=False)
         if solution_step_ids is not None
@@ -551,6 +575,15 @@ def validate_discovery_derivation_output(
             hashes=True,
         )
         if structural_prompt_span_hashes is not None
+        else None
+    )
+    authoritative_actions = (
+        _authoritative_action_mapping(
+            solution_step_actions,
+            "solution_step_actions",
+            authoritative_step_ids,
+        )
+        if solution_step_actions is not None
         else None
     )
     for decision in output["decision_points"]:
@@ -614,6 +647,12 @@ def validate_discovery_derivation_output(
             raise ValueError("family references an unknown solution step")
         if authoritative_span_hashes is not None and not set(family_span_hashes).issubset(authoritative_span_hashes):
             raise ValueError("family references an unknown structural prompt span")
+        if authoritative_actions is not None:
+            first_step_id = family_step_ids[0]
+            if first_step_id not in authoritative_actions:
+                raise ValueError("family references a step without an authoritative action")
+            if family["first_action"] != authoritative_actions[first_step_id]:
+                raise ValueError("family first_action does not match the authoritative step action")
     _canonical_evidence_keys(
         output["key_insight_evidence_keys"],
         "key_insight_evidence_keys",

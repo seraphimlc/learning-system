@@ -77,6 +77,12 @@ class CanonicalizationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     question_quality.loads_strict(payload)
 
+    def test_strict_json_parser_converts_recursion_error_to_value_error(self):
+        payload = "[" * 2000 + "0" + "]" * 2000
+        self.assertLessEqual(len(payload.encode("utf-8")), 16 * 1024)
+        with self.assertRaises(ValueError):
+            question_quality.loads_strict(payload)
+
     def test_canonical_json_rejects_non_string_mapping_keys(self):
         with self.assertRaises(ValueError):
             question_quality.canonical_json({1: "not a JSON object key"})
@@ -215,6 +221,7 @@ class EnvelopeValidationTests(unittest.TestCase):
             base,
             solution_step_ids={"s1"},
             structural_prompt_span_hashes={"0" * 64},
+            solution_step_actions={"s1": "classify_structure"},
         )
         self.assertEqual("E2", valid["discovery_depth"])
 
@@ -247,7 +254,11 @@ class EnvelopeValidationTests(unittest.TestCase):
             "execution_steps": 1,
             "key_insight_evidence_keys": ["concept_recognition"],
         }
-        context = {"solution_step_ids": {"s1"}, "structural_prompt_span_hashes": {"0" * 64}}
+        context = {
+            "solution_step_ids": {"s1"},
+            "structural_prompt_span_hashes": {"0" * 64},
+            "solution_step_actions": {"s1": "classify_structure"},
+        }
         for depth, minimum, maximum in (("E1", 1, 6), ("E2", 1, 6), ("E3", 2, 6), ("E4", 2, 8)):
             with self.subTest(depth=depth):
                 output["discovery_depth"] = depth
@@ -263,6 +274,45 @@ class EnvelopeValidationTests(unittest.TestCase):
         output["execution_steps"] = 1
         with self.assertRaises(ValueError):
             question_quality.validate_discovery_derivation_output(output, **context)
+
+    def test_discovery_family_first_action_requires_authoritative_action_match(self):
+        output = {
+            "schema_version": "discovery_derivation.v1",
+            "discovery_depth": "E1",
+            "entry_point_visibility": "cued",
+            "decision_points": [],
+            "solution_families": [{
+                "id": "f1",
+                "first_action": "classify_structure",
+                "step_ids": ["s1"],
+                "structural_prompt_span_hashes": ["0" * 64],
+            }],
+            "execution_steps": 1,
+            "key_insight_evidence_keys": ["concept_recognition"],
+        }
+        context = {
+            "solution_step_ids": {"s1"},
+            "structural_prompt_span_hashes": {"0" * 64},
+        }
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(output, **context)
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(
+                output,
+                **context,
+                solution_step_actions={"s1": "select_model"},
+            )
+        with self.assertRaises(ValueError):
+            question_quality.validate_discovery_derivation_output(
+                output,
+                **context,
+                solution_step_actions={"s2": "classify_structure"},
+            )
+        question_quality.validate_discovery_derivation_output(
+            output,
+            **context,
+            solution_step_actions={"s1": "classify_structure"},
+        )
 
     def test_discovery_e1_to_e4_require_family_and_canonical_key_insight(self):
         output = {
@@ -294,6 +344,7 @@ class EnvelopeValidationTests(unittest.TestCase):
                 output,
                 solution_step_ids={"s1"},
                 structural_prompt_span_hashes={"0" * 64},
+                solution_step_actions={"s1": "classify_structure"},
             )
 
 

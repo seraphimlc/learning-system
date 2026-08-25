@@ -50,6 +50,19 @@ class FixedAnswerEnvelopeTests(unittest.TestCase):
                 '{"schema_version":"2026-08-25.fixed-answer-response.v1","type":"single_choice","choice_id":"A","choice_id":"B"}'
             )
 
+    def test_structured_payload_recursion_error_is_value_error(self):
+        nested = 0
+        for _ in range(2000):
+            nested = [nested]
+        payload = {
+            "schema_version": "2026-08-25.fixed-answer-response.v1",
+            "type": "single_choice",
+            "choice_id": "A",
+            "extra": nested,
+        }
+        with self.assertRaises(ValueError):
+            fixed_answer_assessment.parse_fixed_answer_response(payload)
+
     def test_null_unknown_oversized_and_invalid_mode_payloads_are_rejected(self):
         invalid_payloads = [
             None,
@@ -130,6 +143,20 @@ class FixedAnswerEnvelopeTests(unittest.TestCase):
             fixed_answer_assessment.response_digest(first),
             fixed_answer_assessment.response_digest(second),
         )
+
+    def test_parse_response_returns_a_deep_copy(self):
+        payload = {
+            "schema_version": "2026-08-25.fixed-answer-response.v1",
+            "type": "fill_blank",
+            "fields": [{"id": "x", "value": "10"}],
+        }
+
+        parsed = fixed_answer_assessment.parse_fixed_answer_response(payload)
+        parsed["fields"][0]["value"] = "changed"
+        parsed["fields"].append({"id": "y", "value": "2"})
+
+        self.assertEqual("10", payload["fields"][0]["value"])
+        self.assertEqual(1, len(payload["fields"]))
 
 
 if __name__ == "__main__":
