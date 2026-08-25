@@ -187,6 +187,19 @@ class EnvelopeValidationTests(unittest.TestCase):
             "cross_node_prerequisite_relations": [],
         }
         question_quality.validate_review_packet(base)
+        for target_step_id in ([], {}):
+            with self.subTest(target_step_id=target_step_id):
+                packet = json.loads(json.dumps(base))
+                packet["cross_node_prerequisite_relations"] = [
+                    {
+                        "id": "r1",
+                        "prerequisite_node_id": "node-1",
+                        "evidence_key": "concept_recognition",
+                        "target_step_id": target_step_id,
+                    }
+                ]
+                with self.assertRaises(ValueError):
+                    question_quality.validate_review_packet(packet)
         for field, invalid in (
             ("input_evidence_keys", []),
             ("prompt_span_ids", []),
@@ -255,6 +268,23 @@ class EnvelopeValidationTests(unittest.TestCase):
             "step_ids": [],
             "structural_prompt_span_hashes": [],
         }
+        for taxonomy in ([], {}):
+            with self.subTest(taxonomy=taxonomy):
+                decision["taxonomy"] = taxonomy
+                with self.assertRaises(ValueError):
+                    question_quality.validate_discovery_derivation_output(
+                        {
+                            "schema_version": "discovery_derivation.v1",
+                            "discovery_depth": "E2",
+                            "entry_point_visibility": "implicit",
+                            "decision_points": [decision],
+                            "solution_families": [family],
+                            "execution_steps": 1,
+                            "key_insight_evidence_keys": ["concept_recognition"],
+                        },
+                        solution_step_actions={},
+                    )
+        decision["taxonomy"] = "classify_structure"
         base = {
             "schema_version": "discovery_derivation.v1",
             "discovery_depth": "E2",

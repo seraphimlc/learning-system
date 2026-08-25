@@ -472,9 +472,10 @@ def validate_review_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
         _require_keys(relation, {"id", "prerequisite_node_id", "evidence_key", "target_step_id"}, "cross-node relation")
         _nonempty_string(relation["prerequisite_node_id"], "relation.prerequisite_node_id")
         _canonical_evidence_key(relation["evidence_key"], "relation.evidence_key")
-        if relation["target_step_id"] not in step_ids:
+        target_step_id = _nonempty_string(relation["target_step_id"], "relation.target_step_id")
+        if target_step_id not in step_ids:
             raise ValueError("relation references an unknown target step")
-        target = next(step for step in packet["solution_steps"] if step["id"] == relation["target_step_id"])
+        target = next(step for step in packet["solution_steps"] if step["id"] == target_step_id)
         if relation["evidence_key"] not in target["input_evidence_keys"]:
             raise ValueError("relation evidence is not an input to the target step")
     if len(canonical_json_bytes(packet)) > MAX_REVIEW_PACKET_BYTES:
@@ -623,8 +624,7 @@ def validate_discovery_derivation_output(
     for decision in output["decision_points"]:
         _check_keys(decision, {"id", "taxonomy", "alternatives", "misconception_key", "step_ids", "structural_prompt_span_hashes", "depends_on"}, "decision point")
         _require_keys(decision, {"id", "taxonomy", "alternatives", "misconception_key", "step_ids", "structural_prompt_span_hashes", "depends_on"}, "decision point")
-        if decision["taxonomy"] not in DECISION_TAXONOMIES:
-            raise ValueError("invalid decision taxonomy")
+        _enum_value(decision["taxonomy"], DECISION_TAXONOMIES, "invalid decision taxonomy")
         _nonempty_string(decision["misconception_key"], "decision.misconception_key")
         _bounded_string_array(
             decision["alternatives"],
