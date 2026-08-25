@@ -4430,10 +4430,14 @@ class DailyLearningRuntime:
         raw_items = payload.get("group_items")
         if not flow_id or not mini_group_id or not isinstance(raw_items, list) or not raw_items:
             return "missing_group_answer_analysis_lineage"
-        current_pairs = self._mini_group_step_attempts(
-            flow_id=flow_id,
-            mini_group_id=mini_group_id,
-        )
+        current_pairs = [
+            (step, attempt)
+            for step, attempt in self._mini_group_step_attempts(
+                flow_id=flow_id,
+                mini_group_id=mini_group_id,
+            )
+            if not self._attempt_graded_locally(attempt)
+        ]
         current_members = [
             (str(step.get("id") or ""), str(attempt.get("id") or ""))
             for step, attempt in current_pairs
@@ -4802,6 +4806,10 @@ class DailyLearningRuntime:
         pending_job_projection = self._pending_flow_job_projection(base, flow_dict)
         if pending_job_projection:
             return pending_job_projection
+        if status == "reviewing" and not flow_dict.get("current_step_id"):
+            # 一轮异步题目已全部提交、后台批改已完成：收尾为 summary。
+            self._materialize_blocked_or_summary(flow_id, reason="async_round_all_graded")
+            return self.project_child_state(self._flow_by_id(flow_id))
         return self._blocked_projection("当前学习步骤还没有准备好，请稍后再试。")
 
     def _pending_flow_job_projection(self, base: dict[str, Any], flow: dict[str, Any]) -> dict[str, Any] | None:
@@ -6728,33 +6736,22 @@ class DailyLearningRuntime:
                 not calculated["question_passed"]
                 or calculated["score_out_of_10"] < 8
             )
-            mini_group_result = self._maybe_handle_v51_mini_group_after_assessment(
-                job=job,
-                flow_id=flow_id,
-                source_step_id=str(graded.get("flow_step_id") or ""),
-                source_attempt=graded,
-                source_assessment=accepted,
-                source_contract=contract,
-                source_validation=validation,
-                source_evaluation=evaluation,
-                provider_mode=envelope.provider_mode,
-            )
-            if mini_group_result is not None:
-                return {
-                    "job_status": "succeeded",
-                    "attempt_id": attempt_id,
-                    "answer_analysis_job_id": job["id"],
-                    "answer_analysis_agent_run_id": answer_run["id"],
-                    "assessment_id": accepted["id"],
-                    "assessment_version": accepted["assessment_version"],
-                    "assessment_digest_sha256": accepted["assessment_digest_sha256"],
-                    "evidence_validation_id": validation.validation_id,
-                    "gate_status": validation.gate_status,
-                    "report_label": validation.predicate.report_label,
-                    "pipeline_mode": "v5.1_short_group_single_attempt_call",
-                    "mastery_decision_id": evaluation.get("mastery_decision_id", ""),
-                    **mini_group_result,
-                }
+            # 异步做题模式：单题批改完成后只落库结果，不触发组批改/反馈编排；
+            # 一轮结束时由 project_child_state 统一收尾（summary）。
+            return {
+                "job_status": "succeeded",
+                "attempt_id": attempt_id,
+                "answer_analysis_job_id": job["id"],
+                "answer_analysis_agent_run_id": answer_run["id"],
+                "assessment_id": accepted["id"],
+                "assessment_version": accepted["assessment_version"],
+                "assessment_digest_sha256": accepted["assessment_digest_sha256"],
+                "evidence_validation_id": validation.validation_id,
+                "gate_status": validation.gate_status,
+                "report_label": validation.predicate.report_label,
+                "pipeline_mode": "v5.1_async_single_attempt_call",
+                "mastery_decision_id": evaluation.get("mastery_decision_id", ""),
+            }
             feedback_position = int(self.conn.execute(
                 "select count(*) from flow_steps where flow_id = ?",
                 (flow_id,),
@@ -10804,11 +10801,159 @@ class DailyLearningRuntime:
                 mini_group_id=meta["id"],
             )
             return
-        self._enqueue_mini_group_answer_analysis(
-            flow_id=step_dict["flow_id"],
-            mini_group_id=meta["id"],
-            current_step_id=step_dict["id"],
-            current_attempt_id=attempt_id,
+        if all(self._attempt_graded_locally(attempt) for _step, attempt in pairs):
+            # 组内全部选择题已本地判定（对/错），无需再入队 AI 批改。
+            self._continue_after_group_choices(flow_id=step_dict["flow_id"])
+            return
+        # 简答题已在提交时逐题入队 answer_analysis；组关闭只负责推进到下一组，
+        # 或在一轮结束时收尾（等待后台批改完成）。
+        if self._should_continue_async_to_next_group(step_dict):
+            self._continue_async_to_next_group(step_dict)
+            return
+        self._open_async_round_wait(step_dict["flow_id"])
+
+    def _should_continue_async_to_next_group(self, step_dict: dict[str, Any]) -> bool:
+        """是否还有下一组可做（简答题异步推进条件）。"""
+        flow = self._flow_by_id(step_dict["flow_id"])
+        if not flow:
+            return False
+        try:
+            self._select_next_review_group_question(dict(flow))
+        except ChildSafeRuntimeError:
+            return False
+        return True
+
+    def _select_next_review_group_question(
+        self, flow: dict[str, Any]
+    ) -> dict[str, Any]:
+        """选下一组的第一题：排除本轮已做过的节点，复用初始复习选题逻辑。"""
+        flow_id = str(flow.get("id") or "")
+        done_node_ids = {
+            str(row["node_id"])
+            for row in self.conn.execute(
+                "select distinct node_id from flow_steps where flow_id = ? and node_id <> ''",
+                (flow_id,),
+            ).fetchall()
+        }
+        graph_version = str(flow.get("graph_version") or "")
+        target_node_ids = self._initial_target_node_ids()
+        for node_id in target_node_ids:
+            if node_id in done_node_ids:
+                continue
+            selected = self._select_question_for_node(
+                node_id,
+                graph_version=graph_version,
+                flow_id=flow_id,
+                flow_revision=int(flow.get("flow_revision") or 1) + 1,
+                reason={"reason": "async_review_next_group", "target_node_id": node_id},
+                selection_intent="initial_review",
+                required_purpose="diagnostic",
+            )
+            if selected:
+                return selected
+        raise ChildSafeRuntimeError("今天的复习题暂时没有准备好，请稍后再试。")
+
+    def _continue_async_to_next_group(self, step_dict: dict[str, Any]) -> None:
+        """创建下一组第一步并推进 flow（当前 analyzing step 标记为 completed）。"""
+        flow = dict(self._flow_by_id(step_dict["flow_id"]))
+        selection = self._select_next_review_group_question(flow)
+        self._create_async_next_group_step(flow, selection)
+
+    def _attempt_graded_locally(self, attempt: dict[str, Any]) -> bool:
+        meta = attempt.get("review_meta") if isinstance(attempt.get("review_meta"), dict) else {}
+        return (
+            str(meta.get("grading_mode") or "") == "choice_local"
+            or (
+                str(attempt.get("grading_status") or "") == "graded"
+                and str((attempt.get("answer_analysis") or {}).get("grading_mode") or "") == "choice_local"
+            )
+        )
+
+    def _open_async_round_wait(self, flow_id: str) -> None:
+        """一轮题目已全部提交：flow 保持 reviewing、清空 current step，
+        由 project_child_state 显示"正在批改"，批改完成后自动收尾 summary。"""
+        self.conn.execute(
+            """
+            update daily_flows
+            set status = 'reviewing',
+                current_step_id = null,
+                flow_revision = flow_revision + 1,
+                updated_at = ?
+            where id = ?
+            """,
+            (db.now_iso(), flow_id),
+        )
+
+    def _continue_after_group_choices(self, *, flow_id: str) -> None:
+        """全选择题组关闭后：尝试继续下一组；没有下一题时进入收尾。"""
+        flow = self._flow_by_id(flow_id)
+        if not flow:
+            return
+        flow_dict = dict(flow)
+        try:
+            selection = self._select_next_review_group_question(flow_dict)
+        except ChildSafeRuntimeError:
+            selection = None
+        if selection:
+            self._create_async_next_group_step(flow_dict, selection)
+            return
+        self._materialize_blocked_or_summary(flow_id, reason="choice_group_closed")
+
+    def _create_async_next_group_step(
+        self, flow: dict[str, Any], selection: dict[str, Any]
+    ) -> None:
+        """创建下一组第一步（question step）并推进 flow（供异步/选择题组使用）。"""
+        flow_id = str(flow.get("id") or "")
+        now = db.now_iso()
+        self.conn.execute(
+            """
+            update flow_steps
+            set status = 'completed',
+                updated_at = ?
+            where flow_id = ?
+              and status in ('selected','displayed','analyzing')
+              and superseded_by_step_id is null
+            """,
+            (now, flow_id),
+        )
+        position_next = int(self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ?",
+            (flow_id,),
+        ).fetchone()[0]) + 1
+        graph_version = str(flow.get("graph_version") or "")
+        contract = self._active_answer_contract_for_question(selection["question"])
+        new_step_id = self._create_question_step(
+            flow_id=flow_id,
+            position=position_next,
+            graph_version=graph_version,
+            question=selection["question"],
+            review_record_id=selection["review_record_id"],
+            selection_reason=self._mini_group_selection_reason(
+                selection.get("selection_reason") or {},
+                flow=flow,
+                step_type="question",
+                group_role="review_short_set",
+                group_id=f"RG-{uuid.uuid4().hex[:12]}",
+                group_index=1,
+                group_size=2,
+                target_node_id=str(selection["question"].get("node_id") or ""),
+                question_id=str(selection["question"].get("id") or ""),
+                requested_usage={"purpose": "diagnostic"},
+            ),
+            candidate_packet=selection.get("candidate_packet") or {},
+            step_type="question",
+            answer_contract=contract,
+        )
+        self.conn.execute(
+            """
+            update daily_flows
+            set status = 'reviewing',
+                current_step_id = ?,
+                flow_revision = flow_revision + 1,
+                updated_at = ?
+            where id = ?
+            """,
+            (new_step_id, now, flow_id),
         )
 
     def _enqueue_next_pending_mini_group_single_analysis(
@@ -10855,12 +11000,33 @@ class DailyLearningRuntime:
             )
             self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
             return
+        if self._is_choice_step(step_dict):
+            # 选择题：本地判定对错（expected_answer 比对），不调模型、不入队等待。
+            self._grade_choice_attempt_locally(step_dict, attempt)
+            self._advance_or_close_mini_group_after_submission(
+                step_dict=step_dict,
+                attempt_id=attempt_id,
+                force_close=False,
+            )
+            return
         if self._mini_group_is_deferred(step_dict):
             if prefer_existing_group_step and self._restore_existing_next_mini_group_step(
                 step_dict=step_dict,
                 attempt_id=attempt_id,
             ):
                 return
+            # 简答题：每题独立入队 answer_analysis（异步后台批改，不阻塞做题），
+            # 然后继续组内下一题；组关闭后继续下一组，直到一轮没有下一题才收尾。
+            self._ensure_answer_analysis_job_for_attempt(
+                step_dict,
+                attempt_id,
+                source=f"{source}:async_single",
+            )
+            # 记录 attempt_id 到 step（evidence gate 依赖 step.attempt_id 校验 lineage）
+            self.conn.execute(
+                "update flow_steps set attempt_id = ? where id = ?",
+                (attempt_id, step_dict["id"]),
+            )
             self._advance_or_close_mini_group_after_submission(
                 step_dict=step_dict,
                 attempt_id=attempt_id,
@@ -10873,6 +11039,78 @@ class DailyLearningRuntime:
             source=source,
         )
         self._mark_step_analyzing(step_dict["id"], attempt_id, step_dict["flow_id"])
+
+    def _is_choice_step(self, step_dict: dict[str, Any]) -> bool:
+        """该步骤是否为选择题（interaction_schema.type == single_choice）。"""
+        package = db.json_load(step_dict.get("prompt_package_json"), {})
+        if not isinstance(package, dict):
+            return False
+        raw_schema = package.get("interaction_schema")
+        schema = question_bank.normalize_question_interaction_schema(raw_schema)
+        return bool(schema and schema.get("type") == "single_choice")
+
+    def _grade_choice_attempt_locally(
+        self, step_dict: dict[str, Any], attempt: dict[str, Any]
+    ) -> None:
+        """选择题本地判定：比对 expected_answer 与所选选项，立即写 graded 结果.
+
+        只标记对错（result correct/wrong），不透露正确答案给孩子；
+        错因/讲解后续按需由模型生成。
+        """
+        question = db.get_question(self.conn, step_dict["question_id"])
+        expected = str(question.get("expected_answer") or "").strip().upper()
+        response = attempt.get("interaction_response") if isinstance(attempt.get("interaction_response"), dict) else {}
+        selected = response.get("selected_choices") or []
+        if isinstance(selected, str):
+            selected = [selected]
+        selected_id = ""
+        if selected:
+            first = selected[0]
+            if isinstance(first, dict):
+                selected_id = str(first.get("id") or first.get("choice_id") or "").strip().upper()
+            else:
+                selected_id = str(first or "").strip().upper()
+        correct = bool(expected and selected_id and selected_id == expected)
+        now = db.now_iso()
+        self.conn.execute(
+            """
+            update attempts
+            set result = ?,
+                grading_status = 'graded',
+                analysis_status = 'valid',
+                analysis_version = coalesce(analysis_version, 0) + 1,
+                score_points = ?,
+                max_points = ?,
+                parent_note = ?,
+                answer_analysis_json = ?,
+                review_meta_json = ?
+            where id = ?
+            """,
+            (
+                "correct" if correct else "wrong",
+                2 if correct else 0,
+                2,
+                "选择题本地判定："
+                + ("回答正确。" if correct else "回答不正确。"),
+                db.json_dump({
+                    "status": "graded",
+                    "provider_mode": "deterministic_runtime",
+                    "confidence": 1.0,
+                    "grading_mode": "choice_local",
+                    "question_id": question["id"],
+                    "expected_answer": expected,
+                    "selected_choice_id": selected_id,
+                    "correct": correct,
+                }),
+                db.json_dump({
+                    "status": "graded",
+                    "needs_ai_review": False,
+                    "provider_mode": "deterministic_runtime",
+                    "grading_mode": "choice_local",
+                }),
+                attempt["id"],
+            ),
+        )
 
     def _restore_existing_next_mini_group_step(
         self,
@@ -11073,6 +11311,9 @@ class DailyLearningRuntime:
         group_items: list[dict[str, Any]] = []
         digest_items: list[dict[str, Any]] = []
         for index, (step, attempt) in enumerate(pairs, start=1):
+            if self._attempt_graded_locally(attempt):
+                # 选择题已本地判定（对/错），不参与 AI 组批改。
+                continue
             contract = assessment_store.bound_active_contract_for_flow_step(self.conn, step["id"])
             if contract is None:
                 raise ChildSafeRuntimeError("这一组有题目暂时不能安全评分，请刷新后继续。")
