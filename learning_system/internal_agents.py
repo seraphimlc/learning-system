@@ -37,6 +37,30 @@ INTERNAL_AGENT_ROLES: dict[str, dict[str, str]] = {
         "does_not": "不追求题量",
         "contract_key": "question_review",
     },
+    "qf_reviewer_agent": {
+        "display": "QF 审查 Agent",
+        "does": "独立审查 QF 的能力独立性、Node 对齐和家族层边界",
+        "does_not": "不设计 Slot、不规定题目数量、不修改 QF",
+        "contract_key": "qf_review",
+    },
+    "slot_reviewer_agent": {
+        "display": "Slot 审查 Agent",
+        "does": "独立审查 Slot 的测量动作、错误分叉和可执行边界",
+        "does_not": "不设计 Brief、不生成具体题目、不修改 Slot",
+        "contract_key": "slot_review",
+    },
+    "brief_reviewer_agent": {
+        "display": "Brief 审查 Agent",
+        "does": "独立审查 Brief 是否能把 Slot 转成具体、可复核的出题构造任务",
+        "does_not": "不生成 Candidate、不放宽上游约束、不修改 Brief",
+        "contract_key": "brief_review",
+    },
+    "candidate_reviewer_agent": {
+        "display": "Candidate 审查 Agent",
+        "does": "独立复核题目正确性、可展示性、答案合同和目标能力实现",
+        "does_not": "不修改题目、不代替程序判定固定答案、不改变题目绑定",
+        "contract_key": "candidate_review",
+    },
     "answer_analysis_agent": {
         "display": "答案分析 Agent",
         "does": "判断答案、步骤、思路、替代解法、过程缺口，并产出可支撑评估与规划的证据摘要",

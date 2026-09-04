@@ -58,7 +58,8 @@
       "diagnosis_contract",
       "teaching_contract",
       "question_generation",
-      "error_diagnosis"
+      "error_diagnosis",
+      "production_contract"
     ],
     "summer_mode": {
       "core": "暑假必须学或必须补，直接影响七上跟课。",
@@ -213,6 +214,76 @@
           "短期降低题量，换取步骤完整",
           "建立三色标记：条件、关系、问题"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "数学不是只要答案，稳定得分靠步骤、单位、符号和检验。",
+          "question_hints": [
+            "计算过程改错",
+            "方程代回检验",
+            "应用题设列解答规范",
+            "单位与答句检查"
+          ],
+          "prerequisite_nodes_are_context_only": [],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-EQ-SOLVE",
+            "M-G7-EQ-WORD",
+            "M-G7-ANGLE-CALC"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能保留关键步骤",
+            "能主动做代回或估算检验",
+            "应用题答句有单位且符合题意"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "计算过程改错",
+            "方程代回检验",
+            "应用题设列解答规范",
+            "单位与答句检查"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "会做但跳步丢分",
+            "答案无单位",
+            "解方程不代回",
+            "符号书写混乱",
+            "草稿无法复查"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "modeling_or_reading",
+            "process_habit"
+          ],
+          "rollback_nodes": [],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -344,6 +415,75 @@
         "remediation_if_failed": [
           "先做一位小数",
           "再做两位小数和混合题"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "小数运算本质上先按整数算，再处理小数点。",
+          "question_hints": [
+            "小数加减",
+            "小数乘除",
+            "小数与分数互化"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-INTEGER-OPS",
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-EQ-DENOM",
+            "M-PRE-PERCENT",
+            "M-PRE-UNIT-CONVERSION"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "小数运算正确率≥85%",
+            "能解释小数除法为何移动小数点"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "小数加减",
+            "小数乘除",
+            "小数与分数互化"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "小数点对齐错",
+            "除数是小数不会转化",
+            "结果不估算"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [
+            "M-PRE-INTEGER-OPS",
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -481,6 +621,76 @@
           "每天5分钟计算维护",
           "错题隔天同类复测"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "整数计算是后面所有代数运算的底层肌肉。",
+          "question_hints": [
+            "多位数加减乘除",
+            "有余数除法验算",
+            "简便运算"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-ADD-SUB",
+            "M-G7-RATIONAL-MUL-DIV",
+            "M-PRE-DECIMAL-OPS",
+            "M-PRE-FRACTION-OPS",
+            "M-PRE-DISTRIBUTIVE",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "基础计算正确率≥90%",
+            "有余数除法能写出验算"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "多位数加减乘除",
+            "有余数除法验算",
+            "简便运算"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "进退位错",
+            "乘法竖式漏位",
+            "余数大于除数",
+            "验算习惯差"
+          ],
+          "error_tags": [
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -608,6 +818,71 @@
         "remediation_if_failed": [
           "每天5分钟估算口算",
           "所有计算题增加‘估算栏’"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "先判断答案大概范围，防止算出离谱结果。",
+          "question_hints": [
+            "估算乘除结果",
+            "判断小数点位置",
+            "比较结果大小"
+          ],
+          "prerequisite_nodes_are_context_only": [],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-PRE-ORDER-OPS",
+            "M-PRE-INTEGER-OPS",
+            "M-PRE-DECIMAL-OPS",
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-ANGLE-BASIC",
+            "M-G7-POS-NEG",
+            "M-G7-SCI-NOTATION-APPROX"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能在计算前说出结果大致范围",
+            "能主动用估算发现小数点或符号错误"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "估算乘除结果",
+            "判断小数点位置",
+            "比较结果大小"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "只机械计算不估算",
+            "小数点位置离谱也不检查"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -741,6 +1016,76 @@
         "remediation_if_failed": [
           "回到只含整数的混合运算",
           "再加入小数分数"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "算式有交通规则：括号优先，先乘除后加减，同级从左到右。",
+          "question_hints": [
+            "整数混合运算",
+            "小数/分数混合",
+            "含括号运算"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-EXPR-VALUE",
+            "M-G7-EQ-SOLVE",
+            "M-PRE-DISTRIBUTIVE",
+            "M-PRE-EQUATION-BASIC",
+            "M-PRE-GEO-AREA-VOLUME"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能说出每一步为什么先算它"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "整数混合运算",
+            "小数/分数混合",
+            "含括号运算"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "跳步导致顺序错",
+            "同级运算不从左到右",
+            "括号去掉后符号错"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -878,6 +1223,77 @@
           "所有分数应用题先画线段图",
           "错题归因到单位1"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "分数不是两个数叠在一起，而是‘把单位1平均分后取几份’。",
+          "question_hints": [
+            "找单位1",
+            "分数表示具体量",
+            "分率与数量区分"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-PRE-FRACTION-OPS",
+            "M-PRE-PERCENT",
+            "M-G7-EQ-WORD",
+            "M-PRE-RATIO-PROP",
+            "M-BRIDGE-SUM-DIFF-MULTIPLE",
+            "M-BRIDGE-WORK-RATE",
+            "M-G7-RATIONAL-CLASSIFY"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能圈出单位1",
+            "能说清‘谁是谁的几分之几’"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "找单位1",
+            "分数表示具体量",
+            "分率与数量区分"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "单位1找错",
+            "把分率当具体数量",
+            "看到分数就机械乘除"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -1011,6 +1427,78 @@
         ],
         "remediation_if_failed": [
           "拆成通分、约分、倒数三个微技能分别补"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "分数加减靠通分，分数乘除靠约分和倒数。",
+          "question_hints": [
+            "通分加减",
+            "分数乘法",
+            "分数除法",
+            "分数混合运算"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-INTEGER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-EQ-DENOM",
+            "M-PRE-RATIO-PROP",
+            "M-G7-RATIONAL-MUL-DIV"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能说明通分/倒数规则"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "通分加减",
+            "分数乘法",
+            "分数除法",
+            "分数混合运算"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "通分只改分母不改分子",
+            "约分不彻底",
+            "除法忘记乘倒数",
+            "带分数处理错"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-INTEGER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -1146,6 +1634,76 @@
           "先回分数意义与单位1",
           "再做百分率变式"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "百分数本质是以100为标准的分率，关键仍是找单位1。",
+          "question_hints": [
+            "百分数互化",
+            "求百分率",
+            "折扣",
+            "增长/降低"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-DECIMAL-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD",
+            "M-BRIDGE-PERCENT-MODEL"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "常用互化秒答",
+            "能写出比较量÷标准量"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "百分数互化",
+            "求百分率",
+            "折扣",
+            "增长/降低"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "单位1找错",
+            "增长率和增长量混淆",
+            "百分号乱带单位"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-DECIMAL-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -1280,6 +1838,76 @@
           "回到分数意义",
           "用表格整理对应量"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "比表示两个量的关系，比例表示两个比相等。",
+          "question_hints": [
+            "化简比",
+            "求比值",
+            "按比例分配",
+            "比例尺"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-FRACTION-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD",
+            "M-BRIDGE-PROPORTION-MODEL"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能区分比与比值",
+            "比例题能先统一单位"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "化简比",
+            "求比值",
+            "按比例分配",
+            "比例尺"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "比和比值混淆",
+            "单位不统一",
+            "比例尺单位错"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-FRACTION-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -1411,6 +2039,73 @@
         "remediation_if_failed": [
           "先用具体数字验证",
           "再换成字母表达"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "运算律不是为了炫技，而是后面整式去括号和合并的前身。",
+          "question_hints": [
+            "乘法分配律",
+            "凑整简算",
+            "括号前负号"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-INTEGER-OPS",
+            "M-PRE-ORDER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-PARENTHESIS",
+            "M-G7-POLY-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说出为什么能简算",
+            "能把a(b+c)类比到数字题"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "乘法分配律",
+            "凑整简算",
+            "括号前负号"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "乱用简便运算",
+            "漏乘括号内每一项",
+            "负号分配错误"
+          ],
+          "error_tags": [
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-INTEGER-OPS",
+            "M-PRE-ORDER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -1544,6 +2239,74 @@
           "退回等量关系",
           "用天平图演示"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "方程是用等号把未知数和已知条件连接起来。",
+          "question_hints": [
+            "一步方程",
+            "两步方程",
+            "根据等量关系列方程"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-QUANTITY-RELATION",
+            "M-PRE-ORDER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQUALITY-PROP",
+            "M-G7-EQ-SOLVE",
+            "M-G7-EQUATION-CONCEPT"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "基础方程正确率≥85%",
+            "能代回检验"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "一步方程",
+            "两步方程",
+            "根据等量关系列方程"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "等号两边不平衡",
+            "移项凭感觉",
+            "解完不检验"
+          ],
+          "error_tags": [
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-QUANTITY-RELATION",
+            "M-PRE-ORDER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -1674,6 +2437,72 @@
         "remediation_if_failed": [
           "回到数量关系语言翻译",
           "先写乘号再省略"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "字母是会变化的数，用来表达一类情况。",
+          "question_hints": [
+            "用字母表示数量",
+            "代入求值",
+            "省略乘号规范"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-ALG-EXPR",
+            "M-G7-MONOMIAL"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能用字母表达简单数量关系",
+            "知道2a表示2×a"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "用字母表示数量",
+            "代入求值",
+            "省略乘号规范"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "把字母当固定未知数",
+            "数量关系表达反",
+            "省略乘号不规范"
+          ],
+          "error_tags": [
+            "modeling_or_reading",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -1813,6 +2642,80 @@
           "降级到和差倍模型",
           "每题强制写‘等量关系：…’"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "应用题最关键不是算，而是找到两个相等的量。",
+          "question_hints": [
+            "根据文字找等量关系",
+            "线段图",
+            "表格整理条件"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-INTEGER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-PRE-EQUATION-BASIC",
+            "M-G7-EQ-WORD",
+            "M-PRE-LETTER-EXPR",
+            "M-BRIDGE-WORD-PROBLEM-READING",
+            "M-BRIDGE-SUM-DIFF-MULTIPLE",
+            "M-BRIDGE-MOTION-BASIC",
+            "M-BRIDGE-MOTION-CHASE",
+            "M-BRIDGE-WORK-RATE",
+            "M-BRIDGE-PERCENT-MODEL",
+            "M-G7-ALG-EXPR",
+            "M-BRIDGE-PROPORTION-MODEL"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能用一句话写出等量关系",
+            "能解释每个量代表什么"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "根据文字找等量关系",
+            "线段图",
+            "表格整理条件"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "只盯数字不看关系",
+            "把多/少/倍关系写反",
+            "未知量设错"
+          ],
+          "error_tags": [
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-INTEGER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -1942,6 +2845,72 @@
         "remediation_if_failed": [
           "减少数字复杂度",
           "用表格整理题意"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "应用题先读关系，再列式；不是看到数字就算。",
+          "question_hints": [
+            "圈关键词",
+            "找已知未知",
+            "写等量关系"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD",
+            "M-BRIDGE-MOTION-CHASE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能在不计算时说出解题路径",
+            "能区分信息和问题"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "圈关键词",
+            "找已知未知",
+            "写等量关系"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "漏条件",
+            "问题看反",
+            "关键词机械套公式"
+          ],
+          "error_tags": [
+            "process_habit",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -2075,6 +3044,75 @@
         "remediation_if_failed": [
           "先做无干扰直算题",
           "再加单位换算"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "路程、速度、时间三者互相决定：路程=速度×时间。",
+          "question_hints": [
+            "求路程",
+            "求速度",
+            "求时间",
+            "单位换算干扰"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-QUANTITY-RELATION",
+            "M-PRE-UNIT-CONVERSION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-BRIDGE-MOTION-CHASE",
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能先统一单位",
+            "能写出三量关系"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "求路程",
+            "求速度",
+            "求时间",
+            "单位换算干扰"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "速度单位不统一",
+            "时间小时分钟混用",
+            "公式知道但题意对应错"
+          ],
+          "error_tags": [
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-QUANTITY-RELATION",
+            "M-PRE-UNIT-CONVERSION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -2213,6 +3251,79 @@
           "回到行程基础三量",
           "只练识别相遇/追及，不先算复杂数"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "追及看速度差，相遇看速度和；本质是距离差/距离和如何变化。",
+          "question_hints": [
+            "相向相遇",
+            "同向追及",
+            "先走后追",
+            "环形跑道"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-BRIDGE-MOTION-BASIC",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-BRIDGE-CLOCK-ANGLE",
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说出为什么用速度和/速度差",
+            "能把先走时间转成距离差"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "环形追及",
+            "多阶段行程"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "相向相遇",
+            "同向追及",
+            "先走后追",
+            "环形跑道"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "速度和速度差混淆",
+            "先走时间没有转成距离差",
+            "环形追及不知道一圈差"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-BRIDGE-MOTION-BASIC",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -2343,6 +3454,75 @@
         ],
         "remediation_if_failed": [
           "回分数意义和单位1"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "百分数应用题仍是比较量、标准量、变化量的关系。",
+          "question_hints": [
+            "折扣",
+            "增长率",
+            "正确率",
+            "利润率"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-PERCENT",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能写出百分率公式",
+            "能找单位1"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "折扣",
+            "增长率",
+            "正确率",
+            "利润率"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "标准量找错",
+            "增长量与现量混淆",
+            "百分率带单位"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-PERCENT",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -2484,6 +3664,79 @@
           "回到比与比值的区别",
           "所有比例题先写单位"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "比例题不是套公式，关键是找出两组对应量，并保持对应关系不乱。",
+          "question_hints": [
+            "按比例分配",
+            "比例尺",
+            "正比例关系初步",
+            "用表格整理对应量"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-RATIO-PROP",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能画出对应量表",
+            "能解释为什么两个比相等",
+            "比例尺题能先统一单位"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "反比例直观体验",
+            "比例与方程两种解法对照"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "按比例分配",
+            "比例尺",
+            "正比例关系初步",
+            "用表格整理对应量"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "对应量写串行",
+            "比值方向反了",
+            "比例尺单位没统一",
+            "把比例关系当加减关系"
+          ],
+          "error_tags": [
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-RATIO-PROP",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -2615,6 +3868,76 @@
         ],
         "remediation_if_failed": [
           "先回线段图，不急着列方程"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "和差倍题本质是把两个量转成同一个‘一倍量’。",
+          "question_hints": [
+            "和差",
+            "和倍",
+            "差倍",
+            "年龄差不变"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-QUANTITY-RELATION",
+            "M-PRE-FRACTION-MEANING"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能画线段图",
+            "能用算术或方程两种方式解释"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "一题两解：算术解法与方程解法对照"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "和差",
+            "和倍",
+            "差倍",
+            "年龄差不变"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "倍数关系写反",
+            "没有设一倍量",
+            "年龄差不变没抓住"
+          ],
+          "error_tags": [
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-QUANTITY-RELATION",
+            "M-PRE-FRACTION-MEANING"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -2750,6 +4073,79 @@
         "remediation_if_failed": [
           "回到角度基础与追及模型"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "分针和时针在圆周上运动，本质是角度版环形追及。",
+          "question_hints": [
+            "整点初始角",
+            "领先/落后角",
+            "夹角两个答案",
+            "重合/成直线"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-ANGLE-BASIC",
+            "M-BRIDGE-MOTION-CHASE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-ANGLE-CALC"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能算初始角度",
+            "能列角度差方程",
+            "能说明是否有两个答案"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "模360思想",
+            "第几次重合"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "整点初始角",
+            "领先/落后角",
+            "夹角两个答案",
+            "重合/成直线"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "不知道分针6°/分、时针0.5°/分",
+            "把夹角和方向角混淆",
+            "漏掉第二个答案"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-ANGLE-BASIC",
+            "M-BRIDGE-MOTION-CHASE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -2877,6 +4273,73 @@
         ],
         "remediation_if_failed": [
           "回分数意义与单位1"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "工程问题把工作总量看成1，合作就是效率相加。",
+          "question_hints": [
+            "单独完成",
+            "合作完成",
+            "先后合作"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能把效率写成1/天数",
+            "能列出合作等量关系"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "单独完成",
+            "合作完成",
+            "先后合作"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "工作效率不会表示",
+            "合作效率没相加",
+            "单位1理解弱"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-PRE-FRACTION-MEANING",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -3008,6 +4471,73 @@
         "remediation_if_failed": [
           "回数轴距离"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "绝对值是一个数到0的距离，距离永远不为负。",
+          "question_hints": [
+            "求绝对值",
+            "绝对值方程雏形",
+            "用绝对值比较"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-NUMBER-LINE",
+            "M-G7-OPPOSITE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-COMPARE",
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说出距离含义",
+            "知道绝对值非负"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "求绝对值",
+            "绝对值方程雏形",
+            "用绝对值比较"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "认为绝对值就是去负号",
+            "|0|不清楚",
+            "含字母绝对值乱去"
+          ],
+          "error_tags": [
+            "general"
+          ],
+          "rollback_nodes": [
+            "M-G7-NUMBER-LINE",
+            "M-G7-OPPOSITE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -3134,6 +4664,72 @@
         ],
         "remediation_if_failed": [
           "回绝对值和数轴"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "数轴上右边的数大；两个负数绝对值大的反而小。",
+          "question_hints": [
+            "正负数比较",
+            "负数比较",
+            "分数小数混合比较"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-NUMBER-LINE",
+            "M-G7-ABSOLUTE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "排序正确率≥85%",
+            "能解释负数比较规则"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "正负数比较",
+            "负数比较",
+            "分数小数混合比较"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "负数比较按绝对值直接比",
+            "分数小数不互化",
+            "数轴方向错"
+          ],
+          "error_tags": [
+            "general"
+          ],
+          "rollback_nodes": [
+            "M-G7-NUMBER-LINE",
+            "M-G7-ABSOLUTE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -3264,6 +4860,72 @@
         "remediation_if_failed": [
           "只练整数点，再加入分数小数"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "数轴把数变成位置，越往右越大。",
+          "question_hints": [
+            "画数轴",
+            "在数轴上表示数",
+            "用数轴比较大小"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-POS-NEG"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-OPPOSITE",
+            "M-G7-ABSOLUTE",
+            "M-G7-COMPARE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能画出三要素：原点、正方向、单位长度",
+            "能用位置比较大小"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "画数轴",
+            "在数轴上表示数",
+            "用数轴比较大小"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "单位长度不一致",
+            "正负方向反",
+            "分数小数位置不准"
+          ],
+          "error_tags": [
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-G7-POS-NEG"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -3388,6 +5050,71 @@
         ],
         "remediation_if_failed": [
           "回数轴位置"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "相反数是在数轴上到0距离相等、方向相反的两个数。",
+          "question_hints": [
+            "求相反数",
+            "化简多重负号",
+            "数轴对称"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-NUMBER-LINE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-ABSOLUTE",
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能从数轴对称解释",
+            "多重负号正确率≥90%"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "求相反数",
+            "化简多重负号",
+            "数轴对称"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "负数的相反数仍写负",
+            "-(-a)化简错",
+            "0的相反数不清楚"
+          ],
+          "error_tags": [
+            "general"
+          ],
+          "rollback_nodes": [
+            "M-G7-NUMBER-LINE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -3515,6 +5242,72 @@
         ],
         "remediation_if_failed": [
           "回生活情境，不急着算"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "负数不是更小的自然数，而是表示相反意义的量。",
+          "question_hints": [
+            "相反意义量",
+            "用正负数表示",
+            "零的意义"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-CLASSIFY",
+            "M-G7-NUMBER-LINE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能用正负数表示相反意义",
+            "知道0既不是正数也不是负数"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "相反意义量",
+            "用正负数表示",
+            "零的意义"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "把0当正数或负数",
+            "不会用负数表示下降/亏损",
+            "语境方向看反"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -3656,6 +5449,80 @@
           "回绝对值比较",
           "把减法全部改写成加法"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "加减本质是在数轴上移动；减法可以转化为加相反数。",
+          "question_hints": [
+            "同号相加",
+            "异号相加",
+            "减法转加法",
+            "多项加减"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-COMPARE",
+            "M-G7-ABSOLUTE",
+            "M-PRE-INTEGER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-RATIONAL-MUL-DIV",
+            "M-G7-COMBINE-LIKE",
+            "M-G7-PARENTHESIS"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能口述异号相加规则"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "同号相加",
+            "异号相加",
+            "减法转加法",
+            "多项加减"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "符号错",
+            "绝对值大的符号没保留",
+            "减法没有转加法",
+            "省略括号后符号乱"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [
+            "M-G7-COMPARE",
+            "M-G7-ABSOLUTE",
+            "M-PRE-INTEGER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -3783,6 +5650,73 @@
         ],
         "remediation_if_failed": [
           "回分数和小数互化"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "有理数包括整数和分数，正负只是另一个分类角度。",
+          "question_hints": [
+            "按整数/分数分类",
+            "按正/负/零分类",
+            "集合归类"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-POS-NEG",
+            "M-PRE-FRACTION-MEANING"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-COMPARE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能用两种标准分类",
+            "能解释小数为什么可能是有理数"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "按整数/分数分类",
+            "按正/负/零分类",
+            "集合归类"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "有限小数不知道是分数",
+            "负分数归类漏掉",
+            "0分类错"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-POS-NEG",
+            "M-PRE-FRACTION-MEANING"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -3922,6 +5856,81 @@
         "remediation_if_failed": [
           "拆回加减、乘除、乘方单项"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "混合运算是小学运算顺序 + 初一符号规则的组合。",
+          "question_hints": [
+            "含括号",
+            "含乘方",
+            "分数小数混合",
+            "简算"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-RATIONAL-ADD-SUB",
+            "M-G7-RATIONAL-MUL-DIV",
+            "M-G7-POWER",
+            "M-PRE-ORDER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EXPR-VALUE",
+            "M-G7-EQ-SOLVE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥80%",
+            "步骤清楚，不靠心算乱跳"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "含括号",
+            "含乘方",
+            "分数小数混合",
+            "简算"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "运算顺序错",
+            "符号错",
+            "分数约分错",
+            "跳步"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-RATIONAL-ADD-SUB",
+            "M-G7-RATIONAL-MUL-DIV",
+            "M-G7-POWER",
+            "M-PRE-ORDER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -4055,6 +6064,75 @@
           "回分数运算",
           "符号专项10题"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "乘除先定符号，再算绝对值；除法可转化为乘倒数。",
+          "question_hints": [
+            "两数乘除",
+            "多个因数符号",
+            "除法转倒数",
+            "含分数乘除"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-RATIONAL-ADD-SUB",
+            "M-PRE-FRACTION-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-POWER"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能先符号后数值"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "两数乘除",
+            "多个因数符号",
+            "除法转倒数",
+            "含分数乘除"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "负号个数判断错",
+            "除法忘倒数",
+            "分数约分错"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [
+            "M-G7-RATIONAL-ADD-SUB",
+            "M-PRE-FRACTION-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -4181,6 +6259,72 @@
         ],
         "remediation_if_failed": [
           "所有乘方先写展开式"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "乘方是相同因数连乘，底数和指数必须看清。",
+          "question_hints": [
+            "正负数乘方",
+            "底数带括号",
+            "科学记数法前置"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-RATIONAL-MUL-DIV"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-RATIONAL-MIXED",
+            "M-G7-SCI-NOTATION-APPROX"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能解释底数是谁",
+            "符号判断正确率≥90%"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "正负数乘方",
+            "底数带括号",
+            "科学记数法前置"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "-2²和(-2)²混淆",
+            "指数当乘数",
+            "0和1的乘方不熟"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion"
+          ],
+          "rollback_nodes": [
+            "M-G7-RATIONAL-MUL-DIV"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -4317,6 +6461,75 @@
           "回到数位顺序表和乘方意义",
           "先练10的整数次幂"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "科学记数法是把很大或很小的数写成a×10ⁿ，近似数要看精确到哪一位。",
+          "question_hints": [
+            "科学记数法表示",
+            "还原原数",
+            "近似数与精确度",
+            "有效数字意识"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-POWER",
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能把a控制在1≤a<10",
+            "能说清指数表示小数点移动几位",
+            "能判断近似数精确度"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "科学记数法表示",
+            "还原原数",
+            "近似数与精确度",
+            "有效数字意识"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "a不在1到10之间",
+            "10的指数数错",
+            "近似到哪一位看错",
+            "四舍五入后位数不规范"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-POWER",
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -4449,6 +6662,76 @@
         "remediation_if_failed": [
           "回用字母表示数和等量关系"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "代数式是用数字、字母和运算符号表达数量关系。",
+          "question_hints": [
+            "文字语言写代数式",
+            "代数式表示实际意义",
+            "规范书写"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-LETTER-EXPR",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EXPR-VALUE",
+            "M-G7-MONOMIAL",
+            "M-G7-EQUATION-CONCEPT"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能把文字关系准确翻译成式子",
+            "书写规范"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "文字语言写代数式",
+            "代数式表示实际意义",
+            "规范书写"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "数量关系反写",
+            "单位量和总量混淆",
+            "乘号省略不规范"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-LETTER-EXPR",
+            "M-PRE-QUANTITY-RELATION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -4578,6 +6861,73 @@
         "remediation_if_failed": [
           "回同类项识别和有理数加减"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "合并同类项只合并系数，字母部分不变。",
+          "question_hints": [
+            "直接合并",
+            "多项式整理",
+            "含负系数"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-LIKE-TERMS",
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-POLY-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能解释为什么字母部分不变"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "直接合并",
+            "多项式整理",
+            "含负系数"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "字母指数也相加",
+            "符号漏掉",
+            "非同类项硬合并"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-LIKE-TERMS",
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -4704,6 +7054,72 @@
         ],
         "remediation_if_failed": [
           "回有理数混合运算"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "求值就是把字母换成给定数字，再按运算规则计算。",
+          "question_hints": [
+            "直接代入",
+            "含负数代入",
+            "含分数代入"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-ALG-EXPR",
+            "M-G7-RATIONAL-MIXED"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-POLY-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "负数代入会加括号"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "直接代入",
+            "含负数代入",
+            "含分数代入"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "负数代入不加括号",
+            "运算顺序错",
+            "把字母值抄错"
+          ],
+          "error_tags": [
+            "general"
+          ],
+          "rollback_nodes": [
+            "M-G7-ALG-EXPR",
+            "M-G7-RATIONAL-MIXED"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -4832,6 +7248,72 @@
         ],
         "remediation_if_failed": [
           "回单项式字母部分和次数"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "同类项看字母和字母指数是否完全相同，和系数无关。",
+          "question_hints": [
+            "识别同类项",
+            "根据同类项求指数",
+            "分类整理"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-MONOMIAL",
+            "M-G7-POLYNOMIAL"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-COMBINE-LIKE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥90%",
+            "能说出同类项标准"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "识别同类项",
+            "根据同类项求指数",
+            "分类整理"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "只看字母不看指数",
+            "受系数影响",
+            "字母顺序变化就不认"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [
+            "M-G7-MONOMIAL",
+            "M-G7-POLYNOMIAL"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -4964,6 +7446,75 @@
         "remediation_if_failed": [
           "回运算律与符号专项"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "括号前是正号不变，括号前是负号每一项都变号。",
+          "question_hints": [
+            "正号去括号",
+            "负号去括号",
+            "括号前有系数",
+            "多重括号"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-DISTRIBUTIVE",
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-POLY-ADD-SUB",
+            "M-G7-EQ-PAREN"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能说出每一项如何变化"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "正号去括号",
+            "负号去括号",
+            "括号前有系数",
+            "多重括号"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "只变第一项",
+            "漏乘括号内某项",
+            "负号和系数同时出现就乱"
+          ],
+          "error_tags": [
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-DISTRIBUTIVE",
+            "M-G7-RATIONAL-ADD-SUB"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -5093,6 +7644,74 @@
         "remediation_if_failed": [
           "拆回去括号或合并同类项"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "整式加减就是先去括号，再合并同类项。",
+          "question_hints": [
+            "整式加法",
+            "整式减法",
+            "先化简再求值",
+            "实际背景中的整式"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-COMBINE-LIKE",
+            "M-G7-PARENTHESIS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-PAREN"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥80%",
+            "步骤固定：去括号→找同类→合并"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "整式加法",
+            "整式减法",
+            "先化简再求值",
+            "实际背景中的整式"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "减去多项式忘变号",
+            "同类项合并错",
+            "先求值后化简导致复杂"
+          ],
+          "error_tags": [
+            "calculation_or_symbol"
+          ],
+          "rollback_nodes": [
+            "M-G7-COMBINE-LIKE",
+            "M-G7-PARENTHESIS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -5219,6 +7838,72 @@
         ],
         "remediation_if_failed": [
           "先识别项，再谈系数次数"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "单项式是数字和字母乘积组成的一项。",
+          "question_hints": [
+            "识别单项式",
+            "系数",
+            "次数"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-ALG-EXPR"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-LIKE-TERMS",
+            "M-G7-POLYNOMIAL"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能准确识别系数和次数",
+            "负号不漏"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "识别单项式",
+            "系数",
+            "次数"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "系数符号漏掉",
+            "次数把系数也算进去",
+            "π当字母"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-ALG-EXPR"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -5348,6 +8033,74 @@
         "remediation_if_failed": [
           "回单项式和带符号分项"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "多项式是几个单项式的和，每个部分叫一项。",
+          "question_hints": [
+            "识别项",
+            "次数",
+            "常数项",
+            "几次几项式"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-MONOMIAL"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-LIKE-TERMS",
+            "M-G7-POLY-ADD-SUB"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能带符号分项",
+            "能判断多项式次数"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "识别项",
+            "次数",
+            "常数项",
+            "几次几项式"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "减号后面项的符号漏掉",
+            "次数取错",
+            "常数项漏写符号"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-MONOMIAL"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -5475,6 +8228,73 @@
         ],
         "remediation_if_failed": [
           "回去括号专项"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "含括号方程先正确去括号，再按基础方程流程解。",
+          "question_hints": [
+            "括号前正负号",
+            "括号前系数",
+            "两边都有括号"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-EQ-SOLVE",
+            "M-G7-PARENTHESIS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "去括号正确率≥90%",
+            "方程整体正确率≥80%"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "括号前正负号",
+            "括号前系数",
+            "两边都有括号"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "去括号漏乘",
+            "负号变号漏项",
+            "移项再错一次"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-EQ-SOLVE",
+            "M-G7-PARENTHESIS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -5610,6 +8430,78 @@
         ],
         "remediation_if_failed": [
           "回等式性质和有理数运算"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "解方程的目标是把未知数单独留下。",
+          "question_hints": [
+            "一步方程",
+            "两步方程",
+            "移项合并",
+            "系数化为1"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-EQUALITY-PROP",
+            "M-G7-RATIONAL-MIXED"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-PAREN",
+            "M-G7-EQ-DENOM",
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "正确率≥85%",
+            "能代回检验"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "一步方程",
+            "两步方程",
+            "移项合并",
+            "系数化为1"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "移项不变号",
+            "系数化1除错",
+            "负系数处理错",
+            "不检验"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-EQUALITY-PROP",
+            "M-G7-RATIONAL-MIXED"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -5756,6 +8648,84 @@
           "回应用题审题流程",
           "按具体模型回退"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "方程应用题的核心是设未知数、找等量关系、解方程、检验答案。",
+          "question_hints": [
+            "和差倍",
+            "行程",
+            "销售/打折",
+            "工程",
+            "配套/调配"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-BRIDGE-WORD-PROBLEM-READING",
+            "M-G7-EQ-SOLVE",
+            "M-BRIDGE-SUM-DIFF-MULTIPLE",
+            "M-BRIDGE-MOTION-BASIC",
+            "M-BRIDGE-PERCENT-MODEL"
+          ],
+          "downstream_nodes_are_not_primary_targets": [],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能完整写出设列解答",
+            "中档应用题正确率≥70%"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "一题多解",
+            "从算术解法过渡到方程解法"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "和差倍",
+            "行程",
+            "销售/打折",
+            "工程",
+            "配套/调配"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "未知数设得不利于表达",
+            "等量关系找错",
+            "单位不统一",
+            "解出来不符合题意"
+          ],
+          "error_tags": [
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-BRIDGE-WORD-PROBLEM-READING",
+            "M-G7-EQ-SOLVE",
+            "M-BRIDGE-SUM-DIFF-MULTIPLE",
+            "M-BRIDGE-MOTION-BASIC",
+            "M-BRIDGE-PERCENT-MODEL"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -5881,6 +8851,70 @@
         ],
         "remediation_if_failed": [
           "回小学简易方程"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "等式像天平，两边做同样的事，平衡不变。",
+          "question_hints": [
+            "两边同加减",
+            "两边同乘除",
+            "等式变形判断"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-EQUATION-BASIC"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-SOLVE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能用天平解释解方程步骤",
+            "知道每步两边同操作"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "两边同加减",
+            "两边同乘除",
+            "等式变形判断"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "只对一边操作",
+            "除以含0可能性忽略",
+            "移项口诀代替理解"
+          ],
+          "error_tags": [
+            "general"
+          ],
+          "rollback_nodes": [
+            "M-PRE-EQUATION-BASIC"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -6009,6 +9043,72 @@
         "remediation_if_failed": [
           "回代数式和等式概念"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "方程是含未知数的等式；一元一次表示一个未知数且最高次数是1。",
+          "question_hints": [
+            "判断方程",
+            "判断一元一次方程",
+            "方程的解"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-EQUATION-BASIC",
+            "M-G7-ALG-EXPR"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQUALITY-PROP",
+            "M-G7-EQ-SOLVE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说出方程、一元、一次三个关键词"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "判断方程",
+            "判断一元一次方程",
+            "方程的解"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "把代数式当方程",
+            "未知数个数/次数判断错",
+            "方程的解不代入检验"
+          ],
+          "error_tags": [
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-PRE-EQUATION-BASIC",
+            "M-G7-ALG-EXPR"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -6135,6 +9235,72 @@
         ],
         "remediation_if_failed": [
           "回分数通分和基础方程"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "去分母是为了把分数方程变成整数方程，但每一项都要乘最小公倍数。",
+          "question_hints": [
+            "去分母",
+            "含括号与分母",
+            "分数系数"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-EQ-SOLVE",
+            "M-PRE-FRACTION-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-EQ-WORD"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能找公分母",
+            "每一项都乘不漏项"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "去分母",
+            "含括号与分母",
+            "分数系数"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "漏乘没有分母的项",
+            "最小公倍数找错",
+            "去分母后括号漏加"
+          ],
+          "error_tags": [
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-EQ-SOLVE",
+            "M-PRE-FRACTION-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -6265,6 +9431,74 @@
         "remediation_if_failed": [
           "回角度基础"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "角由两条有公共端点的射线组成，也可以看作旋转形成。",
+          "question_hints": [
+            "角的表示",
+            "角分类",
+            "角的度量"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-ANGLE-BASIC",
+            "M-G7-LINE-RAY-SEGMENT"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-ANGLE-CALC",
+            "M-BRIDGE-CLOCK-ANGLE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "角表示规范",
+            "能从旋转理解角"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "角的表示",
+            "角分类",
+            "角的度量"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "顶点没放中间",
+            "同一图中角表示不唯一",
+            "度分秒换算弱"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-PRE-ANGLE-BASIC",
+            "M-G7-LINE-RAY-SEGMENT"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -6391,6 +9625,72 @@
         ],
         "remediation_if_failed": [
           "回点线关系"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "直线无端点，射线一个端点，线段两个端点且可度量。",
+          "question_hints": [
+            "概念辨析",
+            "表示方法",
+            "线段计数"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-POINT-LINE-PLANE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-SEGMENT-MEASURE",
+            "M-G7-ANGLE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能准确说出端点特征",
+            "表示方法规范"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "概念辨析",
+            "表示方法",
+            "线段计数"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "端点数量混淆",
+            "表示方法不规范",
+            "线段数量漏数"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "process_habit"
+          ],
+          "rollback_nodes": [
+            "M-G7-POINT-LINE-PLANE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -6527,6 +9827,79 @@
         "remediation_if_failed": [
           "回角概念和线段计算类比"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "角度计算和线段计算一样，抓整体与部分、相等与互补互余关系。",
+          "question_hints": [
+            "角的和差",
+            "余角补角",
+            "角平分线",
+            "钟表角拓展"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-ANGLE",
+            "M-G7-SEGMENT-MEASURE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-BRIDGE-CLOCK-ANGLE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能标图列关系",
+            "基础角度题正确率≥80%"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "钟表角",
+            "方位角"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "角的和差",
+            "余角补角",
+            "角平分线",
+            "钟表角拓展"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "余角补角混淆",
+            "角平分线只分一个角",
+            "图形关系没标清"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-G7-ANGLE",
+            "M-G7-SEGMENT-MEASURE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -6654,6 +10027,72 @@
         "remediation_if_failed": [
           "动手折纸/画图"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "复杂图形可以从点、线、面、体这些基本元素看。",
+          "question_hints": [
+            "识别立体和平面",
+            "展开图",
+            "从不同方向看"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-GEO-AREA-VOLUME"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-POINT-LINE-PLANE",
+            "M-G7-GEO-VIEWS"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能区分体/面/线/点",
+            "简单展开图判断正确"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "识别立体和平面",
+            "展开图",
+            "从不同方向看"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "展开图想象弱",
+            "立体和平面关系不清",
+            "看图只凭感觉"
+          ],
+          "error_tags": [
+            "modeling_or_reading",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-PRE-GEO-AREA-VOLUME"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -6778,6 +10217,72 @@
         ],
         "remediation_if_failed": [
           "回实物观察"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "体由面围成，面与面相交成线，线与线相交成点。",
+          "question_hints": [
+            "点动成线",
+            "线动成面",
+            "面动成体",
+            "元素关系"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-GEO-SOLID-PLANE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-LINE-RAY-SEGMENT",
+            "M-G7-ANGLE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能举例解释四者关系"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "点动成线",
+            "线动成面",
+            "面动成体",
+            "元素关系"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "概念背诵但不会举例",
+            "点线面体关系混乱"
+          ],
+          "error_tags": [
+            "concept_confusion",
+            "modeling_or_reading"
+          ],
+          "rollback_nodes": [
+            "M-G7-GEO-SOLID-PLANE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -6907,6 +10412,73 @@
         "remediation_if_failed": [
           "回小学线段图"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "线段计算本质是部分与整体的关系。",
+          "question_hints": [
+            "中点",
+            "线段和差",
+            "尺规作线段"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-LINE-RAY-SEGMENT",
+            "M-PRE-UNIT-CONVERSION"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-ANGLE-CALC"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能写出AB=AC+CB等关系",
+            "中点能转化为相等线段"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "中点",
+            "线段和差",
+            "尺规作线段"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "中点关系只会背",
+            "图上相邻线段关系看错",
+            "单位不统一"
+          ],
+          "error_tags": [
+            "modeling_or_reading",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-G7-LINE-RAY-SEGMENT",
+            "M-PRE-UNIT-CONVERSION"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -7030,6 +10602,70 @@
         ],
         "remediation_if_failed": [
           "回立体和平面图形"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "三维图形可以通过展开或从不同方向观察变成二维信息。",
+          "question_hints": [
+            "正方体展开图",
+            "从正面/左面/上面看",
+            "小正方体组合"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-G7-GEO-SOLID-PLANE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "简单展开图和视图正确率≥75%"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": [
+            "正方体展开图归类"
+          ]
+        },
+        "question_hints": {
+          "candidate_types": [
+            "正方体展开图",
+            "从正面/左面/上面看",
+            "小正方体组合"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "11种正方体展开图不熟",
+            "左右方向看反",
+            "遮挡关系想错"
+          ],
+          "error_tags": [
+            "modeling_or_reading",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-G7-GEO-SOLID-PLANE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -7160,6 +10796,73 @@
         "remediation_if_failed": [
           "回到钟面和量角器直观"
         ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "角是旋转的大小，一圈360度。",
+          "question_hints": [
+            "角分类",
+            "角度加减",
+            "钟面角基础"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-ANGLE",
+            "M-BRIDGE-CLOCK-ANGLE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说出90/180/360度意义",
+            "能进行简单角度加减"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "角分类",
+            "角度加减",
+            "钟面角基础"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "周角/平角/直角混淆",
+            "角度进位不是十进制",
+            "看图误读"
+          ],
+          "error_tags": [
+            "calculation_or_symbol",
+            "concept_confusion",
+            "visual_spatial"
+          ],
+          "rollback_nodes": [
+            "M-PRE-NUMBER-SENSE"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
+        ]
       }
     },
     {
@@ -7287,6 +10990,72 @@
         "remediation_if_failed": [
           "回到图形标注",
           "只做公式识别和单位统一"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "几何公式不是背出来的，是由切拼、转化和底面积×高来的。",
+          "question_hints": [
+            "平面面积",
+            "圆面积周长",
+            "长方体/圆柱圆锥体积"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-UNIT-CONVERSION",
+            "M-PRE-ORDER-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-GEO-SOLID-PLANE"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说明公式中每个量是什么",
+            "单位写正确"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "平面面积",
+            "圆面积周长",
+            "长方体/圆柱圆锥体积"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "周长面积混淆",
+            "三角形/圆锥忘除以2或乘1/3",
+            "半径直径混用"
+          ],
+          "error_tags": [
+            "concept_confusion"
+          ],
+          "rollback_nodes": [
+            "M-PRE-UNIT-CONVERSION",
+            "M-PRE-ORDER-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     },
@@ -7416,6 +11185,73 @@
         "remediation_if_failed": [
           "制作常用单位表",
           "几何题先写单位检查"
+        ]
+      },
+      "production_contract": {
+        "contract_version": "node-production-contract.v1",
+        "review_status": "migrated_from_existing_fields",
+        "scope": {
+          "core_intent": "单位不统一，公式再对也会错。",
+          "question_hints": [
+            "长度/面积/体积单位",
+            "时间单位",
+            "人民币单位"
+          ],
+          "prerequisite_nodes_are_context_only": [
+            "M-PRE-DECIMAL-OPS"
+          ],
+          "downstream_nodes_are_not_primary_targets": [
+            "M-G7-SEGMENT-MEASURE",
+            "M-G7-EQ-WORD",
+            "M-PRE-GEO-AREA-VOLUME",
+            "M-BRIDGE-MOTION-BASIC"
+          ],
+          "boundary_rule": "前置节点只能作为必要背景，下游节点只能作为受控迁移背景；当前 Node 必须保持主要测量目标。"
+        },
+        "evidence": {
+          "must_demonstrate": [
+            "能说出长度/面积/体积相邻进率",
+            "应用题会先统一单位"
+          ],
+          "insufficient_evidence": [
+            "只答对一个直接机械步骤",
+            "只复述关键词或题型名称而没有完成对应能力"
+          ],
+          "transfer_signals": []
+        },
+        "question_hints": {
+          "candidate_types": [
+            "长度/面积/体积单位",
+            "时间单位",
+            "人民币单位"
+          ],
+          "quantity_policy": "仅作能力覆盖提示，不是 QF/Slot 数量，不是每日题量配额。",
+          "forbidden_default": "不得按固定数量、固定题型数量或固定每日题量自动补题。"
+        },
+        "error_model": {
+          "primary_mistakes": [
+            "面积进率当10",
+            "体积进率当100",
+            "时间进率用十进制"
+          ],
+          "error_tags": [
+            "general"
+          ],
+          "rollback_nodes": [
+            "M-PRE-DECIMAL-OPS"
+          ],
+          "avoid_rule": "同一套路连续刷十几题；孩子会形成模板反射但不一定理解。"
+        },
+        "source_fields": [
+          "essence_for_child",
+          "prerequisites",
+          "unlocks",
+          "question_types",
+          "common_mistakes",
+          "mastery_criteria",
+          "controlled_extensions",
+          "question_generation.avoid",
+          "error_diagnosis"
         ]
       }
     }

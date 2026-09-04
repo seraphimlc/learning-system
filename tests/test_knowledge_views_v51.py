@@ -1913,7 +1913,7 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
                 child_key="single-child",
                 request=replacement_request,
             )
-            self.assertEqual("applied", replacement["status"])
+            self.assertEqual("waiting_for_safe_boundary", replacement["status"])
             self.assertEqual(
                 "cancelled",
                 conn.execute(
@@ -1932,6 +1932,14 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
                 "select current_step_id from daily_flows where id = ?",
                 (flow["id"],),
             ).fetchone()["current_step_id"]
+            self.assertEqual(source_step_id, current_before_replay)
+            self.assertEqual(
+                "selected",
+                conn.execute(
+                    "select status from flow_steps where id = ?",
+                    (source_step_id,),
+                ).fetchone()["status"],
+            )
             with self.assertRaises(KnowledgeMapError) as replay_error:
                 service.select_target(
                     child_key="single-child",
@@ -2122,7 +2130,7 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
             assets = self._install_view_activation(
                 conn,
                 config_payload=config,
-                assessment_node_ids=[foundation, blocked_target],
+                assessment_node_ids=[foundation, foundation, blocked_target],
             )
             self._install_visual_activation(conn)
             asset_by_node = {asset["node_id"]: asset for asset in assets}
@@ -2380,13 +2388,28 @@ class KnowledgeTargetRuntimeIntegrationTests(KnowledgeViewsV51TestCase):
                 "client_idempotency_key": "target-continuity-applied",
             }
             result = service.select_target(child_key="single-child", request=request)
-            self.assertEqual("applied", result["status"])
+            self.assertEqual("waiting_for_safe_boundary", result["status"])
 
             intent = conn.execute(
                 "select * from learning_target_intents where client_idempotency_key = ?",
                 (request["client_idempotency_key"],),
             ).fetchone()
             self.assertEqual(active_flow_id, intent["source_flow_id"])
+            self.assertIsNone(intent["applied_flow_id"])
+            conn.execute(
+                "update flow_steps set status = 'completed', updated_at = ? where id = ?",
+                (db.now_iso(), active_step_id),
+            )
+            conn.commit()
+            recovered = daily_runtime.DailyLearningRuntime(
+                conn,
+                project_root=PROJECT_ROOT,
+            ).recover_target_intents()
+            self.assertEqual("applied", recovered["status"], recovered)
+            intent = conn.execute(
+                "select * from learning_target_intents where id = ?",
+                (intent["id"],),
+            ).fetchone()
             self.assertEqual(active_flow_id, intent["applied_flow_id"])
             materialized_flow = conn.execute(
                 "select * from daily_flows where id = ?",

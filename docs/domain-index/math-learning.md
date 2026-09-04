@@ -62,7 +62,7 @@ It excludes generic multi-user product features, unrelated English expansion, an
 - Math graph notes: `data/knowledge_graphs/math/math_knowledge_graph_v2.md`
 - Math knowledge view config: `data/knowledge_graphs/math/math_knowledge_views_v5_1.json`
 - Knowledge cards: `data/knowledge_cards/`
-- v18 question-bank source assets: `data/question_banks/v18/`
+- Question production assets are currently empty; the replacement v20 slot system is defined in `.agents/superpowers/specs/2026-08-14-independent-slot-question-production.md`.
 - Local learning system backend: `learning_system/db.py`, `learning_system/question_bank.py`, `learning_system/evolution.py`, `learning_system/planner.py`, `learning_system/agents.py`, `learning_system/server.py`
 - v5 daily runtime: `learning_system/daily_runtime.py`, `learning_system/graph_runtime.py`, `learning_system/evidence_gate.py`, `learning_system/job_queue.py`
 - Local learning system UI: `app/local_learning_system/index.html`, `app/local_learning_system/styles.css`, `app/local_learning_system/app.js`
@@ -103,7 +103,7 @@ It excludes generic multi-user product features, unrelated English expansion, an
 - `docs/architecture/technical_plan_v5.md`
 - `docs/architecture/implementation_blueprint_v5.md`
 - `docs/architecture/answer_assessment_engineering_contract_v5_1.md`
-- `docs/design/specs/2026-07-23-question-bank-production-spec-v18.1.md`
+- `docs/project-rules/question-production-cleanup-manifest.md`
 
 ## Validation Entrypoints
 
@@ -112,7 +112,7 @@ jq empty data/knowledge_graphs/math/math_knowledge_graph_v2.json
 jq '.nodes | length' data/knowledge_graphs/math/math_knowledge_graph_v2.json
 python3 scripts/init_learning_system_db.py
 python3 -m unittest tests/test_learning_system.py tests/test_knowledge_views_v51.py -v
-python3 -m unittest tests/test_question_bank_v18_activation_gate.py tests/test_admin_console_inventory.py tests/test_admin_console_production_loop.py tests/test_question_bank_v18_blueprints.py tests/test_admin_full_bank_runner_priority.py -v
+python3 -m unittest tests/test_learning_system.py tests/test_knowledge_views_v51.py -v
 /Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node tests/browser_smoke_learning_system.mjs
 python3 -m learning_system.server --db data/local_learning_system.sqlite --port 8765
 ```

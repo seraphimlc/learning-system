@@ -53,6 +53,63 @@ DISCOVERY_DEPTHS = frozenset({"E0", "E1", "E2", "E3", "E4"})
 ENTRY_POINT_VISIBILITIES = frozenset({"explicit", "cued", "implicit", "exploratory"})
 MASTERY_STATES = frozenset({"A", "B", "C", "D"})
 FIXED_ANSWER_POLICIES = frozenset({"observation_only", "confirmation_eligible"})
+QUESTION_SLOT_QUALITY_SCORE_VERSION = "question-slot-quality-score.v1"
+QUESTION_SLOT_QUALITY_SCORE_THRESHOLD = 80
+
+
+def score_question_slot(
+    *,
+    brief: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+    review: Mapping[str, Any],
+    derivation: Mapping[str, Any],
+    local_errors: Sequence[str] = (),
+    quality_gate_errors: Sequence[str] = (),
+) -> dict[str, Any]:
+    """Derive a bounded quality score from evidence, not model self-rating."""
+    depth = derivation.get("discovery_depth")
+    decision_count = len(derivation.get("decision_points") or [])
+    evidence_count = len(derivation.get("key_insight_evidence_keys") or [])
+    breakdown = {
+        "graph_binding": 15,
+        "key_insight": 15 if evidence_count else 0,
+        "non_mechanical": 15 if depth in {"E2", "E3", "E4"} and decision_count else 0,
+        "difficulty_honesty": 10 if depth in {"E2", "E3", "E4"} else 0,
+        "diagnostic_value": 15 if decision_count and brief.get("misconception_target") else 0,
+        "answer_contract": 15 if not local_errors else 0,
+        "age_fit": 10 if str(candidate.get("prompt") or "").strip() else 0,
+        "renderer_and_provenance": 5 if not (candidate.get("provenance") or {}).get("external_references") else 0,
+        "reviewer_signal": 0,
+        "contract_findings": 0,
+    }
+    if review.get("verdict") == "REVISE":
+        breakdown["reviewer_signal"] = -10
+    elif review.get("verdict") == "BLOCKED":
+        breakdown["reviewer_signal"] = -40
+    elif review.get("verdict") != "PASS":
+        breakdown["reviewer_signal"] = -40
+    if quality_gate_errors:
+        breakdown["contract_findings"] = -30
+    risk_level = str(review.get("risk_level") or "").strip().lower()
+    if not risk_level:
+        risk_level = {
+            "PASS": "none",
+            "REVISE": "minor",
+            "BLOCKED": "blocker",
+        }.get(str(review.get("verdict") or "").strip().upper(), "blocker")
+    risk_penalties = {"none": 0, "minor": 0, "major": -35, "blocker": -100}
+    if risk_level not in risk_penalties:
+        risk_level = "blocker"
+    breakdown["review_risk"] = risk_penalties[risk_level]
+    score = max(0, min(100, sum(breakdown.values())))
+    return {
+        "schema_version": QUESTION_SLOT_QUALITY_SCORE_VERSION,
+        "score": score,
+        "threshold": QUESTION_SLOT_QUALITY_SCORE_THRESHOLD,
+        "breakdown": breakdown,
+        "risk_level": risk_level,
+        "passed": score >= QUESTION_SLOT_QUALITY_SCORE_THRESHOLD,
+    }
 
 _STRUCTURAL_CJK_WORDS = frozenset(
     {
@@ -64,7 +121,7 @@ _STRUCTURAL_CJK_WORDS = frozenset(
     }
 )
 _MECHANICAL_DECISION_MARKERS = re.compile(
-    r"按.+(?:规则|公式|模型)|负号.{0,8}(?:范围|作用)|选择|表示|模型|数轴|通分|哪一种|为什么|理由|解释|错误|依据"
+    r"按.+(?:规则|公式|模型)|负号.{0,8}(?:范围|作用)|选择|可选|表示|模型|数轴|通分|哪一|哪种|策略|方案|方法|第一步|先.+再|为什么|理由|解释|错误|依据"
 )
 
 
@@ -660,7 +717,17 @@ def _entry_point_visibility(prompt: str, graph_contract: Mapping[str, Any], acti
     if any(action in {"construct_counterexample", "identify_invariant", "explore_construction"} for action in actions):
         return "exploratory" if re.search(r"构造|反例|不变量|探索|任意", prompt) else "implicit"
     normalized_prompt = normalize_text(prompt)
-    if re.search(r"按.+规则|按.+公式|直接计算|计算|求", normalized_prompt):
+    if re.search(
+        r"(?:可|可以|任选|选择).{0,20}(?:两|二|多|种|方式|方法|方案|或)|(?:两|二)种(?:方式|方法|方案)",
+        normalized_prompt,
+    ):
+        return "cued"
+    if re.search(
+        r"按.+规则|按.+公式|直接计算|计算|求|"
+        r"(?:(?<!采)用|依据|根据|按照)[^，。；:：]{1,16}(?:表示|排序|比较|计算|判断|改写|化简|展开)|"
+        r"在[^，。；:：]{1,16}(?:上|中|内)[^，。；:：]{0,8}(?:表示|排序|比较|计算|判断|改写|化简|展开)",
+        normalized_prompt,
+    ):
         return "explicit"
     if re.search(r"选择|判断|比较|表示|先", normalized_prompt):
         return "cued"
@@ -772,6 +839,7 @@ def derive_discovery_derivation(
     graph_lineage: str | None = None,
     node_id: str | None = None,
     graph_mode: str = "core",
+    enforce_proposal_alignment: bool = True,
 ) -> dict[str, Any]:
     """Compile an authoritative discovery receipt from reviewer evidence."""
     proposal = _validate_candidate_proposal(proposal)
@@ -817,27 +885,29 @@ def derive_discovery_derivation(
         depth = "E0"
     else:
         depth = "E1" if visibility in {"explicit", "cued"} else "E0"
-    proposed_depth = proposal.get("proposed_discovery_depth", proposal.get("discovery_depth"))
-    if proposed_depth is not None and proposed_depth != depth:
-        raise ValueError("candidate proposed discovery depth does not match authoritative derivation")
+    if enforce_proposal_alignment:
+        proposed_depth = proposal.get("proposed_discovery_depth", proposal.get("discovery_depth"))
+        if proposed_depth is not None and proposed_depth != depth:
+            raise ValueError("candidate proposed discovery depth does not match authoritative derivation")
     proposal_projection = {
         "entry_point": actions[0],
         "entry_point_visibility": visibility,
         "required_decisions": [decision["taxonomy"] for decision in decisions],
         "required_steps": ordered_step_ids,
     }
-    for field, authoritative in proposal_projection.items():
-        if field not in proposal:
-            continue
-        candidate = proposal[field]
-        if field == "entry_point_visibility":
-            candidate = _enum_value(candidate, ENTRY_POINT_VISIBILITIES, "invalid proposal entry-point visibility")
-        elif field in {"required_decisions", "required_steps"}:
-            candidate = _bounded_string_array(candidate, f"proposal.{field}", maximum=MAX_SOLUTION_STEPS, unique=True)
-        elif not isinstance(candidate, str) or not candidate.strip():
-            raise ValueError(f"proposal.{field} must be a non-empty string")
-        if canonical_json(candidate) != canonical_json(authoritative):
-            raise ValueError(f"candidate proposal {field} does not match authoritative projection")
+    if enforce_proposal_alignment:
+        for field, authoritative in proposal_projection.items():
+            if field not in proposal:
+                continue
+            candidate = proposal[field]
+            if field == "entry_point_visibility":
+                candidate = _enum_value(candidate, ENTRY_POINT_VISIBILITIES, "invalid proposal entry-point visibility")
+            elif field in {"required_decisions", "required_steps"}:
+                candidate = _bounded_string_array(candidate, f"proposal.{field}", maximum=MAX_SOLUTION_STEPS, unique=True)
+            elif not isinstance(candidate, str) or not candidate.strip():
+                raise ValueError(f"proposal.{field} must be a non-empty string")
+            if canonical_json(candidate) != canonical_json(authoritative):
+                raise ValueError(f"candidate proposal {field} does not match authoritative projection")
     execution_steps = len(steps)
     minimum, maximum = (0, 1) if depth == "E0" else DISCOVERY_EXECUTION_BOUNDS[depth]
     if not minimum <= execution_steps <= maximum:

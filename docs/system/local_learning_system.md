@@ -64,14 +64,13 @@ lineage must be labeled as such instead of reused as proof.
 - Source graph: `data/knowledge_graphs/math/math_knowledge_graph_v2.json`
 - Knowledge view config: `data/knowledge_graphs/math/math_knowledge_views_v5_1.json`
 - Knowledge cards: `data/knowledge_cards/`
-- v18 question-bank source assets: `data/question_banks/v18/`
+- Question production assets are empty while the replacement v20 slot system is being rebuilt.
 - Local DB: `data/local_learning_system.sqlite`
 - Current pinned graph hash:
   `1067b9c318efb116f6463fb7dd3db1a3888b440b6d33384c81313f79711a2971`
 - Graph nodes seeded: 56
-- Active question bank: only the currently released v18 bank is child-schedulable.
-  `data/question_banks/v18/staged_candidates_v18.json` is a staging file and is
-  not active until it passes the v18 activation gate.
+- No generated question bank is currently active. The child runtime must fail
+  closed until the new v20 bank passes its own activation contract.
 - Child learning flow is adaptive. The page shows the current step or a small
   batch for the selected node; planning chooses the next step from graph-bound
   evidence instead of exposing a fixed worksheet.
@@ -288,7 +287,7 @@ The product runtime now defines nine hidden internal teaching agents:
 - `session_orchestrator_agent`: controls the learning-round state machine; does not directly write questions or grade answers.
 - `graph_agent`: binds questions, error evidence, and prerequisites to graph nodes; does not label vague "carelessness".
 - `question_designer_agent`: creates graph-bound question candidates; does not create low-age mechanical drills.
-- `question_reviewer_agent`: blocks weak, answer-only, or no-reasoning questions; does not pursue quantity.
+- `question_reviewer_agent`: blocks low-value questions, questions that cannot distinguish mastery states, and unnecessary writing burden; does not pursue quantity.
 - `answer_analysis_agent`: compares answer, reasoning, valid alternatives, and process gaps; does not string-match answers.
 - `evaluation_agent`: proposes mastery/error dimensions; does not treat one correct answer as mastery.
 - `teaching_agent`: creates child-safe explanations and next prompts; does not expose backend analysis.
@@ -378,7 +377,6 @@ Manual checks not covered by automation:
 ```bash
 python3 -m unittest tests/test_learning_system.py -v
 python3 -m unittest tests/test_answer_assessment_v51.py tests/test_knowledge_views_v51.py -v
-python3 -m unittest tests/test_question_bank_v18_activation_gate.py tests/test_admin_console_inventory.py tests/test_admin_console_production_loop.py tests/test_question_bank_v18_blueprints.py tests/test_admin_full_bank_runner_priority.py -v
 /Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node tests/browser_smoke_learning_system.mjs
 jq empty data/knowledge_graphs/math/math_knowledge_graph_v2.json
 jq empty data/knowledge_graphs/math/math_knowledge_views_v5_1.json

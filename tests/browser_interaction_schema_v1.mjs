@@ -3,11 +3,34 @@ import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import playwright from "/Users/liuchang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.js";
 
 const { chromium } = playwright;
-const root = path.resolve(new URL("..", import.meta.url).pathname);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const appRoot = path.join(root, "app", "local_learning_system");
+const missingTickVisual = {
+  scene_type: "number_line",
+  alt_text: "一条只标出负一、零和一，等待补出中间刻度的数轴。",
+  long_description: "相邻已知数之间还各缺一个等距刻度。请在纸上补完整，并拍照提交。",
+  scene: {
+    axis: { min: -1, max: 1, step: 0.5, origin: 0, direction: "right" },
+    ticks: [
+      { value: -1, label: "-1" },
+      { value: 0, label: "0" },
+      { value: 1, label: "1" },
+    ],
+    points: [],
+  },
+  interaction_contract: {
+    operation: "complete_missing_ticks",
+    required_interaction_capabilities: ["construction_interaction"],
+    response_capture: "paper_photo",
+    visible_entity_ids_for_visual: ["tick:-1", "tick:0", "tick:1"],
+    required_child_produced_entity_ids: ["tick:-0.5", "tick:0.5"],
+    answer_hidden: true,
+  },
+};
 const port = await getFreePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 
@@ -70,7 +93,9 @@ function currentStep(interactionSchema, prompt = "完成这一小步。") {
       upload_enabled: false,
       stuck_enabled: true,
       state: "selected",
-      support: { hint: "按题目要求完成，再写一句理由。" },
+      support: interactionSchema.requires_explanation
+        ? { hint: "按题目要求完成，再写一句理由。" }
+        : {},
       prompt_format: "2026-07-17.child-plain-text.v1",
       prompt_segments: [textSegment(prompt)],
       interaction_schema: interactionSchema,
@@ -89,6 +114,7 @@ let payload = currentStep({
     { id: "net", label: "净变化", placeholder: "如 16" },
   ],
   allow_explanation: true,
+  requires_explanation: true,
   explanation_label: "为什么这样填",
 });
 const submitBodies = [];
@@ -170,6 +196,7 @@ try {
       { id: "b", label: "以基准乘积为起点，再看误差方向" },
     ],
     allow_explanation: true,
+    requires_explanation: true,
   }, "哪种估算方法更稳？");
   const choicePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await choicePage.goto(baseUrl, { waitUntil: "networkidle" });
@@ -208,6 +235,153 @@ try {
   assert(formulaResponse.type === "formula_input", "Formula submit must include structured response type");
   assert(formulaResponse.formula === "50×0.4-0.2×20", "Formula structured response must include raw formula");
   await formulaPage.close();
+
+  payload = currentStep({
+    schema_version: "2026-07-13.interaction.v1",
+    type: "formula_input",
+    title: "写出结果",
+    formula_label: "答案",
+    placeholder: "写下答案",
+    allow_explanation: true,
+    requires_explanation: false,
+  }, "计算 38+47。");
+  const answerOnlyPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await answerOnlyPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await answerOnlyPage.waitForSelector("[data-interaction-kind='formula_input']");
+  const answerOnlyUi = await answerOnlyPage.evaluate(() => ({
+    formulaVisible: Boolean(document.querySelector("[data-interaction-formula]")?.offsetParent),
+    explanationHidden: document.querySelector("#childAnswerRaw")?.hidden,
+    explanationLabelHidden: document.querySelector('label[for="childAnswerRaw"]')?.hidden,
+    optionalExplanationVisible: document.body.innerText.includes("补充说明（可选）")
+      || document.body.innerText.includes("可以补一句理由或检查方法"),
+  }));
+  assert(answerOnlyUi.formulaVisible, "Answer-only formula input must remain visible");
+  assert(answerOnlyUi.explanationHidden, "Answer-only formula input must hide supplemental explanation textarea");
+  assert(answerOnlyUi.explanationLabelHidden, "Answer-only formula input must hide supplemental explanation label");
+  assert(!answerOnlyUi.optionalExplanationVisible, "Answer-only formula input must not induce optional explanation");
+  await answerOnlyPage.close();
+
+  payload = currentStep({
+    schema_version: "2026-07-13.interaction.v1",
+    type: "short_text",
+    title: "纸面作答",
+    allow_explanation: true,
+    requires_explanation: false,
+  }, "请在纸上完成构造并拍照提交。");
+  payload.current_step.answer_input_mode = "photo";
+  payload.current_step.allowed_response_modes = ["photo", "stuck"];
+  payload.current_step.upload_enabled = true;
+  payload.current_step.question_visual = missingTickVisual;
+  const photoPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await photoPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await photoPage.waitForSelector("#childAttemptForm:not([hidden])");
+  const photoUi = await photoPage.evaluate(() => ({
+    label: document.querySelector("#childAnswerPhotoLabel")?.textContent?.trim(),
+    hint: document.querySelector("#childAnswerPhotoHint")?.textContent?.trim(),
+    required: document.querySelector("#childAnswerPhoto")?.required,
+    ariaRequired: document.querySelector("#childAnswerPhoto")?.getAttribute("aria-required"),
+    textHidden: document.querySelector("#childAnswerRaw")?.hidden,
+    modePanelHidden: document.querySelector("#answerInputModePanel")?.hidden,
+  }));
+  assert(photoUi.label === "拍纸面答案（必答）", "Photo-primary answer must be labeled required");
+  assert(photoUi.hint.startsWith("必答："), "Photo-primary hint must not call the photo optional");
+  assert(photoUi.required && photoUi.ariaRequired === "true", "Photo-primary file input must expose required semantics");
+  assert(photoUi.textHidden && photoUi.modePanelHidden, "Photo-primary answer must hide text and alternate input modes");
+  const submitCountBeforePhoto = submitBodies.length;
+  await photoPage.click("#childSubmitBtn");
+  await photoPage.waitForSelector("#childAttemptError:not([hidden])");
+  const photoError = await photoPage.locator("#childAttemptError").innerText();
+  assert(photoError.includes("请先拍下这道题"), "Photo-primary empty submit must show a child-facing required error");
+  assert(submitBodies.length === submitCountBeforePhoto, "Photo-primary empty submit must not reach the API");
+  const renderedTickIds = await photoPage.locator("[data-qv-tick-value]").evaluateAll(
+    (ticks) => ticks.map((tick) => `tick:${tick.getAttribute("data-qv-tick-value")}`),
+  );
+  assert(
+    JSON.stringify(renderedTickIds)
+      === JSON.stringify(missingTickVisual.interaction_contract.visible_entity_ids_for_visual),
+    "Missing-tick page must render exactly the signed initial tick set",
+  );
+  const requiredTickIds = new Set(
+    missingTickVisual.interaction_contract.required_child_produced_entity_ids,
+  );
+  assert(
+    renderedTickIds.every((entityId) => !requiredTickIds.has(entityId)),
+    "Missing-tick page precompleted a child-produced tick",
+  );
+  await photoPage.setInputFiles("#childAnswerPhoto", {
+    name: "number-line-answer.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlX8f8AAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await photoPage.waitForSelector("#childPhotoPreview:not([hidden])");
+  const uploadedPhotoUi = await photoPage.evaluate(() => ({
+    errorHidden: document.querySelector("#childAttemptError")?.hidden,
+    previewSrc: document.querySelector("#childPhotoThumb")?.getAttribute("src") || "",
+    photoName: document.querySelector("#childPhotoName")?.textContent?.trim() || "",
+    ariaInvalid: document.querySelector("#childAnswerPhoto")?.getAttribute("aria-invalid"),
+    noOverflow: document.documentElement.scrollWidth <= window.innerWidth,
+  }));
+  assert(uploadedPhotoUi.errorHidden, "Valid photo must clear the required-answer error");
+  assert(uploadedPhotoUi.previewSrc.startsWith("data:image/png;base64,"), "Valid photo must show a preview");
+  assert(uploadedPhotoUi.photoName === "number-line-answer.png", "Valid photo name must remain visible");
+  assert(uploadedPhotoUi.ariaInvalid === "false", "Valid photo must clear aria-invalid");
+  assert(uploadedPhotoUi.noOverflow, "Missing-tick photo flow must fit a 390px viewport");
+  await photoPage.click("#childSubmitBtn");
+  await photoPage.waitForFunction(
+    () => window.ChildLearningShell?.currentState() === "analyzing_pending",
+  );
+  const photoSubmit = submitBodies.at(-1) || {};
+  assert(
+    photoSubmit.answer_photo_data_url?.startsWith("data:image/png;base64,"),
+    "Valid photo must reach the submit API",
+  );
+  assert(
+    photoSubmit.answer_photo_name === "number-line-answer.png",
+    "Submitted photo must retain its file name",
+  );
+  await photoPage.close();
+
+  payload = currentStep({
+    schema_version: "2026-07-13.interaction.v1",
+    type: "short_text",
+    title: "我的答案",
+    allow_explanation: true,
+    requires_explanation: false,
+  }, "写出答案；需要时可以补拍纸面过程。");
+  payload.current_step.answer_input_mode = "text_photo";
+  payload.current_step.allowed_response_modes = ["text", "photo", "text_photo", "stuck"];
+  payload.current_step.upload_enabled = true;
+  const optionalPhotoPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await optionalPhotoPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await optionalPhotoPage.waitForSelector("#childAttemptForm:not([hidden])");
+  const optionalPhotoUi = await optionalPhotoPage.evaluate(() => ({
+    label: document.querySelector("#childAnswerPhotoLabel")?.textContent?.trim(),
+    hint: document.querySelector("#childAnswerPhotoHint")?.textContent?.trim(),
+    required: document.querySelector("#childAnswerPhoto")?.required,
+    ariaRequired: document.querySelector("#childAnswerPhoto")?.getAttribute("aria-required"),
+    textHidden: document.querySelector("#childAnswerRaw")?.hidden,
+  }));
+  assert(optionalPhotoUi.label === "需要时拍纸面答案", "Optional photo must use natural supporting copy");
+  assert(optionalPhotoUi.hint.startsWith("可选："), "Optional photo must remain explicitly optional");
+  assert(!optionalPhotoUi.required && optionalPhotoUi.ariaRequired === "false", "Optional photo must not expose required semantics");
+  assert(!optionalPhotoUi.textHidden, "Optional photo flow must keep the primary text answer visible");
+  await optionalPhotoPage.close();
+
+  process.stdout.write(JSON.stringify({
+    status: "PASS",
+    viewport_width_px: 390,
+    missing_tick_visible_entity_ids: renderedTickIds,
+    missing_tick_required_child_produced_entity_ids: [
+      ...missingTickVisual.interaction_contract.required_child_produced_entity_ids,
+    ],
+    valid_photo_preview: uploadedPhotoUi.previewSrc.startsWith("data:image/png;base64,"),
+    valid_photo_reached_api: photoSubmit.answer_photo_name === "number-line-answer.png",
+    required_error_recovered: uploadedPhotoUi.errorHidden,
+    no_horizontal_overflow: uploadedPhotoUi.noOverflow,
+  }));
 } finally {
   await browser.close();
   await new Promise((resolve) => server.close(resolve));

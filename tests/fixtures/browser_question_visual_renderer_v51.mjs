@@ -44,11 +44,29 @@ assert(rendererPath && stylePath && scenesPath, "renderer, style and scenes path
 const fixture = JSON.parse(fs.readFileSync(scenesPath, "utf8"));
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const cdp = await page.context().newCDPSession(page);
 const browserRequests = [];
 page.on("request", (request) => browserRequests.push(request.url()));
 
 try {
-  await page.setContent('<main><div id="visual-host"></div></main>');
+  await page.setContent(`
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      #page-shell { padding: 20px; }
+      #child-panel { max-width: 960px; margin: 0 auto; padding: 22px; border: 1px solid transparent; }
+      #task-content { padding: 16px; border: 1px solid transparent; }
+      @media (max-width: 620px) {
+        #page-shell { padding: 12px; }
+        #child-panel { padding: 14px; }
+      }
+    </style>
+    <main id="page-shell">
+      <article id="child-panel">
+        <section id="task-content"><div id="visual-host"></div></section>
+      </article>
+    </main>
+  `);
   await page.evaluate(() => {
     window.__questionVisualNetworkCalls = [];
     const blocked = (kind, detail = "") => {
@@ -78,6 +96,8 @@ try {
     alt_and_long_descriptions: true,
     viewport_1280_no_overflow: true,
     viewport_390_no_overflow: true,
+    viewport_200pct_no_overflow: true,
+    cdp_200pct_readable: true,
     print_monochrome: true,
     no_forbidden_dom: true,
     runtime_network_calls: [],
@@ -89,6 +109,8 @@ try {
     const sceneReport = { viewports: {}, print: {} };
     for (const viewport of [
       { key: "1280", width: 1280, height: 800 },
+      // A 1280px desktop viewport at 200% browser zoom exposes about 640 CSS px.
+      { key: "200pct", width: 640, height: 400 },
       { key: "390", width: 390, height: 844 },
     ]) {
       await page.emulateMedia({ media: "screen" });
@@ -152,6 +174,28 @@ try {
           const hostNoOverflow =
             host.scrollWidth <= host.clientWidth
             && document.documentElement.scrollWidth <= window.innerWidth;
+          const textRects = [...host.querySelectorAll("svg text")]
+            .map((element) => element.getBoundingClientRect())
+            .filter((rect) => rect.width > 0 && rect.height > 0);
+          const pointRects = [...host.querySelectorAll("svg .qv-point")]
+            .map((element) => element.getBoundingClientRect())
+            .filter((rect) => rect.width > 0 && rect.height > 0);
+          const overlapCount = (rects, gap = 0) => {
+            let count = 0;
+            for (let left = 0; left < rects.length; left += 1) {
+              for (let right = left + 1; right < rects.length; right += 1) {
+                const one = rects[left];
+                const two = rects[right];
+                if (
+                  one.left < two.right + gap
+                  && one.right + gap > two.left
+                  && one.top < two.bottom + gap
+                  && one.bottom + gap > two.top
+                ) count += 1;
+              }
+            }
+            return count;
+          };
           return {
             deterministic: first === second,
             accessible:
@@ -172,6 +216,18 @@ try {
             geometry_inside: geometryInside,
             missing_labels: missingLabels,
             no_overflow: hostNoOverflow,
+            minimum_text_height: textRects.length
+              ? Math.min(...textRects.map((rect) => rect.height))
+              : 0,
+            minimum_point_diameter: pointRects.length
+              ? Math.min(...pointRects.map((rect) => Math.min(rect.width, rect.height)))
+              : null,
+            text_collision_count: overlapCount(textRects, 1),
+            point_collision_count: overlapCount(pointRects, 1),
+            svg_figure_height_ratio:
+              rootRect && rootRect.height > 0 && svgRect
+                ? svgRect.height / rootRect.height
+                : 0,
           };
         },
         {
@@ -193,11 +249,94 @@ try {
       assert(result.geometry_inside, `${entry.scene_type} geometry escapes SVG at ${viewport.key}`);
       assert(result.missing_labels.length === 0, `${entry.scene_type} missing labels: ${result.missing_labels.join(",")}`);
       assert(result.no_overflow, `${entry.scene_type} overflow at ${viewport.key}`);
+      assert(result.text_collision_count === 0, `${entry.scene_type} text collision at ${viewport.key}`);
+      assert(result.point_collision_count === 0, `${entry.scene_type} point collision at ${viewport.key}`);
+      assert(
+        result.svg_figure_height_ratio >= 0.72,
+        `${entry.scene_type} wastes vertical space at ${viewport.key}`,
+      );
+      if (entry.scene_type === "number_line") {
+        assert(
+          result.minimum_text_height >= 14,
+          `number_line text is too small at ${viewport.key}: ${result.minimum_text_height}`,
+        );
+        assert(
+          result.minimum_point_diameter >= 12,
+          `number_line point is too small at ${viewport.key}: ${result.minimum_point_diameter}`,
+        );
+      }
       sceneReport.viewports[viewport.key] = result;
       report.alt_and_long_descriptions &&= result.accessible;
       report.no_forbidden_dom &&= !result.forbidden;
       if (viewport.key === "1280") report.viewport_1280_no_overflow &&= result.no_overflow;
+      if (viewport.key === "200pct") report.viewport_200pct_no_overflow &&= result.no_overflow;
       if (viewport.key === "390") report.viewport_390_no_overflow &&= result.no_overflow;
+    }
+
+    if (entry.scene_type === "number_line") {
+      await page.emulateMedia({ media: "screen" });
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
+      const zoomResult = await page.evaluate((visual) => {
+        const host = document.getElementById("visual-host");
+        window.QuestionVisualRenderer.clear(host);
+        window.QuestionVisualRenderer.render(host, visual);
+        const textHeights = [...host.querySelectorAll("svg text")]
+          .map((element) => element.getBoundingClientRect().height)
+          .filter((height) => height > 0);
+        const scale = window.visualViewport?.scale || 1;
+        return {
+          scale,
+          physical_minimum_text_height: Math.min(...textHeights) * scale,
+          no_horizontal_overflow:
+            document.documentElement.scrollWidth
+            <= document.documentElement.clientWidth,
+        };
+      }, entry);
+      assert(zoomResult.scale >= 1.9, "CDP 200% zoom did not activate");
+      assert(
+        zoomResult.physical_minimum_text_height >= 28,
+        "number_line text did not remain readable at real 200% zoom",
+      );
+      assert(
+        zoomResult.no_horizontal_overflow,
+        "number_line overflows at real 200% zoom",
+      );
+      sceneReport.cdp_200pct = zoomResult;
+      await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
+
+      const leftDirection = await page.evaluate((visual) => {
+        const host = document.getElementById("visual-host");
+        const reversed = structuredClone(visual);
+        reversed.scene.axis.direction = "left";
+        window.QuestionVisualRenderer.clear(host);
+        window.QuestionVisualRenderer.render(host, reversed);
+        const minimum = host.querySelector(
+          `[data-qv-tick-value="${reversed.scene.axis.min}"]`,
+        );
+        const maximum = host.querySelector(
+          `[data-qv-tick-value="${reversed.scene.axis.max}"]`,
+        );
+        const arrow = host.querySelector(".qv-axis-arrow");
+        const arrowXs = String(arrow?.getAttribute("points") || "")
+          .trim()
+          .split(/\s+/)
+          .map((pair) => Number(pair.split(",")[0]));
+        return {
+          minimum_x: Number(minimum?.getAttribute("x1")),
+          maximum_x: Number(maximum?.getAttribute("x1")),
+          arrow_tip_x: arrowXs[1],
+        };
+      }, entry);
+      assert(
+        leftDirection.minimum_x > leftDirection.maximum_x,
+        "left-direction number line did not reverse value positions",
+      );
+      assert(
+        leftDirection.arrow_tip_x === leftDirection.maximum_x,
+        "left-direction number line arrow does not point left",
+      );
+      sceneReport.left_direction = leftDirection;
     }
 
     await page.emulateMedia({ media: "print" });

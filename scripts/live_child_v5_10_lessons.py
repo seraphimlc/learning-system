@@ -7,7 +7,7 @@ import json
 import os
 import sqlite3
 import sys
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
 from dataclasses import dataclass, field
 from datetime import date as RealDate
 from datetime import datetime, timezone
@@ -1365,12 +1365,12 @@ class LessonEnvironment:
         self.live_fault_spec = live_fault_injection_spec_for_lesson(contract, state.lesson, state.model_mode)
 
     def __enter__(self) -> "LessonEnvironment":
-        with db.connect(self.db_path) as conn:
+        with closing(db.connect(self.db_path)) as conn:
             db.init_schema(conn)
             db.seed_from_assets(conn, PROJECT_ROOT)
             test_support.seed_runtime_test_question_bank(conn, PROJECT_ROOT)
         activate_lightweight_answer_contracts.activate(self.db_path, project_root=PROJECT_ROOT)
-        with db.connect(self.db_path) as conn:
+        with closing(db.connect(self.db_path)) as conn:
             _seed_target_evidence(conn, str(self.state.lesson["target_node_id"]))
         self.stack.enter_context(patch.dict(os.environ, {
             "ANSWER_ASSESSMENT_POLICY": "v5.1",
@@ -1437,7 +1437,7 @@ class LessonEnvironment:
         attempt = self.latest_attempt()
         attempt_id = str(attempt.get("id") or "")
         flow_id = self.flow_id()
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             row = conn.execute(
                 """
                 select * from background_jobs
@@ -1526,7 +1526,7 @@ class LessonEnvironment:
         flow_id = self.flow_id()
         results: list[dict[str, Any]] = []
         for execution_index in range(1, 25):
-            with self.connect() as conn:
+            with closing(self.connect()) as conn:
                 row = conn.execute(
                     """
                     select * from background_jobs
@@ -1553,7 +1553,7 @@ class LessonEnvironment:
         return results
 
     def flow_id(self) -> str:
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             row = conn.execute(
                 "select id from daily_flows where local_date = ? order by created_at desc, id desc limit 1",
                 (self.state.lesson["local_date"],),
@@ -1564,7 +1564,7 @@ class LessonEnvironment:
         flow_id = self.flow_id()
         if not flow_id:
             return
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             conn.execute(
                 "update daily_flows set budget_min = ?, budget_max = ?, updated_at = ? where id = ?",
                 (self.state.minimum, self.state.maximum, db.now_iso(), flow_id),
@@ -1573,7 +1573,7 @@ class LessonEnvironment:
 
     def visible_step(self) -> dict[str, Any]:
         flow_id = self.flow_id()
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             row = conn.execute(
                 """
                 select s.*
@@ -1590,12 +1590,12 @@ class LessonEnvironment:
         step = self.visible_step()
         if not step.get("question_id"):
             return {}
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             return db.get_question(conn, str(step["question_id"]))
 
     def latest_attempt(self) -> dict[str, Any]:
         flow_id = self.flow_id()
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             row = conn.execute(
                 """
                 select a.*
@@ -1613,7 +1613,7 @@ class LessonEnvironment:
         flow_id = self.flow_id()
         if not flow_id:
             return {"flow_id": "", "attempt_count": 0, "job_statuses": {}, "mastery_count": 0, "decision_count": 0}
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             attempt = conn.execute(
                 """
                 select a.id, a.result, a.grading_status, a.analysis_status
@@ -1706,7 +1706,7 @@ class LessonEnvironment:
         flow_id = self.flow_id()
         results: list[dict[str, Any]] = []
         for execution_index in range(1, 17):
-            with self.connect() as conn:
+            with closing(self.connect()) as conn:
                 row = conn.execute(
                     """
                     select * from background_jobs
@@ -1779,7 +1779,7 @@ class LessonEnvironment:
 
     def collect_evidence(self) -> dict[str, Any]:
         flow_id = self.flow_id()
-        with self.connect() as conn:
+        with closing(self.connect()) as conn:
             flow_rows = _rows(conn, "select * from daily_flows where id = ?", (flow_id,))
             steps = _rows(conn, "select * from flow_steps where flow_id = ? order by position, created_at, id", (flow_id,))
             attempts = _rows(
@@ -2243,7 +2243,7 @@ def _current_bound_answer_contract(env: LessonEnvironment) -> dict[str, Any]:
     step = env.visible_step()
     if not step.get("id"):
         return {}
-    with env.connect() as conn:
+    with closing(env.connect()) as conn:
         contract = assessment_store.bound_active_contract_for_flow_step(conn, str(step["id"]))
     return contract or {}
 

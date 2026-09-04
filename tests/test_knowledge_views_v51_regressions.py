@@ -291,6 +291,53 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
                 ).fetchone()[0],
             )
 
+    def test_displayed_unanswered_question_waits_before_switching_to_other_node_diagnostic(self):
+        config = self._load_view_config_json()
+        with self._temp_database() as path, self._policy_env(
+            map_policy="v5.1",
+            assessment_policy="v5.1",
+        ), closing(db.connect(path)) as conn:
+            node_names = self._install_enabled_descriptor_post_fixture(conn, config)
+            conn.execute(
+                "update flow_steps set status = 'displayed' where id = 'FS-kv51-resume-oracle'"
+            )
+            conn.commit()
+            service = self._service(conn)
+            projection = service.child_projection(child_key="single-child")
+            target = next(
+                item for item in projection["nodes"] if item["name"] == node_names[0]
+            )
+            descriptor = next(
+                item
+                for item in target["action_descriptors"]
+                if item["action"] == "review"
+            )
+
+            self.assertTrue(descriptor["enabled"], descriptor)
+            self.assertEqual("wait_for_safe_boundary", descriptor["result_behavior"])
+            request = {
+                "handle": target["handle"],
+                "projection_version": projection["projection_version"],
+                "action": "review",
+                "client_idempotency_key": "qa-other-node-review-safe-boundary",
+            }
+            first = service.select_target(child_key="single-child", request=request)
+            replay = service.select_target(child_key="single-child", request=request)
+
+            self.assertEqual("waiting_for_safe_boundary", first["status"])
+            self.assertEqual(first, replay)
+            current = conn.execute(
+                "select status, superseded_by_step_id from flow_steps where id = 'FS-kv51-resume-oracle'"
+            ).fetchone()
+            self.assertEqual("displayed", current["status"])
+            self.assertIsNone(current["superseded_by_step_id"])
+            self.assertEqual(
+                "FS-kv51-resume-oracle",
+                conn.execute(
+                    "select current_step_id from daily_flows where id = 'DF-kv51-resume-oracle'"
+                ).fetchone()[0],
+            )
+
     def _install_resumable_question_step(self, conn, asset: dict) -> None:
         now = f"{date.today().isoformat()}T08:00:00+08:00"
         session_id = "LS-kv51-resume-oracle"
@@ -430,6 +477,7 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
                 "mobile_sheet_modal_cleanup",
                 "graph_preference_is_ignored",
                 "hide_show_preserves_child_surface",
+                "recommendation_label_once_after_refresh",
                 "search_selection_restores_context",
                 "resume_requires_fresh_bootstrap_current_step",
                 "state_appropriate_action_descriptors",
@@ -555,6 +603,10 @@ class DualViewBrowserRegressionTests(KnowledgeViewsV51TestCase):
                             conn,
                             config,
                         )[0]
+                        conn.execute(
+                            "update flow_steps set status = 'completed' where id = 'FS-kv51-resume-oracle'"
+                        )
+                        conn.commit()
                     visual_activation = subprocess.run(
                         [
                             "python3",

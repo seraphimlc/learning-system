@@ -14,42 +14,12 @@ sys.path.insert(0, str(ROOT))
 from learning_system import db  # noqa: E402
 
 
-QUESTION_BANK_TABLES = [
-    "answer_contract_generation_provider_attempts",
-    "answer_contract_generation_receipts",
-    "answer_contract_generation_attempts",
-    "answer_contract_generation_run_items",
-    "answer_contract_generation_runs",
-    "answer_contracts",
-    "question_review_records",
-    "question_bank_version_ledger",
-    "question_items",
-]
-
-LEARNING_RECORD_TABLES = [
-    "late_evidence_reconciliations",
-    "daily_summaries",
-    "next_step_decisions",
-    "evidence_validations",
-    "attempt_assessments",
-    "attempt_attachments",
-    "background_jobs",
-    "attempts",
-    "mastery_decisions",
-    "learner_node_status",
-    "teaching_step_events",
-    "learning_target_intents",
-    "review_targets",
-    "flow_steps",
-    "daily_flows",
-    "session_steps",
-    "learning_sessions",
-    "generated_plans",
-    "evolution_audits",
-    "evolution_events",
-    "agent_handoffs",
-    "agent_runs",
-]
+PRESERVED_TABLES = {
+    "agent_profiles",
+    "graph_edges",
+    "graph_nodes",
+    "system_meta",
+}
 
 RESET_META_KEY = "question_bank_reset.v1"
 ANSWER_ASSESSMENT_META_KEY = "answer_assessment_active.v5.1"
@@ -63,6 +33,19 @@ def _table_counts(conn: sqlite3.Connection, tables: list[str]) -> dict[str, int]
         except sqlite3.DatabaseError:
             counts[table] = -1
     return counts
+
+
+def _resettable_tables(conn: sqlite3.Connection) -> list[str]:
+    rows = conn.execute(
+        """
+        select name
+        from sqlite_master
+        where type = 'table'
+          and name not like 'sqlite_%'
+        order by name
+        """
+    ).fetchall()
+    return [str(row[0]) for row in rows if str(row[0]) not in PRESERVED_TABLES]
 
 
 def _backup_database(db_path: Path, backup_dir: Path) -> Path:
@@ -80,7 +63,7 @@ def reset_database(db_path: Path, *, backup_dir: Path | None = None) -> dict[str
     conn = db.connect(db_path)
     try:
         db.init_schema(conn)
-        target_tables = QUESTION_BANK_TABLES + LEARNING_RECORD_TABLES
+        target_tables = _resettable_tables(conn)
         before = _table_counts(conn, target_tables)
         now = db.now_iso()
         conn.execute("pragma foreign_keys = off")

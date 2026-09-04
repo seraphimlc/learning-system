@@ -641,9 +641,11 @@ class AssessmentPolicyTests(unittest.TestCase):
     def _met_judgments(self, contract):
         return [
             {
-                "criterion_key": point["key"],
+                "criterion_key": point["source_target_key"],
                 "status": "met",
-                "child_evidence": f"grounded evidence for {point['key']}",
+                "child_evidence": (
+                    f"grounded evidence for {point['source_target_key']}"
+                ),
                 "reason": "The child response satisfies this criterion.",
             }
             for point in contract["score_points"]
@@ -836,6 +838,33 @@ class AssessmentPolicyTests(unittest.TestCase):
                 with self.assertRaises((TypeError, ValueError)):
                     self.policy.validate_criterion_judgments(contract, judgments)
 
+    def test_criterion_judgments_use_canonical_source_target_keys(self):
+        contract = self._number_line_contract()
+        judgments = [
+            {
+                "criterion_key": point["source_target_key"],
+                "status": "met",
+                "child_evidence": (
+                    f"grounded evidence for {point['source_target_key']}"
+                ),
+                "reason": "The child response satisfies this canonical criterion.",
+            }
+            for point in contract["score_points"]
+        ]
+
+        self.policy.validate_criterion_judgments(contract, judgments)
+        result = self.policy.calculate_assessment(contract, judgments)
+
+        self.assertEqual(10, result["score_out_of_10"])
+        self.assertTrue(result["question_passed"])
+        internal_keys = {point["key"] for point in contract["score_points"]}
+        canonical_keys = {
+            judgment["criterion_key"] for judgment in judgments
+        }
+        self.assertNotEqual(internal_keys, canonical_keys)
+        self.assertIn("rightward_relation", canonical_keys)
+        self.assertNotIn("right_means_add_three", canonical_keys)
+
     def test_criterion_judgments_reject_invalid_status(self):
         contract = self._number_line_contract()
         judgments = self._met_judgments(contract)
@@ -905,6 +934,56 @@ class AssessmentPolicyTests(unittest.TestCase):
         self.assertTrue(result["question_passed"])
         self.assertEqual(2, result["compatibility_score_points"])
 
+    def test_contradicted_optional_math_criterion_loses_its_points(self):
+        contract = self._number_line_contract()
+        contract["score_points"][0]["points"] = 4
+        contract["score_points"][1]["points"] = 4
+        contract["score_points"][2]["points"] = 2
+        contract["score_points"][2]["required_for_pass"] = False
+        judgments = self._met_judgments(contract)
+        judgments[2].update(
+            status="contradicted",
+            child_evidence="B和C算对了，但写成向左移动会让数变大。",
+            reason="孩子明确说反了数轴方向关系，不能按省略非关键说明处理。",
+        )
+
+        result = self.policy.calculate_assessment(contract, judgments)
+
+        self.assertTrue(result["finalized"])
+        self.assertEqual(8, result["score_out_of_10"])
+        self.assertTrue(result["question_passed"])
+        self.assertAlmostEqual(1.6, result["compatibility_score_points"])
+
+    def test_optional_math_criterion_status_matrix_preserves_fairness(self):
+        contract = self._number_line_contract()
+        contract["score_points"][0]["points"] = 4
+        contract["score_points"][1]["points"] = 4
+        contract["score_points"][2]["points"] = 2
+        contract["score_points"][2]["required_for_pass"] = False
+        for status, expected_score in (
+            ("met", 10),
+            ("not_met", 10),
+            ("unclear", 10),
+            ("contradicted", 8),
+        ):
+            with self.subTest(status=status):
+                judgments = self._met_judgments(contract)
+                judgments[2].update(
+                    status=status,
+                    child_evidence=(
+                        "孩子明确把向左和向右的大小关系说反了。"
+                        if status == "contradicted"
+                        else "可选数学说明未明确写出。"
+                    ),
+                    reason=f"optional criterion fixture: {status}",
+                )
+
+                result = self.policy.calculate_assessment(contract, judgments)
+
+                self.assertTrue(result["finalized"])
+                self.assertEqual(expected_score, result["score_out_of_10"])
+                self.assertTrue(result["question_passed"])
+
     def test_optional_evidence_cannot_mask_a_missing_required_math_criterion(self):
         contract = self._number_line_contract()
         contract["score_points"][0]["points"] = 4
@@ -943,13 +1022,13 @@ class AssessmentPolicyTests(unittest.TestCase):
         contract = self._number_line_contract()
         judgments = [
             {
-                "criterion_key": "right_means_add_three",
+                "criterion_key": "rightward_relation",
                 "status": "met",
                 "child_evidence": "c=a+3",
                 "reason": "Right by three is expressed as adding three.",
             },
             {
-                "criterion_key": "value_of_c",
+                "criterion_key": "c_value",
                 "status": "met",
                 "child_evidence": "c=a+3=0.5",
                 "reason": "The value of C is correct.",
@@ -1058,6 +1137,54 @@ class AssessmentPolicyTests(unittest.TestCase):
         self.assertGreaterEqual(result["score_out_of_10"], 6)
         self.assertNotEqual(0, result["score_out_of_10"])
         self.assertTrue(result["question_passed"])
+
+    def test_draft_unreviewed_fallback_cannot_be_v51_authoritative(self):
+        question = self._question(
+            "check_strategy",
+            scoring_targets=None,
+        )
+        self.assertEqual(
+            "draft_unreviewed",
+            self.policy.build_answer_contract(question)["status"],
+        )
+        with self.assertRaisesRegex(ValueError, "explicit scoring_targets"):
+            self.policy.validate_authoritative_scoring_targets(question)
+
+    def test_authoritative_reference_component_must_resolve_to_reference_content(self):
+        valid = self._question(
+            "check_strategy",
+            scoring_targets=[
+                {
+                    "key": "answer",
+                    "criterion": "给出正确答案。",
+                    "dimension": "final_answer",
+                    "required_for_pass": True,
+                    "reference_component": "expected_answer",
+                },
+                {
+                    "key": "process",
+                    "criterion": "给出正确过程。",
+                    "dimension": "procedure",
+                    "required_for_pass": True,
+                    "reference_component": "solution_steps[1]",
+                },
+            ],
+        )
+        self.policy.validate_authoritative_scoring_targets(valid)
+
+        for invalid_path in (
+            "solution_steps",
+            "solution_steps[-1]",
+            "solution_steps[99]",
+            "solution_steps[abc]",
+            "rubric.answer",
+            "expected_answer.value",
+        ):
+            with self.subTest(reference_component=invalid_path):
+                invalid = copy.deepcopy(valid)
+                invalid["scoring_targets"][1]["reference_component"] = invalid_path
+                with self.assertRaisesRegex(ValueError, "reference_component"):
+                    self.policy.validate_authoritative_scoring_targets(invalid)
 
     def test_integer_remainder_quality_is_not_decided_by_prompt_string_matching(self):
         from learning_system import question_bank
@@ -1866,6 +1993,480 @@ class AssessmentStoreTests(unittest.TestCase):
         self.assertEqual(1, count)
 
 class AnswerAssessmentSchemaTests(_BaseAnswerAssessmentSchemaTestsV2):
+    QUESTION_QUALITY_COLUMNS = {
+        "discovery_depth",
+        "execution_steps",
+        "key_insight",
+        "graph_mode",
+        "evidence_profile_json",
+        "review_packet_sha256",
+        "node_contract_sha256",
+        "prompt_sha256",
+        "interaction_schema_sha256",
+        "discovery_derivation_sha256",
+        "structural_derivation_digest_sha256",
+        "exact_instance_fingerprint",
+        "family_fingerprint",
+        "fingerprint_policy_version",
+        "quality_receipt_json",
+        "quality_receipt_sha256",
+    }
+
+    def test_fresh_schema_exposes_quality_lineage_and_fixed_effect_storage(self):
+        self.assertTrue(
+            self.QUESTION_QUALITY_COLUMNS.issubset(
+                self._column_names("question_items")
+            )
+        )
+        self.assertTrue(
+            {
+                "question_bank_version",
+                "answer_contract_digest_sha256",
+                "flow_id",
+            }.issubset(self._column_names("flow_steps"))
+        )
+        self.assertTrue(
+            {
+                "question_bank_version",
+                "contract_digest_sha256",
+                "flow_id",
+                "flow_step_id",
+            }.issubset(self._column_names("background_jobs"))
+        )
+        self.assertTrue(
+            any(
+                index["columns"] == ("exact_instance_fingerprint",)
+                for index in self._indexes("question_items")
+            )
+        )
+        self.assertTrue(
+            any(
+                index["columns"] == ("family_fingerprint",)
+                for index in self._indexes("question_items")
+            )
+        )
+        self.assertTrue(
+            {
+                "effect_key",
+                "attempt_id",
+                "attempt_version",
+                "contract_digest_sha256",
+                "result_json",
+                "profile_json",
+                "ceiling",
+            }.issubset(self._column_names("fixed_assessment_effects"))
+        )
+        self.assertTrue(
+            any(
+                index["unique"] and index["columns"] == ("effect_key",)
+                for index in self._indexes("fixed_assessment_effects")
+            )
+        )
+        self.assertTrue(
+            any(
+                index["unique"]
+                and index["columns"] == ("attempt_id", "attempt_version")
+                for index in self._indexes("fixed_assessment_effects")
+            )
+        )
+        self.assertTrue(
+            {
+                "evidence_profile_json",
+                "evidence_profile_sha256",
+                "mastery_update_mode",
+                "mastery_state_ceiling",
+            }.issubset(self._column_names("answer_contracts"))
+        )
+
+    def test_existing_schema_migration_does_not_invent_quality_metadata(self):
+        path = Path(self.tmpdir.name) / "legacy-quality-migration.sqlite"
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("pragma foreign_keys = on")
+        conn.executescript(
+            """
+            create table graph_nodes (
+              id text primary key,
+              name text not null,
+              stage text not null,
+              domain text not null,
+              priority text not null,
+              summer_mode text not null,
+              sequence_band integer not null default 99,
+              prerequisites_json text not null,
+              unlocks_json text not null,
+              raw_json text not null
+            );
+            insert into graph_nodes(
+              id, name, stage, domain, priority, summer_mode,
+              prerequisites_json, unlocks_json, raw_json
+            ) values ('legacy-node', 'Legacy node', 'grade_7', 'math', 'core',
+                      'selective_core', '[]', '[]', '{}');
+            create table question_items (
+              id text primary key,
+              item_version text not null,
+              source_type text not null,
+              node_id text not null references graph_nodes(id),
+              secondary_node_ids_json text not null,
+              kind text not null,
+              question_type text not null,
+              variant_level text not null,
+              production_category text not null default '',
+              difficulty text not null default 'medium',
+              purpose_role text not null default 'core',
+              answer_verification text not null default 'pending',
+              design_rationale_json text not null default '{}',
+              prompt text not null,
+              answer_format text not null,
+              expected_answer text not null,
+              rubric_json text not null,
+              solution_steps_json text not null,
+              error_tags_json text not null,
+              rollback_candidate_node_ids_json text not null,
+              rollback_candidate_relations_json text not null,
+              estimated_minutes integer not null,
+              parent_observation text not null,
+              source_json text not null,
+              created_by_event_id text,
+              raw_json text not null
+            );
+            insert into question_items(
+              id, item_version, source_type, node_id, secondary_node_ids_json,
+              kind, question_type, variant_level, prompt, answer_format,
+              expected_answer, rubric_json, solution_steps_json, error_tags_json,
+              rollback_candidate_node_ids_json, rollback_candidate_relations_json,
+              estimated_minutes, parent_observation, source_json, raw_json
+            ) values (
+              'legacy-question', '2026-08-20.v1', 'legacy', 'legacy-node', '[]',
+              'standard_example', 'legacy', 'standard', '2 + 2', 'number',
+              '4', '[]', '[]', '[]', '[]', '[]', 1, '', '{}', '{}'
+            );
+            """
+        )
+        conn.commit()
+        try:
+            for _ in range(2):
+                db.init_schema(conn)
+                row = conn.execute(
+                    "select * from question_items where id = 'legacy-question'"
+                ).fetchone()
+                self.assertIsNotNone(row)
+                self.assertTrue(
+                    self.QUESTION_QUALITY_COLUMNS.issubset(
+                        self._column_names("question_items", conn)
+                    )
+                )
+                for column in self.QUESTION_QUALITY_COLUMNS:
+                    self.assertIsNone(row[column], column)
+                self.assertEqual(
+                    1,
+                    conn.execute(
+                        "select count(*) from question_items where id = 'legacy-question'"
+                    ).fetchone()[0],
+                )
+            self.assertTrue(
+                any(
+                    index["columns"] == ("exact_instance_fingerprint",)
+                    for index in self._indexes("question_items", conn)
+                )
+            )
+            self.assertTrue(
+                any(
+                    index["columns"] == ("family_fingerprint",)
+                    for index in self._indexes("question_items", conn)
+                )
+            )
+            self.assertTrue(
+                any(
+                    index["unique"]
+                    and index["columns"] == ("attempt_id", "attempt_version")
+                    for index in self._indexes("fixed_assessment_effects", conn)
+                )
+            )
+            self.assertIn(
+                "contract_digest_sha256",
+                self._column_names("background_jobs", conn),
+            )
+            self.assertTrue(
+                {
+                    "evidence_profile_json",
+                    "evidence_profile_sha256",
+                    "mastery_update_mode",
+                    "mastery_state_ceiling",
+                }.issubset(self._column_names("attempt_assessments", conn))
+            )
+        finally:
+            conn.close()
+
+    def test_additive_migration_preserves_contract_assessment_and_job_rows(self):
+        path = Path(self.tmpdir.name) / "legacy-lineage-migration.sqlite"
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("pragma foreign_keys = on")
+        conn.executescript(
+            """
+            create table graph_nodes (
+              id text primary key,
+              name text not null,
+              stage text not null,
+              domain text not null,
+              priority text not null,
+              summer_mode text not null,
+              sequence_band integer not null default 99,
+              prerequisites_json text not null,
+              unlocks_json text not null,
+              raw_json text not null
+            );
+            insert into graph_nodes(
+              id, name, stage, domain, priority, summer_mode,
+              prerequisites_json, unlocks_json, raw_json
+            ) values ('legacy-lineage-node', 'Legacy node', 'grade_7', 'math', 'core',
+                      1, '[]', '[]', '{}');
+            create table question_items (
+              id text primary key,
+              item_version text not null,
+              source_type text not null,
+              node_id text not null references graph_nodes(id),
+              secondary_node_ids_json text not null,
+              kind text not null,
+              question_type text not null,
+              variant_level text not null,
+              production_category text not null default '',
+              difficulty text not null default 'medium',
+              purpose_role text not null default 'core',
+              answer_verification text not null default 'pending',
+              design_rationale_json text not null default '{}',
+              prompt text not null,
+              answer_format text not null,
+              expected_answer text not null,
+              rubric_json text not null,
+              solution_steps_json text not null,
+              error_tags_json text not null,
+              rollback_candidate_node_ids_json text not null,
+              rollback_candidate_relations_json text not null,
+              estimated_minutes integer not null,
+              parent_observation text not null,
+              source_json text not null,
+              created_by_event_id text,
+              raw_json text not null
+            );
+            insert into question_items(
+              id, item_version, source_type, node_id, secondary_node_ids_json,
+              kind, question_type, variant_level, prompt, answer_format,
+              expected_answer, rubric_json, solution_steps_json, error_tags_json,
+              rollback_candidate_node_ids_json, rollback_candidate_relations_json,
+              estimated_minutes, parent_observation, source_json, raw_json
+            ) values ('legacy-lineage-question', '2026-08-20.v1', 'legacy',
+                      'legacy-lineage-node', '[]', 'standard_example', 'legacy',
+                      'standard', '2 + 2', 'number', '4', '[]', '[]', '[]',
+                      '[]', '[]', 1, '', '{}', '{}');
+            create table learning_sessions (
+              id text primary key,
+              child_key text not null,
+              local_date text not null,
+              mode text not null default 'child_learning',
+              status text not null default 'active',
+              created_at text not null,
+              updated_at text not null
+            );
+            insert into learning_sessions(
+              id, child_key, local_date, created_at, updated_at
+            ) values ('legacy-lineage-session', 'child', '2026-08-20',
+                      '2026-08-20T00:00:00', '2026-08-20T00:00:00');
+            create table attempts (
+              id text primary key,
+              session_id text not null references learning_sessions(id),
+              question_id text not null references question_items(id),
+              node_id text not null references graph_nodes(id),
+              flow_step_id text,
+              attempt_version integer not null default 1,
+              result text not null default 'submitted',
+              grading_status text not null default 'pending_review',
+              evidence_status text not null default 'active',
+              client_idempotency_key text not null default '',
+              processed_evolution_event_id text,
+              created_at text not null,
+              updated_at text not null
+            );
+            insert into attempts(
+              id, session_id, question_id, node_id, created_at, updated_at
+            ) values ('legacy-lineage-attempt', 'legacy-lineage-session',
+                      'legacy-lineage-question', 'legacy-lineage-node',
+                      '2026-08-20T00:00:00', '2026-08-20T00:00:00');
+            create table answer_contracts (
+              id text primary key,
+              stable_contract_id text not null,
+              question_id text not null references question_items(id),
+              item_version text not null,
+              contract_version integer not null default 1,
+              contract_digest_sha256 text not null,
+              question_digest_sha256 text not null default '',
+              graph_version text not null default '',
+              question_bank_version text not null default '',
+              reference_solution_json text not null default '{}',
+              score_points_json text not null default '[]',
+              generator_version text not null default '',
+              review_record_id text,
+              review_receipt_json text not null default '{}',
+              status text not null default 'draft',
+              created_at text not null,
+              updated_at text not null
+            );
+            insert into answer_contracts(
+              id, stable_contract_id, question_id, item_version,
+              contract_digest_sha256, status, created_at, updated_at
+            ) values ('legacy-lineage-contract', 'legacy-stable',
+                      'legacy-lineage-question', '2026-08-20.v1',
+                      'legacy-contract-digest', 'draft',
+                      '2026-08-20T00:00:00', '2026-08-20T00:00:00');
+            create table attempt_assessments (
+              id text primary key,
+              attempt_id text not null references attempts(id) on delete cascade,
+              attempt_version integer not null default 1,
+              assessment_version integer not null default 1,
+              assessment_digest_sha256 text not null,
+              assessment_input_digest_sha256 text not null default '',
+              question_id text not null references question_items(id),
+              question_item_version text not null default '',
+              answer_contract_id text not null references answer_contracts(id),
+              answer_contract_version integer not null default 1,
+              answer_contract_digest_sha256 text not null default '',
+              criterion_judgments_json text not null default '[]',
+              score_out_of_10 real,
+              question_passed integer not null default 0,
+              status text not null default 'pending',
+              created_at text not null,
+              updated_at text not null
+            );
+            insert into attempt_assessments(
+              id, attempt_id, assessment_digest_sha256, question_id,
+              answer_contract_id, status, created_at, updated_at
+            ) values ('legacy-lineage-assessment', 'legacy-lineage-attempt',
+                      'legacy-assessment-digest', 'legacy-lineage-question',
+                      'legacy-lineage-contract', 'pending',
+                      '2026-08-20T00:00:00', '2026-08-20T00:00:00');
+            create table background_jobs (
+              id text primary key,
+              job_type text not null,
+              session_id text not null references learning_sessions(id),
+              attempt_id text references attempts(id),
+              status text not null,
+              run_count integer not null default 0,
+              payload_json text not null default '{}',
+              last_error text not null default '',
+              created_at text not null,
+              updated_at text not null,
+              started_at text,
+              finished_at text
+            );
+            insert into background_jobs(
+              id, job_type, session_id, attempt_id, status,
+              payload_json, created_at, updated_at
+            ) values ('legacy-lineage-job', 'answer_review',
+                      'legacy-lineage-session', 'legacy-lineage-attempt',
+                      'queued', '{"legacy":true}',
+                      '2026-08-20T00:00:00', '2026-08-20T00:00:00');
+            """
+        )
+        conn.commit()
+        try:
+            db.init_schema(conn)
+            preserved = {
+                "answer_contracts": conn.execute(
+                    "select contract_digest_sha256, status from answer_contracts where id = ?",
+                    ("legacy-lineage-contract",),
+                ).fetchone(),
+                "attempt_assessments": conn.execute(
+                    "select assessment_digest_sha256, status from attempt_assessments where id = ?",
+                    ("legacy-lineage-assessment",),
+                ).fetchone(),
+                "background_jobs": conn.execute(
+                    "select payload_json, status from background_jobs where id = ?",
+                    ("legacy-lineage-job",),
+                ).fetchone(),
+            }
+            self.assertEqual(
+                ("legacy-contract-digest", "draft"),
+                tuple(preserved["answer_contracts"]),
+            )
+            self.assertEqual(
+                ("legacy-assessment-digest", "pending"),
+                tuple(preserved["attempt_assessments"]),
+            )
+            self.assertEqual(
+                ('{"legacy":true}', "queued"),
+                tuple(preserved["background_jobs"]),
+            )
+            for table in ("answer_contracts", "attempt_assessments"):
+                row = conn.execute(
+                    f"select evidence_profile_json, evidence_profile_sha256, "
+                    f"mastery_update_mode, mastery_state_ceiling from {table} limit 1"
+                ).fetchone()
+                self.assertEqual((None, None, None, None), tuple(row), table)
+            self.assertEqual(
+                "",
+                conn.execute(
+                    "select contract_digest_sha256 from background_jobs where id = ?",
+                    ("legacy-lineage-job",),
+                ).fetchone()[0],
+            )
+        finally:
+            conn.close()
+
+    def test_attempt_assessments_expose_all_evidence_profile_fields(self):
+        self.assertTrue(
+            {
+                "evidence_profile_json",
+                "evidence_profile_sha256",
+                "mastery_update_mode",
+                "mastery_state_ceiling",
+            }.issubset(self._column_names("attempt_assessments"))
+        )
+
+    def test_fixed_assessment_effect_replay_is_idempotent_and_digest_guarded(self):
+        first = db.record_fixed_assessment_effect(
+            self.conn,
+            attempt_id="ATT-fixed-effect",
+            attempt_version=2,
+            contract_digest_sha256="a" * 64,
+            result={"result": "correct", "score": 1},
+            profile={"supports": ["answer_correctness"]},
+            ceiling="B",
+        )
+        replay = db.record_fixed_assessment_effect(
+            self.conn,
+            attempt_id="ATT-fixed-effect",
+            attempt_version=2,
+            contract_digest_sha256="a" * 64,
+            result={"result": "wrong", "score": 0},
+            profile={"supports": ["different"]},
+            ceiling="D",
+        )
+        self.assertEqual(first["effect_key"], replay["effect_key"])
+        self.assertEqual(first["result"], replay["result"])
+        self.assertEqual(first["profile"], replay["profile"])
+        self.assertEqual("B", replay["ceiling"])
+        with self.assertRaisesRegex(
+            db.FixedAssessmentEffectConflict,
+            "conflicting contract digest",
+        ):
+            db.record_fixed_assessment_effect(
+                self.conn,
+                attempt_id="ATT-fixed-effect",
+                attempt_version=2,
+                contract_digest_sha256="b" * 64,
+                result={"result": "correct"},
+                profile={"supports": ["answer_correctness"]},
+                ceiling="B",
+            )
+        self.assertEqual(
+            1,
+            self.conn.execute(
+                "select count(*) from fixed_assessment_effects where attempt_id = ?",
+                ("ATT-fixed-effect",),
+            ).fetchone()[0],
+        )
+
     def test_invalid_evidence_validation_assessment_reference_is_rejected_on_insert(self):
         conn = self._copy_pre_v51_backup("invalid-assessment-ref.sqlite")
         try:
@@ -2651,6 +3252,106 @@ class AnswerContractReviewUnitTests(unittest.TestCase):
             first["core_structure_fingerprint"],
             changed["core_structure_fingerprint"],
         )
+
+    def test_fingerprint_pair_v1_request_keeps_legacy_payload_and_keys(self):
+        fingerprints = self._fingerprint_module()
+        instance = {"values": [{"name": "x", "value": 3}], "requested": ["x"]}
+        core = {"relation": "identity", "evidence": ["answer_correctness"]}
+        pair = fingerprints.fingerprint_pair(
+            instance,
+            core,
+            policy_version="question-fingerprint.v1",
+        )
+
+        self.assertEqual("question-fingerprint.v1", pair["fingerprint_policy_version"])
+        self.assertEqual(
+            fingerprints.descriptor_fingerprint(
+                instance,
+                fingerprint_type="prompt_instance",
+                policy_version="question-fingerprint.v1",
+            ),
+            pair["prompt_instance_fingerprint"],
+        )
+        self.assertEqual(
+            fingerprints.descriptor_fingerprint(
+                core,
+                fingerprint_type="core_structure",
+                policy_version="question-fingerprint.v1",
+            ),
+            pair["core_structure_fingerprint"],
+        )
+        self.assertNotIn("exact_instance_fingerprint", pair)
+
+    def test_legacy_v1_validated_outcome_rebuilds_receipt(self):
+        review = self._review_module()
+        fingerprints = self._fingerprint_module()
+        item = self._item(0)
+        result = self._review_result(item)
+        current = self._bind_and_validate(
+            review,
+            [item],
+            [result],
+            provider_mode=self.PROVIDER_SCOPE,
+        )[0]
+
+        legacy = copy.deepcopy(current)
+        legacy.pop("exact_instance_fingerprint")
+        legacy.pop("family_fingerprint")
+        legacy.update(
+            fingerprints.fingerprint_pair(
+                result["normalized_instance_descriptor"],
+                result["normalized_core_structure_descriptor"],
+                policy_version="question-fingerprint.v1",
+            )
+        )
+        legacy["validated_item_digest_sha256"] = fingerprints.canonical_sha256(
+            {
+                key: value
+                for key, value in legacy.items()
+                if key != "validated_item_digest_sha256"
+            }
+        )
+
+        shard = review.plan_review_shards([item])[0]
+        receipt = review.build_shard_receipt(
+            shard,
+            [legacy],
+            provider_mode=self.PROVIDER_SCOPE,
+        )
+
+        self.assertIsNotNone(receipt)
+        self.assertEqual("question-fingerprint.v1", receipt["validated_items"][0]["fingerprint_policy_version"])
+        self.assertEqual(legacy, receipt["validated_items"][0])
+
+    def test_v2_validated_outcome_cannot_downgrade_to_legacy_fields(self):
+        review = self._review_module()
+        fingerprints = self._fingerprint_module()
+        item = self._item(0)
+        result = self._review_result(item)
+        current = self._bind_and_validate(
+            review,
+            [item],
+            [result],
+            provider_mode=self.PROVIDER_SCOPE,
+        )[0]
+        downgraded = copy.deepcopy(current)
+        downgraded.pop("exact_instance_fingerprint")
+        downgraded.pop("family_fingerprint")
+        downgraded["validated_item_digest_sha256"] = fingerprints.canonical_sha256(
+            {
+                key: value
+                for key, value in downgraded.items()
+                if key != "validated_item_digest_sha256"
+            }
+        )
+
+        shard = review.plan_review_shards([item])[0]
+        with self.assertRaisesRegex(ValueError, "exact schema"):
+            review.build_shard_receipt(
+                shard,
+                [downgraded],
+                provider_mode=self.PROVIDER_SCOPE,
+            )
 
     def test_partial_shard_receipts_cannot_complete_node(self):
         review = self._review_module()
@@ -5739,8 +6440,16 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
     def test_optional_unclear_criterion_does_not_trigger_clarification(self):
         contract = {
             "score_points": [
-                {"key": "core_answer", "required_for_pass": True},
-                {"key": "optional_wording", "required_for_pass": False},
+                {
+                    "key": "internal_core_answer",
+                    "source_target_key": "core_answer",
+                    "required_for_pass": True,
+                },
+                {
+                    "key": "internal_optional_wording",
+                    "source_target_key": "optional_wording",
+                    "required_for_pass": False,
+                },
             ]
         }
         output = {
@@ -6032,13 +6741,35 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.assertIsNotNone(attempt)
         return dict(attempt)
 
+    def _mark_flow_completed_for_late_job_regression(self, *, reason):
+        flow = dict(self.runtime._flow_by_id(self.flow_id))
+        next_revision = int(flow.get("flow_revision") or 1) + 1
+        summary_id = self.runtime._ensure_daily_summary(
+            flow,
+            reason=reason,
+            target_flow_revision=next_revision,
+        )
+        self.conn.execute(
+            """
+            update daily_flows
+            set status = 'completed',
+                summary_id = ?,
+                current_step_id = null,
+                flow_revision = ?,
+                updated_at = ?
+            where id = ?
+            """,
+            (summary_id, next_revision, db.now_iso(), self.flow_id),
+        )
+        self.conn.commit()
+
     def _v3_output(self, attempt, *, first_status="met", confidence=0.97):
         judgments = []
         for index, point in enumerate(self.contract["score_points"]):
             status = first_status if index == 0 else "met"
             judgments.append(
                 {
-                    "criterion_key": point["key"],
+                    "criterion_key": point["source_target_key"],
                     "status": status,
                     "child_evidence": (
                         "The child answer directly supports this criterion."
@@ -6068,6 +6799,38 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "confidence": confidence,
         }
 
+    def _make_bound_contract_keys_internal_only(self, step_ids):
+        from learning_system import assessment_store
+
+        remapped_by_step = {}
+        remapped_contract_ids = set()
+        for step_id in step_ids:
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                step_id,
+            )
+            self.assertIsNotNone(contract)
+            if contract["id"] not in remapped_contract_ids:
+                points = copy.deepcopy(contract["score_points"])
+                for index, point in enumerate(points, start=1):
+                    point["key"] = f"internal_score_point_{index}"
+                self.conn.execute(
+                    "update answer_contracts set score_points_json = ? where id = ?",
+                    (db.json_dump(points), contract["id"]),
+                )
+                remapped_contract_ids.add(contract["id"])
+            remapped = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                step_id,
+            )
+            self.assertTrue(all(
+                point["key"] != point["source_target_key"]
+                for point in remapped["score_points"]
+            ))
+            remapped_by_step[step_id] = remapped
+        self.conn.commit()
+        return remapped_by_step
+
     def _live_route(self, model_router):
         return model_router.ModelRoute(
             agent_key="answer_analysis_agent",
@@ -6079,6 +6842,218 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             api_key="test-only-key",
             timeout_seconds=120,
             model_params={"temperature": 0},
+        )
+
+    def _run_single_v51_review(self, *, key, first_status="met"):
+        from learning_system import model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "I state the relation, calculate, and verify the result.",
+            key,
+        )
+        output = self._v3_output(attempt, first_status=first_status)
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.97,
+            output=output,
+            route_meta={"source": "runtime-v51-single-review-fixture"},
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+        return attempt, result
+
+    def test_processed_replay_rejects_stale_analysis_and_gate_versions(self):
+        from learning_system import evidence_gate
+
+        attempt, result = self._run_single_v51_review(
+            key="submit-runtime-v51-replay-stale-validation",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        validation_id = result["evidence_validation_id"]
+        current_attempt = db.get_attempt(self.conn, attempt["id"])
+
+        self.conn.execute(
+            "update evidence_validations set analysis_version = ? where id = ?",
+            (int(current_attempt["analysis_version"]) - 1, validation_id),
+        )
+        self.conn.commit()
+        stale_analysis = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("blocked", stale_analysis["job_status"])
+        self.assertEqual(
+            "processed_answer_replay_missing_matching_validation",
+            stale_analysis["reason"],
+        )
+
+        self.conn.execute(
+            "update evidence_validations set analysis_version = ?, gate_version = ? where id = ?",
+            (int(current_attempt["analysis_version"]), "stale-gate-version", validation_id),
+        )
+        self.conn.commit()
+        stale_gate = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("blocked", stale_gate["job_status"])
+        self.assertEqual(
+            "processed_answer_replay_missing_matching_validation",
+            stale_gate["reason"],
+        )
+        self.assertNotEqual("stale-gate-version", evidence_gate.GATE_VERSION)
+
+    def test_processed_replay_rejects_broken_mastery_decision_feedback_chain(self):
+        attempt, result = self._run_single_v51_review(
+            key="submit-runtime-v51-replay-broken-downstream",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        current_attempt = db.get_attempt(self.conn, attempt["id"])
+        initial = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("succeeded", initial["job_status"])
+
+        self.conn.execute(
+            "update next_step_decisions set source_mastery_decision_ids_json = '[]' where id = ?",
+            (result["next_step_decision_id"],),
+        )
+        self.conn.commit()
+        missing_mastery_ref = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("blocked", missing_mastery_ref["job_status"])
+        self.assertEqual(
+            "processed_answer_replay_missing_assessment_downstream_lineage",
+            missing_mastery_ref["reason"],
+        )
+
+        self.conn.execute(
+            "update next_step_decisions set source_mastery_decision_ids_json = ? where id = ?",
+            (db.json_dump([result["mastery_decision_id"]]), result["next_step_decision_id"]),
+        )
+        feedback_row = self.conn.execute(
+            "select selection_reason_json from flow_steps where id = ?",
+            (result["feedback_step_id"],),
+        ).fetchone()
+        feedback_reason = db.json_load(feedback_row["selection_reason_json"], {})
+        feedback_reason["planned_next_step_decision_id"] = "NSD-foreign-decision"
+        self.conn.execute(
+            "update flow_steps set selection_reason_json = ? where id = ?",
+            (db.json_dump(feedback_reason), result["feedback_step_id"]),
+        )
+        self.conn.commit()
+        mismatched_feedback = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("blocked", mismatched_feedback["job_status"])
+        self.assertEqual(
+            "processed_answer_replay_missing_assessment_downstream_lineage",
+            mismatched_feedback["reason"],
+        )
+
+    def test_processed_replay_rejects_late_clarification_conflicting_with_accepted_assessment(self):
+        attempt, result = self._run_single_v51_review(
+            key="submit-runtime-v51-replay-conflicting-clarification",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        current_attempt = db.get_attempt(self.conn, attempt["id"])
+        initial = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("succeeded", initial["job_status"])
+
+        conflict_flow = dict(self.runtime._flow_by_id(self.flow_id))
+        conflict_flow["flow_revision"] = int(conflict_flow["flow_revision"]) + 1000
+        conflict_decision = self.runtime._record_next_step_decision(
+            flow=conflict_flow,
+            action="clarify_evidence",
+            report_label="unclear",
+            source_step_id="",
+            source_attempt_ids=[attempt["id"]],
+            source_validation_ids=[result["evidence_validation_id"]],
+            provider_mode="live_model",
+            reason="late conflicting clarification fixture",
+            target_node_id=attempt["node_id"],
+        )
+        question = db.get_question(self.conn, attempt["question_id"])
+        source_step = self.conn.execute(
+            "select review_record_id from flow_steps where id = ?",
+            (attempt["flow_step_id"],),
+        ).fetchone()
+        now = db.now_iso()
+        self.conn.execute(
+            """
+            insert into flow_steps(
+              id, flow_id, step_handle, position, step_type, status,
+              graph_version, node_id, question_bank_version, question_id,
+              question_item_version, review_record_id, expected_evidence_json,
+              prompt_package_json, selection_reason_json,
+              source_next_step_decision_id, created_at, updated_at
+            ) values (?, ?, ?, ?, 'clarify_evidence', 'planned', ?, ?, ?, ?, ?, ?, '{}', '{}', ?, ?, ?, ?)
+            """,
+            (
+                "FS-late-conflicting-clarification",
+                self.flow_id,
+                "late-conflicting-clarification",
+                999,
+                conflict_flow["graph_version"],
+                attempt["node_id"],
+                conflict_flow["question_bank_version"],
+                attempt["question_id"],
+                question["item_version"],
+                source_step["review_record_id"],
+                db.json_dump({
+                    "source_attempt_id": attempt["id"],
+                    "source_step_id": attempt["flow_step_id"],
+                    "source_next_step_decision_id": conflict_decision["id"],
+                }),
+                conflict_decision["id"],
+                now,
+                now,
+            ),
+        )
+        self.conn.commit()
+
+        replay = self.runtime._replay_answer_analysis_refs_for_processed_attempt(
+            job,
+            current_attempt,
+        )
+        self.assertEqual("blocked", replay["job_status"])
+        self.assertEqual(
+            "processed_answer_replay_conflicting_clarification_lineage",
+            replay["reason"],
         )
 
     def _run_overlapping_answer_workers(self, *, job_id, provider_output):
@@ -6605,6 +7580,193 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             (job["id"],),
         ).fetchone()[0])
 
+    def test_single_worker_accepts_provider_echo_of_canonical_prompt_keys(self):
+        from learning_system import assessment_store, model_router
+
+        step_row = self.conn.execute(
+            "select id from flow_steps where step_handle = ?",
+            (self.step["step_handle"],),
+        ).fetchone()
+        contracts = self._make_bound_contract_keys_internal_only([step_row["id"]])
+        contract = contracts[step_row["id"]]
+        attempt = self._submit_text(
+            "I state the relation, calculate, and verify the result.",
+            "submit-runtime-v51-canonical-key-single",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        canonical_keys = [
+            point["source_target_key"] for point in contract["score_points"]
+        ]
+        provider_output = self._v3_output(attempt)
+        provider_output["criteria"] = [
+            {
+                "criterion_key": key,
+                "status": "met",
+                "child_evidence": f"孩子提交内容支持 {key}。",
+                "reason": "模型原样回传 prompt 中的 canonical criterion key。",
+            }
+            for key in canonical_keys
+        ]
+
+        def provider_echo(_route, payload, **_kwargs):
+            prompt = payload["input"][0]["content"][0]["text"]
+            for key in canonical_keys:
+                self.assertIn(key, prompt)
+            return model_router.StructuredJSONResult(
+                value=provider_output,
+                mode="json_schema",
+                raw_response={"fixture": "canonical-single"},
+                endpoint="unit://structured-json",
+            )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=provider_echo,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="canonical-key-single-worker",
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("succeeded", self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()[0])
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ? and status = 'accepted'",
+            (attempt["id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where id = ? and status = 'dead_letter'",
+            (job["id"],),
+        ).fetchone()[0])
+        self.assertIsNotNone(assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            attempt["id"],
+            int(attempt["attempt_version"]),
+        ))
+
+    def test_group_worker_accepts_provider_echo_of_canonical_prompt_keys(self):
+        from learning_system import (
+            assessment_store,
+            daily_runtime,
+            model_router,
+            semantic_agents,
+        )
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "先写关键关系，再计算并检验。",
+                "submit-runtime-v51-canonical-key-group-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "换一个条件也用同一条关系，再检查结果。",
+            "submit-runtime-v51-canonical-key-group-second",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        contracts = self._make_bound_contract_keys_internal_only(
+            [item["step_id"] for item in payload["group_items"]]
+        )
+        output_items = []
+        expected_prompt_keys = set()
+        for group_item in payload["group_items"]:
+            contract = contracts[group_item["step_id"]]
+            canonical_keys = [
+                point["source_target_key"] for point in contract["score_points"]
+            ]
+            expected_prompt_keys.update(canonical_keys)
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": [
+                    {
+                        "criterion_key": key,
+                        "status": "met",
+                        "child_evidence": f"孩子提交内容支持 {key}。",
+                        "reason": "模型原样回传 prompt 中的 canonical criterion key。",
+                    }
+                    for key in canonical_keys
+                ],
+                "answer_gap": "没有影响得分的数学差距。",
+                "improvement_direction": ["保持当前正确方法。"],
+                "expression_judgment": "表达能看出数学意图。",
+                "teaching_explanation": "先确认关系，再检查结果。",
+                "confidence": 0.96,
+            })
+        provider_output = {
+            "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+            "items": output_items,
+            "confidence": 0.96,
+        }
+
+        def provider_echo(_route, request_payload, **_kwargs):
+            prompt = request_payload["input"][0]["content"][0]["text"]
+            for key in expected_prompt_keys:
+                self.assertIn(key, prompt)
+            return model_router.StructuredJSONResult(
+                value=provider_output,
+                mode="json_schema",
+                raw_response={"fixture": "canonical-group"},
+                endpoint="unit://structured-json",
+            )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=provider_echo,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="canonical-key-group-worker",
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("succeeded", self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()[0])
+        self.assertEqual(2, self.conn.execute(
+            "select count(*) from attempt_assessments where status = 'accepted' and attempt_id in (?, ?)",
+            tuple(item["attempt_id"] for item in payload["group_items"]),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from background_jobs where id = ? and status = 'dead_letter'",
+            (job["id"],),
+        ).fetchone()[0])
+        for group_item in payload["group_items"]:
+            attempt = db.get_attempt(self.conn, group_item["attempt_id"])
+            self.assertIsNotNone(assessment_store.accepted_assessment_for_attempt(
+                self.conn,
+                attempt["id"],
+                int(attempt["attempt_version"]),
+            ))
+
     def test_review_short_group_advances_without_analysis_until_group_end(self):
         self._set_step_group_size(self.step["step_handle"], 2)
 
@@ -6972,7 +8134,11 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "_select_question_for_node",
             return_value=selected,
         ) as select_question:
-            planned = self.runtime._next_selection_after_attempt(flow, attempt=attempt)
+            planned = self.runtime._next_selection_after_attempt(
+                flow,
+                attempt=attempt,
+                required_purpose="diagnostic",
+            )
 
         self.assertEqual("near_transfer_retest", planned["action"])
         self.assertIn("不难", planned["reason"])
@@ -6986,18 +8152,21 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "score_points": [
                 {
                     "key": "answer",
+                    "source_target_key": "answer",
                     "points": 4,
                     "dimension": "final_answer",
                     "required_for_pass": True,
                 },
                 {
                     "key": "execution",
+                    "source_target_key": "execution",
                     "points": 4,
                     "dimension": "calculation",
                     "required_for_pass": True,
                 },
                 {
                     "key": "formal_check",
+                    "source_target_key": "formal_check",
                     "points": 2,
                     "dimension": "check",
                     "required_for_pass": True,
@@ -7031,12 +8200,14 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "score_points": [
                 {
                     "key": "answer",
+                    "source_target_key": "answer",
                     "points": 2,
                     "dimension": "final_answer",
                     "required_for_pass": True,
                 },
                 {
                     "key": "execution",
+                    "source_target_key": "execution",
                     "points": 8,
                     "dimension": "procedure",
                     "required_for_pass": True,
@@ -7068,12 +8239,14 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "score_points": [
                 {
                     "key": "relation",
+                    "source_target_key": "relation",
                     "points": 2,
                     "dimension": "model_relation",
                     "required_for_pass": True,
                 },
                 {
                     "key": "answer",
+                    "source_target_key": "answer",
                     "points": 8,
                     "dimension": "final_answer",
                     "required_for_pass": True,
@@ -7280,20 +8453,28 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
                 self.conn,
                 group_item["step_id"],
             )
+            resolved_statuses = [
+                (
+                    criterion_status(point, index)
+                    if callable(criterion_status)
+                    else criterion_status
+                )
+                for index, point in enumerate(contract["score_points"])
+            ]
             output_items.append({
                 "attempt_id": group_item["attempt_id"],
                 "criteria": [
                     {
                         "criterion_key": point["key"],
-                        "status": criterion_status,
+                        "status": resolved_statuses[index],
                         "child_evidence": "结构化测试证据。",
                         "reason": "用于验证题组分支用途。",
                     }
-                    for point in contract["score_points"]
+                    for index, point in enumerate(contract["score_points"])
                 ],
                 "answer_gap": (
                     "没有影响得分的数学差距。"
-                    if criterion_status == "met"
+                    if all(status == "met" for status in resolved_statuses)
                     else "关键关系还没有稳定建立。"
                 ),
                 "improvement_direction": ["继续检查关系与符号。"],
@@ -7347,19 +8528,26 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             )
 
         self.assertEqual("succeeded", result["job_status"], result)
-        self.assertEqual(expected_purpose, next_selection.call_args.kwargs["required_purpose"])
         planned_step_id = str(result.get("planned_step_id") or "")
         self.assertTrue(planned_step_id, result)
         planned_step = self.conn.execute(
             "select step_type from flow_steps where id = ?",
             (planned_step_id,),
         ).fetchone()
-        self.assertEqual(
-            "question" if expected_purpose == "diagnostic" else "micro_check",
-            planned_step["step_type"],
-        )
+        if expected_purpose == "practice":
+            next_selection.assert_not_called()
+            self.assertEqual("teaching_repair", planned_step["step_type"])
+        else:
+            self.assertEqual(
+                expected_purpose,
+                next_selection.call_args.kwargs["required_purpose"],
+            )
+            self.assertEqual("question", planned_step["step_type"])
         usage = db.flow_step_usage_context(self.conn, planned_step_id)
-        self.assertEqual(expected_purpose, usage["purpose"])
+        self.assertEqual(
+            "teaching" if expected_purpose == "practice" else expected_purpose,
+            usage["purpose"],
+        )
         stored_job = self.conn.execute(
             "select status from background_jobs where id = ?",
             (job["id"],),
@@ -7369,6 +8557,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             "select count(*) from background_jobs where flow_id = ? and status = 'dead_letter'",
             (self.flow_id,),
         ).fetchone()[0])
+        return {"result": result, "payload": payload}
 
     def test_strong_group_branch_is_diagnostic_from_selection_to_sqlite(self):
         self._assert_group_branch_purpose(
@@ -7376,11 +8565,2003 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             expected_purpose="diagnostic",
         )
 
-    def test_weak_group_branch_is_practice_from_selection_to_sqlite(self):
-        self._assert_group_branch_purpose(
+    def test_weak_group_branch_teaches_before_selecting_practice(self):
+        evidence = self._assert_group_branch_purpose(
             criterion_status="not_met",
             expected_purpose="practice",
         )
+        from learning_system import daily_runtime
+
+        weak_attempt_id = evidence["payload"]["group_items"][0]["attempt_id"]
+        weak_node_id = db.get_attempt(self.conn, weak_attempt_id)["node_id"]
+        authoritative = db.authoritative_learner_node_status_rows(
+            self.conn,
+            graph_version=self.runtime.graph.current_graph_version(),
+            question_bank_version=db.get_active_question_bank_version(self.conn),
+        )
+        weak_status = next(row for row in authoritative if row["node_id"] == weak_node_id)
+        self.assertIn(weak_status["status_code"], {"C", "D"})
+        next_runtime = daily_runtime.DailyLearningRuntime(
+            self.conn,
+            project_root=PROJECT_ROOT,
+        )
+        self.assertEqual(weak_node_id, next_runtime._initial_target_node_ids()[0])
+        self.assertEqual(0, db.lineage_integrity_audit(self.conn)["issue_count"])
+
+    def test_weak_group_feedback_teaching_micro_check_keeps_full_lineage(self):
+        from learning_system import daily_runtime
+
+        evidence = self._assert_group_branch_purpose(
+            criterion_status="not_met",
+            expected_purpose="practice",
+        )
+        result = evidence["result"]
+        source_attempt = db.get_attempt(
+            self.conn,
+            result["weakest_attempt_id"],
+        )
+        feedback_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        feedback = feedback_state["current_step"]
+        teaching_state = self.runtime.continue_current_step(
+            step_handle=feedback["step_handle"],
+            position=feedback["position"],
+        )
+        self.assertEqual("teaching", teaching_state["child_state"])
+        teaching = teaching_state["current_step"]
+        teaching_row = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (teaching["step_handle"],),
+        ).fetchone()
+        source_step = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (source_attempt["flow_step_id"],),
+        ).fetchone()
+        candidate = {
+            "question": db.get_question(self.conn, source_attempt["question_id"]),
+            "review_record_id": source_step["review_record_id"],
+            "candidate_packet": {},
+            "selection_reason": {"reason": "group-repair-lineage-fixture"},
+            "action": "same_structure_retest",
+            "reason": "整组讲解后同节点小检查。",
+        }
+        with mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            return_value=candidate,
+        ), mock.patch.object(
+            daily_runtime,
+            "UNIQUE_PROBLEM_INSTANCE_STEP_TYPES",
+            frozenset(),
+        ):
+            micro_state = self.runtime.continue_current_step(
+                step_handle=teaching["step_handle"],
+                position=teaching["position"],
+            )
+
+        micro = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (micro_state["current_step"]["step_handle"],),
+        ).fetchone()
+        self.assertEqual("micro_check", micro["step_type"])
+        micro_reason = json.loads(micro["selection_reason_json"])
+        self.assertEqual(source_attempt["id"], micro_reason["source_attempt_id"])
+        micro_decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (micro["source_next_step_decision_id"],),
+        ).fetchone()
+        self.assertEqual(teaching_row["id"], micro_decision["source_step_id"])
+        self.assertEqual([source_attempt["id"]], json.loads(
+            micro_decision["source_attempt_ids_json"]
+        ))
+
+    def test_weak_group_repair_precedes_budget_summary(self):
+        self.conn.execute(
+            "update daily_flows set budget_min = 1 where id = ?",
+            (self.flow_id,),
+        )
+        self.conn.commit()
+
+        evidence = self._assert_group_branch_purpose(
+            criterion_status="not_met",
+            expected_purpose="practice",
+        )
+        result = evidence["result"]
+        decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (result["next_step_decision_id"],),
+        ).fetchone()
+        planned = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (result["planned_step_id"],),
+        ).fetchone()
+
+        self.assertEqual("micro_teach", decision["action"])
+        self.assertIsNotNone(planned)
+        self.assertEqual("teaching_repair", planned["step_type"])
+
+    def test_partial_group_feedback_teaching_micro_check_keeps_full_lineage(self):
+        from learning_system import daily_runtime
+
+        evidence = self._assert_group_branch_purpose(
+            criterion_status=(
+                lambda _point, index: "met" if index == 0 else "not_met"
+            ),
+            expected_purpose="practice",
+        )
+        result = evidence["result"]
+        assessments = self.conn.execute(
+            """
+            select aa.score_out_of_10, aa.question_passed
+            from attempt_assessments aa
+            join attempts a on a.id = aa.attempt_id
+            where a.id in ({}) and aa.status = 'accepted'
+            order by a.created_at, a.id
+            """.format(
+                ",".join("?" for _ in evidence["payload"]["group_items"])
+            ),
+            tuple(item["attempt_id"] for item in evidence["payload"]["group_items"]),
+        ).fetchall()
+        self.assertEqual(2, len(assessments))
+        self.assertTrue(all(0 < row["score_out_of_10"] < 10 for row in assessments))
+        self.assertTrue(all(row["question_passed"] == 0 for row in assessments))
+
+        source_attempt = db.get_attempt(self.conn, result["weakest_attempt_id"])
+        feedback_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("assessment_feedback", feedback_state["child_state"])
+        teaching_state = self.runtime.continue_current_step(
+            step_handle=feedback_state["current_step"]["step_handle"],
+            position=feedback_state["current_step"]["position"],
+        )
+        self.assertEqual("teaching", teaching_state["child_state"])
+        teaching_row = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (teaching_state["current_step"]["step_handle"],),
+        ).fetchone()
+        source_step = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (source_attempt["flow_step_id"],),
+        ).fetchone()
+        candidate = {
+            "question": db.get_question(self.conn, source_attempt["question_id"]),
+            "review_record_id": source_step["review_record_id"],
+            "candidate_packet": {},
+            "selection_reason": {"reason": "partial-group-repair-lineage-fixture"},
+            "action": "same_structure_retest",
+            "reason": "部分正确题组讲解后的同节点小检查。",
+        }
+        with mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            return_value=candidate,
+        ), mock.patch.object(
+            daily_runtime,
+            "UNIQUE_PROBLEM_INSTANCE_STEP_TYPES",
+            frozenset(),
+        ):
+            micro_state = self.runtime.continue_current_step(
+                step_handle=teaching_state["current_step"]["step_handle"],
+                position=teaching_state["current_step"]["position"],
+            )
+
+        micro = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (micro_state["current_step"]["step_handle"],),
+        ).fetchone()
+        self.assertEqual("micro_check", micro["step_type"])
+        micro_reason = json.loads(micro["selection_reason_json"])
+        self.assertEqual(source_attempt["id"], micro_reason["source_attempt_id"])
+        micro_decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (micro["source_next_step_decision_id"],),
+        ).fetchone()
+        self.assertEqual(teaching_row["id"], micro_decision["source_step_id"])
+        self.assertEqual(
+            [source_attempt["id"]],
+            json.loads(micro_decision["source_attempt_ids_json"]),
+        )
+
+    def _prepare_group_with_unclear_second(self, *, first_status: str, suffix: str):
+        from learning_system import assessment_store, daily_runtime, model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "第一题保留清晰、可独立判断的数学证据。",
+                f"submit-runtime-v51-group-clear-{suffix}-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "第二题照片或表达不清楚。",
+            f"submit-runtime-v51-group-clear-{suffix}-unclear",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        attempts = [
+            db.get_attempt(self.conn, item["attempt_id"])
+            for item in payload["group_items"]
+        ]
+        output_items = []
+        for index, group_item in enumerate(payload["group_items"]):
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            status = first_status if index == 0 else "met"
+            criteria = []
+            for criterion_index, point in enumerate(contract["score_points"]):
+                criterion_status = (
+                    "unclear"
+                    if index == 1 and criterion_index == 0
+                    else status
+                )
+                criteria.append({
+                    "criterion_key": point["key"],
+                    "status": criterion_status,
+                    "child_evidence": (
+                        "第二题当前证据看不清。"
+                        if criterion_status == "unclear"
+                        else "第一题给出了可独立判断的数学证据。"
+                    ),
+                    "reason": (
+                        "第二题必要得分点无法可靠判断。"
+                        if criterion_status == "unclear"
+                        else "第一题证据足以独立评分。"
+                    ),
+                })
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": criteria,
+                "answer_gap": (
+                    "第二题当前证据看不清，需单独澄清。"
+                    if index == 1
+                    else "第一题按自己的证据独立批阅。"
+                ),
+                "improvement_direction": ["只澄清第二题，不抹掉第一题证据。"],
+                "expression_judgment": "按每题自己的证据独立判断。",
+                "teaching_explanation": "保留清晰题事实，只处理不清楚的当前题。",
+                "confidence": 0.2 if index == 1 else 0.98,
+            })
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": output_items,
+                "confidence": 0.92,
+            },
+            mode="json_schema",
+            raw_response={"fixture": f"group-clear-{suffix}-unclear"},
+            endpoint="unit://structured-json",
+        )
+        return job, payload, attempts[0], attempts[1], structured
+
+    def _assert_group_clear_then_unclear(self, *, first_status: str, suffix: str):
+        from learning_system import assessment_store, model_router
+
+        job, _payload, clear_attempt, unclear_attempt, structured = (
+            self._prepare_group_with_unclear_second(
+                first_status=first_status,
+                suffix=suffix,
+            )
+        )
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id=f"group-clear-{suffix}-unclear-worker",
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("clarify_evidence", result["next_action"])
+        clear = db.get_attempt(self.conn, clear_attempt["id"])
+        unclear = db.get_attempt(self.conn, unclear_attempt["id"])
+        self.assertEqual("active", clear["evidence_status"])
+        self.assertEqual("graded", clear["grading_status"])
+        self.assertEqual("valid", clear["analysis_status"])
+        self.assertIsNotNone(assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            clear["id"],
+            int(clear["attempt_version"]),
+        ))
+        clear_validation = self.conn.execute(
+            "select * from evidence_validations where attempt_id = ? order by created_at desc limit 1",
+            (clear["id"],),
+        ).fetchone()
+        self.assertIsNotNone(clear_validation)
+        self.assertEqual("passed", clear_validation["gate_status"])
+        self.assertNotEqual("active", unclear["evidence_status"])
+        self.assertIsNone(assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            unclear["id"],
+            int(unclear["attempt_version"]),
+        ))
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{unclear['id']}%",),
+        ).fetchone()[0])
+        return job, clear, unclear, result
+
+    def test_group_correct_then_unclear_preserves_clear_active_lineage(self):
+        self._assert_group_clear_then_unclear(
+            first_status="met",
+            suffix="correct",
+        )
+
+    def test_group_wrong_then_unclear_preserves_clear_weak_lineage(self):
+        _job, clear, _unclear, _result = self._assert_group_clear_then_unclear(
+            first_status="contradicted",
+            suffix="wrong",
+        )
+        accepted = self.conn.execute(
+            "select score_out_of_10, question_passed from attempt_assessments where attempt_id = ? and status = 'accepted'",
+            (clear["id"],),
+        ).fetchone()
+        self.assertEqual(0, accepted["score_out_of_10"])
+        self.assertEqual(0, accepted["question_passed"])
+
+    def _create_two_unclear_clarifications(self, *, suffix):
+        from learning_system import assessment_store, daily_runtime, model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "第一题当前证据不清楚。",
+                f"submit-runtime-v51-multi-unclear-first-{suffix}",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "第二题当前证据不清楚。",
+            f"submit-runtime-v51-multi-unclear-second-{suffix}",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        output_items = []
+        for index, group_item in enumerate(payload["group_items"]):
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": [
+                    {
+                        "criterion_key": point["source_target_key"],
+                        "status": "unclear" if criterion_index == 0 else "met",
+                        "child_evidence": (
+                            "该题必要证据暂时看不清。"
+                            if criterion_index == 0
+                            else "该题证据清楚且支持得分点。"
+                        ),
+                        "reason": (
+                            "该题必须独立澄清。"
+                            if criterion_index == 0
+                            else "该题可以独立评分。"
+                        ),
+                    }
+                    for criterion_index, point in enumerate(contract["score_points"])
+                ],
+                "answer_gap": f"第{index + 1}题证据不清楚，需独立澄清。",
+                "improvement_direction": ["只补清本题的关键步骤和答案。"],
+                "expression_judgment": "逐题按各自证据判断。",
+                "teaching_explanation": "每一道不清楚的题保留自己的澄清身份。",
+                "confidence": 0.2,
+            })
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": output_items,
+                "confidence": 0.8,
+            },
+            mode="json_schema",
+            raw_response={"fixture": f"group-multiple-unclear-{suffix}"},
+            endpoint="unit://structured-json",
+        )
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id=f"group-multiple-unclear-worker-{suffix}",
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+        self.assertEqual("succeeded", result["job_status"], result)
+        return payload, result
+
+    def test_first_of_multiple_clarifications_stuck_advances_to_next_clarification(self):
+        from learning_system import daily_runtime, semantic_agents
+
+        _payload, result = self._create_two_unclear_clarifications(
+            suffix="first-stuck",
+        )
+        state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", state["child_state"])
+        self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=state["current_step"]["step_handle"],
+                position=state["current_step"]["position"],
+                client_idempotency_key="submit-runtime-v51-multi-unclear-first-stuck",
+                answer_text="我还是不会",
+                stuck=True,
+            )
+        )
+        stuck_attempt = dict(self.conn.execute(
+            "select * from attempts where client_idempotency_key = ?",
+            ("submit-runtime-v51-multi-unclear-first-stuck",),
+        ).fetchone())
+        stuck_job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'stuck_interruption'",
+            (stuck_attempt["id"],),
+        ).fetchone())
+        with mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("explicit stuck must not call a model"),
+        ):
+            stuck_result = self.runtime._handle_stuck_interruption_job(stuck_job)
+
+        self.assertEqual("clarify_evidence", stuck_result["next_action"])
+        next_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", next_state["child_state"])
+        self.assertEqual(
+            result["clarification_items"][1]["clarify_step_id"],
+            self.conn.execute(
+                "select id from flow_steps where step_handle = ?",
+                (next_state["current_step"]["step_handle"],),
+            ).fetchone()["id"],
+        )
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'teaching_repair' and selection_reason_json like ?",
+            (self.flow_id, f"%{stuck_attempt['id']}%"),
+        ).fetchone()[0])
+
+    def test_multiple_clarification_stuck_checkpoint_recovers_after_commit_before_finish(self):
+        from learning_system import daily_runtime, job_queue, semantic_agents
+
+        _payload, clarification_result = self._create_two_unclear_clarifications(
+            suffix="stuck-checkpoint-takeover",
+        )
+        state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", state["child_state"])
+        second_clarify_step_id = clarification_result["clarification_items"][1][
+            "clarify_step_id"
+        ]
+        self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=state["current_step"]["step_handle"],
+                position=state["current_step"]["position"],
+                client_idempotency_key="submit-runtime-v51-multi-clarify-stuck-checkpoint",
+                answer_text="我还是不会",
+                stuck=True,
+            )
+        )
+        stuck_attempt = dict(self.conn.execute(
+            "select * from attempts where client_idempotency_key = ?",
+            ("submit-runtime-v51-multi-clarify-stuck-checkpoint",),
+        ).fetchone())
+        stuck_job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'stuck_interruption'",
+            (stuck_attempt["id"],),
+        ).fetchone())
+
+        model_patches = (
+            mock.patch.object(
+                semantic_agents,
+                "call_answer_analysis_agent",
+                side_effect=AssertionError("explicit stuck replay must not call answer analysis"),
+            ),
+            mock.patch.object(
+                semantic_agents,
+                "call_evaluation_agent",
+                side_effect=AssertionError("explicit stuck replay must not call evaluation"),
+            ),
+            mock.patch.object(
+                semantic_agents,
+                "call_planner_agent",
+                side_effect=AssertionError("explicit stuck replay must not call planner"),
+            ),
+            mock.patch.object(
+                semantic_agents,
+                "call_teaching_agent",
+                side_effect=AssertionError("explicit stuck replay must not call teaching"),
+            ),
+        )
+        with model_patches[0] as answer_call, model_patches[1] as evaluation_call, model_patches[2] as planner_call, model_patches[3] as teaching_call, mock.patch.object(
+            job_queue.JobQueue,
+            "finish",
+            side_effect=SystemExit("process crashed before queue.finish"),
+        ):
+            with self.assertRaisesRegex(SystemExit, "queue.finish"):
+                self.runtime.process_next_background_job(
+                    worker_id="stuck-reducer-crash-worker",
+                    flow_id=self.flow_id,
+                    job_id=stuck_job["id"],
+                )
+
+        self.assertEqual(0, answer_call.call_count)
+        self.assertEqual(0, evaluation_call.call_count)
+        self.assertEqual(0, planner_call.call_count)
+        self.assertEqual(0, teaching_call.call_count)
+        crashed_job = self.conn.execute(
+            "select status, result_refs_json from background_jobs where id = ?",
+            (stuck_job["id"],),
+        ).fetchone()
+        self.assertEqual("running", crashed_job["status"])
+        checkpoint = json.loads(crashed_job["result_refs_json"])[
+            "stuck_interruption_reducer_checkpoint"
+        ]
+        checkpoint_refs = checkpoint["result_refs"]
+        self.assertEqual("clarify_evidence", checkpoint_refs["next_action"])
+        self.assertEqual(second_clarify_step_id, checkpoint_refs["clarify_step_id"])
+        committed_revision = self.conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"]
+        committed_decision_count = self.conn.execute(
+            "select count(*) from next_step_decisions where flow_id = ?",
+            (self.flow_id,),
+        ).fetchone()[0]
+        committed_teaching_count = self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'teaching_repair'",
+            (self.flow_id,),
+        ).fetchone()[0]
+        self.assertEqual(second_clarify_step_id, self.conn.execute(
+            "select current_step_id from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["current_step_id"])
+
+        takeover_conn = db.connect(self.db_path)
+        self.addCleanup(takeover_conn.close)
+        takeover_runtime = daily_runtime.DailyLearningRuntime(
+            takeover_conn,
+            project_root=PROJECT_ROOT,
+        )
+        takeover_now = (
+            datetime.now(timezone.utc) + timedelta(seconds=181)
+        ).isoformat(timespec="microseconds")
+        with mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("checkpoint replay must not call answer analysis"),
+        ) as replay_answer, mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("checkpoint replay must not call evaluation"),
+        ) as replay_evaluation, mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("checkpoint replay must not call planner"),
+        ) as replay_planner, mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("checkpoint replay must not call teaching"),
+        ) as replay_teaching:
+            recovered = takeover_runtime.process_next_background_job(
+                worker_id="stuck-reducer-takeover-worker",
+                now=takeover_now,
+                flow_id=self.flow_id,
+                job_id=stuck_job["id"],
+            )
+
+        self.assertEqual(0, replay_answer.call_count)
+        self.assertEqual(0, replay_evaluation.call_count)
+        self.assertEqual(0, replay_planner.call_count)
+        self.assertEqual(0, replay_teaching.call_count)
+        self.assertEqual("succeeded", recovered["job_status"], recovered)
+        for key, value in checkpoint_refs.items():
+            self.assertEqual(value, recovered.get(key), key)
+        self.assertEqual(second_clarify_step_id, takeover_conn.execute(
+            "select current_step_id from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["current_step_id"])
+        self.assertEqual(committed_revision, takeover_conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"])
+        self.assertEqual(committed_decision_count, takeover_conn.execute(
+            "select count(*) from next_step_decisions where flow_id = ?",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(committed_teaching_count, takeover_conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'teaching_repair'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        final_job = takeover_conn.execute(
+            "select status, last_error, dead_letter_reason from background_jobs where id = ?",
+            (stuck_job["id"],),
+        ).fetchone()
+        self.assertEqual("succeeded", final_job["status"])
+        self.assertEqual("lease expired", final_job["last_error"])
+        self.assertFalse(final_job["dead_letter_reason"])
+
+    def test_terminal_flow_discards_single_answer_job_before_model_call(self):
+        from learning_system import model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "我写出了答案和步骤。",
+            "submit-runtime-v51-terminal-single",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        self._mark_flow_completed_for_late_job_regression(
+            reason="terminal single answer late-job regression",
+        )
+        completed_revision = self.conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"]
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            side_effect=AssertionError("terminal single job must not resolve a model route"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("terminal single job must not call a model"),
+        ) as model_call:
+            result = self.runtime.process_next_background_job(
+                worker_id="terminal-single-worker",
+                job_id=job["id"],
+            )
+
+        self.assertEqual(0, model_call.call_count)
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertTrue(result["discarded_late_result"])
+        self.assertEqual(completed_revision, self.conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"])
+        self.assertEqual("pending_review", db.get_attempt(
+            self.conn,
+            attempt["id"],
+        )["grading_status"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ?",
+            (attempt["id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{attempt['id']}%",),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type in ('assessment_feedback','teaching_repair')",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_terminal_flow_discards_group_answer_job_before_model_call(self):
+        from learning_system import model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "第一题写出答案和步骤。",
+                "submit-runtime-v51-terminal-group-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "第二题写出答案和步骤。",
+            "submit-runtime-v51-terminal-group-second",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        attempt_ids = [
+            row["id"]
+            for row in self.conn.execute(
+                "select id from attempts where flow_step_id in (select id from flow_steps where flow_id = ?)",
+                (self.flow_id,),
+            ).fetchall()
+        ]
+        self._mark_flow_completed_for_late_job_regression(
+            reason="terminal group answer late-job regression",
+        )
+        completed_revision = self.conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"]
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            side_effect=AssertionError("terminal group job must not resolve a model route"),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=AssertionError("terminal group job must not call a model"),
+        ) as model_call:
+            result = self.runtime.process_next_background_job(
+                worker_id="terminal-group-worker",
+                job_id=job["id"],
+            )
+
+        self.assertEqual(0, model_call.call_count)
+        self.assertEqual("succeeded", result["job_status"])
+        self.assertTrue(result["discarded_late_result"])
+        self.assertEqual(completed_revision, self.conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from attempt_assessments where attempt_id in ({})".format(
+                ",".join("?" for _ in attempt_ids)
+            ),
+            attempt_ids,
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from mastery_decisions",
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type in ('assessment_feedback','teaching_repair')",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_legacy_answer_analysis_stuck_takeover_advances_remaining_clarification_without_model(self):
+        from learning_system import daily_runtime, semantic_agents
+
+        _payload, clarification_result = self._create_two_unclear_clarifications(
+            suffix="legacy-stuck-takeover",
+        )
+        state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", state["child_state"])
+        second_clarify_step_id = clarification_result["clarification_items"][1][
+            "clarify_step_id"
+        ]
+        self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=state["current_step"]["step_handle"],
+                position=state["current_step"]["position"],
+                client_idempotency_key="submit-runtime-v51-legacy-stuck-takeover",
+                answer_text="我还是不会",
+                stuck=True,
+            )
+        )
+        attempt = dict(self.conn.execute(
+            "select * from attempts where client_idempotency_key = ?",
+            ("submit-runtime-v51-legacy-stuck-takeover",),
+        ).fetchone())
+        stuck_job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'stuck_interruption'",
+            (attempt["id"],),
+        ).fetchone())
+        expired_at = (
+            datetime.now(timezone.utc) - timedelta(seconds=5)
+        ).isoformat(timespec="microseconds")
+        self.conn.execute(
+            """
+            update attempts
+            set result = 'pending', grading_status = 'pending_review',
+                analysis_status = 'missing', analysis_version = 0,
+                blocking_evidence = 0
+            where id = ?
+            """,
+            (attempt["id"],),
+        )
+        self.conn.execute(
+            "delete from background_jobs where id = ?",
+            (stuck_job["id"],),
+        )
+        source_step = dict(self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (attempt["flow_step_id"],),
+        ).fetchone())
+        legacy_job_id = self.runtime._ensure_answer_analysis_job_for_attempt(
+            source_step,
+            attempt["id"],
+            source="legacy_recovery",
+        )
+        self.conn.execute(
+            """
+            update background_jobs
+            set status = 'running', lease_owner = 'legacy-worker',
+                lease_expires_at = ?, claim_generation = 1,
+                claim_token = 'legacy-claim-token', run_count = 1
+            where id = ?
+            """,
+            (expired_at, legacy_job_id),
+        )
+        self.conn.commit()
+        job = dict(self.conn.execute(
+            "select * from background_jobs where id = ?",
+            (legacy_job_id,),
+        ).fetchone())
+
+        with mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            side_effect=AssertionError("legacy explicit stuck recovery must not call answer analysis"),
+        ) as answer_call, mock.patch.object(
+            semantic_agents,
+            "call_evaluation_agent",
+            side_effect=AssertionError("legacy explicit stuck recovery must not call evaluation"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_planner_agent",
+            side_effect=AssertionError("legacy explicit stuck recovery must not call planner"),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_teaching_agent",
+            side_effect=AssertionError("legacy explicit stuck recovery must not call teaching"),
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="legacy-stuck-takeover-worker",
+                now=datetime.now(timezone.utc).isoformat(timespec="microseconds"),
+                job_id=job["id"],
+            )
+
+        self.assertEqual(0, answer_call.call_count)
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("clarify_evidence", result["next_action"])
+        self.assertEqual(second_clarify_step_id, result["clarify_step_id"])
+        flow = self.conn.execute(
+            "select status, current_step_id, summary_id from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()
+        self.assertEqual("reviewing", flow["status"])
+        self.assertEqual(second_clarify_step_id, flow["current_step_id"])
+        self.assertIsNone(flow["summary_id"])
+        self.assertEqual("selected", self.conn.execute(
+            "select status from flow_steps where id = ?",
+            (second_clarify_step_id,),
+        ).fetchone()["status"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence' and status = 'planned'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'teaching_repair'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ?",
+            (attempt["id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from agent_runs where input_refs_json like ?",
+            (f"%{attempt['id']}%",),
+        ).fetchone()[0])
+
+        replay = self.runtime._handle_answer_analysis_job(job)
+        self.assertEqual("succeeded", replay["job_status"])
+        self.assertEqual("clarify_evidence", replay["next_action"])
+        self.assertEqual(second_clarify_step_id, replay["clarify_step_id"])
+        self.assertEqual(1, self.conn.execute(
+            "select count(*) from flow_steps where id = ? and status = 'selected'",
+            (second_clarify_step_id,),
+        ).fetchone()[0])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'teaching_repair'",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_group_multiple_unclear_attempts_keep_distinct_clarification_lineage(self):
+        from learning_system import (
+            assessment_store,
+            daily_runtime,
+            model_router,
+            semantic_agents,
+        )
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "第一题当前证据不清楚。",
+                "submit-runtime-v51-multi-unclear-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        self._submit_projected_step(
+            second_state,
+            "第二题当前证据不清楚。",
+            "submit-runtime-v51-multi-unclear-second",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        self.assertEqual(2, len(payload["group_items"]))
+        output_items = []
+        for index, group_item in enumerate(payload["group_items"]):
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                group_item["step_id"],
+            )
+            output_items.append({
+                "attempt_id": group_item["attempt_id"],
+                "criteria": [
+                    {
+                        "criterion_key": point["source_target_key"],
+                        "status": (
+                            "unclear"
+                            if criterion_index == 0
+                            else "met"
+                        ),
+                        "child_evidence": (
+                            "该题必要证据暂时看不清。"
+                            if criterion_index == 0
+                            else "该题证据清楚且支持得分点。"
+                        ),
+                        "reason": (
+                            "该题必须独立澄清。"
+                            if criterion_index == 0
+                            else "该题可以独立评分。"
+                        ),
+                    }
+                    for criterion_index, point in enumerate(
+                        contract["score_points"]
+                    )
+                ],
+                "answer_gap": (
+                    f"第{index + 1}题证据不清楚，需独立澄清。"
+                ),
+                "improvement_direction": ["只补清本题的关键步骤和答案。"],
+                "expression_judgment": "逐题按各自证据判断。",
+                "teaching_explanation": "每一道不清楚的题保留自己的澄清身份。",
+                "confidence": 0.2,
+            })
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": output_items,
+                "confidence": 0.8,
+            },
+            mode="json_schema",
+            raw_response={"fixture": "group-multiple-unclear"},
+            endpoint="unit://structured-json",
+        )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="group-multiple-unclear-worker",
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        unclear_attempt_ids = [
+            item["attempt_id"] for item in payload["group_items"]
+        ]
+        clarification_items = result["clarification_items"]
+        self.assertEqual(
+            unclear_attempt_ids,
+            [item["attempt_id"] for item in clarification_items],
+        )
+        for index, attempt_id in enumerate(unclear_attempt_ids):
+            with self.subTest(attempt_id=attempt_id):
+                attempt = db.get_attempt(self.conn, attempt_id)
+                self.assertEqual("blocked", attempt["grading_status"])
+                self.assertEqual("invalidated", attempt["evidence_status"])
+                self.assertIsNone(assessment_store.accepted_assessment_for_attempt(
+                    self.conn,
+                    attempt_id,
+                    int(attempt["attempt_version"]),
+                ))
+                run = self.conn.execute(
+                    """
+                    select * from agent_runs
+                    where agent_key = 'answer_analysis_agent'
+                      and phase = 'answer_analysis'
+                      and input_refs_json like ?
+                    order by created_at desc, id desc limit 1
+                    """,
+                    (f"%{attempt_id}%",),
+                ).fetchone()
+                validation = self.conn.execute(
+                    "select * from evidence_validations where attempt_id = ?",
+                    (attempt_id,),
+                ).fetchone()
+                decision = self.conn.execute(
+                    "select * from next_step_decisions where id = ?",
+                    (clarification_items[index]["next_step_decision_id"],),
+                ).fetchone()
+                clarify_step = self.conn.execute(
+                    "select * from flow_steps where id = ?",
+                    (clarification_items[index]["clarify_step_id"],),
+                ).fetchone()
+                self.assertIsNotNone(run)
+                self.assertIsNotNone(validation)
+                self.assertEqual(run["id"], validation["answer_analysis_agent_run_id"])
+                self.assertEqual([attempt_id], json.loads(
+                    decision["source_attempt_ids_json"]
+                ))
+                self.assertEqual("clarify_evidence", decision["action"])
+                self.assertEqual("clarify_evidence", clarify_step["step_type"])
+                self.assertEqual(
+                    "selected" if index == 0 else "planned",
+                    clarify_step["status"],
+                )
+                clarify_reason = json.loads(clarify_step["selection_reason_json"])
+                self.assertEqual(attempt_id, clarify_reason["source_attempt_id"])
+                self.assertEqual(decision["id"], clarify_reason[
+                    "source_next_step_decision_id"
+                ])
+
+        self.conn.execute(
+            "update daily_flows set budget_min = 1 where id = ?",
+            (self.flow_id,),
+        )
+        self.conn.commit()
+
+        def grade_clarification(state, *, key):
+            self._submit_projected_step(
+                state,
+                "补充后的答案和关键步骤都已经写清楚。",
+                key,
+            )
+            attempt = dict(self.conn.execute(
+                "select * from attempts where client_idempotency_key = ?",
+                (key,),
+            ).fetchone())
+            contract = assessment_store.bound_active_contract_for_flow_step(
+                self.conn,
+                attempt["flow_step_id"],
+            )
+            output = {
+                "schema_version": "2026-07-14.answer-review.v5.schema.v3",
+                "criteria": [
+                    {
+                        "criterion_key": point["source_target_key"],
+                        "status": "met",
+                        "child_evidence": "补充内容清楚支持该得分点。",
+                        "reason": "本次澄清已经提供可判断的数学证据。",
+                    }
+                    for point in contract["score_points"]
+                ],
+                "answer_gap": "没有影响得分的数学差距。",
+                "improvement_direction": ["保持当前清楚的表达。"],
+                "expression_judgment": "表达能够传达数学意图。",
+                "teaching_explanation": "本次澄清已经足够。",
+                "confidence": 0.97,
+            }
+            envelope = semantic_agents.SemanticAgentEnvelope(
+                agent_key="answer_analysis_agent",
+                phase="answer_analysis",
+                status="accepted",
+                provider_mode="live_model",
+                retryable=False,
+                confidence=0.97,
+                output=output,
+                route_meta={"source": "multi-unclear-serial-fixture"},
+                prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
+                response_schema_version=output["schema_version"],
+            )
+            job = dict(self.conn.execute(
+                "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+                (attempt["id"],),
+            ).fetchone())
+            with mock.patch.object(
+                model_router,
+                "answer_analysis_route",
+                return_value=self._live_route(model_router),
+            ), mock.patch.object(
+                semantic_agents,
+                "call_answer_analysis_agent",
+                return_value=envelope,
+            ):
+                result = self.runtime._handle_answer_analysis_job(job)
+            self.assertEqual("succeeded", result["job_status"], result)
+            return self.runtime.project_child_state(
+                self.runtime._flow_by_id(self.flow_id)
+            )
+
+        first_clarify_state = self.runtime.project_child_state(
+            self.runtime._flow_by_id(self.flow_id)
+        )
+        self.assertEqual("clarify_evidence", first_clarify_state["child_state"])
+        first_feedback = grade_clarification(
+            first_clarify_state,
+            key="submit-runtime-v51-multi-unclear-clarify-first",
+        )
+        self.assertEqual("assessment_feedback", first_feedback["child_state"])
+        before_continue_revision = int(
+            self.runtime._flow_by_id(self.flow_id)["flow_revision"]
+        )
+        self.conn.commit()
+        barrier = threading.Barrier(2)
+
+        def continue_feedback(_label):
+            conn = db.connect(self.db_path)
+            try:
+                runtime = daily_runtime.DailyLearningRuntime(
+                    conn,
+                    project_root=PROJECT_ROOT,
+                )
+                original_flow_by_id = runtime._flow_by_id
+                call_count = 0
+
+                def synchronized_flow_read(flow_id):
+                    nonlocal call_count
+                    row = original_flow_by_id(flow_id)
+                    call_count += 1
+                    if call_count == 1:
+                        barrier.wait(timeout=5)
+                    return row
+
+                runtime._flow_by_id = synchronized_flow_read
+                return runtime.continue_current_step(
+                    step_handle=first_feedback["current_step"]["step_handle"],
+                    position=first_feedback["current_step"]["position"],
+                )
+            finally:
+                conn.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            concurrent_states = list(pool.map(continue_feedback, ("a", "b")))
+        self.assertEqual(
+            ["clarify_evidence", "clarify_evidence"],
+            [state["child_state"] for state in concurrent_states],
+        )
+        self.assertEqual(
+            1,
+            len({
+                state["current_step"]["step_handle"]
+                for state in concurrent_states
+            }),
+        )
+        second_clarify_state = concurrent_states[0]
+        flow_after_overlap = self.runtime._flow_by_id(self.flow_id)
+        self.assertEqual("reviewing", flow_after_overlap["status"])
+        self.assertEqual(
+            before_continue_revision + 1,
+            int(flow_after_overlap["flow_revision"]),
+        )
+        self.assertFalse(flow_after_overlap["summary_id"])
+        self.assertEqual("clarify_evidence", second_clarify_state["child_state"])
+        self.assertEqual(
+            clarification_items[1]["clarify_step_id"],
+            self.conn.execute(
+                "select id from flow_steps where step_handle = ?",
+                (second_clarify_state["current_step"]["step_handle"],),
+            ).fetchone()["id"],
+        )
+
+        second_feedback = grade_clarification(
+            second_clarify_state,
+            key="submit-runtime-v51-multi-unclear-clarify-second",
+        )
+        self.assertEqual("assessment_feedback", second_feedback["child_state"])
+        completed = self.runtime.continue_current_step(
+            step_handle=second_feedback["current_step"]["step_handle"],
+            position=second_feedback["current_step"]["position"],
+        )
+        self.assertEqual("summary", completed["child_state"])
+        self.assertEqual(0, self.conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence' and status = 'planned'",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_group_unclear_reducer_checkpoint_recovers_exactly_once(self):
+        from learning_system import daily_runtime, job_queue, model_router
+
+        job, payload, clear_attempt, unclear_attempt, structured = (
+            self._prepare_group_with_unclear_second(
+                first_status="contradicted",
+                suffix="checkpoint",
+            )
+        )
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ) as model_call, mock.patch.object(
+            job_queue.JobQueue,
+            "finish",
+            side_effect=SystemExit("crash after unclear reducer commit"),
+        ):
+            with self.assertRaisesRegex(SystemExit, "unclear reducer commit"):
+                self.runtime.process_next_background_job(
+                    worker_id="group-unclear-checkpoint-crash-worker",
+                    flow_id=self.flow_id,
+                    job_id=job["id"],
+                )
+        self.assertEqual(1, model_call.call_count)
+        reducer_checkpoint = json.loads(self.conn.execute(
+            "select result_refs_json from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()[0])["group_answer_analysis_reducer_checkpoint"]
+        self.assertEqual(
+            payload["group_digest_sha256"],
+            reducer_checkpoint["group_digest_sha256"],
+        )
+
+        takeover_conn = db.connect(self.db_path)
+        self.addCleanup(takeover_conn.close)
+        takeover_runtime = daily_runtime.DailyLearningRuntime(
+            takeover_conn,
+            project_root=PROJECT_ROOT,
+        )
+        takeover_now = (
+            datetime.now(timezone.utc) + timedelta(seconds=181)
+        ).isoformat(timespec="microseconds")
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=AssertionError("unclear reducer replay must not call provider"),
+        ) as replay_call:
+            recovered = takeover_runtime.process_next_background_job(
+                worker_id="group-unclear-checkpoint-takeover-worker",
+                now=takeover_now,
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+
+        self.assertEqual(0, replay_call.call_count)
+        self.assertEqual("succeeded", recovered["job_status"], recovered)
+        self.assertEqual(1, takeover_conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ? and status = 'accepted'",
+            (clear_attempt["id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, takeover_conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ?",
+            (unclear_attempt["id"],),
+        ).fetchone()[0])
+        self.assertEqual(1, takeover_conn.execute(
+            "select count(*) from next_step_decisions where flow_id = ?",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(1, takeover_conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'clarify_evidence'",
+            (self.flow_id,),
+        ).fetchone()[0])
+
+    def test_simple_foundation_transfer_role_matrix_uses_exact_enums(self):
+        positives = (
+            {"kind": "transfer_retest"},
+            {"kind": "variant"},
+            {"raw": {"slot_role": "near_transfer"}},
+            {"source": {"slot_role": "stretch_readiness_check"}},
+            {"source": {"evidence_role": "transfer"}},
+        )
+        negatives = (
+            {"kind": "unknown"},
+            {"kind": "non_transfer"},
+            {"kind": "not_a_variant"},
+            {"raw": {"slot_role": "non_transfer"}},
+            {"source": {"evidence_role": "not_a_transfer"}},
+        )
+        for question in positives:
+            with self.subTest(question=question):
+                self.assertTrue(
+                    self.runtime._question_is_transfer_or_stretch(question)
+                )
+        for question in negatives:
+            with self.subTest(question=question):
+                self.assertFalse(
+                    self.runtime._question_is_transfer_or_stretch(question)
+                )
+
+    def test_planner_and_stretch_selection_use_strict_role_enums(self):
+        from learning_system import model_router
+
+        for candidate in (
+            {"slot_role": "near_transfer"},
+            {"evidence_role": "transfer"},
+            {"kind": "transfer_retest"},
+        ):
+            with self.subTest(action="near_transfer_retest", candidate=candidate):
+                self.runtime._validate_planner_action_role(
+                    action="near_transfer_retest",
+                    selected_candidate=candidate,
+                )
+        for candidate in (
+            {"slot_role": "non_transfer"},
+            {"evidence_role": "not_a_transfer"},
+            {"kind": "not_a_variant"},
+            {"kind": "unknown"},
+        ):
+            with self.subTest(action="near_transfer_retest", candidate=candidate):
+                with self.assertRaises(model_router.ModelJSONParseError):
+                    self.runtime._validate_planner_action_role(
+                        action="near_transfer_retest",
+                        selected_candidate=candidate,
+                    )
+
+        for candidate in (
+            {"slot_role": "stretch_readiness_check"},
+            {"evidence_role": "stretch_readiness"},
+            {"kind": "stretch_transfer"},
+        ):
+            with self.subTest(action="stretch", candidate=candidate):
+                self.runtime._validate_planner_action_role(
+                    action="stretch",
+                    selected_candidate=candidate,
+                )
+                selected = {
+                    "question": {"id": "Q-role-matrix", **candidate},
+                    "candidate_packet": {
+                        "candidates": [
+                            {"question_id": "Q-role-matrix", **candidate}
+                        ]
+                    },
+                }
+                self.assertTrue(self.runtime._selection_looks_like_stretch(selected))
+        for candidate in (
+            {"slot_role": "non_stretch"},
+            {"evidence_role": "not_a_stretch"},
+            {"kind": "not_a_variant"},
+            {"kind": "unknown"},
+        ):
+            with self.subTest(action="stretch", candidate=candidate):
+                with self.assertRaises(model_router.ModelJSONParseError):
+                    self.runtime._validate_planner_action_role(
+                        action="stretch",
+                        selected_candidate=candidate,
+                    )
+                selected = {
+                    "question": {"id": "Q-role-matrix", **candidate},
+                    "candidate_packet": {
+                        "candidates": [
+                            {"question_id": "Q-role-matrix", **candidate}
+                        ]
+                    },
+                }
+                self.assertFalse(self.runtime._selection_looks_like_stretch(selected))
+
+    def test_candidate_ranking_uses_exact_roles_without_substring_inference(self):
+        ranked_transfer = self.runtime._rank_candidates_for_child_step(
+            [
+                {
+                    "question_id": "Q-Z-false-transfer",
+                    "kind": "standard_example",
+                    "slot_role": "non_transfer",
+                },
+                {
+                    "question_id": "Q-A-exact-transfer",
+                    "kind": "standard_example",
+                    "evidence_role": "transfer",
+                },
+            ],
+            preferred_kinds=["transfer"],
+            selection_intent="correct_narrow",
+        )
+        self.assertEqual("Q-A-exact-transfer", ranked_transfer[0]["question_id"])
+
+        ranked_stretch = self.runtime._rank_candidates_for_child_step(
+            [
+                {
+                    "question_id": "Q-Z-non-stretch",
+                    "kind": "standard_example",
+                    "slot_role": "non_stretch",
+                },
+                {
+                    "question_id": "Q-A-plain",
+                    "kind": "standard_example",
+                    "slot_role": "direct",
+                },
+            ],
+            preferred_kinds=[],
+            selection_intent="correct_narrow",
+        )
+        self.assertEqual("Q-Z-non-stretch", ranked_stretch[0]["question_id"])
+
+    def test_lineage_audit_rejects_non_authoritative_mastery_rows_and_preserves_valid_legacy_rows(self):
+        from tests.test_learning_system import sample_answer_analysis
+
+        evidence = self._assert_group_branch_purpose(
+            criterion_status="not_met",
+            expected_purpose="practice",
+        )
+        weak_attempt_id = evidence["payload"]["group_items"][0]["attempt_id"]
+        weak_node_id = db.get_attempt(self.conn, weak_attempt_id)["node_id"]
+        original = dict(self.conn.execute(
+            "select * from learner_node_status where node_id = ?",
+            (weak_node_id,),
+        ).fetchone())
+        self.assertTrue(original["mastery_decision_id"])
+        self.assertEqual(0, db.lineage_integrity_audit(self.conn)["issue_count"])
+
+        mutations = (
+            (
+                "empty_evidence_refs",
+                {"evidence_attempt_ids_json": db.json_dump([])},
+                "mastery_decision_not_authoritative",
+            ),
+            (
+                "invalid_evidence_ref_shape",
+                {"evidence_attempt_ids_json": db.json_dump({})},
+                "invalid_evidence_attempt_ids_json",
+            ),
+            (
+                "source_mastery_ref_mismatch",
+                {"source_attempt_ids_json": db.json_dump(["A-nonexistent"])},
+                "mastery_decision_not_authoritative",
+            ),
+        )
+        for label, changes, expected_reason in mutations:
+            with self.subTest(label=label):
+                assignments = ", ".join(f"{column} = ?" for column in changes)
+                self.conn.execute(
+                    f"update learner_node_status set {assignments} where node_id = ?",
+                    (*changes.values(), weak_node_id),
+                )
+                self.conn.commit()
+                audit = db.lineage_integrity_audit(self.conn)
+                self.assertEqual(1, audit["issue_count"], audit)
+                self.assertEqual(
+                    expected_reason,
+                    audit["learner_status_invalid_refs"][0]["reason"],
+                )
+                self.conn.execute(
+                    """
+                    update learner_node_status
+                    set evidence_attempt_ids_json = ?, source_attempt_ids_json = ?
+                    where node_id = ?
+                    """,
+                    (
+                        original["evidence_attempt_ids_json"],
+                        original["source_attempt_ids_json"],
+                        weak_node_id,
+                    ),
+                )
+                self.conn.commit()
+
+        legacy_node_id = "M-PRE-NUMBER-SENSE"
+        legacy_question = db.find_question_for_node(self.conn, legacy_node_id)
+        legacy_session_id = db.create_session(
+            self.conn,
+            "legacy learner status compatibility",
+            mode="test",
+        )
+        legacy_attempt_id = db.record_attempt(
+            self.conn,
+            session_id=legacy_session_id,
+            question_id=legacy_question["id"],
+            node_id=legacy_node_id,
+            result="correct",
+            score_points=2,
+            max_points=2,
+            error_tags=[],
+            answer_raw="写出了答案、关系和检查。",
+            parent_note="Legacy learner status compatibility fixture.",
+            answer_analysis=sample_answer_analysis(
+                optimal_answer=legacy_question["expected_answer"],
+                child_summary="孩子写出了答案、关系和检查。",
+                process_gap="",
+            ),
+            explanation_score=2,
+        )
+        self.conn.execute(
+            """
+            insert or replace into learner_node_status(
+              node_id, status_code, latest_score, can_explain,
+              evidence_attempt_ids_json, status_reason, updated_at
+            ) values (?, 'B', 1.0, 1, ?, ?, ?)
+            """,
+            (
+                legacy_node_id,
+                db.json_dump([legacy_attempt_id]),
+                "Legacy row without mastery decision remains evidence-backed.",
+                db.now_iso(),
+            ),
+        )
+        self.conn.commit()
+        legacy_audit = db.lineage_integrity_audit(self.conn)
+        self.assertEqual(
+            0,
+            legacy_audit["issue_count"],
+            legacy_audit,
+        )
+
+        self.conn.execute(
+            """
+            update learner_node_status
+            set mastery_decision_id = ?, evidence_attempt_ids_json = '[]'
+            where node_id = ?
+            """,
+            (original["mastery_decision_id"], weak_node_id),
+        )
+        self.conn.commit()
+        repair = db.repair_invalidated_lineage(self.conn)
+        self.assertEqual(0, repair["remaining_issues"]["issue_count"], repair)
+        weak_repairs = [
+            item
+            for item in repair["repaired_statuses"]
+            if item["node_id"] == weak_node_id
+        ]
+        self.assertEqual(1, len(weak_repairs), repair)
+        self.assertEqual(
+            "deleted_non_authoritative_mastery_status",
+            weak_repairs[0]["action"],
+        )
+        self.assertIsNone(self.conn.execute(
+            "select 1 from learner_node_status where node_id = ?",
+            (weak_node_id,),
+        ).fetchone())
+        preserved_legacy = self.conn.execute(
+            "select * from learner_node_status where node_id = ?",
+            (legacy_node_id,),
+        ).fetchone()
+        self.assertIsNotNone(preserved_legacy)
+        self.assertIsNone(preserved_legacy["mastery_decision_id"])
+        self.assertEqual(
+            [legacy_attempt_id],
+            db.json_load(preserved_legacy["evidence_attempt_ids_json"], []),
+        )
+
+    def test_v51_evaluation_starts_new_lineage_when_legacy_row_has_no_authority(self):
+        legacy_attempt_id = "ATT-legacy-without-accepted-assessment"
+        self.conn.execute(
+            """
+            insert or replace into learner_node_status(
+              node_id, status_code, latest_score, can_explain,
+              evidence_attempt_ids_json, status_reason, graph_version,
+              question_bank_version, mastery_decision_id,
+              source_attempt_ids_json, source_evidence_validation_ids_json,
+              updated_at
+            ) values (?, 'A', 1.0, 1, ?, 'legacy compatibility row', ?, ?, null, ?, '[]', ?)
+            """,
+            (
+                self.question["node_id"],
+                db.json_dump([legacy_attempt_id]),
+                self.runtime.graph.current_graph_version(),
+                db.get_active_question_bank_version(self.conn),
+                db.json_dump([legacy_attempt_id]),
+                db.now_iso(),
+            ),
+        )
+        self.conn.commit()
+
+        attempt, result = self._run_single_v51_review(
+            key="submit-runtime-v51-lineage-upgrade-current-version",
+            first_status="not_met",
+        )
+        decision = self.conn.execute(
+            "select * from mastery_decisions where id = ?",
+            (result["mastery_decision_id"],),
+        ).fetchone()
+        status = self.conn.execute(
+            "select * from learner_node_status where node_id = ?",
+            (attempt["node_id"],),
+        ).fetchone()
+
+        self.assertEqual(
+            [attempt["id"]],
+            db.json_load(decision["source_attempt_ids_json"], []),
+        )
+        self.assertEqual(
+            [attempt["id"]],
+            db.json_load(status["source_attempt_ids_json"], []),
+        )
+        self.assertNotIn(
+            legacy_attempt_id,
+            db.json_load(status["evidence_attempt_ids_json"], []),
+        )
+        self.assertEqual(0, db.lineage_integrity_audit(self.conn)["issue_count"])
+
+    def test_v51_evaluation_rejects_foreign_graph_bank_lineage(self):
+        legacy_attempt_id = "ATT-foreign-graph-bank-lineage"
+        self.conn.execute(
+            """
+            insert or replace into learner_node_status(
+              node_id, status_code, latest_score, can_explain,
+              evidence_attempt_ids_json, status_reason, graph_version,
+              question_bank_version, mastery_decision_id,
+              source_attempt_ids_json, source_evidence_validation_ids_json,
+              updated_at
+            ) values (?, 'C', 0.2, 0, ?, 'foreign lineage row',
+                      'foreign-graph', 'foreign-bank', null, ?, '[]', ?)
+            """,
+            (
+                self.question["node_id"],
+                db.json_dump([legacy_attempt_id]),
+                db.json_dump([legacy_attempt_id]),
+                db.now_iso(),
+            ),
+        )
+        self.conn.commit()
+
+        attempt, result = self._run_single_v51_review(
+            key="submit-runtime-v51-lineage-upgrade-foreign-version",
+            first_status="met",
+        )
+        decision = self.conn.execute(
+            "select * from mastery_decisions where id = ?",
+            (result["mastery_decision_id"],),
+        ).fetchone()
+
+        self.assertEqual(
+            [attempt["id"]],
+            db.json_load(decision["source_attempt_ids_json"], []),
+        )
+        self.assertEqual(0, db.lineage_integrity_audit(self.conn)["issue_count"])
+
+    def test_group_first_wrong_then_second_stuck_preserves_and_uses_both_evidence(self):
+        from learning_system import assessment_store, daily_runtime, model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "我用了错误的关系，所以第一题算错了。",
+                "submit-runtime-v51-group-wrong-then-stuck-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        second_step = second_state["current_step"]
+        self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=second_step["step_handle"],
+                position=second_step["position"],
+                client_idempotency_key="submit-runtime-v51-group-wrong-then-stuck-second",
+                answer_text="我不会",
+                stuck=True,
+            )
+        )
+        first = db.get_attempt(
+            self.conn,
+            self.conn.execute(
+                "select id from attempts where client_idempotency_key = ?",
+                ("submit-runtime-v51-group-wrong-then-stuck-first",),
+            ).fetchone()[0],
+        )
+        stuck = db.get_attempt(
+            self.conn,
+            self.conn.execute(
+                "select id from attempts where client_idempotency_key = ?",
+                ("submit-runtime-v51-group-wrong-then-stuck-second",),
+            ).fetchone()[0],
+        )
+        self.assertEqual("active", first["evidence_status"])
+        self.assertEqual("pending_review", first["grading_status"])
+        self.assertEqual("blocked", stuck["result"])
+        group_job = self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone()
+        self.assertIsNotNone(group_job)
+        payload = json.loads(group_job["payload_json"])
+        self.assertEqual(
+            {first["id"], stuck["id"]},
+            {item["attempt_id"] for item in payload["group_items"]},
+        )
+        first_contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn,
+            first["flow_step_id"],
+        )
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": [{
+                    "attempt_id": first["id"],
+                    "criteria": [
+                        {
+                            "criterion_key": point["key"],
+                            "status": "contradicted",
+                            "child_evidence": "第一题保存了错误关系。",
+                            "reason": "错误关系否定了该得分点。",
+                        }
+                        for point in first_contract["score_points"]
+                    ],
+                    "answer_gap": "第一题的关系和计算都不成立。",
+                    "improvement_direction": ["先修正第一题的关键关系。"],
+                    "expression_judgment": "表达清楚地暴露了错误思路。",
+                    "teaching_explanation": "先修第一题错因，再处理当前不会的题。",
+                    "confidence": 0.98,
+                }],
+                "confidence": 0.98,
+            },
+            mode="json_schema",
+            raw_response={"fixture": "group-wrong-then-stuck"},
+            endpoint="unit://structured-json",
+        )
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ), mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=None,
+        ):
+            result = self.runtime.process_next_background_job(
+                worker_id="group-wrong-then-stuck-worker",
+                flow_id=self.flow_id,
+            )
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        self.assertEqual("active", db.get_attempt(self.conn, first["id"])["evidence_status"])
+        self.assertIsNotNone(assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            first["id"],
+            int(first["attempt_version"]),
+        ))
+        decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (result["next_step_decision_id"],),
+        ).fetchone()
+        self.assertEqual(
+            {first["id"], stuck["id"]},
+            set(json.loads(decision["source_attempt_ids_json"])),
+        )
+        branch = json.loads(decision["branch_policy_json"])
+        self.assertIn(first["id"], branch["group_evidence_by_attempt"])
+        self.assertTrue(branch["group_evidence_by_attempt"][stuck["id"]]["blocking"])
+
+    def test_group_reducer_checkpoint_recovers_after_business_commit_before_job_finish(self):
+        from learning_system import assessment_store, daily_runtime, job_queue, model_router
+
+        self._set_step_group_size(self.step["step_handle"], 2)
+        with mock.patch.object(
+            self.runtime,
+            "_active_answer_contract_for_question",
+            return_value=self.contract,
+        ):
+            second_state = self._submit_projected_step(
+                self.started,
+                "我用了错误的关系，所以第一题算错了。",
+                "submit-runtime-v51-group-reducer-checkpoint-first",
+            )
+        self._activate_contract_for_projected_step(second_state)
+        second_step = second_state["current_step"]
+        self.runtime.persist_child_response(
+            daily_runtime.CurrentStepSubmission(
+                step_handle=second_step["step_handle"],
+                position=second_step["position"],
+                client_idempotency_key="submit-runtime-v51-group-reducer-checkpoint-stuck",
+                answer_text="我不会",
+                stuck=True,
+            )
+        )
+        first = db.get_attempt(
+            self.conn,
+            self.conn.execute(
+                "select id from attempts where client_idempotency_key = ?",
+                ("submit-runtime-v51-group-reducer-checkpoint-first",),
+            ).fetchone()[0],
+        )
+        stuck = db.get_attempt(
+            self.conn,
+            self.conn.execute(
+                "select id from attempts where client_idempotency_key = ?",
+                ("submit-runtime-v51-group-reducer-checkpoint-stuck",),
+            ).fetchone()[0],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+            (self.flow_id,),
+        ).fetchone())
+        payload = json.loads(job["payload_json"])
+        first_contract = assessment_store.bound_active_contract_for_flow_step(
+            self.conn,
+            first["flow_step_id"],
+        )
+        structured = model_router.StructuredJSONResult(
+            value={
+                "schema_version": daily_runtime.GROUP_ANSWER_REVIEW_SCHEMA_VERSION,
+                "items": [{
+                    "attempt_id": first["id"],
+                    "criteria": [
+                        {
+                            "criterion_key": point["key"],
+                            "status": "contradicted",
+                            "child_evidence": "第一题保存了错误关系。",
+                            "reason": "错误关系否定了该得分点。",
+                        }
+                        for point in first_contract["score_points"]
+                    ],
+                    "answer_gap": "第一题的关系和计算都不成立。",
+                    "improvement_direction": ["先修正第一题的关键关系。"],
+                    "expression_judgment": "表达清楚地暴露了错误思路。",
+                    "teaching_explanation": "先修第一题错因，再处理当前不会的题。",
+                    "confidence": 0.98,
+                }],
+                "confidence": 0.98,
+            },
+            mode="json_schema",
+            raw_response={"fixture": "group-reducer-commit-before-finish"},
+            endpoint="unit://structured-json",
+        )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            return_value=structured,
+        ) as model_call, mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=None,
+        ), mock.patch.object(
+            job_queue.JobQueue,
+            "finish",
+            side_effect=SystemExit("process crashed before queue.finish"),
+        ):
+            with self.assertRaisesRegex(SystemExit, "queue.finish"):
+                self.runtime.process_next_background_job(
+                    worker_id="group-reducer-crash-worker",
+                    flow_id=self.flow_id,
+                    job_id=job["id"],
+                )
+
+        self.assertEqual(1, model_call.call_count)
+        crashed_job = self.conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()
+        self.assertEqual("running", crashed_job["status"])
+        committed_flow_revision = self.conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"]
+        checkpoint = self.conn.execute(
+            """
+            select result_refs_json
+            from background_jobs
+            where id = ?
+            """,
+            (job["id"],),
+        ).fetchone()
+        self.assertIsNotNone(checkpoint)
+        checkpoint_payload = json.loads(checkpoint["result_refs_json"])
+        reducer_checkpoint = checkpoint_payload[
+            "group_answer_analysis_reducer_checkpoint"
+        ]
+        self.assertEqual(
+            payload["group_digest_sha256"],
+            reducer_checkpoint["group_digest_sha256"],
+        )
+        checkpoint_refs = reducer_checkpoint["result_refs"]
+
+        takeover_conn = db.connect(self.db_path)
+        self.addCleanup(takeover_conn.close)
+        takeover_runtime = daily_runtime.DailyLearningRuntime(
+            takeover_conn,
+            project_root=PROJECT_ROOT,
+        )
+        takeover_now = (
+            datetime.now(timezone.utc) + timedelta(seconds=181)
+        ).isoformat(timespec="microseconds")
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            model_router,
+            "call_structured_json",
+            side_effect=AssertionError("reducer replay must not call the provider"),
+        ) as replay_model_call:
+            recovered = takeover_runtime.process_next_background_job(
+                worker_id="group-reducer-takeover-worker",
+                now=takeover_now,
+                flow_id=self.flow_id,
+                job_id=job["id"],
+            )
+
+        self.assertEqual(0, replay_model_call.call_count)
+        self.assertEqual("succeeded", recovered["job_status"], recovered)
+        for key, value in checkpoint_refs.items():
+            self.assertEqual(value, recovered.get(key), key)
+        stored_job = takeover_conn.execute(
+            "select status from background_jobs where id = ?",
+            (job["id"],),
+        ).fetchone()
+        self.assertEqual("succeeded", stored_job["status"])
+        self.assertEqual(0, takeover_conn.execute(
+            "select count(*) from background_jobs where flow_id = ? and status = 'dead_letter'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertNotEqual("blocked", takeover_conn.execute(
+            "select status from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["status"])
+        self.assertEqual(committed_flow_revision, takeover_conn.execute(
+            "select flow_revision from daily_flows where id = ?",
+            (self.flow_id,),
+        ).fetchone()["flow_revision"])
+        self.assertEqual(1, takeover_conn.execute(
+            "select count(*) from next_step_decisions where flow_id = ?",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(1, takeover_conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and step_type = 'assessment_feedback'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        self.assertEqual(1, takeover_conn.execute(
+            "select count(*) from flow_steps where flow_id = ? and status = 'planned'",
+            (self.flow_id,),
+        ).fetchone()[0])
+        decision = takeover_conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (recovered["next_step_decision_id"],),
+        ).fetchone()
+        self.assertEqual(
+            {first["id"], stuck["id"]},
+            set(json.loads(decision["source_attempt_ids_json"])),
+        )
+        self.assertIsNotNone(assessment_store.accepted_assessment_for_attempt(
+            takeover_conn,
+            first["id"],
+            int(first["attempt_version"]),
+        ))
+        self.assertEqual(0, takeover_conn.execute(
+            "select count(*) from attempt_assessments where attempt_id = ?",
+            (stuck["id"],),
+        ).fetchone()[0])
+        self.assertEqual(0, takeover_conn.execute(
+            "select count(*) from mastery_decisions where source_attempt_ids_json like ?",
+            (f"%{stuck['id']}%",),
+        ).fetchone()[0])
 
     def test_model_response_checkpoint_duplicate_is_idempotent_and_conflict_fails_closed(self):
         from learning_system import assessment_store
@@ -7914,7 +11095,7 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         ).fetchone()[0])
 
     def test_partial_v51_assessment_shows_feedback_and_routes_to_repair_without_more_models(self):
-        from learning_system import model_router, semantic_agents
+        from learning_system import daily_runtime, model_router, semantic_agents
 
         attempt = self._submit_text(
             "I wrote a result but missed the first required relation.",
@@ -7969,10 +11150,65 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
         self.assertEqual("assessment_feedback", child_state["child_state"])
         self.assertNotEqual("10/10", child_state["current_step"]["assessment_feedback"]["score_label"])
         decision = self.conn.execute(
-            "select action from next_step_decisions where id = ?",
+            "select * from next_step_decisions where id = ?",
             (result["next_step_decision_id"],),
         ).fetchone()
-        self.assertEqual("same_structure_retest", decision["action"])
+        self.assertEqual("micro_teach", decision["action"])
+        repair = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (result["planned_step_id"],),
+        ).fetchone()
+        self.assertEqual("teaching_repair", repair["step_type"])
+        self.assertEqual(attempt["id"], json.loads(
+            repair["selection_reason_json"]
+        )["source_attempt_id"])
+        feedback = child_state["current_step"]
+        teaching_state = self.runtime.continue_current_step(
+            step_handle=feedback["step_handle"],
+            position=feedback["position"],
+        )
+        self.assertEqual("teaching", teaching_state["child_state"])
+        teaching = teaching_state["current_step"]
+        candidate = {
+            "question": self.question,
+            "review_record_id": self.conn.execute(
+                "select review_record_id from flow_steps where id = ?",
+                (attempt["flow_step_id"],),
+            ).fetchone()[0],
+            "candidate_packet": {},
+            "selection_reason": {"reason": "single-repair-lineage-fixture"},
+            "action": "same_structure_retest",
+            "reason": "教学后同节点小检查。",
+        }
+        with mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            return_value=candidate,
+        ), mock.patch.object(
+            daily_runtime,
+            "UNIQUE_PROBLEM_INSTANCE_STEP_TYPES",
+            frozenset(),
+        ):
+            micro_state = self.runtime.continue_current_step(
+                step_handle=teaching["step_handle"],
+                position=teaching["position"],
+            )
+        self.assertEqual("current_step", micro_state["child_state"])
+        micro = self.conn.execute(
+            "select * from flow_steps where step_handle = ?",
+            (micro_state["current_step"]["step_handle"],),
+        ).fetchone()
+        self.assertEqual("micro_check", micro["step_type"])
+        micro_reason = json.loads(micro["selection_reason_json"])
+        self.assertEqual(attempt["id"], micro_reason["source_attempt_id"])
+        micro_decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (micro["source_next_step_decision_id"],),
+        ).fetchone()
+        self.assertEqual(repair["id"], micro_decision["source_step_id"])
+        self.assertEqual([attempt["id"]], json.loads(
+            micro_decision["source_attempt_ids_json"]
+        ))
         self.assertEqual(0, self.conn.execute(
             """
             select count(*) from background_jobs
@@ -7981,6 +11217,186 @@ class AnswerAssessmentRuntimeV51Tests(unittest.TestCase):
             """,
             (attempt["id"],),
         ).fetchone()[0])
+
+    def test_partial_single_repair_precedes_budget_summary(self):
+        self.conn.execute(
+            "update daily_flows set budget_min = 1 where id = ?",
+            (self.flow_id,),
+        )
+        self.conn.commit()
+
+        _attempt, result = self._run_single_v51_review(
+            key="submit-runtime-v51-partial-at-budget",
+            first_status="not_met",
+        )
+        decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (result["next_step_decision_id"],),
+        ).fetchone()
+        planned = self.conn.execute(
+            "select * from flow_steps where id = ?",
+            (result["planned_step_id"],),
+        ).fetchone()
+
+        self.assertEqual("micro_teach", decision["action"])
+        self.assertIsNotNone(planned)
+        self.assertEqual("teaching_repair", planned["step_type"])
+
+    def test_zero_score_wrong_answer_cannot_fall_through_to_near_transfer(self):
+        from learning_system import assessment_store, model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "48,306-7,958=49,348，因为减法就是把7,958加回去。",
+            "submit-runtime-v51-zero-score-wrong-planning",
+        )
+        output = self._v3_output(attempt, first_status="contradicted")
+        for criterion in output["criteria"]:
+            criterion["status"] = "contradicted"
+            criterion["child_evidence"] = "答案给出了错误计算和错误理由。"
+            criterion["reason"] = "该得分点被孩子的作答直接否定。"
+        output["answer_gap"] = "计算结果错误，且把减法解释成直接加回减数。"
+        output["teaching_explanation"] = "先用位值对齐完成减法，再用加法验算。"
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.99,
+            output=output,
+            route_meta={"source": "zero-score-wrong-planning-regression"},
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
+            response_schema_version=output["schema_version"],
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ), mock.patch.object(
+            self.runtime,
+            "_select_question_for_node",
+            return_value=None,
+        ) as select_question:
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        accepted = assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            attempt["id"],
+            int(attempt["attempt_version"]),
+        )
+        self.assertEqual(0, accepted["score_out_of_10"])
+        self.assertEqual("wrong", db.get_attempt(self.conn, attempt["id"])["result"])
+        decision = self.conn.execute(
+            "select * from next_step_decisions where id = ?",
+            (result["next_step_decision_id"],),
+        ).fetchone()
+        self.assertNotEqual("near_transfer_retest", decision["action"])
+        self.assertNotIn("过程成立", decision["reason"])
+        self.assertIn(
+            decision["action"],
+            {"same_structure_retest", "prerequisite_probe", "micro_teach"},
+        )
+        planned = self.conn.execute(
+            "select step_type from flow_steps where id = ?",
+            (result["planned_step_id"],),
+        ).fetchone()
+        self.assertIsNotNone(planned)
+        self.assertIn(planned["step_type"], {"micro_check", "teaching_repair"})
+        self.assertFalse(any(
+            call.kwargs.get("selection_intent") == "correct_narrow"
+            for call in select_question.call_args_list
+        ))
+
+    def test_v51_model_feedback_and_child_dto_redact_actual_internal_ids(self):
+        from learning_system import assessment_store, model_router, semantic_agents
+
+        attempt = self._submit_text(
+            "给出一份会触发实际内部标识过滤的答案。",
+            "submit-runtime-v51-child-safe-actual-ids",
+        )
+        job = dict(self.conn.execute(
+            "select * from background_jobs where attempt_id = ? and job_type = 'answer_analysis'",
+            (attempt["id"],),
+        ).fetchone())
+        identifiers = (
+            attempt["node_id"],
+            attempt["question_id"],
+            attempt["id"],
+            job["id"],
+            self.contract["id"],
+            self.flow_id,
+        )
+        injection = "中英混合 internal refs: " + " / ".join(identifiers)
+        output = self._v3_output(attempt, first_status="not_met")
+        output["answer_gap"] = injection
+        output["improvement_direction"] = [injection]
+        output["expression_judgment"] = injection
+        output["teaching_explanation"] = injection
+        for criterion in output["criteria"]:
+            criterion["child_evidence"] = injection
+            criterion["reason"] = injection
+        envelope = semantic_agents.SemanticAgentEnvelope(
+            agent_key="answer_analysis_agent",
+            phase="answer_analysis",
+            status="accepted",
+            provider_mode="live_model",
+            retryable=False,
+            confidence=0.98,
+            output=output,
+            route_meta={"source": "child-safe-actual-id-injection"},
+            prompt_version_id="2026-07-20.answer-review.v5.prompt.v4",
+            response_schema_version=output["schema_version"],
+        )
+
+        with mock.patch.object(
+            model_router,
+            "answer_analysis_route",
+            return_value=self._live_route(model_router),
+        ), mock.patch.object(
+            semantic_agents,
+            "call_answer_analysis_agent",
+            return_value=envelope,
+        ), mock.patch.object(
+            self.runtime,
+            "_next_selection_after_attempt",
+            return_value=None,
+        ):
+            result = self.runtime._handle_answer_analysis_job(job)
+
+        self.assertEqual("succeeded", result["job_status"], result)
+        accepted = assessment_store.accepted_assessment_for_attempt(
+            self.conn,
+            attempt["id"],
+            int(attempt["attempt_version"]),
+        )
+        accepted_text = json.dumps(
+            {
+                "criterion_judgments": accepted["criterion_judgments"],
+                "answer_gap": accepted["answer_gap"],
+                "improvement_direction": accepted["improvement_direction"],
+                "expression_judgment": accepted["expression_judgment"],
+                "teaching_explanation": accepted["teaching_explanation"],
+                "semantic_output": accepted["semantic_output"],
+            },
+            ensure_ascii=False,
+        )
+        child_text = json.dumps(
+            self.runtime.project_child_state(self.runtime._flow_by_id(self.flow_id)),
+            ensure_ascii=False,
+        )
+        for identifier in identifiers:
+            with self.subTest(identifier=identifier):
+                self.assertNotIn(identifier, accepted_text)
+                self.assertNotIn(identifier, child_text)
 
     def test_low_confidence_v51_review_clarifies_without_score_or_mastery(self):
         from learning_system import assessment_store, model_router, semantic_agents

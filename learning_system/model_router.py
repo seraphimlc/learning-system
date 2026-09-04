@@ -265,6 +265,10 @@ def configured_route_statuses() -> dict[str, dict[str, Any]]:
         "teaching": teaching_route(),
         "slot_brief_generation": slot_brief_designer_route(),
         "slot_brief_review": slot_brief_reviewer_route(),
+        "qf_review": qf_reviewer_route(),
+        "slot_review": slot_reviewer_route(),
+        "brief_review": brief_reviewer_route(),
+        "candidate_review": candidate_reviewer_route(),
         "question_designer": question_designer_route(),
         "question_reviewer": question_reviewer_route(),
         "answer_photo_vision": answer_photo_vision_route(),
@@ -388,6 +392,60 @@ def slot_brief_reviewer_route() -> ModelRoute:
         model_envs=("AI_SLOT_BRIEF_REVIEW_MODEL", "AI_QUESTION_MODEL", "AI_EVALUATOR_MODEL"),
         timeout_envs=("AI_SLOT_BRIEF_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
         default_timeout_seconds=120.0,
+    )
+
+
+def _production_layer_reviewer_route(
+    agent_key: str,
+    *,
+    task: str,
+    model_env: str,
+    timeout_env: str,
+) -> ModelRoute:
+    """Resolve an independent reviewer route while retaining legacy fallbacks."""
+    return resolve_route(
+        agent_key,
+        task=task,
+        default_model=DEFAULT_QUESTION_MODEL,
+        model_envs=(model_env, "AI_SLOT_BRIEF_REVIEW_MODEL", "AI_QUESTION_REVIEW_MODEL", "AI_QUESTION_MODEL", "AI_EVALUATOR_MODEL"),
+        timeout_envs=(timeout_env, "AI_SLOT_BRIEF_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_REVIEW_TIMEOUT_SECONDS", "AI_QUESTION_TIMEOUT_SECONDS", "AI_EVALUATOR_TIMEOUT_SECONDS"),
+        default_timeout_seconds=120.0,
+    )
+
+
+def qf_reviewer_route() -> ModelRoute:
+    return _production_layer_reviewer_route(
+        "qf_reviewer_agent",
+        task="qf_review",
+        model_env="AI_QF_REVIEW_MODEL",
+        timeout_env="AI_QF_REVIEW_TIMEOUT_SECONDS",
+    )
+
+
+def slot_reviewer_route() -> ModelRoute:
+    return _production_layer_reviewer_route(
+        "slot_reviewer_agent",
+        task="slot_review",
+        model_env="AI_SLOT_REVIEW_MODEL",
+        timeout_env="AI_SLOT_REVIEW_TIMEOUT_SECONDS",
+    )
+
+
+def brief_reviewer_route() -> ModelRoute:
+    return _production_layer_reviewer_route(
+        "brief_reviewer_agent",
+        task="brief_review",
+        model_env="AI_BRIEF_REVIEW_MODEL",
+        timeout_env="AI_BRIEF_REVIEW_TIMEOUT_SECONDS",
+    )
+
+
+def candidate_reviewer_route() -> ModelRoute:
+    return _production_layer_reviewer_route(
+        "candidate_reviewer_agent",
+        task="candidate_review",
+        model_env="AI_CANDIDATE_REVIEW_MODEL",
+        timeout_env="AI_CANDIDATE_REVIEW_TIMEOUT_SECONDS",
     )
 
 
@@ -867,6 +925,10 @@ def _model_route_max_concurrency(route: ModelRoute) -> int:
         if (route.agent_key, route.task) in {
             ("slot_brief_designer_agent", "slot_brief_generation"),
             ("question_reviewer_agent", "question_review"),
+            ("qf_reviewer_agent", "qf_review"),
+            ("slot_reviewer_agent", "slot_review"),
+            ("brief_reviewer_agent", "brief_review"),
+            ("candidate_reviewer_agent", "candidate_review"),
         }
         else DEFAULT_MODEL_ROUTE_MAX_CONCURRENCY
     )

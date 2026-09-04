@@ -195,6 +195,35 @@ async function hideShowPreservesChildSurfaceOracle() {
   }
 }
 
+async function recommendationLabelAppearsOnceAfterRefreshOracle() {
+  const { context, page } = await freshPage({ width: 1280, height: 800 });
+  try {
+    await page.reload({ waitUntil: "networkidle" });
+    await openKnowledgeMap(page);
+    const state = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll(".knowledge-node-button.is-recommended")];
+      return buttons.map((button) => ({
+        labelCount: button.querySelectorAll(".knowledge-node-recommendation").length,
+        labels: [...button.querySelectorAll(".knowledge-node-recommendation")]
+          .map((item) => item.textContent?.trim() || ""),
+        afterContent: getComputedStyle(button, "::after").content,
+      }));
+    });
+    return {
+      pass:
+        state.length > 0 &&
+        state.every((item) =>
+          item.labelCount === 1 &&
+          item.labels[0] === "建议看看" &&
+          ["none", "normal", "\"\"", ""].includes(item.afterContent)
+        ),
+      state,
+    };
+  } finally {
+    await context.close();
+  }
+}
+
 async function stateAppropriateActionDescriptorsOracle(payload) {
   const stable = payload.nodes.find((node) => node.name === stableNodeName);
   const prerequisite = payload.nodes.find((node) => node.name === prerequisiteNodeName);
@@ -260,6 +289,7 @@ try {
   report.graph_preference_is_ignored = await graphPreferenceIsIgnoredOracle();
   report.search_selection_restores_context = await searchSelectionRestoreOracle();
   report.hide_show_preserves_child_surface = await hideShowPreservesChildSurfaceOracle();
+  report.recommendation_label_once_after_refresh = await recommendationLabelAppearsOnceAfterRefreshOracle();
   report.resume_requires_fresh_bootstrap_current_step = await resumeRequiresFreshBootstrapOracle();
 } finally {
   await browser.close();

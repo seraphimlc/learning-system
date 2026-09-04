@@ -21,10 +21,12 @@ def _schema(
     fields: list[dict] | None = None,
     choices: list[dict] | None = None,
     formula_label: str = "",
+    response_capture: str = "existing_control",
 ) -> dict:
     return {
         "schema_version": child_prompt.QUESTION_INTERACTION_SCHEMA_V2,
         "type": interaction_type,
+        "response_capture": response_capture,
         "title": title,
         "allow_explanation": True,
         "requires_explanation": requires_explanation,
@@ -224,6 +226,74 @@ class ChildPromptV6Tests(unittest.TestCase):
         )
 
         self.assertEqual(1, len(surface["interaction_schema"]["fields"]))
+
+    def test_bound_visual_choice_preserves_exact_unique_entity_ids(self):
+        schema = _schema(
+            "single_choice",
+            response_capture="bound_visual_choice",
+            choices=[
+                {"id": "point-a", "label": "点 A", "visual_entity_id": "A"},
+                {"id": "point-b", "label": "点 B", "visual_entity_id": "B"},
+            ],
+        )
+
+        normalized = child_prompt.normalize_interaction_schema(schema, allow_legacy=False)
+
+        self.assertEqual(
+            ["A", "B"],
+            [choice["visual_entity_id"] for choice in normalized["choices"]],
+        )
+        self.assertEqual("bound_visual_choice", normalized["response_capture"])
+
+    def test_bound_visual_choice_rejects_unsafe_duplicate_or_partial_entity_ids(self):
+        invalid_cases = {
+            "unsafe": [
+                {"id": "point-a", "label": "点 A", "visual_entity_id": " A "},
+                {"id": "point-b", "label": "点 B", "visual_entity_id": "B"},
+            ],
+            "duplicate": [
+                {"id": "point-a", "label": "点 A", "visual_entity_id": "A"},
+                {"id": "point-b", "label": "点 B", "visual_entity_id": "A"},
+            ],
+            "partial": [
+                {"id": "point-a", "label": "点 A", "visual_entity_id": "A"},
+                {"id": "point-b", "label": "点 B"},
+            ],
+            "all_missing": [
+                {"id": "point-a", "label": "点 A"},
+                {"id": "point-b", "label": "点 B"},
+            ],
+        }
+
+        for name, choices in invalid_cases.items():
+            with self.subTest(name=name):
+                with self.assertRaises(child_prompt.ChildPromptContractError):
+                    child_prompt.normalize_interaction_schema(
+                        _schema(
+                            "single_choice",
+                            response_capture="bound_visual_choice",
+                            choices=choices,
+                        ),
+                        allow_legacy=False,
+                    )
+
+    def test_nonvisual_response_capture_rejects_visual_entity_ids(self):
+        choices = [
+            {"id": "point-a", "label": "点 A", "visual_entity_id": "A"},
+            {"id": "point-b", "label": "点 B", "visual_entity_id": "B"},
+        ]
+
+        for response_capture in ("existing_control", "paper_photo"):
+            with self.subTest(response_capture=response_capture):
+                with self.assertRaises(child_prompt.ChildPromptContractError):
+                    child_prompt.normalize_interaction_schema(
+                        _schema(
+                            "single_choice",
+                            response_capture=response_capture,
+                            choices=choices,
+                        ),
+                        allow_legacy=False,
+                    )
 
     def test_current_interaction_types_reject_fields_owned_by_other_controls(self):
         choice = _schema(

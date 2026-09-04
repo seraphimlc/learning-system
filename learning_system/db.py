@@ -629,6 +629,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
           output_json text not null default '{}',
           output_digest_sha256 text not null default '',
           validation_errors_json text not null default '[]',
+          validation_result_json text not null default '{}',
           error_reason text not null default '',
           created_at text not null
         );
@@ -700,6 +701,78 @@ def init_schema(conn: sqlite3.Connection) -> None:
           criteria_json text not null default '{}',
           active_eligible integer not null default 0,
           reviewed_at text not null
+        );
+
+        create table if not exists production_runs (
+          id text primary key,
+          node_id text not null references graph_nodes(id),
+          input_json text not null,
+          input_digest_sha256 text not null,
+          status text not null check(status in ('running','completed','failed','paused','cancelled')),
+          error_reason text not null default '',
+          lease_owner text not null default '',
+          lease_expires_at text,
+          run_generation integer not null default 1,
+          created_at text not null,
+          updated_at text not null,
+          unique(node_id, input_digest_sha256)
+        );
+
+        create table if not exists production_stages (
+          id text primary key,
+          run_id text not null references production_runs(id) on delete cascade,
+          stage_name text not null,
+          logical_key text not null,
+          status text not null check(status in ('pending','running','completed','rejected','blocked','cancelled')),
+          attempt_count integer not null default 0,
+          max_attempts integer not null default 3,
+          lease_owner text not null default '',
+          lease_expires_at text,
+          run_generation integer not null default 1,
+          input_json text not null default '{}',
+          input_digest_sha256 text not null default '',
+          output_json text not null default '[]',
+          output_digest_sha256 text not null default '',
+          validation_errors_json text not null default '[]',
+          dependency_ids_json text not null default '[]',
+          error_reason text not null default '',
+          created_at text not null,
+          updated_at text not null,
+          unique(run_id, stage_name, logical_key)
+        );
+
+        create table if not exists production_artifacts (
+          id text primary key,
+          run_id text not null references production_runs(id) on delete cascade,
+          stage_id text not null references production_stages(id) on delete cascade,
+          artifact_type text not null check(artifact_type in ('qf','slot','brief','candidate')),
+          logical_key text not null,
+          parent_artifact_ids_json text not null default '[]',
+          payload_json text not null,
+          input_digest_sha256 text not null,
+          output_digest_sha256 text not null,
+          artifact_attempt integer not null default 1,
+          created_at text not null,
+          unique(stage_id, artifact_type, logical_key, artifact_attempt)
+        );
+
+        create table if not exists production_audit_events (
+          id text primary key,
+          run_id text not null references production_runs(id) on delete cascade,
+          stage_id text references production_stages(id) on delete cascade,
+          stage_name text not null,
+          logical_key text not null default '',
+          step_name text not null,
+          event_type text not null,
+          attempt integer not null default 1,
+          status text not null check(status in ('started','completed','rejected','failed','skipped')),
+          input_json text not null default '{}',
+          output_json text not null default '{}',
+          input_digest_sha256 text not null default '',
+          output_digest_sha256 text not null default '',
+          error_json text not null default '[]',
+          created_at text not null,
+          completed_at text
         );
 
         create table if not exists evolution_audits (
@@ -1254,6 +1327,14 @@ def init_schema(conn: sqlite3.Connection) -> None:
           activated_at text,
           superseded_at text,
           rolled_back_at text,
+          portfolio_acceptance_id text not null default '',
+          portfolio_receipt_sha256 text not null default '',
+          portfolio_status text not null default '',
+          activation_eligible integer not null default 0,
+          canary_eligible integer not null default 0,
+          coverage_debt_json text not null default '{}',
+          quality_score_min real not null default 0,
+          quality_score_summary_json text not null default '{}',
           reason text not null default '',
           created_at text not null,
           updated_at text not null
@@ -1364,6 +1445,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
           where status = 'active';
         create index if not exists idx_question_bank_version_ledger_version
           on question_bank_version_ledger(question_bank_version, status);
+        create index if not exists idx_production_stages_run_status
+          on production_stages(run_id, status);
+        create index if not exists idx_production_artifacts_run_type
+          on production_artifacts(run_id, artifact_type);
         create unique index if not exists idx_ac_generation_runs_identity
           on answer_contract_generation_runs(run_identity_digest_sha256);
         create unique index if not exists idx_ac_generation_run_items_ordinal
@@ -1402,6 +1487,125 @@ def init_schema(conn: sqlite3.Connection) -> None:
           on weekly_goal_choices(iso_week);
 
         """
+    )
+    for table, columns in {
+        "production_runs": (
+            ("lease_owner", "text not null default ''"),
+            ("lease_expires_at", "text"),
+            ("run_generation", "integer not null default 1"),
+        ),
+        "production_stages": (
+            ("max_attempts", "integer not null default 3"),
+            ("lease_owner", "text not null default ''"),
+            ("lease_expires_at", "text"),
+            ("run_generation", "integer not null default 1"),
+        ),
+    }.items():
+        for column, declaration in columns:
+            _ensure_column(conn, table, column, declaration)
+    for table, column, declaration in (
+        ("production_stages", "validation_result_json", "text not null default '{}'"),
+        ("production_artifacts", "artifact_attempt", "integer not null default 1"),
+    ):
+        _ensure_column(conn, table, column, declaration)
+    artifact_schema = conn.execute(
+        "select sql from sqlite_master where type='table' and name='production_artifacts'"
+    ).fetchone()
+    artifact_count = conn.execute("select count(*) from production_artifacts").fetchone()[0]
+    if artifact_schema and artifact_count == 0 and "unique(stage_id, artifact_type, logical_key)" in artifact_schema[0]:
+        conn.execute("drop table production_artifacts")
+        conn.executescript(
+            """
+            create table production_artifacts (
+              id text primary key,
+              run_id text not null references production_runs(id) on delete cascade,
+              stage_id text not null references production_stages(id) on delete cascade,
+              artifact_type text not null check(artifact_type in ('qf','slot','brief','candidate')),
+              logical_key text not null,
+              parent_artifact_ids_json text not null default '[]',
+              payload_json text not null,
+              input_digest_sha256 text not null,
+              output_digest_sha256 text not null,
+              artifact_attempt integer not null default 1,
+              created_at text not null,
+              unique(stage_id, artifact_type, logical_key, artifact_attempt)
+            );
+            """
+        )
+    run_schema = conn.execute(
+        "select sql from sqlite_master where type='table' and name='production_runs'"
+    ).fetchone()
+    production_counts = {
+        table: conn.execute(f"select count(*) from {table}").fetchone()[0]
+        for table in ("production_runs", "production_stages", "production_artifacts")
+    }
+    if run_schema and all(count == 0 for count in production_counts.values()) and "'paused'" not in run_schema[0]:
+        conn.execute("drop table production_artifacts")
+        conn.execute("drop table production_stages")
+        conn.execute("drop table production_runs")
+        conn.executescript(
+            """
+            create table production_runs (
+              id text primary key,
+              node_id text not null references graph_nodes(id),
+              input_json text not null,
+              input_digest_sha256 text not null,
+              status text not null check(status in ('running','completed','failed','paused','cancelled')),
+              error_reason text not null default '',
+              lease_owner text not null default '',
+              lease_expires_at text,
+              run_generation integer not null default 1,
+              created_at text not null,
+              updated_at text not null,
+              unique(node_id, input_digest_sha256)
+            );
+            create table production_stages (
+              id text primary key,
+              run_id text not null references production_runs(id) on delete cascade,
+              stage_name text not null,
+              logical_key text not null,
+              status text not null check(status in ('pending','running','completed','rejected','blocked','cancelled')),
+              attempt_count integer not null default 0,
+              max_attempts integer not null default 3,
+              lease_owner text not null default '',
+              lease_expires_at text,
+              run_generation integer not null default 1,
+              input_json text not null default '{}',
+              input_digest_sha256 text not null default '',
+              output_json text not null default '[]',
+              output_digest_sha256 text not null default '',
+              validation_errors_json text not null default '[]',
+              validation_result_json text not null default '{}',
+              dependency_ids_json text not null default '[]',
+              error_reason text not null default '',
+              created_at text not null,
+              updated_at text not null,
+              unique(run_id, stage_name, logical_key)
+            );
+            create table production_artifacts (
+              id text primary key,
+              run_id text not null references production_runs(id) on delete cascade,
+              stage_id text not null references production_stages(id) on delete cascade,
+              artifact_type text not null check(artifact_type in ('qf','slot','brief','candidate')),
+              logical_key text not null,
+              parent_artifact_ids_json text not null default '[]',
+              payload_json text not null,
+              input_digest_sha256 text not null,
+              output_digest_sha256 text not null,
+              artifact_attempt integer not null default 1,
+              created_at text not null,
+              unique(stage_id, artifact_type, logical_key, artifact_attempt)
+            );
+            """
+        )
+    conn.execute(
+        "create index if not exists idx_production_stages_run_status on production_stages(run_id, status)"
+    )
+    conn.execute(
+        "create index if not exists idx_production_artifacts_run_type on production_artifacts(run_id, artifact_type)"
+    )
+    conn.execute(
+        "create index if not exists idx_production_audit_events_run_stage on production_audit_events(run_id, stage_name, logical_key, attempt)"
     )
     _ensure_column(
         conn,
@@ -1495,6 +1699,14 @@ def init_schema(conn: sqlite3.Connection) -> None:
         "create unique index if not exists idx_question_bank_version_ledger_unique_version "
         "on question_bank_version_ledger(question_bank_version)"
     )
+    _ensure_column(conn, "question_bank_version_ledger", "portfolio_acceptance_id", "text not null default ''")
+    _ensure_column(conn, "question_bank_version_ledger", "portfolio_receipt_sha256", "text not null default ''")
+    _ensure_column(conn, "question_bank_version_ledger", "portfolio_status", "text not null default ''")
+    _ensure_column(conn, "question_bank_version_ledger", "activation_eligible", "integer not null default 0")
+    _ensure_column(conn, "question_bank_version_ledger", "canary_eligible", "integer not null default 0")
+    _ensure_column(conn, "question_bank_version_ledger", "coverage_debt_json", "text not null default '{}'")
+    _ensure_column(conn, "question_bank_version_ledger", "quality_score_min", "real not null default 0")
+    _ensure_column(conn, "question_bank_version_ledger", "quality_score_summary_json", "text not null default '{}'")
     _ensure_column(conn, "answer_contracts", "generation_input_digest_sha256", "text not null default ''")
     _ensure_column(conn, "answer_contracts", "parent_contract_id", "text references answer_contracts(id)")
     _ensure_column(conn, "answer_contracts", "parent_contract_version", "integer")
@@ -2556,14 +2768,23 @@ def _reviewer_run_authorizes_question_review(
             or formal_review.get("reviewed_content_sha256")
             or ""
         )
+        surface_sha256 = str(
+            formal_review.get("reviewed_surface_sha256") or ""
+        )
+        surface_bound = bool(
+            surface_sha256
+            and input_refs.get("candidate_sha256") == surface_sha256
+        )
+        canonical_bound = bool(
+            input_refs.get("canonical_activation_payload_sha256") == canonical_sha256
+        )
         return (
             source_type == "graph_generated"
             and source.get("formal_production_source")
             == question_bank.FORMAL_ADMIN_PRODUCTION_SOURCE
             and input_refs.get("question_id") == str(candidate.get("id") or "")
-            and input_refs.get("canonical_activation_payload_sha256")
-            == canonical_sha256
             and formal_review.get("reviewed_content_sha256") == canonical_sha256
+            and (canonical_bound or surface_bound)
             and output.get("review_status") == "approved"
             and output.get("active_eligible") is True
             and output.get("receipt_status") == "PASS"
@@ -2600,6 +2821,12 @@ def record_question_review_record(
             is_formal_admin_question
             or (
                 quality.get("requires_reasoning") is True
+                and quality.get("no_mechanical_drill") is True
+            )
+            or (
+                isinstance(source.get("reviewer_evidence"), dict)
+                and source["reviewer_evidence"].get("provenance_type") == "question_production_pipeline"
+                and str(candidate.get("answer_format") or "") == "fixed_answer"
                 and quality.get("no_mechanical_drill") is True
             )
         )
@@ -3883,6 +4110,14 @@ def stage_question_bank_version(
     manifest_sha256: str,
     node_count: int,
     item_count: int,
+    portfolio_acceptance_id: str = "",
+    portfolio_receipt_sha256: str = "",
+    portfolio_status: str = "",
+    activation_eligible: bool | None = None,
+    canary_eligible: bool | None = None,
+    coverage_debt: dict[str, Any] | None = None,
+    quality_score_min: float = 0,
+    quality_score_summary: dict[str, Any] | None = None,
     commit: bool = True,
 ) -> dict[str, Any]:
     existing = conn.execute(
@@ -3903,6 +4138,19 @@ def stage_question_bank_version(
             "node_count": int(node_count or 0),
             "item_count": int(item_count or 0),
         }
+        if portfolio_acceptance_id or portfolio_receipt_sha256:
+            expected_identity.update(
+                {
+                    "portfolio_acceptance_id": portfolio_acceptance_id,
+                    "portfolio_receipt_sha256": portfolio_receipt_sha256,
+                    "portfolio_status": portfolio_status,
+                    "activation_eligible": int(bool(activation_eligible)),
+                    "canary_eligible": int(bool(canary_eligible)),
+                    "coverage_debt_json": json_dump(coverage_debt or {}),
+                    "quality_score_min": float(quality_score_min or 0),
+                    "quality_score_summary_json": json_dump(quality_score_summary or {}),
+                }
+            )
         mismatches = [
             key
             for key, expected in expected_identity.items()
@@ -3926,8 +4174,11 @@ def stage_question_bank_version(
         """
         insert into question_bank_version_ledger(
           id, question_bank_version, graph_version, manifest_id, manifest_sha256,
-          node_count, item_count, status, reason, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, ?, ?, 'staged', ?, ?, ?)
+          node_count, item_count, status, portfolio_acceptance_id,
+          portfolio_receipt_sha256, portfolio_status, activation_eligible,
+          canary_eligible, coverage_debt_json, quality_score_min, quality_score_summary_json,
+          reason, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, ?, ?, 'staged', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             ledger_id,
@@ -3937,6 +4188,14 @@ def stage_question_bank_version(
             manifest_sha256,
             int(node_count or 0),
             int(item_count or 0),
+            portfolio_acceptance_id,
+            portfolio_receipt_sha256,
+            portfolio_status,
+            int(bool(activation_eligible)) if activation_eligible is not None else 0,
+            int(bool(canary_eligible)) if canary_eligible is not None else 0,
+            json_dump(coverage_debt or {}),
+            float(quality_score_min or 0),
+            json_dump(quality_score_summary or {}),
             "staged for future active-bank cutover",
             now,
             now,
@@ -3981,6 +4240,15 @@ def activate_question_bank_version(
     ).fetchone()
     if not staged:
         raise ValueError(f"question bank version is not staged: {question_bank_version}")
+    if staged["portfolio_acceptance_id"] or staged["portfolio_receipt_sha256"]:
+        if (
+            staged["portfolio_status"] not in {"PORTFOLIO_ACCEPTED", "PORTFOLIO_ACCEPTED_WITH_COVERAGE_DEBT"}
+            or int(staged["activation_eligible"] or 0) != 1
+            or not staged["portfolio_receipt_sha256"]
+        ):
+            raise ValueError(
+                "question bank activation requires a passed portfolio acceptance receipt"
+            )
     expected_item_count = int(staged["item_count"] or 0)
     expected_node_count = int(staged["node_count"] or 0)
     if expected_item_count <= 0 or expected_node_count <= 0:
@@ -5874,6 +6142,103 @@ def upsert_question(
             reviewer_run_id=reviewer_run_id,
             commit=False,
         )
+
+
+def stage_question_item(
+    conn: sqlite3.Connection,
+    item: dict[str, Any],
+    *,
+    commit: bool = False,
+) -> dict[str, Any]:
+    """Persist a versioned candidate without granting active-use eligibility.
+
+    Staging deliberately skips ``validate_active_item_quality`` and reviewer-record
+    creation. Those are activation-time concerns and must be backed by a real
+    reviewer run. The structural graph/content checks still run here so malformed
+    candidates cannot hide in a staged bank.
+    """
+    if not isinstance(item, dict):
+        raise TypeError("staged question item must be a mapping")
+    required = (
+        "id",
+        "item_version",
+        "source_type",
+        "node_id",
+        "kind",
+        "question_type",
+        "variant_level",
+        "prompt",
+        "answer_format",
+        "expected_answer",
+        "interaction_schema",
+    )
+    missing = [key for key in required if item.get(key) in (None, "")]
+    if missing:
+        raise ValueError("staged question item missing fields: " + ",".join(missing))
+    if item.get("source_type") != "graph_generated":
+        raise ValueError("staged question item must use graph_generated source_type")
+    if not isinstance(item.get("interaction_schema"), dict):
+        raise ValueError("staged question item requires interaction_schema")
+    _validate_question_graph_references(conn, item)
+    existing = conn.execute(
+        "select item_version, raw_json from question_items where id = ?",
+        (item["id"],),
+    ).fetchone()
+    raw_json = json_dump(item)
+    if existing:
+        if str(existing["item_version"] or "") != str(item["item_version"]):
+            raise ValueError(
+                f"question id cannot be reused across bank versions: {item['id']}"
+            )
+        if str(existing["raw_json"] or "") != raw_json:
+            raise ValueError(f"staged question item is immutable: {item['id']}")
+        return row_to_question(
+            conn.execute("select * from question_items where id = ?", (item["id"],)).fetchone()
+        )
+    if _question_has_attempts(conn, item["id"]):
+        raise ValueError(f"cannot stage question with existing attempts: {item['id']}")
+    normalized = question_bank.normalize_item_json(item)
+    conn.execute(
+        """
+        insert into question_items(
+          id, item_version, source_type, node_id, secondary_node_ids_json, kind,
+          question_type, variant_level, production_category, prompt, answer_format,
+          expected_answer, rubric_json, solution_steps_json, error_tags_json,
+          rollback_candidate_node_ids_json, rollback_candidate_relations_json,
+          estimated_minutes, parent_observation, source_json, created_by_event_id, raw_json
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            item["id"],
+            item["item_version"],
+            item["source_type"],
+            item["node_id"],
+            normalized["secondary_node_ids_json"],
+            item["kind"],
+            item["question_type"],
+            item["variant_level"],
+            item.get("production_category", ""),
+            item["prompt"],
+            item["answer_format"],
+            item["expected_answer"],
+            normalized["rubric_json"],
+            normalized["solution_steps_json"],
+            normalized["error_tags_json"],
+            normalized["rollback_candidate_node_ids_json"],
+            normalized["rollback_candidate_relations_json"],
+            int(item.get("estimated_minutes", 3)),
+            item.get("parent_observation", ""),
+            normalized["source_json"],
+            item.get("created_by_event_id"),
+            raw_json,
+        ),
+    )
+    upsert_question_usage_policy(conn, item, commit=False)
+    if commit:
+        conn.commit()
+    return row_to_question(
+        conn.execute("select * from question_items where id = ?", (item["id"],)).fetchone()
+    )
 
 
 def upsert_question_usage_policy(

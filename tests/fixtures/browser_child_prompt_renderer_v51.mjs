@@ -153,7 +153,7 @@ try {
           legend_texts: [...interaction.querySelectorAll("legend")].map((element) => element.textContent.trim()),
           primary_before_explanation: !primary || Boolean(primary.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING),
           primary_top: primary?.getBoundingClientRect().top ?? 0,
-          explanation_top: answer.getBoundingClientRect().top,
+          explanation_top: answer.hidden ? null : answer.getBoundingClientRect().top,
           no_horizontal_scroll: document.documentElement.scrollWidth <= window.innerWidth,
           raw_duplicates: expected.absent_text.filter((text) => (prompt?.textContent || "").includes(text)),
           control_kind: interaction.querySelector("[data-interaction-kind]")?.dataset.interactionKind || "short_text",
@@ -166,7 +166,10 @@ try {
       assert(result.white_space === "pre-line", `${testCase.name}/${target.key}: prompt white-space`);
       assert(result.no_horizontal_scroll, `${testCase.name}/${target.key}: horizontal overflow`);
       assert(result.primary_before_explanation, `${testCase.name}/${target.key}: DOM focus order`);
-      assert(!result.primary_top || result.primary_top <= result.explanation_top, `${testCase.name}/${target.key}: visual control order`);
+      assert(!result.answer_visible || !result.primary_top || result.primary_top <= result.explanation_top, `${testCase.name}/${target.key}: visual control order`);
+      const expectsTextAnswer = testCase.expect.control_kind === "short_text"
+        || Boolean(testCase.expect.required_message);
+      assert(result.answer_visible === expectsTextAnswer, `${testCase.name}/${target.key}: explanation visibility contract`);
       assert(result.raw_duplicates.length === 0, `${testCase.name}/${target.key}: duplicated option source`);
       assert(testCase.expect.required_lines.every((line) => result.prompt_lines.includes(line)), `${testCase.name}/${target.key}: line grouping`);
       assert(result.powers.every((power) => power.label && power.source), `${testCase.name}/${target.key}: exponent semantics`);
@@ -200,6 +203,18 @@ try {
   assert(report.group_progress.progress === "第 1 题 · 最多 1 题", "one-question group progress copy is wrong");
   assert(report.group_progress.pending === "这题做完就看解析", "one-question group pending copy is contradictory");
   await mountedOneQuestionGroup.page.close();
+
+  const boundedTwoQuestionGroup = structuredClone(required.bootstrap);
+  boundedTwoQuestionGroup.current_step.group_progress = { current: 1, maximum: 2 };
+  const mountedBoundedTwoQuestionGroup = await mountCase(boundedTwoQuestionGroup, { width: 390, height: 844 });
+  report.group_progress.bounded_pending = await mountedBoundedTwoQuestionGroup.page.evaluate(
+    () => document.getElementById("childPendingText").textContent,
+  );
+  assert(
+    report.group_progress.bounded_pending === "做完这题，再决定继续还是看解析",
+    "bounded group copy must not promise a question that may not exist",
+  );
+  await mountedBoundedTwoQuestionGroup.page.close();
 
   const mountedRequired = await mountCase(required.bootstrap, { width: 390, height: 844 });
   await mountedRequired.page.locator("[data-interaction-choice]").first().check();

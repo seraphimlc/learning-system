@@ -628,6 +628,35 @@ class ReviewerDerivedDiscoveryTests(unittest.TestCase):
         self.assertFalse(receipt["low_information"])
         self.assertTrue(receipt["scheduling_eligible"])
 
+    def test_mechanical_detection_does_not_match_arithmetic_inside_a_rich_task(self):
+        rich_prompts = (
+            "在多项式 P = 6m^2n-2mn^3+3m^2n+8mn-4 中，老师要求先做同类项整理。下列哪一对项应先合并？",
+            "在算式 -8 - (-5 - 7) + 4 中，可选两种策略：A 先算括号内，B 先把减法改写成加上相反数。",
+        )
+        for prompt in rich_prompts:
+            with self.subTest(prompt=prompt):
+                self.assertFalse(question_quality._is_low_information_mechanical_prompt(prompt))
+
+    def test_prompt_that_names_number_line_is_explicit(self):
+        self.assertEqual(
+            "explicit",
+            question_quality._entry_point_visibility(
+                "在数轴上表示这四个数，并按从小到大排序。",
+                {"diagnosis_contract": {}, "question_generation": {}},
+                ["apply_model"],
+            ),
+        )
+
+    def test_route_choice_remains_cued_even_when_an_alternative_names_a_rule(self):
+        self.assertEqual(
+            "cued",
+            question_quality._entry_point_visibility(
+                "你可按两种方式求值：1. 全部把减法改写，2. 直接按减法规则计算。",
+                {"diagnosis_contract": {}, "question_generation": {}},
+                ["select_operation_order"],
+            ),
+        )
+
     def test_node_contract_digest_binds_every_graph_input_used_by_derivation(self):
         family_case = json.loads(json.dumps(self.cases["e1"]))
         family_case["graph_contract"]["solution_families"] = [{
@@ -675,6 +704,19 @@ class ReviewerDerivedDiscoveryTests(unittest.TestCase):
                 graph_contract=case["graph_contract"],
                 prompt=case["prompt"],
             )
+
+    def test_pilot_can_record_untrusted_proposal_while_compiler_uses_review_evidence(self):
+        case = json.loads(json.dumps(self.cases["e2"]))
+        case["proposal"]["entry_point"] = "apply_model"
+        receipt = question_quality.derive_discovery_derivation(
+            case["proposal"],
+            review_packet=case["packet"],
+            graph_contract=case["graph_contract"],
+            prompt=case["prompt"],
+            enforce_proposal_alignment=False,
+        )
+        self.assertEqual("E2", receipt["discovery_depth"])
+        self.assertEqual("resolve_sign_scope", receipt["decision_points"][0]["taxonomy"])
 
     def test_review_packet_digest_and_span_hashes_are_bound(self):
         case = self.cases["e2"]

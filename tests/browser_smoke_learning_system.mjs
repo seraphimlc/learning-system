@@ -15,6 +15,7 @@ const uploadPath = path.join(os.tmpdir(), `learning-system-answer-${process.pid}
 const invalidUploadPath = path.join(os.tmpdir(), `learning-system-answer-${process.pid}.txt`);
 const v5HarnessContractPath = path.join(root, "tests", "fixtures", "v5_10_lesson_harness_contract.json");
 const v5HarnessContract = JSON.parse(fs.readFileSync(v5HarnessContractPath, "utf8"));
+const operatorToken = "browser-smoke-operator-token";
 const port = await getFreePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 
@@ -138,7 +139,9 @@ async function waitForServer() {
   let lastError = "";
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${baseUrl}/api/bootstrap`);
+      const response = await fetch(`${baseUrl}/api/bootstrap`, {
+        headers: { Authorization: `Bearer ${operatorToken}` },
+      });
       if (response.ok) return await response.json();
       lastError = `${response.status} ${await response.text()}`;
     } catch (error) {
@@ -178,6 +181,7 @@ const server = spawn("python3", [
     AI_EVALUATOR_API_KEY: "",
     AI_ANSWER_ANALYSIS_AGENT_API_KEY: "",
     AI_ANSWER_REVIEW_API_KEY: "",
+    SON_AI_OPERATOR_TOKEN: operatorToken,
     AI_ANSWER_ANALYSIS_AGENT_ANSWER_REVIEW_API_KEY: "",
     AI_ANSWER_ANALYSIS_AGENT_VISION_OCR_API_KEY: "",
     AI_VISION_OCR_API_KEY: "",
@@ -404,9 +408,11 @@ try {
   const clarifyExit = await clarifyPage.evaluate(() => ({
     formVisible: Boolean(document.querySelector("#childAttemptForm")?.offsetParent),
     primaryVisible: Boolean(document.querySelector("#startNextRoundBtn")?.offsetParent),
+    primaryLabel: document.querySelector("#startNextRoundBtn")?.textContent || "",
   }));
   assert(clarifyExit.formVisible === false, "Cannot-provide clarification should exit without another answer form loop");
-  assert(clarifyExit.primaryVisible === false, "Cannot-provide clarification summary should be terminal");
+  assert(clarifyExit.primaryVisible === true, "Cannot-provide clarification summary should allow returning to the knowledge directory");
+  assert(clarifyExit.primaryLabel.includes("知识目录"), "Cannot-provide clarification must not start another answer loop");
   await clarifyPage.close();
 
   const readyPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -554,6 +560,7 @@ try {
     reviewText: document.querySelector("#childReviewPoints")?.textContent || "",
     formVisible: Boolean(document.querySelector("#childAttemptForm")?.offsetParent),
     primaryVisible: Boolean(document.querySelector("#startNextRoundBtn")?.offsetParent),
+    primaryLabel: document.querySelector("#startNextRoundBtn")?.textContent || "",
     secondaryVisible: Boolean(document.querySelector("#v3SecondaryActionBtn")?.offsetParent),
     visibleActions: [...document.querySelectorAll("button")]
       .filter((button) => Boolean(button.offsetParent))
@@ -568,12 +575,19 @@ try {
   assert(summaryView.reviewText.includes("暂时不能判断"), "Summary should show blocked section");
   assert(summaryView.body.includes("下次"), "Summary should show next action");
   assert(summaryView.formVisible === false, "Summary should not show answer form");
-  assert(summaryView.primaryVisible === false, "Terminal summary should not expose an answer/next-question action");
+  assert(summaryView.primaryVisible === true, "Summary must offer a clear route back to the knowledge directory");
+  assert(summaryView.primaryLabel.includes("知识目录"), "Summary primary action should name the knowledge directory");
   assert(summaryView.secondaryVisible === false, "Terminal summary should not expose a second continuation action");
   assert(
     !summaryView.visibleActions.some((label) => /保存|提交|下一题|继续下一步|再试/.test(label)),
     "Terminal summary should have a finish/no-op contract, not an answer, retry, or next-question command",
   );
+  await summaryPage.locator("#startNextRoundBtn").click();
+  await summaryPage.waitForFunction(() => Boolean(document.querySelector("#view-knowledge-home")?.offsetParent));
+  const summaryExitView = await summaryPage.evaluate(() => ({
+    heading: document.querySelector("[data-knowledge-heading]")?.textContent || "",
+  }));
+  assert(summaryExitView.heading.includes("今天从这里开始"), "Summary exit should open the knowledge home");
   assertChildSafe(summaryView.visibleText, "summary page");
   await summaryPage.close();
 
@@ -964,7 +978,9 @@ try {
   assertNoLegacyV5Payload(finalChildBootstrap, "blocked child bootstrap");
   assertChildSafe(JSON.stringify(finalChildBootstrap), "blocked child bootstrap");
 
-  const operatorFlow = await fetch(`${baseUrl}/api/operator/daily-flow/today`).then((response) => response.json());
+  const operatorFlow = await fetch(`${baseUrl}/api/operator/daily-flow/today`, {
+    headers: { Authorization: `Bearer ${operatorToken}` },
+  }).then((response) => response.json());
   assert(operatorFlow.feature_enabled === true, "Operator evidence should know v5 runtime is enabled");
   assert(operatorFlow.flows.length === 1, "Smoke should create one v5 daily flow");
   assert(operatorFlow.attempts.length === 1, "Smoke should save exactly one attempt");

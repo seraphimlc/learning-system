@@ -200,6 +200,31 @@ def validate_graph(graph: dict[str, Any]) -> dict[str, Any]:
         for unlocked in node.get("unlocks", [])
     }
     node_ids = {str(node.get("id")) for node in nodes}
+    production_contract_required = {
+        "contract_version",
+        "review_status",
+        "scope",
+        "evidence",
+        "question_hints",
+        "error_model",
+        "source_fields",
+    }
+    for node in nodes:
+        node_id = str(node.get("id", ""))
+        contract = node.get("production_contract")
+        if not isinstance(contract, dict):
+            errors.append(f"production_contract node {node_id}: missing or not an object")
+            continue
+        missing = sorted(production_contract_required - set(contract))
+        if missing:
+            errors.append(f"production_contract node {node_id}: missing fields {','.join(missing)}")
+        if contract.get("contract_version") != "node-production-contract.v1":
+            errors.append(f"production_contract node {node_id}: unsupported contract_version")
+        for section in ("scope", "evidence", "question_hints", "error_model"):
+            if not isinstance(contract.get(section), dict):
+                errors.append(f"production_contract node {node_id}: {section} must be an object")
+        if not isinstance(contract.get("source_fields"), list) or not contract.get("source_fields"):
+            errors.append(f"production_contract node {node_id}: source_fields must be a non-empty list")
     for entry in strong_unlock_edges:
         if not isinstance(entry, str) or "→" not in entry:
             errors.append(f"R7d strong_unlock_edges entry not 'from→to': {entry!r}")

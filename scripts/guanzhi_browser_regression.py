@@ -46,6 +46,14 @@ ENGLISH_FEEDBACK = re.compile(
     r"\b(Missing|Add one sentence|Briefly state|The calculation|correct but|"
     r"wrong because|gap|improvement|standard answer)\b"
 )
+GROUP_END_CHILD_STATES = {
+    "loading",
+    "analyzing_pending",
+    "feedback",
+    "feedback_teaching",
+    "blocked",
+    "summary",
+}
 
 
 def _sha256_file(path: Path) -> str:
@@ -67,6 +75,7 @@ def _open_conn(path: Path) -> sqlite3.Connection:
 
 
 def _active_question_assets(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    active_version = db.get_active_question_bank_version(conn)
     rows = conn.execute(
         """
         select qi.*, ac.id as answer_contract_id, ac.contract_version,
@@ -78,8 +87,11 @@ def _active_question_assets(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         join question_items qi
           on qi.id = ac.question_id and qi.item_version = ac.item_version
         where ac.status = 'active'
+          and ac.question_bank_version = ?
+          and qi.item_version = ?
         order by qi.node_id, qi.id
-        """
+        """,
+        (active_version, active_version),
     ).fetchall()
     assets: list[dict[str, Any]] = []
     for row in rows:
@@ -141,6 +153,17 @@ def _active_question_assets(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return assets
 
 
+def _number_line_practice_asset(assets: list[dict[str, Any]]) -> dict[str, Any] | None:
+    candidates = [
+        asset
+        for asset in assets
+        if asset.get("node_id") == "M-G7-NUMBER-LINE"
+        and "practice" in set(asset["usage_policy"]["allowed_purposes"])
+        and "diagnostic" not in set(asset["usage_policy"]["allowed_purposes"])
+    ]
+    return candidates[0] if candidates else None
+
+
 def _clear_learning_state(conn: sqlite3.Connection) -> None:
     with conn:
         conn.execute("pragma foreign_keys = off")
@@ -188,6 +211,14 @@ def _requested_usage_for_target_action(
             "practice_family": usage_policy["default_practice_family"],
             "practice_role": "stabilize_fluency" if "stabilize_fluency" in roles else roles[0],
         }
+    if target_action == "teaching":
+        roles = list(usage_policy["teaching_roles"])
+        if not roles:
+            raise ValueError("teaching audit requires an eligible teaching role")
+        return {
+            "purpose": "teaching",
+            "purpose_role": "targeted_repair" if "targeted_repair" in roles else roles[0],
+        }
     raise ValueError(f"unsupported browser audit target action: {target_action}")
 
 
@@ -197,7 +228,7 @@ def _materialize_question_as_current_step(
     *,
     position: int,
     mini_group: bool = False,
-    mini_group_size: int = 3,
+    mini_group_size: int = 2,
 ) -> dict[str, Any]:
     _clear_learning_state(conn)
     runtime = daily_runtime.DailyLearningRuntime(conn, project_root=PROJECT_ROOT)
@@ -233,7 +264,16 @@ def _materialize_question_as_current_step(
         allowed_purposes = set(asset["usage_policy"]["allowed_purposes"])
         if mini_group and "practice" not in allowed_purposes:
             raise ValueError("mini-group audit requires a practice-eligible question")
-        target_action = "review" if mini_group or "diagnostic" not in allowed_purposes else "diagnostic"
+        if mini_group:
+            target_action = "review"
+        elif "diagnostic" in allowed_purposes:
+            target_action = "diagnostic"
+        elif "practice" in allowed_purposes:
+            target_action = "review"
+        elif "teaching" in allowed_purposes:
+            target_action = "teaching"
+        else:
+            raise ValueError("question has no child-facing usage purpose")
         if target_action == "review" and "practice" not in allowed_purposes:
             raise ValueError("question is not eligible for an answerable audit step")
         selection_reason = {
@@ -396,6 +436,18 @@ def _knowledge_home_browser_audit(page, *, output_dir: Path) -> dict[str, Any]:
     nodes = projection.get("nodes") if isinstance(projection.get("nodes"), list) else []
     if projection_result["status"] != 200:
         issues.append(f"knowledge-map status={projection_result['status']}")
+        page.screenshot(
+            path=str(output_dir / "knowledge-home-unavailable.png"),
+            full_page=False,
+        )
+        return {
+            "status": "NEEDS_FIX",
+            "node_count": len(nodes),
+            "rendered_node_count": 0,
+            "clicked_node_count": 0,
+            "issues": issues,
+            "issue_count": len(issues),
+        }
     if len(nodes) < 50:
         issues.append(f"knowledge-map exposes too few child nodes: {len(nodes)}")
     body_text = page.locator("body").inner_text(timeout=5000)
@@ -406,7 +458,22 @@ def _knowledge_home_browser_audit(page, *, output_dir: Path) -> dict[str, Any]:
         issues.append("knowledge home exposes internal process module")
     page.screenshot(path=str(output_dir / "knowledge-home-initial.png"), full_page=False)
 
-    page.wait_for_selector("[data-map-explorer-toggle]:visible", timeout=15000)
+    try:
+        page.wait_for_selector("[data-map-explorer-toggle]:visible", timeout=15000)
+    except PlaywrightTimeoutError:
+        issues.append("knowledge home did not expose the full-directory control")
+        page.screenshot(
+            path=str(output_dir / "knowledge-home-directory-control-missing.png"),
+            full_page=False,
+        )
+        return {
+            "status": "NEEDS_FIX",
+            "node_count": len(nodes),
+            "rendered_node_count": 0,
+            "clicked_node_count": 0,
+            "issues": issues,
+            "issue_count": len(issues),
+        }
     explorer_button = page.locator("[data-map-explorer-toggle]:visible").first
     if explorer_button.get_attribute("aria-expanded") != "true":
         explorer_button.click()
@@ -502,8 +569,22 @@ def _question_render_browser_audit(
             })"""
         )
         text = " ".join(str(visible.get(key) or "") for key in visible)
+        serialized_payload = json.dumps(payload, ensure_ascii=False)
         _child_safe_text(text, context=f"question-render:{asset['question_id']}", issues=issues)
-        _child_safe_text(json.dumps(payload, ensure_ascii=False), context=f"question-bootstrap:{asset['question_id']}", issues=issues)
+        _child_safe_text(serialized_payload, context=f"question-bootstrap:{asset['question_id']}", issues=issues)
+        for identifier in (
+            asset["question_id"],
+            materialized["flow_id"],
+            materialized["step_id"],
+        ):
+            if identifier and identifier in text:
+                issues.append(
+                    f"{asset['question_id']}: DOM exposes actual internal identifier {identifier}"
+                )
+            if identifier and identifier in serialized_payload:
+                issues.append(
+                    f"{asset['question_id']}: child bootstrap exposes actual internal identifier {identifier}"
+                )
         if state["status"] != 200 or payload.get("child_state") != "current_step":
             issues.append(f"{asset['question_id']}: bootstrap status/state invalid: {state['status']} {payload.get('child_state')}")
         if current.get("topic_label") != visible.get("heading"):
@@ -653,17 +734,13 @@ def _submit_scenarios_browser_audit(
         if index in {1, 10}:
             page.screenshot(path=str(output_dir / f"submit-scenario-{index}-{name}.png"), full_page=False)
 
-    practice_assets = [
-        asset
-        for asset in assets
-        if "practice" in set(asset["usage_policy"]["allowed_purposes"])
-    ]
-    if not practice_assets:
-        issues.append("mini_group_answer: no practice-eligible question available")
+    practice_asset = _number_line_practice_asset(assets)
+    if not practice_asset:
+        issues.append("mini_group_answer: no number-line practice-only question available")
     else:
         materialized = _materialize_question_as_current_step(
             conn,
-            practice_assets[0],
+            practice_asset,
             position=11,
             mini_group=True,
         )
@@ -699,13 +776,157 @@ def _submit_scenarios_browser_audit(
             after_job_count = conn.execute("select count(*) from background_jobs").fetchone()[0]
             if after_job_count != before_job_count:
                 issues.append("mini_group_answer: created a model job before group end")
+            first_step_handle = str(after_step.get("step_handle") or "")
+            group_submit_status = 0
+            group_submit_child_state = ""
+            group_submit_response_seconds = None
+            group_submit_ui_seconds = None
+            if first_step_handle:
+                page.locator("#childAnswerRaw").fill("0")
+                group_submit_started = time.perf_counter()
+                try:
+                    with page.expect_response(
+                        lambda response: (
+                            response.request.method == "POST"
+                            and response.url.endswith("/api/current-step/submit")
+                        ),
+                        timeout=15000,
+                    ) as response_info:
+                        page.locator("#childSubmitBtn").click()
+                    submit_response = response_info.value
+                    group_submit_status = submit_response.status
+                    submit_payload = submit_response.json()
+                    group_submit_child_state = str(submit_payload.get("child_state") or "")
+                    group_submit_response_seconds = round(
+                        time.perf_counter() - group_submit_started,
+                        3,
+                    )
+                    ui_transition_started = time.perf_counter()
+                    page.wait_for_function(
+                        """states => states.includes(window.ChildLearningShell?.currentState?.())""",
+                        arg=sorted(GROUP_END_CHILD_STATES),
+                        timeout=2000,
+                    )
+                    group_submit_ui_seconds = round(
+                        time.perf_counter() - ui_transition_started,
+                        3,
+                    )
+                except PlaywrightTimeoutError:
+                    final_group_state = page.evaluate(
+                        "() => window.ChildLearningShell?.currentState?.()"
+                    )
+                    if final_group_state not in GROUP_END_CHILD_STATES:
+                        issues.append(
+                            "mini_group_answer: group end did not leave current_step after the submit response"
+                        )
+                if group_submit_status and group_submit_status != 200:
+                    issues.append(
+                        f"mini_group_answer: group-end submit returned HTTP {group_submit_status}"
+                    )
+                if (
+                    group_submit_response_seconds is not None
+                    and group_submit_response_seconds > 5
+                ):
+                    issues.append(
+                        "mini_group_answer: group-end submit response exceeded 5s "
+                        f"({group_submit_response_seconds:.3f}s)"
+                    )
+            attempts = conn.execute(
+                """
+                select a.*
+                from attempts a
+                join flow_steps fs on fs.id = a.flow_step_id
+                where fs.flow_id = ?
+                order by a.created_at, a.id
+                """,
+                (materialized["flow_id"],),
+            ).fetchall()
+            group_step_rows = conn.execute(
+                """
+                select question_id from flow_steps
+                where flow_id = ? and question_id is not null
+                order by position, created_at, id
+                """,
+                (materialized["flow_id"],),
+            ).fetchall()
+            group_jobs = conn.execute(
+                """
+                select * from background_jobs
+                where flow_id = ? and job_type = 'group_answer_analysis'
+                order by created_at, id
+                """,
+                (materialized["flow_id"],),
+            ).fetchall()
+            single_jobs = conn.execute(
+                """
+                select count(*) from background_jobs
+                where flow_id = ? and job_type = 'answer_analysis'
+                """,
+                (materialized["flow_id"],),
+            ).fetchone()[0]
+            if len(attempts) != 2:
+                issues.append(
+                    f"mini_group_answer: expected two group attempts, found={len(attempts)}"
+                )
+            if len({str(row["flow_step_id"] or "") for row in attempts}) != 2:
+                issues.append("mini_group_answer: group attempts do not bind two distinct steps")
+            group_question_ids = [str(row["question_id"] or "") for row in group_step_rows]
+            if len(group_question_ids) != 2 or len(set(group_question_ids)) != 2:
+                issues.append("mini_group_answer: group questions are missing or duplicated")
+            else:
+                group_instances = {
+                    str(db.get_question(conn, question_id).get("problem_instance_id") or "")
+                    for question_id in group_question_ids
+                }
+                if "" in group_instances or len(group_instances) != 2:
+                    issues.append("mini_group_answer: group problem instances are duplicated")
+            if len(group_jobs) != 1:
+                issues.append(
+                    f"mini_group_answer: expected one group analysis job, found={len(group_jobs)}"
+                )
+            elif len(db.json_load(group_jobs[0]["payload_json"], {}).get("group_items") or []) != 2:
+                issues.append("mini_group_answer: group analysis payload does not contain two items")
+            if single_jobs:
+                issues.append(
+                    f"mini_group_answer: created {single_jobs} single answer-analysis jobs"
+                )
+            counts_before_reload = (len(attempts), len(group_jobs), single_jobs)
+            page.reload(wait_until="domcontentloaded")
+            counts_after_reload = (
+                conn.execute(
+                    """
+                    select count(*) from attempts a
+                    join flow_steps fs on fs.id = a.flow_step_id
+                    where fs.flow_id = ?
+                    """,
+                    (materialized["flow_id"],),
+                ).fetchone()[0],
+                conn.execute(
+                    "select count(*) from background_jobs where flow_id = ? and job_type = 'group_answer_analysis'",
+                    (materialized["flow_id"],),
+                ).fetchone()[0],
+                conn.execute(
+                    "select count(*) from background_jobs where flow_id = ? and job_type = 'answer_analysis'",
+                    (materialized["flow_id"],),
+                ).fetchone()[0],
+            )
+            if counts_after_reload != counts_before_reload:
+                issues.append("mini_group_answer: refresh duplicated group attempts or jobs")
             observed.append({
                 "scenario": "mini_group_answer",
                 "elapsed_seconds": elapsed,
                 "state": page.evaluate("() => window.ChildLearningShell?.currentState?.()"),
-                "attempt_count": 1 if attempt else 0,
-                "job_delta": after_job_count - before_job_count,
+                "question_ids": group_question_ids,
+                "attempt_count": len(attempts),
+                "job_delta_after_first": after_job_count - before_job_count,
+                "group_job_count": len(group_jobs),
+                "group_job_statuses": [str(row["status"] or "") for row in group_jobs],
+                "single_job_count": single_jobs,
                 "review_status": review_status,
+                "group_submit_http_status": group_submit_status,
+                "group_submit_child_state": group_submit_child_state,
+                "group_submit_response_seconds": group_submit_response_seconds,
+                "group_submit_ui_seconds_after_response": group_submit_ui_seconds,
             })
             page.screenshot(path=str(output_dir / "submit-scenario-mini-group.png"), full_page=False)
     return {
@@ -754,7 +975,11 @@ def main() -> int:
                 print(json.dumps(report, ensure_ascii=False, indent=2))
                 return 1
 
-            with patch.dict(os.environ, V51_BROWSER_ENV, clear=False):
+            with patch.dict(os.environ, V51_BROWSER_ENV, clear=False), patch.object(
+                server.LearningHandler,
+                "_start_v3_flow_processing",
+                lambda _self, _flow_id: None,
+            ):
                 httpd, base_url = server.start_test_server(test_db)
                 try:
                     with sync_playwright() as playwright:

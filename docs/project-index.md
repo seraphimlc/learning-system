@@ -16,7 +16,7 @@ If this file is stale, update it only for the routes affected by the current tas
 | Domain | Domain index | Main roots | Validation |
 |---|---|---|---|
 | Math learning system | `docs/domain-index/math-learning.md` | `learning_system/`, `app/local_learning_system/`, `data/knowledge_graphs/math/`, `data/knowledge_cards/`, `docs/product/ai_native_math_learning_prd_v5.md`, `docs/architecture/daily_learning_runtime_contract_v1.md` | targeted unit tests plus browser smoke when server is running |
-| Codex admin module / content management | `docs/product/admin_console_prd_v1.md`, `docs/architecture/codex_admin_module_technical_plan_v1.md` | `data/knowledge_graphs/math/`, `data/question_banks/v18/`, `data/knowledge_cards/`, `docs/design/specs/2026-07-23-question-bank-production-spec-v18.1.md` | v18 admin/gate tests |
+| Codex admin module / question production | `docs/project-rules/question-production-cleanup-manifest.md`, `.agents/superpowers/specs/2026-08-14-independent-slot-question-production.md` | `data/knowledge_graphs/math/`, `data/knowledge_cards/` | v20 slot-production tests after implementation |
 
 ## Main Entrypoints
 
@@ -33,13 +33,12 @@ Fill with stable routes only:
 - Tests: `tests/test_learning_system.py`, `tests/browser_smoke_learning_system.mjs`
 - Product baseline: `docs/product/ai_native_math_learning_prd_v5.md`
 - Product amendment: `docs/product/ai_native_math_learning_prd_v5_1_dual_knowledge_views_amendment.md`
-- Codex admin module product baseline: `docs/product/admin_console_prd_v1.md`
-- Codex admin module technical baseline: `docs/architecture/codex_admin_module_technical_plan_v1.md`
+- Codex admin module cleanup: `docs/project-rules/question-production-cleanup-manifest.md`
 - Product structure: `docs/product/ai_native_math_learning_product_structure_v5.md`
 - Runtime contract: `docs/architecture/daily_learning_runtime_contract_v1.md`
 - Technical plan: `docs/architecture/technical_plan_v5.md`
 - Implementation blueprint: `docs/architecture/implementation_blueprint_v5.md`
-- v18 question-bank production: `docs/design/specs/2026-07-23-question-bank-production-spec-v18.1.md`
+- v20 question production design: `.agents/superpowers/specs/2026-08-14-independent-slot-question-production.md`
 
 ## Validation Entrypoints
 
@@ -47,7 +46,7 @@ Fill with commands that agents may run locally:
 
 ```bash
 python3 -m unittest tests/test_learning_system.py tests/test_knowledge_views_v51.py -v
-python3 -m unittest tests/test_question_bank_v18_activation_gate.py tests/test_admin_console_inventory.py tests/test_admin_console_production_loop.py tests/test_question_bank_v18_blueprints.py tests/test_admin_full_bank_runner_priority.py -v
+python3 -m unittest tests/test_learning_system.py tests/test_knowledge_views_v51.py -v
 python3 -m learning_system.server --db data/local_learning_system.sqlite --port 8765
 ```
 

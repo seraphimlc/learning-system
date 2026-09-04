@@ -6155,7 +6155,15 @@ def _reviewer_evidence_rejection_reasons(item: dict[str, Any]) -> list[str]:
     reasons: list[str] = []
     if evidence.get("agent_key") != QUESTION_REVIEWER_AGENT_KEY:
         reasons.append("invalid_reviewer_agent_key")
-    for flag in REVIEWER_EVIDENCE_FLAGS:
+    required_flags = REVIEWER_EVIDENCE_FLAGS
+    production_pipeline = evidence.get("provenance_type") == "question_production_pipeline"
+    fixed_answer = str(item.get("answer_format") or "") == "fixed_answer"
+    if production_pipeline and fixed_answer:
+        required_flags = tuple(
+            flag for flag in REVIEWER_EVIDENCE_FLAGS
+            if flag != "process_evidence_required"
+        )
+    for flag in required_flags:
         if evidence.get(flag) is not True:
             reasons.append(f"reviewer_evidence_failed:{flag}")
     return reasons
@@ -6184,6 +6192,9 @@ def _semantic_node_mismatch_reasons(item: dict[str, Any]) -> list[str]:
 
 
 def review_item_quality(item: dict[str, Any]) -> dict[str, Any]:
+    production_evidence = _reviewer_evidence(item)
+    if production_evidence.get("provenance_type") == "question_production_pipeline":
+        return _review_question_production_item(item)
     if _is_v12_external_active_item(item):
         return review_item_quality_for_active_use(item)
     prompt = str(item.get("prompt", ""))
@@ -6250,6 +6261,74 @@ def review_item_quality(item: dict[str, Any]) -> dict[str, Any]:
             "specific_expected_answer_not_rubric_only",
             "problem_family_core_stem_and_problem_instance_traceable",
             "node_alignment_reason_required",
+        ],
+        "rejection_reasons": rejection_reasons,
+    }
+
+
+def _review_question_production_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate items carrying the production pipeline's accepted review evidence.
+
+    Fixed-answer items are validated for answer/control integrity and do not
+    inherit the legacy requirement for written solution steps. Short-answer
+    items still require the process evidence used by semantic assessment.
+    """
+    evidence = _reviewer_evidence(item)
+    source = item.get("source") if isinstance(item.get("source"), dict) else {}
+    production_review = evidence.get("production_review") if isinstance(evidence.get("production_review"), dict) else {}
+    rejection_reasons: list[str] = []
+    fixed_answer = str(item.get("answer_format") or "") == "fixed_answer"
+    if production_review.get("decision") != "accepted":
+        rejection_reasons.append("production_semantic_review_not_accepted")
+    if not item.get("node_id"):
+        rejection_reasons.append("missing_graph_node_binding")
+    if item.get("age_floor") not in {None, INCOMING_GRADE_7_AGE_FLOOR}:
+        rejection_reasons.append("wrong_age_floor")
+    if not str(item.get("prompt") or "").strip():
+        rejection_reasons.append("missing_prompt")
+    if not str(item.get("expected_answer") or "").strip():
+        rejection_reasons.append("missing_specific_expected_answer")
+    if not fixed_answer and len(item.get("solution_steps") or []) < 2:
+        rejection_reasons.append("insufficient_solution_step_evidence")
+    rejection_reasons.extend(_reviewer_evidence_rejection_reasons(item))
+    prompt = str(item.get("prompt") or "")
+    if is_low_signal_surface_prompt(item):
+        rejection_reasons.append("low_signal_or_insulting_mechanical_prompt")
+    if any(pattern in prompt for pattern in CHILD_FACING_META_PATTERNS) or any(
+        pattern.search(prompt) for pattern in CHILD_FACING_META_REGEXES
+    ):
+        rejection_reasons.append("child_facing_generator_meta_language")
+    rejection_reasons.extend(_identity_contract_rejection_reasons(item))
+    approved = not rejection_reasons
+    requires_reasoning = not fixed_answer
+    no_mechanical_drill = evidence.get("not_mechanical_drill") is True and not is_low_signal_surface_prompt(item)
+    return {
+        "contract_version": QUESTION_PRODUCTION_CONTRACT_VERSION,
+        "graph_version": item.get("graph_version") or source.get("graph_version") or "",
+        "question_bank_version": item.get("question_bank_version") or source.get("question_bank_version") or item.get("item_version", ""),
+        "review_status": "approved" if approved else "rejected",
+        "reviewer_agent": QUESTION_REVIEWER_AGENT_KEY,
+        "reviewer_evidence": evidence,
+        "age_floor": INCOMING_GRADE_7_AGE_FLOOR,
+        "cognitive_level": _cognitive_level(str(item.get("kind", "")), str(item.get("variant_level", ""))),
+        "item_purpose": _item_purpose(str(item.get("kind", ""))),
+        "requires_reasoning": requires_reasoning,
+        "has_high_signal_structure": evidence.get("diagnostic_structure") is True,
+        "picture_level_challenge_labels": picture_level_challenge_labels(item),
+        "problem_family_id": item.get("problem_family_id", ""),
+        "core_stem_id": item.get("core_stem_id", ""),
+        "problem_instance_id": item.get("problem_instance_id", ""),
+        "node_alignment": item.get("node_alignment", {}),
+        "identity_basis": _identity_basis_for_review(item),
+        "requires_process_evidence": PROCESS_EVIDENCE_REQUIREMENTS if requires_reasoning else [],
+        "no_mechanical_drill": no_mechanical_drill,
+        "criteria": [
+            "graph_node_bound",
+            "incoming_grade_7_floor",
+            "production_semantic_review_accepted",
+            "fixed_answer_or_process_evidence_contract",
+            "child_prompt_self_contained",
+            "problem_family_core_stem_and_problem_instance_traceable",
         ],
         "rejection_reasons": rejection_reasons,
     }
